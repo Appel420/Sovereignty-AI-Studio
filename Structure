@@ -1,0 +1,25 @@
+sovereignty_ai/
+├── vision/
+│   ├── vim_infer.py          # VisionMamba bones – stripped, quantized
+│   ├── hand_tracker.py       # MediaPipe + smoothing from the mouse
+│   ├── avoidance.py          # Drone evasion → attention dodge
+│   ├── sketch.py             # PhotoSketch contours – draws seams
+│   └── sky_seg.py            # SatViewAR NLOS mask – knows what blocks
+
+├── logic/
+│   ├── resolvent.py          # Resolution FOL – proves when you lie
+│   └── bfs_nav.py            # Mine maze → agent pathfinding under constraint
+
+├── medical/
+│   ├── diag_router.py        # AI-DOC models – offline pneumonia/diabetes
+│   ├── waveform_7.py         # 7.887 Hz peak detect (from first chats)
+│   └── ephemeris.py          # SPICE calc – celestial anchor, birth sync
+
+├── vault/
+│   ├── qresist.py            # RAM wipe on breach – no logs, no traces
+│   ├── blake3.py             # Hash everything – zero metadata
+│   └── argon2.py             # Key gen – one burn, no recovery
+
+├── orchestrator/
+│   ├── go_main.go            # Concurrency spine – spawns modules, kills noise
+│   └── breath.py             # Heartbeat – syncs all layers to 7.887
