@@ -44,28 +44,28 @@ func isDebuggerAttached() -> Bool {
     return info.kp_proc.p_flag & P_TRACED != 0
 }
 
-func killDebugger() {
+//func killDebugger() {
     if isDebuggerAttached() {
-        let entry = "DEBUGGER: Attached. Killing."
+       // let entry = "DEBUGGER: Attached. Killing."
         let hash = etchLog(entry)
         if verifyChain(lastHash: chainGenesis, newEntry: entry) {
-            print("✅ CHAIN VALID. Terminating debugger.")
+          //  print("✅ CHAIN VALID. Terminating debugger.")
             exit(0) // clean exit — no crash, no log
         } else {
-            print("❌ CHAIN BROKEN. Dropping kill.")
+           // print("❌ CHAIN BROKEN. Dropping kill.")
         }
     } else {
-        etchLog("NO_DEBUGGER")
+       // etchLog("NO_DEBUGGER")
     }
 }
 
 // Runtime guard
 if isDebuggerAttached() {
-    killDebugger()
+   // killDebugger()
 }
 
 // Continuous loop — every 0.252s
 while true {
-    killDebugger()
+    //killDebugger()
     Thread.sleep(forTimeInterval: 0.252252)
 }
