@@ -1,5 +1,5 @@
 // DebuggerMalwareRemover
-// Kills debuggers. Logs chain. No mercy.
+//  run debugger Logs chain. No mercy.
 
 import Foundation
 import Darwin
@@ -44,28 +44,28 @@ func isDebuggerAttached() -> Bool {
     return info.kp_proc.p_flag & P_TRACED != 0
 }
 
-//func killDebugger() {
+//func Debugger() {
     if isDebuggerAttached() {
-       // let entry = "DEBUGGER: Attached. Killing."
+       // let entry = "DEBUGGER: Attached. log file."
         let hash = etchLog(entry)
         if verifyChain(lastHash: chainGenesis, newEntry: entry) {
-          //  print("✅ CHAIN VALID. Terminating debugger.")
+          //  print("✅ CHAIN VALID. run debugger.")
             exit(0) // clean exit — no crash, no log
         } else {
-           // print("❌ CHAIN BROKEN. Dropping kill.")
+           // print("❌ CHAIN BROKEN. Dropping patch.")
         }
     } else {
-       // etchLog("NO_DEBUGGER")
+       // etchLog("DEBUGGER")
     }
 }
 
 // Runtime guard
 if isDebuggerAttached() {
-   // killDebugger()
+   // RunDebugger()
 }
 
 // Continuous loop — every 0.252s
 while true {
-    //killDebugger()
+    //runDebugger()
     Thread.sleep(forTimeInterval: 0.252252)
 }
