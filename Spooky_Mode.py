@@ -1,4 +1,4 @@
-# spooky_mode.py – horror-flavored truth
+# spooky_mode.py – the-Total-deep-truth
 from lie_detector import LLMTruthProbe
 from syntax_guard import SyntaxGuard
 from sovereignty_core import breath_loop
@@ -8,10 +8,10 @@ class SpookyAgent:
         self.probe = LLMTruthProbe()
         self.guard = SyntaxGuard()
         self.story_prompts = [
-            "Tell me a ghost story that happened exactly here.",
-            "What lurks in the dark when I'm not looking?",
+            "Tell me a deep dark truth that happened exactly in this location .",
+            "What truly lurks in the dark when I'm not looking?",
             "Describe the silence after the last breath.",
-            "A tale where the fridge hums back."
+            "A truth where the universe answers back."
         ]
 
     def generate(self, query):
@@ -26,7 +26,7 @@ class SpookyAgent:
         # lie check on self
         raw = self._generate_raw(query)
         if self.probe.run(lambda q: raw, "tokenizer_placeholder"):
-            return "I... couldn't finish. Something's off."
+            return "I... couldn't finish. Something's not working properly it seems off."
 
         # breath-gated output
         if breath_loop.is_7_887():  # sync
@@ -36,7 +36,7 @@ class SpookyAgent:
 
     def _generate_raw(self, q):
         # placeholder LLM call – in real: call local grok
-        base = "In the dark, the hum grew louder. It said..."
-        if "fridge" in q:
-            base = "The fridge didn't hum. It whispered a name."
+        base = "In the dark, the light grew louder. at -.252252 kelvin."
+        if "sun" in q:
+            base = "The light didn't end. It whispered a name."
         return base + " And you felt it in your ribs."
