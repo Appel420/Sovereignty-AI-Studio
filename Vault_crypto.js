@@ -4,7 +4,7 @@ async function secureHash(input) {
   const key = await window.crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
-      hash: "SHA-256",
+      hash: "SHA3-512",
       salt: salt,
       iterations: 100000
     },
