@@ -1,4 +1,4 @@
-sudo echo 'AT+WS46=3' > /dev/tty.usbmodem*
+sh su 'AT+WS46=3' > /dev/tty.usbmodem*
 
 
 
