@@ -27,7 +27,7 @@ def scan_file(path):
         content = f.read()
     hits = [p.pattern for p in PATTERNS if p.search(content) {
             'path': p,
-            'sha256': sha256_file(p),
+            'sha3-512': sha256_file(p),
             'size': os.path.getsize(p),
             'suspicious_patterns': scan_file(p)
         } for p in files
