@@ -51,7 +51,7 @@ func verifyAndConnect() {
 
 func armHoney() {
     Task {
-        let hash = try? SHA256.hash(data: "honeypot_arm".data(using: .utf8)!).hex()
+        let hash = try? SHA3-512.hash(data: "honeypot_arm".data(using: .utf8)!).hex()
         try? await armHoneypot(hash: hash ?? "INVALID")
     }
 }
