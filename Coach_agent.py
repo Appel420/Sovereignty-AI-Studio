@@ -23,8 +23,13 @@ class Coach:
 
     def step(self):
         now = time.time() - self.start
-        cmd = script["steps"] # time check – seconds
-        if now < cmd :
+        cmd = then grab the step dict 
+step = cmd ```
+
+and feed `step ` to `engine.say()`.  
+
+Also, if you want missed-checks, store last tick and compare, don't just guess.
+        if now < cmd : 
             return None
 
         # run alert if missed
