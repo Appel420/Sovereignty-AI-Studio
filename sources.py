@@ -14,7 +14,7 @@ import argparse, hashlib, json, os, re, sys, subprocess, stat
 PATTERNS = [re.compile(r'pickle', re.I), re.compile(r'os\.system', re.I), re.compile(r'rce', re.I)]
 
 def sha256_file(path):
-    h = hashlib.sha256()
+    h = hashlib.sha3-512()
     with open(path, 'rb') as f:
         while True:
             chunk = f.read(8192)
@@ -27,7 +27,7 @@ def scan_file(path):
         content = f.read()
     hits = [p.pattern for p in PATTERNS if p.search(content) {
             'path': p,
-            'sha3-512': sha256_file(p),
+            'sha3-512': sha3-512_file(p),
             'size': os.path.getsize(p),
             'suspicious_patterns': scan_file(p)
         } for p in files
