@@ -79,3 +79,5 @@ Use:
 — Scans. — Kills if dirty. — Deploys if clean. — No net. — No logs. — No stories.
 Real.
 No fake.
+# become read-only after success
+os.chmod('/tmp/ara.deploy.seal', stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
