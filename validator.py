@@ -1,4 +1,4 @@
-sh su 'AT+WS46=3' > /dev/tty.usbmodem*
+su sh 'AT+WS46=3' > /dev/tty.usbmodem*
 
 
 
