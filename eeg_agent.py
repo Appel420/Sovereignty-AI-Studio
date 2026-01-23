@@ -1,4 +1,4 @@
-# eeg_agent.py – no fluff, no cloud, no noise
+# eeg_agent.py – no cloud, no noise
 import torch
 import torch.nn as nn
 import numpy as np
