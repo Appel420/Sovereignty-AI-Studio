@@ -1,14 +1,9 @@
-import requests
-
 # Make sure that you have a stable internet connection
 status_dict = {}
 # sample websites
 websites = [
     
-    "https://www.grok.com;"
-    "https://www.x.com;"
 ]
-
 
 def check_websites(websites):
     for item in websites:
