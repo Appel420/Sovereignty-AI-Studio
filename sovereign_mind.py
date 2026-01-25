@@ -51,7 +51,16 @@ def seal_in_hardware(payload: bytes) -> HardwareSealResult:
     Falls back to software hashing if no enclave.
     Never lies about strength.
     """
-
+def seal_in_hardware(payload: bytes) -> HardwareSealResult:
+    ...
+    # Software fallback (explicit)
+    return HardwareSealResult(
+        seal=hashlib.sha3_512(payload).hexdigest(),
+        backend="software",
+        strength="software"
+    )
+    # ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
+    #  🔒 LOCKED: No higher trust claimed. Ever.
     plat = sys.platform.lower()
 
     try:
