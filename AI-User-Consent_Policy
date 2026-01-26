@@ -1,0 +1,47 @@
+User AI Collaboration: Read/Write Consent Policy
+
+1. Step-by-Step Checklist for Users
+	⁃	[ ] AI requests permission before performing any read/write action.
+	⁃	[ ] Review the AI request for details of the intended action.
+	⁃	[ ] Approve or deny the request.
+	⁃	[ ] If approved, the AI performs the specified task.
+	⁃	[ ] Check the activity log for all AI actions taken.
+	⁃	[ ] Revoke AI consent at any time if needed.
+
+2. Policy Document Format
+Purpose
+Ensure AI operates with transparency and user control for all read/write interactions.
+
+Policy Points
+	⁃	Consent Required: AI must obtain explicit user consent before any read/write action.
+	⁃	Authorization Flow: Request → User Review → Approval → AI Action → Logging.
+	⁃	Transparency: All actions must be logged and accessible for user review.
+	⁃	Limited Access: No exploration or modification occurs without explicit approval.
+	⁃	Revocation: Users can revoke consent at any time.
+	⁃	Security: AI actions are sandboxed to protect the system.
+
+Logging Requirements
+	⁃	Record the date and time of each action.
+	⁃	Include the description of the requested and performed action.
+	⁃	Note the consent status provided by the user.
+
+3. User Guide: How to Collaborate with AI
+Step 1: Await AI Request
+The AI will prompt you before attempting to read or write any files.
+
+Step 2: Review the Request
+Check the action details to understand what the AI intends to do.
+
+Step 3: Approve or Deny
+Provide explicit approval to proceed or deny to halt the action.
+
+Step 4: Monitor Activity Logs
+After approval, AI actions will be logged with timestamps and descriptions.
+
+Step 5: Revoke Consent if Needed
+At any time, you can revoke AI access, and it will immediately stop its actions.
+
+Step 6: Example Interaction
+AI: "I can organize your project folders. Do you allow me to read/write files in the Project directory?"
+User: "Yes."
+AI: *Action performed and logged.*
