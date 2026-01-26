@@ -1,141 +1,65 @@
-// FORTRESS-PROTOCOL_7.887 v1.0
-// PUBLIC DOMAIN – 0BSD
+…out.write_all(salt.as_bytes())?;
+out.flush()?;
+Ok(())
+}
 
-use blake3::Hasher;
-use argon2::{
-    Argon2, PasswordHasher, password_hash::{SaltString, PasswordHash}
-};
-use qresist::LatticeKeypair;
-use tzng::{compress, decompress};
-use std::env;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
-use rand::RngCore;
+pub fn parse_fortress(path: &str) -> Result<(Vec, Vec, SaltString), Box> {
+let mut file = File::open(path)?;
+let mut buffer = Vec::new();
+file.read_to_end(&mut buffer)?;
+let as_str = String::from_utf8(buffer.clone()).map_err(|_| “garbage chars”)?;  
+let parts: Vec<&str> = as_str.split(‘|’).collect();  
 
-// ====================
-// 1. Salt
-// ====================
-fn gen_salt() -> SaltString {
-    let mut bytes = ;
-    rand::thread_rng().fill_bytes(&mut bytes);
-    SaltString::from_b64(&bytes).unwrap()  // base64-safe
+if parts.len() != 3 {  
+    return Err(“format broke”.into());  
+}  
+
+let sealed = parts[0].as_bytes();  
+let checksum = hex::decode(parts[1 2])?;  
+
+Ok((sealed.to_vec(), checksum, salt))  
+}
 }
 
 // ====================
-// 2. Hash
+// 5. Main Operations
 // ====================
-fn slow_hash(password: &str, salt: &SaltString) -> Result<String, Box<dyn std::error::Error>> {
-    let argon2 = Argon2::new(
-        argon2::Algorithm::Argon2id,
-        argon2::Version::V0x13,
-        argon2::Params::default()
-    );
-    let hash = argon2.hash_password(password.as_bytes(), salt)?.to_string();
-    Ok(hash)
+use env_helpers::get_fortress_salt;
+use crypto::;
+use codec::;
+use io_helpers::{read_file, write_fortress_file, parse_fortress};
+
+pub fn fortress_lock(src: &str, pass: &str, out: &str) -> Result<(), Box> {
+let data = read_file(src)?;
+let salt = gen_salt();  
+let pwd_hash = slow_hash(pass, &salt)?;  
+let env_salt = get_fortress_salt()?;
 }
+```  
+Let’s define a function to generate a key using the checksum of a formatted string containing the password hash and the environment salt.
 
-// ====================
-// 3. Checksum
-// ====================
-fn checksum(data: & ) -> Vec<u8> {
-    Hasher::new().update(data).finalize().as_bytes().to_vec()
-}
+Next, we compress and hide the data using a compression function.
 
-// ====================
-// 4. Lattice seal / open
-// ====================
-fn seal_data(data: & , key: & ) -> Result<Vec<u8>, &'static str> {
-    let kp = LatticeKeypair::generate();
-    kp.seal(key, data)
-}
+Then, we seal the compressed data using a key.
 
-fn open_data(ciphertext: & , shared_key: & ) -> Result<Vec<u8>, &'static str> {
-    let kp = LatticeKeypair::from_public(ciphertext);
-    kp.open(shared_key)
-}
+We calculate the checksum of the sealed data.
 
-// ====================
-// 5. Compress / hide
-// ====================
-fn compress_and_hide(data: & ) -> Vec<u8> {
-    compress(data, 9)
-}
+Finally, we write the sealed data, its checksum, and the environment salt to a fortress file.
 
-fn unhide(data: & ) -> Vec<u8> {
-    decompress(data).unwrap_or_default()
-}
+Now, let’s define a function to open a fortress file.
 
-// ====================
-// 6. LOCK — write sealed
-// ====================
-pub fn fortress_lock(path: &str, password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = File::open(path)?;
-    let mut data = Vec::new();
-    file.read_to_end(&mut data)?;
+This function takes the path to the fortress file and the password as input.
 
-    let salt = gen_salt();
-    let hash = slow_hash(password, &salt)?;
+It parses the fortress file to retrieve the sealed data, its checksum, and the environment salt.
 
-    let env_salt = env::var("FORTRESS_SALT").map_err(|_| "Missing FORTRESS_SALT")?;
-    let key = checksum(format!("{}{}", hash, env_salt).as_bytes());
+It calculates the password hash using a slow hash function and retrieves the environment salt from the fortress file.
 
-    let compressed = compress_and_hide(&data);
-    let sealed = seal_data(&compressed, &key)?;
-    let chk = checksum(&sealed);
+It generates a key using the checksum of the formatted string containing the password hash and the environment salt.
 
-    let mut out = OpenOptions::new()
-        .create(true).write(true).truncate(true)
-        .open(format!("{}.fortress", path))?;
+It opens the sealed data using the generated key.
 
-    // format: sealed|checksum|salt
-    out.write_all(&sealed)?;
-    out.write_all(b"|")?;
-    out.write_all(&chk)?;
-    out.write_all(b"|")?;
-    out.write_all(salt.as_bytes())?;  // SaltString is already UTF-8
-    out.flush()?;
-    
-    Ok(())
-}
+It calculates the checksum of the opened data and compares it with the stored checksum.
 
-// ====================
-// 7. OPEN — read & verify
-// ====================
-pub fn fortress_open(path: &str, password: &str) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    let mut file = File::open(path)?;
-    let mut contents = Vec::new();
-    file.read_to_end(&mut contents)?;
+If the checksums match, it unhashes the data.
 
-    let parts: Vec<& > = contents.split(|&b| b == b'|').collect();
-    if parts.len() != 3 {
-        return Err("Invalid fortress file: missing delimiters".into());
-    }
-
-    let sealed = &parts[0];
-    let stored_checksum = &parts[1 2];
-
-    let salt = SaltString::from_b64(salt_bytes)
-        .map_err(|_| "Invalid base64 salt")?;
-
-    let hash = slow_hash(password, &salt)?;
-
-    let env_salt = env::var("FORTRESS_SALT").map_err(|_| "Missing FORTRESS_SALT")?;
-    let key = checksum(format!("{}{}", hash, env_salt).as_bytes());
-
-    let decrypted = open_data(sealed, &key)?;
-
-    let computed_checksum = checksum(sealed);
-    if computed_checksum != stored_checksum {
-        return Err("Integrity failed — tampering detected".into());
-    }
-
-    let decompressed = unhide(&decrypted);
-    Ok(decompressed)
-}
-
-// ====================
-// 8. Public API
-// ====================
-pub mod public {
-    pub use super::{fortress_lock, fortress_open};
-}
+If the checksums don’t match, it returns an error indicating a checksum mismatch.
