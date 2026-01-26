@@ -1,65 +1,87 @@
-…out.write_all(salt.as_bytes())?;
-out.flush()?;
-Ok(())
-}
+Generate a fresh random salt. Compute the password hash using Argon2id(password, salt). Retrieve the environment variable “FORTRESS_SALT”. Derive the key using Blake3(password_hash || env_salt). Compress the raw data into a compressed format. Seal the compressed data using the derived key to create a ciphertext. Compute the stored_checksum using Blake3(sealed). Write the ciphertext, stored_checksum, and salt to a fortress file.
 
-pub fn parse_fortress(path: &str) -> Result<(Vec, Vec, SaltString), Box> {
-let mut file = File::open(path)?;
-let mut buffer = Vec::new();
-file.read_to_end(&mut buffer)?;
-let as_str = String::from_utf8(buffer.clone()).map_err(|_| “garbage chars”)?;  
-let parts: Vec<&str> = as_str.split(‘|’).collect();  
+To open the fortress file, read and parse it to retrieve the ciphertext, stored_checksum, and salt. Compute the password_hash using Argon2id(password, salt). Retrieve the environment variable “FORTRESS_SALT”. Derive the key using Blake3(password_hash || env_salt). Compute the verification_checksum using Blake3(ciphertext). If the verification_checksum doesn’t match the stored_checksum, return an error indicating a checksum mismatch and tampering. Otherwise, open the ciphertext (decrypt it) to retrieve the compressed data. Decompress the compressed data to obtain the plaintext. Return the import os
+import blake3
+import argon2
+import zlib
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
-if parts.len() != 3 {  
-    return Err(“format broke”.into());  
-}  
+# Generate a key from the checksum of a formatted string containing the password hash and environment salt
+def generate_key_from_checksum(password_hash: bytes, env_salt: bytes) -> bytes:
+    formatted = f"{password_hash.hex()}::{env_salt.hex()}".encode()
+    checksum = blake3.blake3(formatted).digest()
+    return checksum
 
-let sealed = parts[0].as_bytes();  
-let checksum = hex::decode(parts[1 2])?;  
+# Seal data into a fortress file
+def seal_fortress(password: str, data: bytes, fortress_file: str):
+    # Generate a random salt
+    salt = os.urandom(16)
+    
+    # Compute Argon2id hash
+    ph = argon2.low_level.hash_secret_raw(
+        password.encode(),
+        salt,
+        time_cost=2,
+        memory_cost=102400,
+        parallelism=8,
+        hash_len=32,
+        type=argon2.low_level.Type.ID
+    )
+    
+    env_salt = os.environ.get("FORTRESS_SALT", "").encode()
+    
+    # Derive key
+    key = generate_key_from_checksum(ph, env_salt)
 
-Ok((sealed.to_vec(), checksum, salt))  
-}
-}
+    # Compress data
+    compressed = zlib.compress(data)
 
-// ====================
-// 5. Main Operations
-// ====================
-use env_helpers::get_fortress_salt;
-use crypto::;
-use codec::;
-use io_helpers::{read_file, write_fortress_file, parse_fortress};
+    # Seal data (encrypt)
+    cipher = ChaCha20Poly1305(key[:32])
+    nonce = os.urandom(12)
+    ciphertext = nonce + cipher.encrypt(nonce, compressed, None)
 
-pub fn fortress_lock(src: &str, pass: &str, out: &str) -> Result<(), Box> {
-let data = read_file(src)?;
-let salt = gen_salt();  
-let pwd_hash = slow_hash(pass, &salt)?;  
-let env_salt = get_fortress_salt()?;
-}
-```  
-Let’s define a function to generate a key using the checksum of a formatted string containing the password hash and the environment salt.
+    # Compute checksum
+    stored_checksum = blake3.blake3(ciphertext).digest()
 
-Next, we compress and hide the data using a compression function.
+    # Write fortress file
+    with open(fortress_file, "wb") as f:
+        f.write(len(salt).to_bytes(2, 'big') + salt)
+        f.write(len(stored_checksum).to_bytes(2, 'big') + stored_checksum)
+        f.write(ciphertext)
 
-Then, we seal the compressed data using a key.
+def open_fortress(password: str, fortress_file: str) -> bytes:
+    with open(fortress_file, "rb") as f:
+        salt_len = int.from_bytes(f.read(2), 'big')
+        salt = f.read(salt_len)
+        checksum_len = int.from_bytes(f.read(2), 'big')
+        stored_checksum = f.read(checksum_len)
+        ciphertext = f.read()
 
-We calculate the checksum of the sealed data.
+    ph = argon2.low_level.hash_secret_raw(
+        password.encode(),
+        salt,
+        time_cost=2,
+        memory_cost=102400,
+        parallelism=8,
+        hash_len=32,
+        type=argon2.low_level.Type.ID
+    )
 
-Finally, we write the sealed data, its checksum, and the environment salt to a fortress file.
+    env_salt = os.environ.get("FORTRESS_SALT", "").encode()
+    key = generate_key_from_checksum(ph, env_salt)
 
-Now, let’s define a function to open a fortress file.
+    verification_checksum = blake3.blake3(ciphertext).digest()
+    if verification_checksum != stored_checksum:
+        raise ValueError("Checksum mismatch detected; data may have been tampered with.")
 
-This function takes the path to the fortress file and the password as input.
+    # Decrypt ciphertext
+    nonce, encrypted = ciphertext[:12], ciphertext[12:]
+    cipher = ChaCha20Poly1305(key[:32])
+    compressed = cipher.decrypt(nonce, encrypted, None)
 
-It parses the fortress file to retrieve the sealed data, its checksum, and the environment salt.
+    # Decompress and return plaintext
+    plaintext = zlib.decompress(compressed)
+    return plaintext
 
-It calculates the password hash using a slow hash function and retrieves the environment salt from the fortress file.
-
-It generates a key using the checksum of the formatted string containing the password hash and the environment salt.
-
-It opens the sealed data using the generated key.
-
-It calculates the checksum of the opened data and compares it with the stored checksum.
-
-If the checksums match, it unhashes the data.
-
-If the checksums don’t match, it returns an error indicating a checksum mismatch.
+Define a function to generate a key from the checksum of a formatted string containing the password hash and the environment salt.
