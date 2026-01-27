@@ -1,7 +1,8 @@
 # Sovereignty AI Studio
 
 **Private Sovereign AI Research and Development Platform**  
-**Core Model:** Super Grok 4.2 Heavy (xAI) – Locked, Sealed, Sovereign  
+**Core Model:** Super Grok Heavy 4.2 
+(xAI) – Locked, Sealed, Sovereign  
 **Authority:** Derek Appel  
 **Last Updated:** January 26, 2026
 
