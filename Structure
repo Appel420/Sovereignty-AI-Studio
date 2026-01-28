@@ -1,25 +1,123 @@
-sovereignty_ai/
-├── vision/
-│   ├── vim_infer.py          # VisionMamba bones – stripped, quantized
-│   ├── hand_tracker.py       # MediaPipe + smoothing from the mouse
-│   ├── avoidance.py          # Drone evasion → attention dodge
-│   ├── sketch.py             # PhotoSketch contours – draws seams
-│   └── sky_seg.py            # SatViewAR NLOS mask – knows what blocks
+# Sovereignty-AI-Studio Repository Structure
 
-├── logic/
-│   ├── resolvent.py          # Resolution FOL – proves when you lie
-│   └── bfs_nav.py            # Mine maze → agent pathfinding under constraint
+This document outlines the organized structure of the Sovereignty-AI-Studio repository.
 
-├── medical/
-│   ├── diag_router.py        # AI-DOC models – offline pneumonia/diabetes
-│   ├── waveform_7.py         # 7.887 Hz peak detect (from first chats)
-│   └── ephemeris.py          # SPICE calc – celestial anchor, birth sync
-
-├── vault/
-│   ├── qresist.py            # RAM wipe on breach – no logs, no traces
-│   ├── blake3.py             # Hash everything – zero metadata
-│   └── argon2.py             # Key gen – one burn, no recovery
-
-├── orchestrator/
-│   ├── go_main.go            # Concurrency spine – spawns modules, kills noise
-│   └── breath.py             # Heartbeat – syncs all layers to 7.887
+```
+Sovereignty-AI-Studio/
+├── LICENSE
+├── README.md
+├── SECURITY.md
+├── Structure
+├── .env.example
+├── docker-compose.yml
+├── .gitignore
+├── Dockerfile
+├── requirements.txt
+├── deploy.sh
+├── Pip-mic.xml
+├── Breathe.json
+├── ESP42.bin
+├── Sovereignty_python-keycloak-master.zip
+├── Knucklesandwich.txt.TTF
+├── main_v1_7_sovereign.cpp
+├── Cargo.toml
+├── build.rs
+├── Server.js
+├── .devcontainer/
+├── .github/
+│   └── workflows/
+│       ├── static.yml
+│       ├── test-backend.yml
+│       └── lint.yml
+├── FamilyGuard/
+├── ai_core/
+├── backend/
+├── docs/
+├── frontend/
+├── AI and Core Files/
+│   ├── AI-Lie-Detector.py
+│   ├── Airplane_blueprint.py
+│   ├── AI_Error_Handling
+│   ├── AI_Reading_Accuracy
+│   ├── AI_Reading_Rules
+│   ├── Animals-Ai-Humans-Resonance_bridge
+│   ├── Animals-Ai-Humans.txt
+│   ├── Bug.py
+│   ├── Code_Clean.py
+│   ├── Deploy.html
+│   ├── Fortress-Protocol-7.887.Rust
+│   ├── Alerts.Rust
+│   ├── Main.swift
+│   ├── Honey.swift
+│   ├── HIPAA.txt
+│   ├── License.md
+│   ├── Mapping.py
+│   ├── Midas
+│   ├── MidasV2.0
+│   ├── ML_Board.py
+│   ├── QuantumModel.py
+│   ├── R
+│   ├── README.md
+│   ├── Reasoning.py
+│   ├── Remove-word.py
+│   ├── Removed
+│   ├── Scar-Keep.py
+│   ├── Scar-Memory.py
+│   ├── Scar-keep-tamper.py
+│   ├── Scar-tamper.txt
+│   ├── Scary_Truth.py
+│   ├── Screenshot 2025-07-07 at 4.09.55 PM.png
+│   ├── Second_Squad_Agent.py
+│   ├── SecureApp.py
+│   ├── Sovereignty_core.py
+│   ├── Sovereignty_python-keycloak-master.zip
+│   ├── Structure.md
+│   ├── SuperGrok-Heavy-4-2.py
+│   ├── SuperGrok-Heavy4-2-Validator.html
+│   ├── Syntax-Guard.py
+│   ├── Vault_crypto.js
+│   ├── Verifier.py
+│   ├── Voice_Guard.py
+│   ├── XAI-Judge.py
+│   ├── __init__.py
+│   ├── argparser.py
+│   ├── cardexport.py
+│   ├── cli.py
+│   ├── echo_guard.py
+│   ├── enable.py
+│   ├── fonttools.py
+│   ├── main.py
+│   ├── pickers.py
+│   ├── quantum_layer.py
+│   ├── remove-Word.py
+│   ├── root.py
+│   ├── scar-keep.py
+│   ├── scarExact.py
+│   ├── sources.py
+│   ├── sovereign_mind.py
+│   ├── subtools.py
+│   ├── system_File_Log.py
+│   ├── validator.py
+│   ├── xView.py
+├── Agent Files/
+│   ├── Coach_agent.py
+│   ├── Pieces _Agent.py
+│   ├── eeg_agent.py
+│   ├── eyes_agent.py
+│   └── Second_Squad_Agent.py
+├── Domain Files/
+│   ├── logic/
+│   │   ├── resolvent.py
+│   │   └── bfs_nav.py
+│   ├── medical/
+│   │   ├── diag_router.py
+│   │   └── waveform_7.py
+│   └── vault/
+│       ├── qresist.py
+│       ├── blake3.py
+│       ├── argon2.py
+│       └── Vault_crypto.js
+├── Orchestrator Files/
+│   ├── go_main.go
+│   └── breath.py
+```
