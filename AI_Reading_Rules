@@ -1,0 +1,202 @@
+AI Reading Accuracy Tutorial with Screenshots, Project Structure, and Debugging Checklist
+
+---
+
+Step 1: Text Segmentation with Visuals
+
+Illustration:
++-------------------------+
+| Input Text              |
++-------------------------+
+         ↓
++-------------------------+
+| Paragraphs              |
++-------------------------+
+         ↓
++-------------------------+
+| Sentences               |
++-------------------------+
+         ↓
++-------------------------+
+| Words                   |
++-------------------------+
+         ↓
++-------------------------+
+| Letters                 |
++-------------------------+
+
+Mock Screenshot:
+Paragraph 1: "Hello world!"
+ └─ Sentence 1: "Hello world!"
+    └─ Words: Hello | world!
+       └─ Letters: H e l l o | w o r l d !
+
+Code:
+import re
+
+def segment_text(text):
+    paragraphs = text.strip().split('\n\n')
+    sentences = [re.split(r'(?<=[.!?]) +', p) for p in paragraphs]
+    words = [[s.split() for s in para] for para in sentences]
+    letters = [[[list(word) for word in sentence] for sentence in para] for para in words]
+    return paragraphs, sentences, words, letters
+
+---
+
+Step 2: Layered Parsing Visualization
+
+Mock Diagram:
+Letters → Syllables → Words → Sentences → Paragraphs
+
+Sample Screenshot Simulation:
+Processing letters in word: "Hello"
+[H] [e] [l] [l] [o]
+
+Code:
+def layered_parsing(words):
+    for para in words:
+        for sentence in para:
+            for word in sentence:
+                for letter in word:
+                    print(letter)  # Process each letter
+
+---
+
+Step 3: Verification and Output
+
+Mock Screenshot of Verification Log:
+Paragraph 1 → 11 letters → 2 words → 1 sentence → Verified
+Paragraph 2 → 9 letters → 2 words → 1 sentence → Verified
+
+Code:
+def verify_text(paragraphs, sentences):
+    for i, para in enumerate(paragraphs):
+        word_count = sum(len(s.split()) for s in sentences[i])
+        char_count = sum(len(s) for s in para)
+        print(f"Paragraph {i+1}: {char_count} letters, {word_count} words")
+
+---
+
+Sample Project Folder Structure
+ai_text_reader/
+│
+├── main.py               # Entry point running the layered reading
+├── segmenter.py          # Handles segmentation of text
+├── parser.py             # Layered parsing logic
+├── verifier.py           # Cross-check counts and paragraphs
+├── error_handler.py      # Logs and reprocesses errors
+├── tests/
+│   ├── test_samples.txt  # Input samples
+│   └── test_reader.py    # Unit tests
+├── logs/
+│   └── verification.log  # Output logs of verification
+└── screenshots/
+    └── step_visuals.png  # Mock or real screenshots of processing
+
+---
+
+Debugging Checklist for Layered Parsing
+
+1. Segmentation Issues
+	⁃	[ ] Are paragraphs split correctly on \n\n?
+	⁃	[ ] Are sentences correctly split using (?<=[.!?]) +?
+
+2. Letter-Level Parsing
+	⁃	[ ] Are all punctuation marks captured?
+	⁃	[ ] Are spaces counted or logged as skips?
+
+3. Verification Errors
+	⁃	[ ] Do letter/word/sentence counts match expected?
+	⁃	[ ] Are logs showing every paragraph as Verified?
+
+4. Error Handling Loop
+	⁃	[ ] Are unreadable characters (\ufffd) detected?
+	⁃	[ ] Are flagged errors reprocessed before final verification?
+
+5. Output Logging
+	⁃	[ ] Does every paragraph log word/letter counts?
+	⁃	[ ] Are verification logs stored in /logs/verification.log?
+
+---
+
+By combining visual diagrams, mock screenshots, a project folder structure, and a debugging checklist, this manual ensures developers can build an AI reader that thoroughly evaluates every letter, word, punctuation mark, and paragraph with zero shortcuts.
+AI Reading Accuracy One-Page Landscape Visual Reference
+
+---
+
+Parsing Flow with Annotated Diagrams
+
+1. Syllable Splitting
+Word → Split Vowel Clusters → Syllables
+
+Hello  ──▶  Hel | lo
+World  ──▶  World
+Word	Syllables	Example Output
+Hello	Hel-lo	['Hel','lo']
+World	World	['World']
+---
+
+2. Letter Parsing
+Word → Characters (letters + punctuation)
+
+Hello ──▶ H → e → l → l → o
+World! ──▶ W → o → r → l → d → !
+Word	Letters	Example Output
+Hello	H e l l o	['H','e','l','l','o']
+World!	W o r l d !	['W','o','r','l','d','!']
+---
+
+3. Word Parsing
+Sentence → Split on Spaces → Words
+
+"Hello world!" ──▶ Hello | world!
+Sentence	Words	Example Output	
+Hello world!	Hello	world!	['Hello','world!']
+---
+
+4. Sentence Parsing
+Paragraph → Split at Punctuation Marks → Sentences
+
+"Hello world! Hi again." ──▶ "Hello world!" | "Hi again."
+Paragraph	Sentences	Example Output	
+Hello world! Hi again.	Hello world!	Hi again.	['Hello world!','Hi again.']
+---
+
+5. Paragraph Parsing
+Text → Split on Double Newlines → Paragraphs
+
+"Hello world!\n\nHi again." ──▶ [Paragraph 1, Paragraph 2]
+Input Text	Paragraphs	Example Output
+Hello world!\n\nHi again.	2	['Hello world!','Hi again.']
+---
+
+Debugging Tables by Error Type
+
+Segmentation Errors
+Sample Input	Error Log	Corrected Output
+Hello world! Hi again	Missing split after "!"	["Hello world!","Hi again"]
+Letter/Syllable Errors
+Sample Input	Error Log	Corrected Output
+world!	Warning: 6 letters, 2 syllables	6 letters, 1 syllable
+Verification Errors
+Sample Input	Error Log	Corrected Output
+Paragraph 2 text	Word count mismatch (expected 2, got 1)	2 words counted correctly
+Unreadable Character Errors
+Sample Input	Error Log	Corrected Output
+Hi \\ufffd again	Unreadable character '\\ufffd' detected	Hi again
+---
+
+Quick Verification Matrix
+Step	Check	Example Output
+Paragraph Split	\n\n creates correct segments	2 paragraphs
+Sentence Split	Punctuation split applied	2 sentences
+Word Count	Spaces handled correctly	4 words
+Letters & Syllables	Counts accurate	11 letters / 3 syllables
+Logs	/logs/verification.log updated?	Paragraphs Verified
+---
+
+This landscape-style one-page poster includes:
+	1.	Individual flow diagrams for each parsing step.
+	2.	Tables with Example Output for clear reference.
+	3.	Dedicated debug tables for every error type with sample input, logs, and corrected output.
+	4.	Quick verification matrix for troubleshooting.
