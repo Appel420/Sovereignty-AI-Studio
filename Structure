@@ -1,6 +1,6 @@
 # Sovereignty-AI-Studio Repository Structure
 
-This document outlines the organized structure of the Sovereignty-AI-Studio repository.
+This document outlines the organized and cleaned structure of the Sovereignty-AI-Studio repository.
 
 ```
 Sovereignty-AI-Studio/
@@ -36,31 +36,28 @@ Sovereignty-AI-Studio/
 ├── frontend/
 ├── AI and Core Files/
 │   ├── AI-Lie-Detector.py
-│   ├── Airplane_blueprint.py
 │   ├── AI_Error_Handling
 │   ├── AI_Reading_Accuracy
 │   ├── AI_Reading_Rules
+│   ├── Airplane_blueprint.py
+│   ├── Alerts.Rust
 │   ├── Animals-Ai-Humans-Resonance_bridge
 │   ├── Animals-Ai-Humans.txt
 │   ├── Bug.py
 │   ├── Code_Clean.py
 │   ├── Deploy.html
 │   ├── Fortress-Protocol-7.887.Rust
-│   ├── Alerts.Rust
-│   ├── Main.swift
-│   ├── Honey.swift
 │   ├── HIPAA.txt
+│   ├── Honey.swift
 │   ├── License.md
+│   ├── Main.swift
 │   ├── Mapping.py
 │   ├── Midas
 │   ├── MidasV2.0
 │   ├── ML_Board.py
-│   ├── QuantumModel.py
-│   ├── R
 │   ├── README.md
 │   ├── Reasoning.py
 │   ├── Remove-word.py
-│   ├── Removed
 │   ├── Scar-Keep.py
 │   ├── Scar-Memory.py
 │   ├── Scar-keep-tamper.py
@@ -70,9 +67,6 @@ Sovereignty-AI-Studio/
 │   ├── Second_Squad_Agent.py
 │   ├── SecureApp.py
 │   ├── Sovereignty_core.py
-│   ├── Sovereignty_python-keycloak-master.zip
-│   ├── Structure.md
-│   ├── SuperGrok-Heavy-4-2.py
 │   ├── SuperGrok-Heavy4-2-Validator.html
 │   ├── Syntax-Guard.py
 │   ├── Vault_crypto.js
@@ -89,9 +83,7 @@ Sovereignty-AI-Studio/
 │   ├── main.py
 │   ├── pickers.py
 │   ├── quantum_layer.py
-│   ├── remove-Word.py
 │   ├── root.py
-│   ├── scar-keep.py
 │   ├── scarExact.py
 │   ├── sources.py
 │   ├── sovereign_mind.py
@@ -101,23 +93,23 @@ Sovereignty-AI-Studio/
 │   ├── xView.py
 ├── Agent Files/
 │   ├── Coach_agent.py
-│   ├── Pieces _Agent.py
+│   ├── Pieces_Agent.py
 │   ├── eeg_agent.py
 │   ├── eyes_agent.py
 │   └── Second_Squad_Agent.py
 ├── Domain Files/
 │   ├── logic/
-│   │   ├── resolvent.py
-│   │   └── bfs_nav.py
+│   │   ├── bfs_nav.py
+│   │   └── resolvent.py
 │   ├── medical/
 │   │   ├── diag_router.py
 │   │   └── waveform_7.py
 │   └── vault/
-│       ├── qresist.py
-│       ├── blake3.py
 │       ├── argon2.py
+│       ├── blake3.py
+│       ├── qresist.py
 │       └── Vault_crypto.js
 ├── Orchestrator Files/
-│   ├── go_main.go
-│   └── breath.py
+│   ├── breath.py
+│   └── go_main.go
 ```
