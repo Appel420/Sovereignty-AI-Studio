@@ -12,17 +12,18 @@ class QuantumLayer(nn.Module):
     Args:
         n_qubits (int): Number of qubits in the quantum circuit.
         n_layers (int): Number of layers in the quantum circuit.
-        device_name (str): Quantum device to use (default: "default.qubit").
+        device_name (str): Quantum device to use (default: "lightning.qubit" for Metal).
     """
 
-    def __init__(self, n_qubits, n_layers, device_name="default.qubit"):
-        super().__init__()
-        self.n_qubits = n_qubits
-        self.n_layers = n_layers
-        self.device_name = device_name
+    def init(self, nqubits, nlayers, device_name="lightning.qubit"):
+        super().init()
+        self.nqubits = nqubits
+        self.nlayers = nlayers
+        self.devicename = devicename
 
-        # Create quantum device
-        dev = qml.device(device_name, wires=n_qubits)
+        # Use Metal-compatible device if on macOS with MPS/Metal
+        # "lightning.qubit" is optimized for CPU/GPU (Metal via Torch MPS)
+        dev = qml.device(devicename, wires=nqubits)
 
         # Define quantum circuit
         @qml.qnode(dev, interface="torch")
@@ -45,32 +46,30 @@ class QuantumLayer(nn.Module):
             return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
 
         # Define weight shapes for the quantum circuit
-        weight_shapes = {"weights": (n_layers, n_qubits)}
+        weightshapes = {"weights": (nlayers, n_qubits)}
 
         # Create TorchLayer for integration with PyTorch
-        self.q_layer = qml.qnn.TorchLayer(circuit, weight_shapes)
+        self.qlayer = qml.qnn.TorchLayer(circuit, weightshapes)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the quantum layer.
 
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, n_qubits) or (n_qubits,)
+            x (torch.Tensor): Input tensor of shape (batchsize, nqubits) or (n_qubits,)
 
         Returns:
-            torch.Tensor: Output tensor of shape (batch_size, n_qubits)
+            torch.Tensor: Output tensor of shape (batchsize, nqubits)
         """
-        # Ensure x is 2D (batch_size, n_qubits)
+        # Ensure x is 2D (batchsize, nqubits)
         if x.dim() == 1:
             x = x.unsqueeze(0)
 
-        batch_size = x.shape[0]
-
-        # Process each sample in the batch
+        # Compute output through the quantum layer
         outputs = [self.q_layer(sample) for sample in x]
         return torch.stack(outputs)
 
-    def get_circuit_info(self) -> dict:
+    def getcircuitinfo(self) -> dict:
         """
         Get information about the quantum circuit.
 
@@ -78,8 +77,8 @@ class QuantumLayer(nn.Module):
             dict: Circuit information including number of qubits and layers.
         """
         return {
-            "n_qubits": self.n_qubits,
-            "n_layers": self.n_layers,
+            "nqubits": self.nqubits,
+            "nlayers": self.nlayers,
             "device": self.device_name,
-            "total_parameters": self.n_layers * self.n_qubits,
+            "totalparameters": self.nlayers * self.n_qubits,
         }
