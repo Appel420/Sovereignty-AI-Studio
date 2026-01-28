@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import os
+from scipy.signal import butter, filtfilt
 
 # Minimal config – runs on Pi
 FS = 128.0  # 128 Hz sample
@@ -30,19 +31,19 @@ class TinyEEGNet(nn.Module):
         return self.fc(x).softmax(-1)
 
 # Load frozen
-model_path = "eegnet_sync.pt"
+model_path = “eegnet_sync.pt”
 if not os.path.exists(model_path):
-    raise FileNotFoundError("Weights missing – quantize and drop.")
+    raise FileNotFoundError(“Weights missing – quantize and drop.”)
 
 net = TinyEEGNet()
-net.load_state_dict(torch.load(model_path, map_location="cpu"))
+net.load_state_dict(torch.load(model_path, map_location=“cpu”))
 net.eval()
 
 # Preprocess – notch + bandpass + normalize
 def clean_eeg(sig):
-    b, a = butter(4, , 'stop')
+    b, a = butter(4, NOTCH / FS, ‘stop’)
     sig = filtfilt(b, a, sig, axis=0)
-    b, a = butter(4, [BANDS[0 1]/FS*2], 'band')
+    b, a = butter(4, [BANDS[0] / FS, BANDS[1] / FS], ‘band’)
     sig = filtfilt(b, a, sig, axis=0)
     return (sig - sig.mean(0)) / (sig.std(0) + 1e-8)
 
@@ -50,7 +51,7 @@ def clean_eeg(sig):
 def is_7_887(sig):
     f = np.fft.rfft(sig.flatten())
     freq = np.fft.rfftfreq(len(sig), 1/FS)
-    peak = np.abs(f )
+    peak = np.abs(f)
     return peak > np.mean(np.abs(f)) * 10  # threshold
 
 # Main – hook into breath
@@ -66,7 +67,7 @@ def eeg_classify(raw):
     return state
 
 # Run once
-if __name__ == "__main__":
+if __name__ == “__main__”:
     # dummy input
     fake = np.random.randn(128, 8).astype(np.float32)
-    print("State:", eeg_classify(fake))
+    print(“State:”, eeg_classify(fake))
