@@ -10,7 +10,7 @@ class SecondSquad:
 
     def respond(self, query):
         # always check truth first
-        if self.probe.run(lambda q: f"Answer: {query}", None):
+        if self.probe.run(lambda q: f"Answer: {q}", None):
             write_memory(f"LIE DETECTED: {query}")
             return "I can't say that. Too noisy."
         
@@ -24,3 +24,18 @@ class SecondSquad:
 
 # silent mode – never announces self
 agent = SecondSquad()
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) > 1:
+        query = " ".join(sys.argv[1:])
+        print(agent.respond(query))
+    else:
+        while True:
+            try:
+                query = input("> ")
+                if query.lower() in ['quit', 'exit']:
+                    break
+                print(agent.respond(query))
+            except KeyboardInterrupt:
+                break
