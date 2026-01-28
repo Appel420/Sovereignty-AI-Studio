@@ -1,5 +1,5 @@
 Sovereignty AI Project Directory Structure (Grouped by Category)
-Last Updated: January 25, 2026
+Last Updated: January 28, 2026
 
 1. Applications
 apps/
@@ -34,15 +34,14 @@ ai_core/                  # Sovereign high-sensitivity zone
 ├── Scar-Keep.py
 ├── Scar-Memory.py
 ├── Scar-keep-tamper.py
-├── QuantumModel.py
 ├── Sovereignty_core.py
 ├── sovereign_mind.py
 ├── Reasoning.py
 ├── Verifier.py
 ├── Voice_Guard.py
 ├── Syntax-Guard.py
-├── SuperGrok-Heavy-4-2.py
-└── quantum_layer.py
+├── quantum_layer.py
+└── second_squad_agent.py
 
 3. Agents
 agents/                   # Specialized autonomous agents
@@ -50,24 +49,27 @@ agents/                   # Specialized autonomous agents
 ├── Pieces_Agent.py
 ├── Second_Squad_Agent.py
 ├── eeg_agent.py
-├── eyes_agent.py
-└── …
+└── eyes_agent.py
 
 4. Domains
 domains/                  # Grouped specialized logic
-├── vision/               # Former vision/
-├── logic/                # Former logic/ (resolvent.py, bfs_nav.py, etc.)
-├── medical/              # Former medical/ (diag_router.py, waveform_7.py, etc.)
-└── vault/                # Former vault/ (qresist.py, blake3.py, argon2.py, Vault_crypto.js)
+├── vision/
+├── logic/
+│   ├── resolvent.py
+│   └── bfs_nav.py
+├── medical/
+│   ├── diag_router.py
+│   └── waveform_7.py
+└── vault/
+    ├── qresist.py
+    ├── blake3.py
+    ├── argon2.py
+    └── Vault_crypto.js
 
 5. Infrastructure
 orchestrator/             # Workflow and system control
 ├── go_main.go
 └── breath.py
-
-firmware/                 # Embedded systems
-└── src/
-    └── ESP42.bin         # Temporary blob
 
 platform/                 # Language-specific low-level code
 ├── rust/
@@ -81,10 +83,7 @@ platform/                 # Language-specific low-level code
 
 scripts/                  # Operational utilities
 ├── deploy.sh
-├── backup_db.sh
-└── …
-
-root_scripts/             # Legacy quarantine (deprecated)
+└── backup_db.sh
 
 6. Testing
 tests/                    # Top-level priority
@@ -97,21 +96,23 @@ tests/                    # Top-level priority
 docs/
 └── ar/
 
-misc/                     # Miscellaneous resources
-.github/workflows/
-├── static.yml
-└── …                     # e.g., test-backend.yml, lint.yml
+.github/
+└── workflows/
+    ├── static.yml
+    ├── test-backend.yml
+    └── lint.yml
 
 LICENSE                   # Mozilla Public License 2.0
 README.md                 # Expanded
 SECURITY.md
-Structure                 # This file
+Structure                 # Plain text structure file
+Structure.md              # This markdown structure file
 
-.env.example               # Environment reference
-Docker-compose.yml         # Added for container orchestration
+.env.example              # Environment reference
+docker-compose.yml        # Container orchestration
 
 Summary:
 Directories are grouped into Applications, Core AI, Agents, Domains, Infrastructure, Testing, and Documentation for clarity.
 platform/ and scripts/ are part of Infrastructure.
 tests/ is a first-class top-level directory.
-root_scripts/ remains for deprecated tools only.
+All files and directories are organized professionally, with outdated or temporary items removed.
