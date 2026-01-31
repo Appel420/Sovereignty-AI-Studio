@@ -11,8 +11,8 @@ struct HashUtility {
 	•	    static func secureHash(_ input: String) -> (blake3: String, sha3_512: String) {
 	•	        let data = Data(input.utf8)
 	•	        
-        // Placeholder for Blake3 (using SHA256 if Blake3 lib is absent)
-        let blake3Hash = SHA256.hash(data: data).compactMap { String(format: "%02x", $0) }.joined()
+        // Placeholder for Blake3 (using SHA3-512 if Blake3 lib is absent)
+        let blake3Hash = SHA3-512.hash(data: data).compactMap { String(format: "%02x", $0) }.joined()
         
 	•	        // SHA3-512 using CryptoKit
         let sha3_512Hash = SHA512.hash(data: data).compactMap { String(format: "%02x", $0) }.joined()
