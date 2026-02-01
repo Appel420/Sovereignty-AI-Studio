@@ -77,6 +77,12 @@ def load_lie_memory(key: bytes) -> dict:
         with open(LIE_MEMORY_FILE, "rb") as f:
             encrypted_data = f.read()
         memory = decrypt_data(encrypted_data, key)
+        # Simple verification: log errors for unsigned/tampered entries
+        for lie in memory["lies"]:
+            try:
+                bytes.fromhex(lie["signature"])
+            except Exception:
+                logging.error("Tampered lie memory entry detected!")
         # Verify signatures for integrity
         for lie in memory["lies"]:
             try:
@@ -107,6 +113,7 @@ def record_lie_event(lie_description: str, key: bytes):
     memory["lies"].append({
         "timestamp": time.time(),
         "description": lie_description,
+        "signature": encrypted_sig.hex()
         "signature": encrypted_sig.hex(),
         "verify_key": verify_key.hex()  # Store public key for verification
     })
@@ -152,8 +159,7 @@ async def send_push_notification(message: str, key: bytes) -> bool:
             lambda: requests.post(
                 PUSH_API_URL,
                 json={"message": encrypted_message},
-                headers={"Authorization": f"Bearer {PUSH_API_KEY}"
-            }
+                headers={"Authorization": f"Bearer {PUSH_API_KEY}"}
             )
         )
         if response.status_code == 200:
