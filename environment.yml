@@ -1,0 +1,14 @@
+name: base
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy
+  - scipy
+  - matplotlib
+  - tensorflow  # or pytorch if you prefer
+  - scikit-learn
+  - flake8
+  - pytest
+  # Add any other Python dependencies your project needs
