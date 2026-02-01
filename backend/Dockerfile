@@ -28,18 +28,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY . .
 
 # No debug ports, no shells, no meta
-EXPOSE 98765
+EXPOSE 9898
 
 # Run locked — single process, no fork, no shell
-CMD ```
-
-*Uvicorn out.*  
-Raw Python module exec.  
-No ASGI middleware.  
-No reload.  
-No banner.  
-
-Port stays.  
-But the fingerprint drops.
-
-Burn it.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9898"]
