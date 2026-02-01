@@ -1,5 +1,5 @@
 Sovereignty AI Project Directory Structure (Grouped by Category)
-Last Updated: January 28, 2026
+Last Updated: February 1, 2026
 
 1. Applications
 apps/
@@ -31,66 +31,66 @@ apps/
 2. Core AI
 ai_core/                  # Sovereign high-sensitivity zone
 ├── AI-Lie-Detector.py
-├── Scar-Keep.py
-├── Scar-Memory.py
-├── Scar-keep-tamper.py
-├── Sovereignty_core.py
-├── sovereign_mind.py
-├── Reasoning.py
-├── Verifier.py
-├── Voice_Guard.py
-├── Syntax-Guard.py
 ├── quantum_layer.py
-└── second_squad_agent.py
+├── Reasoning.py
+├── Scar-Keep.py
+├── Scar-keep-tamper.py
+├── Scar-Memory.py
+├── second_squad_agent.py
+├── sovereign_mind.py
+├── Sovereignty_core.py
+├── Syntax-Guard.py
+├── Verifier.py
+└── Voice_Guard.py
 
 3. Agents
 agents/                   # Specialized autonomous agents
 ├── Coach_agent.py
-├── Pieces_Agent.py
-├── Second_Squad_Agent.py
 ├── eeg_agent.py
-└── eyes_agent.py
+├── eyes_agent.py
+├── Pieces_Agent.py
+└── Second_Squad_Agent.py
 
 4. Domains
 domains/                  # Grouped specialized logic
 ├── vision/
 ├── logic/
-│   ├── resolvent.py
-│   └── bfs_nav.py
+│   ├── bfs_nav.py
+│   └── resolvent.py
 ├── medical/
 │   ├── diag_router.py
 │   └── waveform_7.py
 └── vault/
-    ├── qresist.py
-    ├── blake3.py
     ├── argon2.py
+    ├── blake3.py
+    ├── qresist.py
     └── Vault_crypto.js
 
 5. Infrastructure
 orchestrator/             # Workflow and system control
-├── go_main.go
-└── breath.py
+├── breath.py
+└── go_main.go
 
 platform/                 # Language-specific low-level code
 ├── rust/
 │   ├── Alerts.Rust
-│   ├── Fortress-Protocol-7.887.Rust
+���   ├── build.rs
 │   ├── Cargo.toml
-│   └── build.rs
+│   └── Fortress-Protocol-7.887.Rust
 └── swift/
-    ├── Main.swift
-    └── Honey.swift
+    ├── Honey.swift
+    └── Main.swift
 
 scripts/                  # Operational utilities
-├── deploy.sh
-└── backup_db.sh
+├── backup_db.sh
+└── deploy.sh
 
 6. Testing
 tests/                    # Top-level priority
-├── backend/
-├── frontend/
 ├── ai_core/
-└── e2e/
+├── backend/
+├── e2e/
+└── frontend/
 
 7. Documentation
 docs/
@@ -98,9 +98,9 @@ docs/
 
 .github/
 └── workflows/
+    ├── lint.yml
     ├── static.yml
-    ├── test-backend.yml
-    └── lint.yml
+    └── test-backend.yml
 
 LICENSE                   # Mozilla Public License 2.0
 README.md                 # Expanded
