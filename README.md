@@ -43,4 +43,6 @@ Execution is controlled via the `./ship` script, which performs:
 
 ## License
 
-Mozilla Public License 2.0
+GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+
+Copyright (C) 2026 Appel420
