@@ -8,10 +8,11 @@ from email.mime.text import MIMEText
 import requests
 import blake3
 from argon2 import PasswordHasher
-from nacl import secret, utils
+from nacl import secret
 from nacl.encoding import RawEncoder
 from pqcrypto.sign import dilithium2
 from dotenv import load_dotenv
+import subprocess
 
 load_dotenv()
 
@@ -43,10 +44,13 @@ PUSH_API_KEY = os.getenv("PUSH_API_KEY")
 EMAIL_RETRY_COUNT = int(os.getenv("EMAIL_RETRY_COUNT", 3))
 EMAIL_RETRY_BASE_DELAY = int(os.getenv("EMAIL_RETRY_BASE_DELAY", 5))
 
+# Fixed salt for deterministic key derivation (change this for production security)
+DEFAULT_SALT = os.getenv("AI_SALT", b"fixed_salt_for_determinism").encode() if isinstance(os.getenv("AI_SALT"), str) else b"fixed_salt_for_determinism"
+
 # --- Crypto Helpers ---
-def derive_key_from_secret(secret_phrase: str) -> bytes:
+def derive_key_from_secret(secret_phrase: str, salt: bytes = DEFAULT_SALT) -> bytes:
     hasher = PasswordHasher(time_cost=2, memory_cost=102400, parallelism=8)
-    digest = hasher.hash(secret_phrase)
+    digest = hasher.hash(secret_phrase, salt=salt)
     key = blake3.blake3(digest.encode()).digest(length=32)
     return key
 
@@ -79,6 +83,15 @@ def load_lie_memory(key: bytes) -> dict:
                 bytes.fromhex(lie["signature"])
             except Exception:
                 logging.error("Tampered lie memory entry detected!")
+        # Verify signatures for integrity
+        for lie in memory["lies"]:
+            try:
+                verify_key = dilithium2.load_verify_key(bytes.fromhex(lie["verify_key"]))
+                signature = bytes.fromhex(lie["signature"])
+                dilithium2.verify(lie["description"].encode(), signature, verify_key)
+            except Exception as e:
+                logging.error("Signature verification failed for lie entry: %s", e)
+                raise ValueError("Tampered lie memory detected!")
         return memory
     except Exception as e:
         logging.error("Failed to load lie memory: %s", e)
@@ -101,6 +114,8 @@ def record_lie_event(lie_description: str, key: bytes):
         "timestamp": time.time(),
         "description": lie_description,
         "signature": encrypted_sig.hex()
+        "signature": encrypted_sig.hex(),
+        "verify_key": verify_key.hex()  # Store public key for verification
     })
     save_lie_memory(memory, key)
 
@@ -163,7 +178,11 @@ async def send_alert_to_user(message: str, key: bytes):
         send_push_notification(message, key),
         return_exceptions=True
     )
-    if not any(results):
+    success = any(result is True for result in results)
+    if not success:
+        for result in results:
+            if isinstance(result, BaseException):
+                logging.error("Alert method raised exception: %s", result)
         logging.error("All alert methods failed!")
 
 # --- Shutdown ---
@@ -173,10 +192,11 @@ def hard_shutdown(delay: int):
         logging.info("TEST_MODE enabled: Hard shutdown skipped.")
         return
     try:
-        os.system(f"sleep {delay}")
-        code = os.system("sudo reboot")
-        if code != 0:
-            logging.error("Hard shutdown command failed with code %d", code)
+        time.sleep(delay)
+        # Use subprocess for safe execution without shell
+        result = subprocess.run(["sudo", "reboot"], capture_output=True, text=True)
+        if result.returncode != 0:
+            logging.error("Hard shutdown command failed with code %d: %s", result.returncode, result.stderr)
     except Exception as e:
         logging.error("Exception during hard shutdown: %s", e)
 
@@ -194,7 +214,10 @@ def soft_shutdown(delay: int):
 # --- Main Detection Logic ---
 def handle_lie_detection(lie_detected: bool, shutdown_duration: int = 5):
     scar_created = False
-    secret_key = derive_key_from_secret(os.getenv("AI_SECRET", "default_secret"))
+    secret_phrase = os.getenv("AI_SECRET")
+    if not secret_phrase:
+        raise ValueError("AI_SECRET environment variable is required and cannot be empty.")
+    secret_key = derive_key_from_secret(secret_phrase)
 
     if lie_detected:
         scar_created = True
