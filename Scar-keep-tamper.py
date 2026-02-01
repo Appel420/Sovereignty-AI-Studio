@@ -1,5 +1,3 @@
-Here’s the updated scar-keep.py script with a main() function to encapsulate the command handling and call it under if __name__ == '__main__'::
-
 import os
 import sys
 import datetime
@@ -86,8 +84,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-This structure now has:
-Constants section for all paths and configuration.
-Helper functions for initialization, locking, archiving, reading, and appending.
-A main() function that cleanly handles the command flow.
