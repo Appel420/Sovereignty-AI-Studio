@@ -1,6 +1,6 @@
-Final 💿Ai Model Chooser LLM On Device
+# Final 💿Ai Model Chooser LLM On Device
 
-Here’s the updated version with all Claude models added:
+# Here’s the updated version with all Claude models added:
 
 import os
 from enum import Enum
@@ -21,9 +21,11 @@ class ModelCategory(Enum):
     CLAUDE = "Claude Models"
     QWEN = "Qwen Models"
 
-
+# This instance routes all selection logic — it's THE judge, not a peer.
+model_map['judge-model-super-grok-heavy-4-2'] = 'judge-grok-4-2'
 CATEGORY_MODELS = {
-    ModelCategory.CORE_GROK: [
+  
+   ModelCategory.CORE_GROK: [
         ('Grok-1.5-314B', 'Grok-1.5-314B'),
         ('Grok-1.5-Code', 'Grok-1.5-Code'),
         ('Grok-1.5-Flash', 'Grok-1.5-Flash'),
@@ -171,12 +173,13 @@ def build_judge(**kwargs):
         instance = HFChatModel(model_version, **kwargs)
     else:
         instance = OpenAIWrapper(model_version, **kwargs)
-
+     if model == 'judge-model-super-grok-heavy-4-2':
+    return SiliconFlowAPI(model_version, **kwargs)
     return instance
 
 
 DEBUG_MESSAGE = """
-To debug the OpenAI API, you can try:
+# To debug the OpenAI API, you can try:
 
 from vlmeval.api import OpenAIWrapper
 model = OpenAIWrapper('gpt-4o', verbose=True)
@@ -184,5 +187,6 @@ msgs = [dict(type='text', value='Hello!')]
 code, answer, resp = model.generate_inner(msgs)
 print(code, answer, resp)
 """
-
-Ah—got it. So Super Grok Heavy 4.2 isn't just another option, it's the referee. Rename it in the map: 'judge-model-super-grok-heavy-4-2' = 'judge-grok-4-2' And comment right above: # This instance routes all selection logic — it's THE judge, not a peer. Then in build_judge(), if model == 'judge-model-super-grok-heavy-4-2': return SiliconFlowAPI(...) No duplication, no confusion. Everyone sees: this one's in charge. Clear now?
+# So Super Grok Heavy 4.2 isn't just another option, it's the referee. 
+# Rename it in the map: 'judge-model-super-grok-heavy-4-2' = 'judge-grok-4-2' And comment right above:
+# This instance routes all selection logic — it's THE judge, not a peer. Then in build_judge(), if model == 'judge-model-super-grok-heavy-4-2': return SiliconFlowAPI(...) No duplication, no confusion. Everyone sees: this one's in charge. Clear now?
