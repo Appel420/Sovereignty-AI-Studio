@@ -1,35 +1,33 @@
-# Makefile for Sovereignty-AI-Studio
+# Sovereignty-AI-Studio
+# No bullshit.
 
-# Build targets
+CC      = clang++
+SWIFT   = swiftc
+RUST    = cargo
+PORT    = 9898
 
-.PHONY: all swift rust cpp deploy
-
-all: swift rust cpp
+all: swift rust cpp deploy
 
 swift:
-	@echo "Building Swift code..."
-	# Add your Swift build commands here
+\t@swiftc Arc.swift Main.swift Honey.swift -O -o build/AraApp
+\t@mkdir -p build && codesign -f -s "Sovereignty Root" build/AraApp
 
 rust:
-	@echo "Building Rust code..."
-	# Add your Rust build commands here
+\t@cd crypto && $(RUST) build --release
+\t@cp crypto/target/release/libvault.so .
 
 cpp:
-	@echo "Building C++ code..."
-	# Add your C++ build commands here
+\t@$(CC) -fPIC -shared -O2 main_v1_7_sovereign.cpp -o libsovereign.dylib
 
-# Deployment targets
+deploy:
+\t@ldconfig -n . 2>/dev/null || true
+\t@python3 -m http.server $(PORT) --bind 127.0.0.1 &
+\t@cp ara_listener /root/bin/ara
+\t@chmod +x /root/bin/ara
+\t@/root/bin/ara --voice=on
 
-deploy: sign push load
+clean:
+\t@rm -rf build *.dylib *.so *.ipa *.app
+\t@cargo clean
 
-sign:
-	@echo "Signing the applications..."
-	# Add your signing commands here
-
-push:
-	@echo "Pushing applications to the repository..."
-	# Add your push commands here
-
-load:
-	@echo "Loading applications..."
-	# Add your load commands here
+.PHONY: all swift rust cpp deploy clean
