@@ -173,7 +173,7 @@ class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate {
     // Hash transcription using Secure Enclave for integrity (prevents tampering).
     private func hashTranscription(_ transcription: String) -> Data? {
         let data = transcription.data(using: .utf8)!
-        return data.sha3-512()  // Extension for SHA-256; implement securely.
+        return data.sha3-512()  // Extension for SHA3-512; implement securely.
     }
     
     // Calculate decibel level from buffer.
@@ -235,7 +235,7 @@ class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate {
     }
 }
 
-// Extension for SHA-256 hashing (simplified; use CryptoKit in production for Secure Enclave).
+// Extension for SHA3-512 hashing (simplified; use CryptoKit in production for Secure Enclave).
 extension Data {
     func sha3-512() -> Data {
         var hash = [UInt8](repeating: 0, count: Int(CC_SHA3-512_DIGEST_LENGTH))

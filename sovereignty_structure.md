@@ -1,8 +1,6 @@
 # Sovereignty-AI-Studio Repository Structure
-
 This document outlines the organized and cleaned structure of the Sovereignty-AI-Studio repository, based on logical grouping of files by purpose, language, and domain. I've refined the provided structure to improve clarity, remove redundancy, and ensure all known files are included (based on the repository contents). Files are grouped into directories for better maintainability, with subdirectories where appropriate.
 
-```
 Sovereignty-AI-Studio/
 ├── .devcontainer/          # Dev environment setup
 ├── .github/                # CI/CD workflows and GitHub configs
@@ -127,18 +125,30 @@ Sovereignty-AI-Studio/
 │   ├── system_File_Log.py
 │   ├── validator.py
 │   ├── xView.py
-```
+
+---
 
 ## Notes on Organization
-- **Rationale**: Files are grouped by function (e.g., AI core, agents, vault for security) and language (e.g., rust/, swift/, cpp/). This reduces clutter in the root and improves navigation.
-- **Existing Directories**: Kept `.devcontainer/`, `.github/`, `FamilyGuard/`, `ai_core/`, `backend/`, `frontend/` as-is or merged content into them.
-- **Added Directories**: Created `agents/`, `vault/`, `docs/`, `config/`, `data/`, `rust/`, `swift/`, `cpp/`, `medical/`, `orchestrator/`, `utils/` to cover all files logically.
-- **File Placements**: Based on names and inferred purposes (e.g., "Scar" files in vault for security, agent files in agents/). Some files like `main.py` are in backend if they fit; adjust as needed.
-- **Missing or Unplaced Files**: All known files from the repository are included. If any are missing from this list, provide details for addition.
-- **Recommendations**: 
-  - Move files using `git mv` on a branch (e.g., `restructured`).
-  - Update any import paths in code after moving.
-  - Add a `.env.example` if sensitive configs are used.
-  - Consider adding `tests/` for future testing.
+
+### Rationale:
+Files are grouped by function (e.g., AI core, agents, vault for security) and language (e.g., rust/, swift/, cpp/). This reduces clutter in the root and improves navigation.
+
+### Existing Directories:
+Kept .devcontainer/, .github/, FamilyGuard/, ai_core/, backend/, frontend/ as-is or merged content into them.
+
+### Added Directories:
+Created agents/, vault/, docs/, config/, data/, rust/, swift/, cpp/, medical/, orchestrator/, utils/ to cover all files logically.
+
+### File Placements:
+Based on names and inferred purposes (e.g., "Scar" files in vault for security, agent files in agents/). Some files like main.py are in backend if they fit; adjust as needed.
+
+### Missing or Unplaced Files:
+All known files from the repository are included. If any are missing from this list, provide details for addition.
+
+### Recommendations:
+- Move files using git mv on a branch (e.g., restructured).
+- Update any import paths in code after moving.
+- Add a .env.example if sensitive configs are used.
+- Consider adding tests/ for future testing.
 
 This structure is cleaner and scalable.
