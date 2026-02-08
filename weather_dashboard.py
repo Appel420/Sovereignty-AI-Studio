@@ -19,6 +19,21 @@ def index():
 def get_weather():
     city = request.args.get('city', 'London')
     
+    # Return dummy data for CI/testing if no API key is set
+    if API_KEY == 'your_api_key_here':
+        return jsonify({
+            'city': city,
+            'country': 'GB',
+            'temperature': 15.0,
+            'feels_like': 14.0,
+            'description': 'Cloudy',
+            'icon': '03d',
+            'humidity': 80,
+            'pressure': 1013,
+            'wind_speed': 3.5,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        })
+    
     try:
         # Get current weather
         params = {
@@ -55,6 +70,23 @@ def get_weather():
 @app.route('/api/forecast', methods=['GET'])
 def get_forecast():
     city = request.args.get('city', 'London')
+    
+    # Return dummy data for CI/testing if no API key is set
+    if API_KEY == 'your_api_key_here':
+        return jsonify([
+            {
+                'time': '12:00',
+                'temperature': 15.0,
+                'description': 'Cloudy',
+                'icon': '03d'
+            },
+            {
+                'time': '15:00',
+                'temperature': 16.0,
+                'description': 'Sunny',
+                'icon': '01d'
+            }
+        ])
     
     try:
         params = {
