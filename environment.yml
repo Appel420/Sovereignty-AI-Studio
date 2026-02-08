@@ -1,14 +1,16 @@
-name: base
+name: ara-env
 channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.10
+  - python=3.9
+  - pip
   - numpy
   - scipy
-  - matplotlib
-  - tensorflow  # or pytorch if you prefer
-  - scikit-learn
-  - flake8
-  - pytest
-  # Add any other Python dependencies your project needs
+  - pyaudio
+  - speechrecognition
+  - flask
+  - pip:
+    - torch
+    - torchvision
+    - torchaudio
