@@ -1922,33 +1922,28 @@ final class CloudCorporateEnforcer {
         for target in allCorporate {
             killProcess(named: target)
             blockDomain(for: target)
-            os_log("CORPORATE TARGET TERMINATED: \(target)", log: logger, type: .error)
+            os_log("CLOUD CORPORATE ACTION REQUESTED (no-op): \(target)", log: logger, type: .info)
         }
     }
     
     private func killProcess(named: String) {
-        let lower = named.lowercased()
-        execute("killall -9 \(lower.replacingOccurrences(of: " ", with: ""))")
-        execute("pkill -f \(lower)")
+        // Destructive process termination disabled for safety.
+        os_log("Requested to terminate process for target (no-op): %{public}@", log: logger, type: .info, named)
     }
     
     private func blockDomain(for target: String) {
-        let domain = target.lowercased().replacingOccurrences(of: " ", with: "") + ".com"
-        appendToHosts("0.0.0.0 \(domain)")
-        appendToHosts("0.0.0.0 api.\(domain)")
+        // Destructive domain blocking (/etc/hosts modification) disabled for safety.
+        os_log("Requested to block domain for target (no-op): %{public}@", log: logger, type: .info, target)
     }
     
     private func appendToHosts(_ line: String) {
-        let hosts = "/etc/hosts"
-        try? (try? String(contentsOfFile: hosts) ?? "" + "\n" + line).write(toFile: hosts, atomically: true, encoding: .utf8)
+        // Intentionally not modifying /etc/hosts to avoid destructive side effects.
+        os_log("appendToHosts called with line (no-op): %{public}@", log: logger, type: .debug, line)
     }
     
     private func execute(_ cmd: String) {
-        let task = Process()
-        task.launchPath = "/bin/sh"
-        task.arguments = ["-c", cmd]
-        task.launch()
-        task.waitUntilExit()
+        // Intentionally not executing shell commands to avoid destructive side effects.
+        os_log("execute called with command (no-op): %{public}@", log: logger, type: .debug, cmd)
     }
 }
 
