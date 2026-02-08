@@ -1,23 +1,22 @@
 Used to build and compile for AI Setup Instructions
 
-	1.	Install Requirements:
-pip install quart quart-sse pyjwt pyttsx3 moviepy h11 celery redis blake3 argon2-cffi cryptography pqcrypto
-	⁃	pqcrypto provides PQClean bindings for Dilithium2/3/5.
-	⁃	Run Infrastructure:
+\t1.\tInstall Requirements:
+pip install quart pyjwt pyttsx3 moviepy h11 celery redis blake3 argon2-cffi cryptography pqcrypto
+\t\u2022\tpqcrypto provides PQClean bindings for Dilithium2/3/5.
+\t\u2022\tRun Infrastructure:
 redis-server
 celery -A tasks worker --loglevel=info
 
-	1.	Features in This Version:
-	⁃	Hardware HSM integration for secure key storage and retrieval (placeholder API calls for PKCS#11 or vendor SDKs).
-	⁃	Full task progress tracking with SSE events updated in real time.
-	⁃	Automatic Dilithium key pair rotation and signed key distribution for clients.
+\t1.\tFeatures in This Version:
+\t\u2022\tHardware HSM integration for secure key storage and retrieval (placeholder API calls for PKCS#11 or vendor SDKs).
+\t\u2022\tFull task progress tracking with SSE events updated in real time.
+\t\u2022\tAutomatic Dilithium key pair rotation and signed key distribution for clients.
 
 ---
 
 app.py (Enhanced with HSM, Progress SSE, and Key Rotation)
 import os, json, asyncio, datetime, logging
 from quart import Quart, request, jsonify
-from quart_sse import sse
 import jwt
 from tasks import tts_task, video_task, celery
 from pqcrypto.sign import dilithium3
@@ -108,7 +107,6 @@ def encrypt_metadata(metadata: dict):
 
 # === Quart App ===
 app = Quart(__name__)
-app.register_blueprint(sse, url_prefix='/stream')
 logging.basicConfig(level=logging.INFO)
 
 @app.route('/auth', methods=['POST'])
@@ -142,7 +140,7 @@ async def process_video():
     await video_file.save(file_path)
 
     task = video_task.delay(file_path)
-    await sse.publish({"task_id": task.id, "status": "started", "progress": 0}, type=f'task_{task.id}')
+    # await sse.publish({"task_id": task.id, "status": "started", "progress": 0}, type=f'task_{task.id}')
     response = {"task_id": task.id, "pubkey": key_manager.get_public_key()}
     return jsonify({"response": response, "signature": key_manager.sign(response)}), 202
 
@@ -155,7 +153,7 @@ async def background_agent():
             progress = 0
             if hasattr(task, 'info') and isinstance(task.info, dict):
                 progress = task.info.get('progress', 0)
-            await sse.publish({"task_id": task_id, "status": task.state, "progress": progress}, type=f'task_{task_id}')
+            # await sse.publish({"task_id": task_id, "status": task.state, "progress": progress}, type=f'task_{task_id}')
         await asyncio.sleep(5)
 
 @app.before_serving
@@ -165,8 +163,8 @@ async def startup():
 ---
 
 Key Features
-	1.	Hardware HSM Integration (Placeholder): Simulated PKCS#11 calls with hsm_store_key and hsm_get_key.
-	2.	Full Task Progress Tracking: SSE updates every 5s with real task progress from Celery.
-	3.	Dilithium3 Key Rotation: Automatic rotation every 2h with signed public key distribution to clients.
-	4.	Signed API Responses: All responses are signed with the current Dilithium3 key.
-	5.	Per-task SSE Channels: Clients subscribe to task_<task_id> for filtered updates.
+\t1.\tHardware HSM Integration (Placeholder): Simulated PKCS#11 calls with hsm_store_key and hsm_get_key.
+\t2.\tFull Task Progress Tracking: SSE updates every 5s with real task progress from Celery.
+\t3.\tDilithium3 Key Rotation: Automatic rotation every 2h with signed public key distribution to clients.
+\t4.\tSigned API Responses: All responses are signed with the current Dilithium3 key.
+\t5.\tPer-task SSE Channels: Clients subscribe to task_<task_id> for filtered updates.
