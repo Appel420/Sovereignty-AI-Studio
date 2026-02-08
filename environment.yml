@@ -9,7 +9,7 @@ dependencies:
   - scipy
   - pyaudio
   - speechrecognition
-  - logging
+  - flask
   - pip:
     - torch
     - torchvision
