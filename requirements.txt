@@ -9,7 +9,6 @@ pydantic==2.10.0
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 quart
-quart-sse
 pyjwt
 pyttsx3
 moviepy
