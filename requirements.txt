@@ -12,7 +12,7 @@ quart==0.19.6
 pyjwt==2.9.0
 pyttsx3==2.90
 moviepy==1.0.3
-h11==0.14.0
+h11==0.16.0
 celery==5.4.0
 argon2-cffi==23.1.0
 pqcrypto==0.1.3
