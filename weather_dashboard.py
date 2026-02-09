@@ -1,9 +1,9 @@
-from flask import Flask, render_template, request, jsonify
+from quart import Quart, render_template, request, jsonify
 import requests
 import os
 from datetime import datetime
 
-app = Flask(__name__)
+app = Quart(__name__)
 
 # OpenWeatherMap API configuration
 # Users should set their own API key as an environment variable
@@ -12,11 +12,11 @@ BASE_URL = 'https://api.openweathermap.org/data/2.5/weather'
 FORECAST_URL = 'https://api.openweathermap.org/data/2.5/forecast'
 
 @app.route('/')
-def index():
-    return render_template('weather_dashboard.html')
+async def index():
+    return await render_template('weather_dashboard.html')
 
 @app.route('/api/weather', methods=['GET'])
-def get_weather():
+async def get_weather():
     city = request.args.get('city', 'London')
     
     # Return dummy data for CI/testing if no API key is set
@@ -68,7 +68,7 @@ def get_weather():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/api/forecast', methods=['GET'])
-def get_forecast():
+async def get_forecast():
     city = request.args.get('city', 'London')
     
     # Return dummy data for CI/testing if no API key is set
@@ -112,8 +112,10 @@ def get_forecast():
         
         return jsonify(forecast_list)
     
+    except requests.exceptions.HTTPError as e:
+        return jsonify({'error': 'City not found or API error'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=9898)
+    app.run(host='0.0.0.0', port=9898, debug=True)
