@@ -25,7 +25,8 @@ class VimLite(nn.Module):
     def forward(self, x):
         B, C, H, W = x.shape
         x = self.patch(x).flatten(2).permute(0,2,1)  # B,256,256
-        x = x + self.pos.weight x, _ = self.mamba(x)
+        x = x + self.pos.weight
+        x, _ = self.mamba(x)
         return self.cls(x.mean(1))  # global avg
 
 vim = VimLite().eval().cuda() if torch.cuda.is_available() else VimLite().eval()
@@ -40,7 +41,7 @@ class HandLite:
         out = self.hands.process(rgb)
         if out.multi_hand_landmarks:
             lm = out.multi_hand_landmarks[0].landmark
-            tip = .x, lm[8].y]  # index tip
+            tip = [lm[8].x, lm[8].y]  # index tip
             tip = np.array(tip) * frame.shape[:2]
             return tip.astype(int)
         return None
@@ -53,14 +54,14 @@ hand = HandLite()
 def waveform(file='mic.raw', samples=2048):
     wav = np.fromfile(file, dtype=np.int16).astype(np.float32) / 32767.0
     freqs = np.fft.rfft(wav)
-    peaks = np.abs(freqs[:1024 :64]  # first 64 Hz
-    i = np.argmax(p)
+    peaks = np.abs(freqs[:1024:64])  # first 64 Hz
+    i = np.argmax(peaks)
     return abs(i - 8) < 1  # bin 8 ≈ 7.8125 Hz
 
 def listen():
     # fake mic grab – replace with real loop
     subprocess.run(["arecord", "-d", "1", "-r", "8000", "-f", "S16_LE", "mic.raw"], stdout=subprocess.DEVNULL)
-    return is_7_887()
+    return waveform(file='mic.raw')
 
 # ------------------------------
 # 3. LOGIC & PROOF
@@ -81,7 +82,8 @@ def q_resist():
 
 def blake3(data):
     # pure-python blake3 tiny impl – 80 lines, no deps
-    return hashlib.blake3(data.encode()).hexdigest()[:64]
+    # Placeholder: using sha256 instead
+    return hashlib.sha256(data.encode()).hexdigest()[:64]
 
 # ------------------------------
 # 5. MAIN ORCHESTRATOR
