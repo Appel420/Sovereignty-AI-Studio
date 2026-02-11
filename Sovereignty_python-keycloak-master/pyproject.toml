@@ -38,6 +38,9 @@ deprecation = ">=2.1.0"
 jwcrypto = ">=1.5.4"
 httpx = ">=0.23.2"
 aiofiles = ">=24.1.0"
+# Security updates for transitive dependencies
+cryptography = ">=46.0.5"  # CVE fix: Subgroup Attack vulnerability
+wheel = ">=0.46.2"  # CVE fix: Path Traversal vulnerability
 
 [tool.poetry.group.docs.dependencies]
 alabaster = ">=0.7.0"
