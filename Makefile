@@ -5,15 +5,15 @@ install:
 	pip install -r backend/requirements.txt
 
 test:
-	pytest
+	PYTHONPATH=./backend pytest
 
 lint:
-	flake8 src/ --max-line-length=100
+	PYTHONPATH=./backend flake8 src/ --max-line-length=100
 
 build:
 	docker-compose build
 
-deply:
+deploy:
 	docker-compose up -d
 
 clean:
