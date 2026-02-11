@@ -1,5 +1,3 @@
-The provided Python scripts include multiple overlapping and partially corrupted segments that need debugging. Here is a clean and functional refactored version of the AI Code Feedback tool that ensures proper logging, summary exports, and CSV support:
-
 import datetime
 import uuid
 import ast
@@ -28,7 +26,7 @@ def ai_feedback_on_code(is_clean: bool, log_file: str, session_id: str):
     print(suggestion)
 
     with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] [Session: {session_id}] {feedback} {suggestion}\n")
+        f.write(f"[{{timestamp}}] [Session: {{session_id}}] {{feedback}} {{suggestion}}\n")
 
 def log_session_summary(log_file: str, summary_file: str, csv_file: str,
                         session_id: str, positive: int, negative: int,
@@ -38,11 +36,11 @@ def log_session_summary(log_file: str, summary_file: str, csv_file: str,
     avg_length = total_length / submissions if submissions else 0
 
     summary = (
-        f"\n=== Session Summary [{session_id}] @ {timestamp} ===\n"
-        f"Positive feedbacks: {positive}\n"
-        f"Negative feedbacks: {negative}\n"
-        f"Total submissions: {submissions}\n"
-        f"Average code length: {avg_length:.2f} characters\n"
+        f"\n=== Session Summary [{{session_id}}] @ {{timestamp}} ===\n"
+        f"Positive feedbacks: {{positive}}\n"
+        f"Negative feedbacks: {{negative}}\n"
+        f"Total submissions: {{submissions}}\n"
+        f"Average code length: {{avg_length:.2f}} characters\n"
         "===============================\n"
     )
 
@@ -51,7 +49,7 @@ def log_session_summary(log_file: str, summary_file: str, csv_file: str,
     with open(summary_file, "a") as f:
         f.write(summary)
     with open(csv_file, "a", newline="") as f:
-        csv.writer(f).writerow([session_id, timestamp, positive, negative, submissions, f"{avg_length:.2f}"])
+        csv.writer(f).writerow([session_id, timestamp, positive, negative, submissions, f"{{avg_length:.2f}}"])
 
     return summary
 
@@ -74,56 +72,28 @@ def main():
     log_file = input("Enter log filename (e.g., feedback_log.txt): ").strip() or "feedback_log.txt"
     summary_file = input("Enter summary filename (e.g., summary_log.txt): ").strip() or "summary_log.txt"
     csv_file = input("Enter CSV filename (e.g., summary_log.csv): ").strip() or "summary_log.csv"
-    mode = input("Append or overwrite logs? (append/overwrite): ").strip().lower()
 
-    if mode == "overwrite":
-        open(log_file, "w").close()
-        open(summary_file, "w").close()
-        with open(csv_file, "w", newline="") as f:
-            csv.writer(f).writerow(["Session ID", "Timestamp", "Positive", "Negative", "Submissions", "Average Code Length"])
-
+    positive = 0
+    negative = 0
     total_length = 0
-    positive_count = 0
-    negative_count = 0
     submissions = 0
 
     while True:
-        print("\n=== Menu ===")
-        print("1. Submit code snippet for feedback")
-        print("2. View current feedback summary")
-        print("3. Search previous session summaries")
-        print("4. Exit session")
-
-        choice = input("Select an option (1/2/3/4): ").strip()
-
-        if choice == "1":
-            code = input("Paste your code snippet: ").strip()
-            clean = is_code_clean(code)
-            ai_feedback_on_code(clean, log_file, session_id)
-
-            submissions += 1
-            total_length += len(code)
-            if clean:
-                positive_count += 1
-            else:
-                negative_count += 1
-
-        elif choice == "2":
-            avg_length = total_length / submissions if submissions else 0
-            print(f"\nCurrent Feedback Summary:\nPositive: {positive_count}\nNegative: {negative_count}\nTotal Submissions: {submissions}\nAverage Code Length: {avg_length:.2f} characters")
-
-        elif choice == "3":
-            search_previous_summaries(log_file)
-
-        elif choice == "4":
-            print("👋 Exiting feedback loop. Have a great day!")
-            print(log_session_summary(log_file, summary_file, csv_file, session_id, positive_count, negative_count, total_length, submissions))
+        code_snippet = input("Enter your Python code snippet (or 'quit' to exit): ").strip()
+        if code_snippet.lower() == 'quit':
             break
-
+        is_clean = is_code_clean(code_snippet)
+        ai_feedback_on_code(is_clean, log_file, session_id)
+        if is_clean:
+            positive += 1
         else:
-            print("❓ Invalid option. Please select 1, 2, 3, or 4.")
+            negative += 1
+        total_length += len(code_snippet)
+        submissions += 1
+
+    if submissions > 0:
+        log_session_summary(log_file, summary_file, csv_file, session_id, positive, negative, total_length, submissions)
+    search_previous_summaries(log_file)
 
 if __name__ == "__main__":
     main()
-
-This version removes the corrupted function names (with asterisks), resolves variable inconsistencies, and ensures CSV and summary logging work correctly.
