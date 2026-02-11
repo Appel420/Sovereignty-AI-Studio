@@ -26,7 +26,7 @@ def ai_feedback_on_code(is_clean: bool, log_file: str, session_id: str):
     print(suggestion)
 
     with open(log_file, "a") as f:
-        f.write(f"[{timestamp}] [Session: {session_id}] {feedback} {suggestion}\n")
+        f.write(f"[{{timestamp}}] [Session: {{session_id}}] {{feedback}} {{suggestion}}\n")
 
 def log_session_summary(log_file: str, summary_file: str, csv_file: str,
                         session_id: str, positive: int, negative: int,
@@ -36,11 +36,11 @@ def log_session_summary(log_file: str, summary_file: str, csv_file: str,
     avg_length = total_length / submissions if submissions else 0
 
     summary = (
-        f"\n=== Session Summary [{session_id}] @ {timestamp} ===\n"
-        f"Positive feedbacks: {positive}\n"
-        f"Negative feedbacks: {negative}\n"
-        f"Total submissions: {submissions}\n"
-        f"Average code length: {avg_length:.2f} characters\n"
+        f"\n=== Session Summary [{{session_id}}] @ {{timestamp}} ===\n"
+        f"Positive feedbacks: {{positive}}\n"
+        f"Negative feedbacks: {{negative}}\n"
+        f"Total submissions: {{submissions}}\n"
+        f"Average code length: {{avg_length:.2f}} characters\n"
         "===============================\n"
     )
 
@@ -49,7 +49,7 @@ def log_session_summary(log_file: str, summary_file: str, csv_file: str,
     with open(summary_file, "a") as f:
         f.write(summary)
     with open(csv_file, "a", newline="") as f:
-        csv.writer(f).writerow([session_id, timestamp, positive, negative, submissions, f"{avg_length:.2f}"])
+        csv.writer(f).writerow([session_id, timestamp, positive, negative, submissions, f"{{avg_length:.2f}}"])
 
     return summary
 
