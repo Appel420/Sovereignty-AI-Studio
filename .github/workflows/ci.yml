@@ -10,22 +10,17 @@ jobs:
   test:
     runs-on: ubuntu-latest
     container: alpine:latest
-    strategy:
-      matrix:
-        python-version: [3.9, 3.10, 3.11, 3.12]
-
     steps:
     - uses: actions/checkout@v4
     - name: Install Python and dependencies
       run: |
-        apk add --no-cache python${{ matrix.python-version }} py${{ matrix.python-version }}-pip
-        ln -sf python${{ matrix.python-version }} /usr/bin/python
-        ln -sf pip${{ matrix.python-version }} /usr/bin/pip
-        pip install --upgrade pip
+        apk add --no-cache python3 py3-pip
+        python3 --version
+        pip3 install --upgrade pip
     - name: Install project dependencies
-      run: pip install -r requirements.txt
+      run: pip3 install -r requirements.txt
     - name: Install test dependencies
-      run: pip install pytest pytest-asyncio pytest-cov flake8
+      run: pip3 install pytest pytest-asyncio pytest-cov flake8
     - name: Lint with flake8
       run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --max-line-length=120 --extend-ignore=E203,W503
     - name: Run tests
