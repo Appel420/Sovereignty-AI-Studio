@@ -32,7 +32,7 @@ Start → Run program → SyntaxError? → Check line 2 → Missing closing pare
 | ```python
 print("Hello World"  # Missing closing parenthesis
 ``` | ```python
-print("Hello World())  # Added parenthesis
+print("Hello World")  # Added parenthesis
 ``` |
 
 ### 2. Logical Error (Python Loop)
