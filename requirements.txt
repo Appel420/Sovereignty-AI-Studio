@@ -81,10 +81,8 @@ streaq==6.0.2
 # Data / DevOps
 dagster-multihost-launcher==0.1.2
 stablestack==0.3.4
-connector-py==4.188.0
 
 # MCP / CLI
-grok-cli-mcp==0.1.0
 manhattan-mcp==0.1.31
 clarity-mcp==0.2.4
 
