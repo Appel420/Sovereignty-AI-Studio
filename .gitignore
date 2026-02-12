@@ -72,5 +72,6 @@ piper-tts/*.onnx
 piper-tts/*.onnx.json
 piper-tts/*.tar.gz
 *.wav
-*.mp3.pytest_cache/
+*.mp3
+.pytest_cache/
 coverage.xml

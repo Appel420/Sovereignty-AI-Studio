@@ -26,7 +26,7 @@ jobs:
     - name: Run tests
       env:
         PYTHONPATH: ./backend
-      run: pytest --cov=tests --cov-report=xml --strict-markers -x --tb=short
+      run: pytest --cov=apps --cov=backend --cov=src --cov-report=xml --strict-markers -x --tb=short
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
       with:
