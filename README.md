@@ -141,7 +141,7 @@ Sovereignty-AI-Studio/
 
 - **src/agents/**: AI Agent Modules for various tasks
 - **src/core/**: Core system files for the AI platform
-- **src/security/**: Security and protection modules
+- **src/security/**: Security and protection modules including live alerts
 - **src/models/**: Machine learning models
 - **src/utils/**: Utility functions and tools
 - **apps/dashboards/**: Dashboard applications
@@ -149,8 +149,159 @@ Sovereignty-AI-Studio/
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
 - **crypto/**: Cryptography modules
+- **backend/**: FastAPI backend with WebSocket support for live alerts
+- **frontend/**: React TypeScript frontend with real-time alert notifications
+- **piper-tts/**: Piper text-to-speech integration for audio alerts
+
+## Features
+
+### Live Alerts System 🚨
+
+The platform includes a comprehensive real-time alert system for monitoring and responding to critical events:
+
+**Backend Features:**
+- WebSocket-based real-time alert delivery
+- Multiple alert types: Info, Warning, Error, Security, System
+- Alert severity levels: low, medium, high, critical
+- Database persistence with SQLAlchemy
+- RESTful API for alert management
+- Integration with Piper TTS for audio notifications
+
+**Frontend Features:**
+- Real-time toast notifications for incoming alerts
+- Slide-out Alert Center for viewing alert history
+- Unread alert count badge in header
+- Auto-reconnecting WebSocket connection
+- Severity-based visual styling and animations
+- Mark as read/dismiss functionality
+
+**Security Alert Types:**
+- `DEBUGGER_TOUCH` - Foreign debugger detection
+- `CHAIN_BREAK` - Integrity failure events
+- `LIE_DETECTED` - Truth probe violations
+- `OVERRIDE_SPOKEN` - Forbidden command detection
+- `YUVA9V_TRIPPED` - Emergency protocols activated
+
+See [Piper Integration Documentation](docs/PIPER_INTEGRATION.md) for audio alert setup.
 
 ## Deployment
+
+### Backend Setup
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+pip install -r backend/requirements.txt
+
+# Initialize the database
+python init_db.py
+
+# Test the alerts system
+python test_alerts.py
+
+# Run the backend server
+cd backend
+PYTHONPATH=./backend uvicorn app.main:app --reload
+```
+
+### Frontend Setup
+
+```bash
+# Install Node dependencies
+cd frontend
+npm install
+
+# Set environment variables
+echo "REACT_APP_API_URL=http://localhost:8000/api/v1" > .env
+echo "REACT_APP_WS_URL=ws://localhost:8000" >> .env
+
+# Run the development server
+npm start
+```
+
+### Docker Deployment
+
+```bash
+# Build and deploy with Docker Compose
+make build
+make deploy
+```
+
+### Piper TTS Setup (Optional)
+
+For audio alert notifications:
+
+```bash
+# Build Piper
+cd piper-tts
+make
+
+# Download a voice model
+wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-en-us-libritts-high.tar.gz
+tar -xzf voice-en-us-libritts-high.tar.gz
+
+# Set environment variable
+export PIPER_MODEL_PATH=./voice-en-us-libritts-high.onnx
+```
+
+See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
+
+## Usage
+
+### Creating Alerts via API
+
+```bash
+# Create a security alert
+curl -X POST "http://localhost:8000/api/v1/alerts/" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "security",
+    "title": "Unauthorized Access",
+    "message": "Failed login attempt detected",
+    "severity": "high",
+    "source": "auth_system"
+  }'
+
+# Create an alert with audio notification
+curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "type": "critical",
+    "title": "System Alert",
+    "message": "Critical system failure detected",
+    "severity": "critical"
+  }'
+```
+
+### WebSocket Connection
+
+The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
+
+```javascript
+const ws = new WebSocket('ws://localhost:8000/api/v1/alerts/ws/USER_ID');
+
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  console.log('Received alert:', message);
+};
+```
+
+## Testing
+
+```bash
+# Run backend tests
+make test
+
+# Run linter
+make lint
+
+# Clean up
+make clean
+```
+
+## Execution and Chain Validation
 
 Execution is controlled via the `./Ship` script, which performs:
 - Hardware-backed commit sealing
