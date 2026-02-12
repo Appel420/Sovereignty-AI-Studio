@@ -63,3 +63,12 @@ media/
 
 # Docker
 docker-compose.override.yml
+
+# Piper TTS
+piper-tts/.git/
+piper-tts/build/
+piper-tts/*.onnx
+piper-tts/*.onnx.json
+piper-tts/*.tar.gz
+*.wav
+*.mp3
