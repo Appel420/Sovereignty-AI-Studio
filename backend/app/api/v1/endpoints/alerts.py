@@ -4,11 +4,14 @@ from typing import List, Optional
 from app.core.database import get_db
 from app.core.websocket import alert_manager
 from app.services.alert_service import AlertService
+from app.services.piper_tts_service import piper_service
 from app.schemas.alert import Alert, AlertCreate, AlertUpdate, AlertList, AlertStats
 from app.models.alert import AlertType
 from app.dependencies import get_current_user
 from app.models.user import User
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -30,10 +33,11 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 @router.post("/", response_model=Alert)
 def create_alert(
     alert: AlertCreate,
+    speak: bool = Query(False, description="Enable text-to-speech for this alert"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Create a new alert"""
+    """Create a new alert with optional TTS"""
     # If no user_id specified, use current user
     if alert.user_id is None:
         alert.user_id = current_user.id
@@ -49,6 +53,17 @@ def create_alert(
         asyncio.create_task(alert_manager.send_personal_alert(db_alert.user_id, alert_data))
     else:
         asyncio.create_task(alert_manager.send_system_alert(alert_data))
+    
+    # Optional: Speak the alert using Piper TTS
+    if speak:
+        try:
+            piper_service.speak_alert(
+                alert_title=db_alert.title,
+                alert_message=db_alert.message,
+                severity=db_alert.severity
+            )
+        except Exception as e:
+            logger.warning(f"Failed to speak alert: {e}")
     
     return db_alert
 
