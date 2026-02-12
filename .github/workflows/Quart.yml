@@ -26,8 +26,13 @@ jobs:
         # Start the Quart app in the background using hypercorn
         hypercorn weather_dashboard:app --bind 0.0.0.0:9898 &
         APP_PID=$!
-        # Wait for the app to start
+        echo "Started hypercorn with PID: $APP_PID"
+        # Wait for the app to start and verify it's running
         sleep 5
+        if ! kill -0 $APP_PID 2>/dev/null; then
+          echo "Error: Hypercorn process failed to start"
+          exit 1
+        fi
         # Test the endpoint
         curl -f http://localhost:9898/api/weather?city=London || exit 1
         # Kill the background process using specific PID
