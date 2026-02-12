@@ -63,7 +63,7 @@ public enum DebuggerDetection {
     /// Run debugger detection check. Logs and exits if debugger is found.
     public static func runCheck() {
         if isDebuggerAttached() {
-            let entry = "DEBUGGER: Attached. log file."
+            let entry = "DEBUGGER: Attached. Writing to log file."
             let hash = etchLog(entry)
             if verifyChain(lastHash: chainGenesis, newEntry: entry) {
                 exit(0)

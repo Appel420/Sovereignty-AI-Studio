@@ -135,7 +135,7 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
     }
 
     /// Real-time audio buffer analysis: 20dB spike + child voice + panic = blackout
-    func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
+    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
         let level = calculateDecibel(buffer)
         let tone = analyzeTone(buffer)
         let isChild = isChildVoice(buffer)

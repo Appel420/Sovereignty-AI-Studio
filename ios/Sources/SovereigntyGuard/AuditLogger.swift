@@ -9,6 +9,7 @@ import CryptoKit
 // MARK: - HashUtility
 public struct HashUtility: Sendable {
     /// Computes a hybrid hash: SHA-256 (placeholder for Blake3) + SHA-512
+    /// Note: Field names use `sha3_512` for compatibility with existing audit JSON format.
     public static func secureHash(_ input: String) -> (blake3: String, sha3_512: String) {
         let data = Data(input.utf8)
 
