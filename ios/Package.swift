@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "SovereigntyGuard",
     platforms: [
-        .iOS(.v26)
+        .iOS(.v16)
     ],
     products: [
         .library(
