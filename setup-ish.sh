@@ -1,19 +1,45 @@
 #!/bin/sh
+# Setup script for Sovereignty-AI-Studio on iSH / Alpine Linux
+# Works with iSH, Python Code Pad, and standard Alpine.
 
-# Setup script for Sovereignty-AI-Studio on iSH Alpine Linux
-echo "Updating package index..."
+set -e
+
+echo "=== Sovereignty AI Studio — iSH Setup ==="
+echo ""
+
+echo "[1/5] Updating package index..."
 apk update
 
-echo "Installing system dependencies..."
-apk add --no-cache python3 py3-pip redis git openssh tzdata ffmpeg gcc musl-dev
+echo "[2/5] Installing system dependencies..."
+apk add --no-cache \
+  python3 py3-pip \
+  nodejs npm \
+  redis git openssh tzdata ffmpeg gcc musl-dev curl
 
-echo "Upgrading pip..."
+echo "[3/5] Upgrading pip..."
 pip install --upgrade pip
 
-echo "Installing Python dependencies..."
+echo "[4/5] Installing Python dependencies..."
 pip install -r requirements.txt
+pip install hypercorn   # Quart ASGI server
 
-echo "Setup complete."
-echo "To run the application:"
-echo "1. Start Redis: redis-server"
-echo "2. Run the app: python .devcontainer/Sovereignty_Gate.py"
+echo "[5/5] Installing Node.js bridge..."
+cd node-bridge && npm install --production && cd ..
+
+echo ""
+echo "=== Setup complete ==="
+echo ""
+echo "Quick start:"
+echo "  ./start-all.sh          # launch all services"
+echo ""
+echo "Or run individually:"
+echo "  redis-server &"
+echo "  PYTHONPATH=.:./backend hypercorn weather_dashboard:app --bind 0.0.0.0:9898 &"
+echo "  cd node-bridge && npm start"
+echo ""
+echo "The Node bridge unifies all backends on port 3001:"
+echo "  http://localhost:3001/health           – bridge health"
+echo "  http://localhost:3001/api/weather      – weather API"
+echo "  http://localhost:3001/api/forecast     – forecast API"
+echo "  http://localhost:3001/api/v1/...       – FastAPI backend"
+echo "  ws://localhost:3001/ws/alerts          – real-time alerts"
