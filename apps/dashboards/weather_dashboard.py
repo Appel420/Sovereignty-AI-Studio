@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 
 app = Quart(__name__)
-app.config['PROVIDE_AUTOMATIC_OPTIONS'] = True
 
 # OpenWeatherMap API configuration
 # Users should set their own API key as an environment variable
