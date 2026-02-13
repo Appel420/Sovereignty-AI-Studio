@@ -16,10 +16,10 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - BACKEND_URL=http://backend:98765
+      - BACKEND_URL=http://backend:8000
       - WEATHER_URL=http://backend:9898
       - NODE_BRIDGE_PORT=3001
-      - CORS_ORIGIN=*
+      - CORS_ORIGIN=http://localhost:3000
     depends_on:
       - backend
 

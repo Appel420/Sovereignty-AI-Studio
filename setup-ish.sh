@@ -24,7 +24,7 @@ pip install -r requirements.txt
 pip install hypercorn   # Quart ASGI server
 
 echo "[5/5] Installing Node.js bridge..."
-cd node-bridge && npm install --production && cd ..
+cd node-bridge && npm ci && cd ..
 
 echo ""
 echo "=== Setup complete ==="

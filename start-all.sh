@@ -11,7 +11,9 @@ BACKEND_PORT="${BACKEND_PORT:-8000}"
 cleanup() {
   echo ""
   echo "[stop] shutting down..."
-  kill $REDIS_PID $WEATHER_PID $BRIDGE_PID 2>/dev/null
+  [ -n "$REDIS_PID" ]   && kill "$REDIS_PID"   2>/dev/null
+  [ -n "$WEATHER_PID" ] && kill "$WEATHER_PID" 2>/dev/null
+  [ -n "$BRIDGE_PID" ]  && kill "$BRIDGE_PID"  2>/dev/null
   exit 0
 }
 trap cleanup INT TERM
