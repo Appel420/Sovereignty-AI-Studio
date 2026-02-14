@@ -1,33 +1,21 @@
-# Sovereignty-AI-Studio
-# No bullshit.
+.PHONY: install test lint build deploy clean
 
-CC      = clang++
-SWIFT   = swiftc
-RUST    = cargo
-PORT    = 9898
+install:
+	pip install -r requirements.txt
+	pip install -r backend/requirements.txt
 
-all: swift rust cpp deploy
+test:
+	PYTHONPATH=.:./backend pytest
 
-swift:
-\t@swiftc Arc.swift Main.swift Honey.swift -O -o build/AraApp
-\t@mkdir -p build && codesign -f -s "Sovereignty Root" build/AraApp
+lint:
+	PYTHONPATH=./backend flake8 src/ --max-line-length=100
 
-rust:
-\t@cd crypto && $(RUST) build --release
-\t@cp crypto/target/release/libvault.so .
-
-cpp:
-\t@$(CC) -fPIC -shared -O2 main_v1_7_sovereign.cpp -o libsovereign.dylib
+build:
+	docker-compose build
 
 deploy:
-\t@ldconfig -n . 2>/dev/null || true
-\t@python3 -m http.server $(PORT) --bind 127.0.0.1 &
-\t@cp ara_listener /root/bin/ara
-\t@chmod +x /root/bin/ara
-\t@/root/bin/ara --voice=on
+	docker-compose up -d
 
 clean:
-\t@rm -rf build *.dylib *.so *.ipa *.app
-\t@cargo clean
-
-.PHONY: all swift rust cpp deploy clean
+	docker-compose down
+	rm -rf __pycache__ */__pycache__
