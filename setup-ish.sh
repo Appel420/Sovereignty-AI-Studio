@@ -1,45 +1,36 @@
 #!/bin/sh
-# Setup script for Sovereignty-AI-Studio on iSH / Alpine Linux
-# Works with iSH, Python Code Pad, and standard Alpine.
+# Sovereignty AI Studio — iSH Setup (clean, working Feb 2026)
 
-set -e
+# Pin to v3.12 FIRST — only once, Node 14 runs clean
+echo "https://dl-cdn.alpinelinux.org/alpine/v3.12/main" > /etc/apk/repositories
+echo "https://dl-cdn.alpinelinux.org/alpine/v3.12/community" >> /etc/apk/repositories
+
+set -e  # Bail on any error
 
 echo "=== Sovereignty AI Studio — iSH Setup ==="
-echo ""
 
-echo "[1/5] Updating package index..."
-apk update
-
-echo "[2/5] Installing system dependencies..."
-apk add --no-cache \
+echo "Installing deps..."
+apk update && apk add --no-cache \
   python3 py3-pip \
   nodejs npm \
   redis git openssh tzdata ffmpeg gcc musl-dev curl
 
-echo "[3/5] Upgrading pip..."
-pip install --upgrade pip
+echo "Python setup..."
+pip install --user --upgrade pip
+pip install --user -r requirements.txt
+pip install --user hypercorn  # ASGI server
 
-echo "[4/5] Installing Python dependencies..."
-pip install -r requirements.txt
-pip install hypercorn   # Quart ASGI server
+echo "Node bridge..."
+cd node-bridge && npm ci --no-audit --no-fund && cd ..
 
-echo "[5/5] Installing Node.js bridge..."
-cd node-bridge && npm ci && cd ..
-
+echo "=== Done ==="
 echo ""
-echo "=== Setup complete ==="
-echo ""
-echo "Quick start:"
-echo "  ./start-all.sh          # launch all services"
-echo ""
-echo "Or run individually:"
+echo "Launch:"
 echo "  redis-server &"
 echo "  PYTHONPATH=.:./backend hypercorn weather_dashboard:app --bind 0.0.0.0:9898 &"
 echo "  cd node-bridge && npm start"
 echo ""
-echo "The Node bridge unifies all backends on port 3001:"
-echo "  http://localhost:3001/health           – bridge health"
-echo "  http://localhost:3001/api/weather      – weather API"
-echo "  http://localhost:3001/api/forecast     – forecast API"
-echo "  http://localhost:3001/api/v1/...       – FastAPI backend"
-echo "  ws://localhost:3001/ws/alerts          – real-time alerts"
+echo "All APIs on 9898: http://localhost:9898/health"
+echo "Node bridge proxies on 3001: http://localhost:3001/api/weather"
+echo "Type the port yourself—iSH auto-links fuck up to 0000."
+echo "If crash: pkill hypercorn; rerun the hypercorn line."
