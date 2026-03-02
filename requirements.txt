@@ -45,7 +45,6 @@ mediaref==0.5.0
 vtt-transcribe==0.3.1
 video-cli==1.3.3
 pyimagedl==0.3.7
-runware==0.4.47
 
 # Networking / SSH / IoT
 h11==0.16.0
@@ -58,9 +57,7 @@ HAP-python-pycryptodome==4.9.8
 isc-dhcp-leases==0.10.0
 event-isc==0.1.0
 connector2==0.2.3
-connector-py==4.191.0
 webex-message-handler==0.5.0
-gchat==0.0.16
 
 # Instruments / Hardware
 SCPI-Instrument-Control==1.1.0
@@ -89,15 +86,10 @@ jsonid==0.12.3
 fileherder==1.0.1
 pyp==3.0.9
 solve==0.0.0
-bmk==2.9.0
-ls-converter==0.0.1
 check-duplicate-variables==1.0.5
-open-terminal==0.4.1
 mpytool==2.3.3
 onedb==1.0.0
 iphone-backup-decrypt==0.9.0
-pyzbrowser==1.0.3
-pydocket==0.17.9
 mpra==0.2.1
 
 # Agents / Orchestration
@@ -114,7 +106,6 @@ xstate-statemachine==0.4.3
 humanbound-cli==0.5.0
 metorial-xai==1.0.5
 progressor-lib==1.0.1
-quorum-cli==1.1.5
 one-click-ai-spark==3.0.2
 
 # Data / DevOps
@@ -130,8 +121,6 @@ allen-powerplatform-client==0.1.4
 
 # MCP / CLI
 manhattan-mcp==0.1.31
-clarity-mcp==0.2.4
-grok-cli-mcp==0.1.0
 llm-grok==1.4.1
 anysite-cli==0.3.13
 taxgrok==0.1.2
@@ -146,16 +135,12 @@ qodacode==1.0.3
 usefy==2.1.1
 
 # Automation / Infra
-py-browser-automation==0.3.24
-aitop==0.16.0
-gha-utils==5.14.1
 flanes==0.4.4
 sanna==0.13.7
 novalang==3.0.28
 axiron==0.0.1
 pyhabitat==1.2.2
 piviz-3d==2.1.0
-tapkit==0.1.3
 lexis==0.1.3
 brainstem==2.12.1
 wagtail-thumbnail-choice-block==0.1.5
