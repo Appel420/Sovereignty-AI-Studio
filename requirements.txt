@@ -163,4 +163,4 @@ wagtail-thumbnail-choice-block==0.1.5
 
 # Testing
 pytest==8.3.3
-pytest-asyncio==1.3.0
+pytest-asyncio==0.23.8

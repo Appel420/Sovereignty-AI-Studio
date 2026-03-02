@@ -46,6 +46,7 @@ async def mobile_status():
             "auth": "/api/v1/auth",
             "users": "/api/v1/users",
             "websocket": "/api/v1/alerts/ws/{user_id}",
+            "studio": "/api/v1/studio",
             "generation": "/api/v1/generation",
             "media": "/api/v1/media",
             "voice": "/api/v1/voice",
