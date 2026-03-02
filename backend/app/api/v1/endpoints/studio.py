@@ -108,14 +108,14 @@ async def compose_music(
 # ── Syntax Checker ───────────────────────────────────────────────────
 @router.get("/syntax/status")
 async def syntax_status():
-    from app.services.syntax_checker_service import syntax_checker_service
-    return syntax_checker_service.get_status()
+    from app.services.syntax_checker_service import syntax_checker
+    return syntax_checker.get_status()
 
 
 @router.post("/syntax/check")
 async def check_syntax(source: str, file_path: str = "<input>"):
-    from app.services.syntax_checker_service import syntax_checker_service
-    return syntax_checker_service.check_python(source, file_path)
+    from app.services.syntax_checker_service import syntax_checker
+    return syntax_checker.check_python(source, file_path)
 
 
 # ── Dashboard Builder ────────────────────────────────────────────────

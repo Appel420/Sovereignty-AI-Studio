@@ -6,11 +6,6 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 import logging
-import sys
-import os
-
-# Add project root to path for src imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".."))
 
 logger = logging.getLogger(__name__)
 
