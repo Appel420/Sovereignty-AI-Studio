@@ -7,7 +7,7 @@
 **Core Model:** Super Grok Heavy 4.2  
 (xAI) – Locked, Sealed, Sovereign  
 **Authority:** Derek Appel  
-**Last Updated:** February 9, 2026
+**Last Updated:** March 2, 2026
 
 ## Overview
 
@@ -82,13 +82,46 @@ Sovereignty-AI-Studio/
 │       └── build.rs
 ├── apps/
 │   ├── dashboards/      # Dashboard Applications
-│   │   ├── weather_dashboard.py
 │   │   ├── Tools_Post_Quantum_Dashboard.html
 │   │   ├── Real_Validator.html
 │   │   └── SuperGrok-Heavy4-2-Validator.html
 │   └── web/             # Web Applications
 │       ├── Server.js
 │       └── Deploy.html
+├── backend/             # FastAPI Backend
+│   ├── app/
+│   │   ├── api/v1/      # REST & WebSocket API endpoints
+│   │   ├── core/        # Database, security, WebSocket hub
+│   │   ├── models/      # SQLAlchemy ORM models
+│   │   ├── schemas/     # Pydantic schemas
+│   │   └── services/    # Business logic (alerts, TTS, users)
+│   └── requirements.txt
+├── frontend/            # React TypeScript Frontend
+│   └── src/
+│       ├── Frontend_src_Auth.jsx    # Post-quantum auth login component
+│       ├── xai_in_cert_Chain.html   # xAI certificate chain viewer
+│       ├── components/  # Alert center, layout components
+│       ├── hooks/       # WebSocket and alert hooks
+│       ├── pages/       # Dashboard, generator pages
+│       └── services/    # API client services
+├── ios/                 # iOS Swift Package (SovereigntyGuard)
+│   └── Sources/SovereigntyGuard/
+│       ├── ContentView.swift
+│       ├── SovereigntyAPIClient.swift
+│       ├── AuditLogger.swift
+│       ├── DebuggerDetection.swift
+│       ├── FamilyGuardCore.swift
+│       └── VoiceCommandIntegrity.swift
+├── node-bridge/         # Node.js Bridge (frontend ↔ Python backends)
+│   ├── server.js
+│   ├── package.json
+│   └── test/bridge.test.js
+├── ai_core/             # Core AI modules
+│   ├── AI_Core.py
+│   ├── Siri_Replace_Ara-Core.py
+│   ├── ai_defense_module.py
+│   ├── lie_detector.py
+│   └── second_squad_agent.py
 ├── resources/
 │   ├── assets/          # Binary & Font Assets
 │   │   ├── ESP42.bin
@@ -99,7 +132,6 @@ Sovereignty-AI-Studio/
 │   │   ├── Breathe.json
 │   │   ├── Pip-mic.xml
 │   │   ├── Cargo.toml
-│   │   ├── docker-compose.yml
 │   │   └── environment.yml
 │   └── data/            # Data Files & Documentation
 │       ├── AI Reading Accuracy
@@ -124,13 +156,13 @@ Sovereignty-AI-Studio/
 │   └── deploy.sh
 ├── crypto/              # Cryptography Modules
 │   └── Vault_crypto.js
+├── docs/                # Documentation
 ├── .devcontainer/       # Dev container configuration
 ├── .github/             # GitHub Actions and templates
-├── docs/                # Documentation
-├── backend/             # Existing backend directory
-├── frontend/            # Existing frontend directory
-├── ai_core/             # Existing ai_core directory
-├── FamilyGuard/         # Existing FamilyGuard directory
+├── Backend_API_AUTH.py  # Post-quantum backend auth router (Dilithium2 + TOTP)
+├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
+├── Harvard_Sentences.txt # Standard TTS evaluation sentences
+├── weather_dashboard.py # Quart weather dashboard entry point
 ├── LICENSE.MD
 ├── SECURITY.md
 ├── README.md
@@ -139,19 +171,24 @@ Sovereignty-AI-Studio/
 
 ## Key Components
 
-- **src/agents/**: AI Agent Modules for various tasks
+- **src/agents/**: AI Agent Modules for various tasks including lie detection and EEG analysis
 - **src/core/**: Core system files for the AI platform
-- **src/security/**: Security and protection modules including live alerts
-- **src/models/**: Machine learning models
+- **src/security/**: Security and protection modules including live alerts and tamper detection
+- **src/models/**: Machine learning models and quantum layers
 - **src/utils/**: Utility functions and tools
-- **apps/dashboards/**: Dashboard applications
+- **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
 - **apps/web/**: Web applications
+- **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
 - **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend with WebSocket support for live alerts
-- **frontend/**: React TypeScript frontend with real-time alert notifications
-- **piper-tts/**: Piper text-to-speech integration for audio alerts
+- **backend/**: FastAPI backend with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
+- **frontend/**: React TypeScript frontend with real-time alert notifications and post-quantum auth UI
+- **ios/**: iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging
+- **node-bridge/**: Node.js bridge connecting frontend, Python backends, and iSH/Code Pad
+- **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
+- **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
+- **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
 
 ## Features
 
@@ -183,6 +220,28 @@ The platform includes a comprehensive real-time alert system for monitoring and 
 - `YUVA9V_TRIPPED` - Emergency protocols activated
 
 See [Piper Integration Documentation](docs/PIPER_INTEGRATION.md) for audio alert setup.
+
+### EEG Streaming System 🧠
+
+Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
+
+- Lab Streaming Layer (LSL) inlet for hardware-agnostic EEG device support
+- Band-power extraction: delta, theta, alpha, beta, gamma
+- Butterworth bandpass filtering and Welch power spectral density
+- Artifact detection and classification labeling
+- Server-Sent Events (SSE) broadcasting for live dashboard streaming
+- Thread-safe concurrent data store for polling endpoints
+
+### Post-Quantum Authentication 🔐
+
+`Backend_API_AUTH.py` implements quantum-resistant identity verification:
+
+- **Dilithium2** post-quantum digital signatures (CRYSTALS-Dilithium)
+- **TOTP** two-factor authentication as a second factor
+- Signed JWT-style tokens using the authenticated public key
+- Immutable audit log entries written to `/logs/auth.jsonl`
+- `frontend/src/Frontend_src_Auth.jsx`: browser-side Dilithium signing via WebAssembly
+- `frontend/src/xai_in_cert_Chain.html`: xAI certificate chain verification viewer
 
 ## Deployment
 
