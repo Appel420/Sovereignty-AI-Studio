@@ -84,7 +84,7 @@ db.close()
 
 #### Create Alert (curl)
 ```bash
-curl -X POST "http://localhost:8000/api/v1/alerts/" \
+curl -X POST "http://localhost:9898/api/v1/alerts/" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "info",
@@ -96,7 +96,7 @@ curl -X POST "http://localhost:8000/api/v1/alerts/" \
 
 #### Create Alert with Audio (curl)
 ```bash
-curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
+curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "critical",
@@ -108,12 +108,12 @@ curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
 
 #### Get Unread Alerts (curl)
 ```bash
-curl "http://localhost:8000/api/v1/alerts/?unread_only=true&limit=10"
+curl "http://localhost:9898/api/v1/alerts/?unread_only=true&limit=10"
 ```
 
 #### WebSocket (JavaScript)
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/api/v1/alerts/ws/1');
+const ws = new WebSocket('ws://localhost:9898/api/v1/alerts/ws/1');
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
@@ -167,8 +167,8 @@ PIPER_MODEL_PATH=/path/to/model.onnx
 PIPER_DIR=/path/to/piper-tts
 
 # Frontend  
-REACT_APP_API_URL=http://localhost:8000/api/v1
-REACT_APP_WS_URL=ws://localhost:8000
+REACT_APP_API_URL=http://localhost:9898/api/v1
+REACT_APP_WS_URL=ws://localhost:9898
 ```
 
 ### Troubleshooting
@@ -176,10 +176,10 @@ REACT_APP_WS_URL=ws://localhost:8000
 #### WebSocket won't connect
 ```bash
 # Check backend is running
-curl http://localhost:8000/health
+curl http://localhost:9898/health
 
 # Check WebSocket endpoint
-wscat -c ws://localhost:8000/api/v1/alerts/ws/1
+wscat -c ws://localhost:9898/api/v1/alerts/ws/1
 ```
 
 #### Database issues
@@ -232,7 +232,7 @@ Project Root
 
 - **Documentation**: `docs/ALERTS_USAGE.md`
 - **TTS Guide**: `docs/PIPER_INTEGRATION.md`
-- **API Docs**: `http://localhost:8000/docs` (when running)
+- **API Docs**: `http://localhost:9898/docs` (when running)
 - **Implementation**: `docs/IMPLEMENTATION_SUMMARY.md`
 
 ### Support
