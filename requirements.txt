@@ -80,7 +80,7 @@ quyaml==1.0.0
 
 # Utilities
 python-dotenv==1.1.0
-pydantic==2.9.0
+pydantic==2.12.5
 parse==1.21.0
 pip-tools==7.5.3
 celery==5.4.0
