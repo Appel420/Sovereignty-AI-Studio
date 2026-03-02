@@ -21,120 +21,72 @@ No external services, third-party models, or internet connectivity are required 
 
 ```
 Sovereignty-AI-Studio/
-├── src/
-│   ├── agents/          # AI Agent Modules
-│   │   ├── AI-Lie-Detector.py
-│   │   ├── AI-Self-Lie-Detection.py
-│   │   ├── Coach_agent.py
-│   │   ├── Second_Squad_Agent.py
-│   │   ├── Pieces_Agent.py
-│   │   ├── eeg_agent.py
-│   │   ├── eeg_agent_qresist.py
-│   │   ├── eyes_agent.py
-│   │   └── XAI-Judge.py
-│   ├── core/            # Core System Files
-│   │   ├── Sovereignty_core.py
-│   │   ├── sovereign_mind.py
-│   │   ├── main.py
-│   │   ├── __init__.py
-│   │   ├── enable.py
-│   │   └── root.py
-│   ├── security/        # Security & Protection Modules
-│   │   ├── Scar-Keep.py
-│   │   ├── Scar-Memory.py
-│   │   ├── Scar-keep-tamper.py
-│   │   ├── scar-keep.py
-│   │   ├── scarExact.py
-│   │   ├── Syntax-Guard.py
-│   │   ├── Voice_Guard.py
-│   │   ├── echo_guard.py
-│   │   ├── SecureApp.py
-│   │   ├── Fortress-Protocol-7.887.Rust
-│   │   └── Alerts.Rust
-│   ├── models/          # Machine Learning Models
-│   │   ├── ML_Board.py
-│   │   ├── model_Definitions.py
-│   │   └── quantum_layer.py
-│   ├── utils/           # Utility Functions
-│   │   ├── argparser.py
-│   │   ├── subtools.py
-│   │   ├── cli.py
-│   │   ├── pickers.py
-│   │   ├── cardexport.py
-│   │   ├── sources.py
-│   │   ├── constance.py
-│   │   ├── validator.py
-│   │   ├── Verifier.py
-│   │   ├── Code_Clean.py
-│   │   ├── Remove-word.py
-│   │   ├── remove-Word.py
-│   │   ├── Bug.py
-│   │   ├── Reasoning.py
-│   │   ├── Mapping.py
-│   │   ├── xView.py
-│   │   ├── system_File_Log.py
-│   │   └── fonttools.py
-│   └── native/          # Native Code (C++, Swift, Rust)
-│       ├── main_v1_7_sovereign.cpp
-│       ├── Arc.swift
-│       ├── Main.swift
-│       ├── Honey.swift
-│       └── build.rs
+├── src/                           # Source code
+│   ├── agents/                    # AI Agent Modules
+│   ├── core/                      # Core System Files
+│   ├── security/                  # Security & Protection Modules
+│   ├── models/                    # Machine Learning Models
+│   ├── utils/                     # Utility Functions
+│   ├── ai_core/                   # Siri-Replace / Ara Core
+│   └── native/                    # Native Code (C++, Swift, Rust)
+├── backend/                       # FastAPI backend (port 9898)
+│   ├── app/                       # Application code
+│   ├── alembic/                   # Database migrations
+│   └── Dockerfile
+├── frontend/                      # React TypeScript frontend
+│   └── src/
 ├── apps/
-│   ├── dashboards/      # Dashboard Applications
-│   │   ├── weather_dashboard.py
-│   │   ├── Tools_Post_Quantum_Dashboard.html
-│   │   ├── Real_Validator.html
-│   │   └── SuperGrok-Heavy4-2-Validator.html
-│   └── web/             # Web Applications
-│       ├── Server.js
-│       └── Deploy.html
+│   ├── dashboards/                # Dashboard Applications
+│   └── web/                       # Web Applications
+├── ios/                           # iOS / Swift Package
+├── node-bridge/                   # Node.js Express+WS bridge (port 9898)
+├── scripts/                       # Build, Deployment & Utility Scripts
+│   ├── deploy.sh
+│   ├── init_db.py
+│   ├── demo_alerts.py
+│   ├── test_alerts.py
+│   ├── fullscan_cli.py
+│   ├── eeg_streaming.py
+│   ├── AI_iOS_Voice.py
+│   ├── Backend_API_AUTH.py
+│   ├── Build_Judge.py
+│   ├── Secure_Audit.py
+│   ├── agentMem.py
+│   ├── multiAgentOrch.py
+│   ├── subAgentorc.py
+│   ├── reasercgerAgent.py
+│   ├── parser.py
+│   ├── workflows.py
+│   └── Unlock_Tier_21.js
+├── tests/                         # Test suite
+│   ├── test_app.py
+│   └── test_weather.py
+├── docs/                          # Documentation
+│   ├── QUICK_REFERENCE.md
+│   ├── PIPER_INTEGRATION.md
+│   ├── ALERTS_USAGE.md
+│   ├── IMPLEMENTATION_SUMMARY.md
+│   ├── POLICY_SEC_ML_ACCESS.md
+│   ├── Compliance_Audit.md
+│   └── ...
 ├── resources/
-│   ├── assets/          # Binary & Font Assets
-│   │   ├── ESP42.bin
-│   │   ├── Knucklesandwich.txt.TTF
-│   │   └── Sovereignty_python-keycloak-master.zip
-│   ├── configs/         # Configuration Files
-│   │   ├── Armor.yaml
-│   │   ├── Breathe.json
-│   │   ├── Pip-mic.xml
-│   │   ├── Cargo.toml
-│   │   ├── docker-compose.yml
-│   │   └── environment.yml
-│   └── data/            # Data Files & Documentation
-│       ├── AI Reading Accuracy
-│       ├── AI-LLM-Model-Choosing
-│       ├── AI_Error_Handling
-│       ├── AI_Eyes_Medical
-│       ├── AI_Reading_Rules
-│       ├── Ai-self-code-With-TamperLock
-│       ├── Airplane_blueprint.py
-│       ├── Animals-Ai-Humans-Resonance_bridge
-│       ├── Animals-Ai-Humans.txt
-│       ├── Bulletproof-AI-Code-Fix
-│       ├── HIPAA.txt
-│       ├── MidasV2.0
-│       ├── Ship
-│       ├── Sovereignty_Truth_Wire
-│       ├── UNC-AI-2026
-│       ├── Scar-tamper.txt
-│       ├── Scary_Truth.py
-│       └── SuperGrok-Heavy-4-2.py
-├── scripts/             # Build & Deployment Scripts
-│   └── deploy.sh
-├── crypto/              # Cryptography Modules
-│   └── Vault_crypto.js
-├── .devcontainer/       # Dev container configuration
-├── .github/             # GitHub Actions and templates
-├── docs/                # Documentation
-├── backend/             # Existing backend directory
-├── frontend/            # Existing frontend directory
-├── ai_core/             # Existing ai_core directory
-├── FamilyGuard/         # Existing FamilyGuard directory
+│   ├── assets/                    # Binary & Font Assets
+│   ├── configs/                   # Configuration Files
+│   ├── data/                      # Data Files & References
+│   └── archives/                  # ZIP Archives
+├── crypto/                        # Cryptography Modules
+├── ai_core/                       # AI Core Modules
+├── Sovereignty_python-keycloak-master/  # Keycloak integration
+├── weather_dashboard.py           # Quart weather app entry point (port 9898)
+├── requirements.txt               # Python dependencies
+├── docker-compose.yml             # Docker orchestration
+├── Dockerfile                     # Container config
+├── Makefile                       # Build automation
+├── start-all.sh                   # Launch all services
+├── setup-ish.sh                   # iSH/Alpine setup
 ├── LICENSE.MD
 ├── SECURITY.md
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## Key Components
@@ -146,11 +98,15 @@ Sovereignty-AI-Studio/
 - **src/utils/**: Utility functions and tools
 - **apps/dashboards/**: Dashboard applications
 - **apps/web/**: Web applications
-- **resources/**: Assets, configurations, and data files
-- **scripts/**: Build and deployment scripts
+- **scripts/**: Build, deployment, and utility scripts
+- **tests/**: Test suite (pytest + pytest-asyncio)
+- **docs/**: Project documentation
+- **resources/**: Assets, configurations, data files, and archives
 - **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend with WebSocket support for live alerts
+- **backend/**: FastAPI backend with WebSocket support for live alerts (port 9898)
 - **frontend/**: React TypeScript frontend with real-time alert notifications
+- **ios/**: iOS Swift Package (SovereigntyGuard)
+- **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
 - **piper-tts/**: Piper text-to-speech integration for audio alerts
 
 ## Features
@@ -194,10 +150,10 @@ pip install -r requirements.txt
 pip install -r backend/requirements.txt
 
 # Initialize the database
-python init_db.py
+python scripts/init_db.py
 
 # Test the alerts system
-python test_alerts.py
+python scripts/test_alerts.py
 
 # Run the backend server
 cd backend

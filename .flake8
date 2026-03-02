@@ -28,6 +28,10 @@ exclude =
     src/utils/fonttools.py,
     src/utils/sources.py,
     src/utils/validator.py,
-    Secure_Audit.py,
-    ring_gate_boot_nfc_9v.asm,
+    scripts/Secure_Audit.py,
+    scripts/fullscan_cli.py,
+    scripts/multiAgentOrch.py,
+    scripts/reasercgerAgent.py,
+    scripts/subAgentorc.py,
+    scripts/Build_Judge.py,
     frontend
