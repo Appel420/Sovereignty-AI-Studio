@@ -30,3 +30,21 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/api/v1/mobile/status")
+async def mobile_status():
+    """Mobile-friendly status endpoint for iOS/iPhone connectivity."""
+    return {
+        "status": "online",
+        "service": "Sovereignty AI Studio",
+        "api_version": "v1",
+        "port": 9898,
+        "endpoints": {
+            "health": "/health",
+            "alerts": "/api/v1/alerts",
+            "auth": "/api/v1/auth",
+            "users": "/api/v1/users",
+            "websocket": "/api/v1/alerts/ws/{user_id}",
+        },
+    }

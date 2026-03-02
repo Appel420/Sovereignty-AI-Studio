@@ -28,6 +28,15 @@ exclude =
     src/utils/fonttools.py,
     src/utils/sources.py,
     src/utils/validator.py,
+<<<<<<< copilot/update-python-packages
+    scripts/Secure_Audit.py,
+    scripts/fullscan_cli.py,
+    scripts/multiAgentOrch.py,
+    scripts/reasercgerAgent.py,
+    scripts/subAgentorc.py,
+    scripts/Build_Judge.py,
+    frontend
+=======
     Secure_Audit.py,
     ring_gate_boot_nfc_9v.asm,
     frontend,
@@ -38,3 +47,4 @@ exclude =
     Build_Judge.py,
     Backend_API_AUTH.py,
     eeg_streaming.py
+>>>>>>> main
