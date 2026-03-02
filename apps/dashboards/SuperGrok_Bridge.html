@@ -1577,7 +1577,7 @@ function renderTypeRacer(){
   return `<div class="panel-hdr"><h2>⌨️ Type Racer</h2><p>// WPM · Accuracy · +30 XP on Complete</p></div>
   <div class="card gf">
     <div style="font-family:var(--mono);font-size:13px;letter-spacing:.5px;padding:12px;background:var(--sf2);border-radius:7px;margin-bottom:10px;color:var(--cy)" id="trTarget">${sent}</div>
-    <textarea class="chat-inp-ta" id="trInput" placeholder="Type the text above…" rows="2" oninput="typeRacer(this,'${sent.replace(/'/g,"\\'")}')"></textarea>
+    <textarea class="chat-inp-ta" id="trInput" placeholder="Type the text above…" rows="2" oninput="typeRacer(this,'${sent.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')"></textarea>
 
 ```
 <div style="display:flex;gap:16px;margin-top:10px;font-family:var(--mono);font-size:9px">
@@ -8894,7 +8894,7 @@ var AutoLogin = {
                  : age < 86400000 ? Math.round(age/3600000) + 'h ago'
                  : Math.round(age/86400000) + 'd ago';
       var hasBio = u.hasBiometric && u.credId;
-      return '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:10px;cursor:pointer;transition:all .2s;max-width:360px;width:100%" onmouseover="this.style.borderColor=\'var(--cy)\'" onmouseout="this.style.borderColor=\'var(--bd2)\'" onclick="AutoLogin.quickLogin(\'' + u.name.replace(/'/g,"\\'") + '\',\'' + u.role + '\')">' +
+      return '<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:10px;cursor:pointer;transition:all .2s;max-width:360px;width:100%" onmouseover="this.style.borderColor=\'var(--cy)\'" onmouseout="this.style.borderColor=\'var(--bd2)\'" onclick="AutoLogin.quickLogin(\'' + u.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\',\'' + u.role + '\')">' +
         '<div style="width:44px;height:44px;border-radius:50%;background:' + (ROLES && ROLES[u.role] ? ROLES[u.role].color : '#334155') + '33;border:2px solid ' + (ROLES && ROLES[u.role] ? ROLES[u.role].color : '#334155') + ';display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">' +
         (ROLES && ROLES[u.role] ? ROLES[u.role].icon : '👤') + '</div>' +
         '<div style="flex:1;overflow:hidden">' +
@@ -8997,7 +8997,7 @@ AutoLogin.offerBiometricSetup = function(userName) {
       '<span style="font-size:20px">' + (navigator.maxTouchPoints > 1 ? '👆' : '🔐') + '</span>' +
       '<div style="flex:1"><div style="color:var(--cy);margin-bottom:3px">Enable Biometric Login?</div><div style="color:var(--mu)">Sign in instantly with Face ID, Touch ID, or fingerprint</div></div>' +
       '<div style="display:flex;flex-direction:column;gap:4px">' +
-      '<button style="padding:5px 10px;background:rgba(0,188,212,.15);border:1px solid var(--cy);border-radius:5px;color:var(--cy);font-family:var(--mono);font-size:7px;cursor:pointer;white-space:nowrap" onclick="BiometricAuth.register(\'' + userName.replace(/'/g,"\\'") + '\',function(r){if(r.ok){var u=SessionVault.getDeviceUsers().find(function(x){return x.name===\'' + userName.replace(/'/g,"\\'") + '\'});if(u){u.hasBiometric=true;u.credId=BiometricAuth.getCredId(\'' + userName.replace(/'/g,"\\'") + '\');SessionVault.store(u);}};this.closest(\'div[style*=fixed]\').remove()});this.closest(\'div[style*=fixed]\').remove()">Enable</button>' +
+      '<button style="padding:5px 10px;background:rgba(0,188,212,.15);border:1px solid var(--cy);border-radius:5px;color:var(--cy);font-family:var(--mono);font-size:7px;cursor:pointer;white-space:nowrap" onclick="BiometricAuth.register(\'' + userName.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\',function(r){if(r.ok){var u=SessionVault.getDeviceUsers().find(function(x){return x.name===\'' + userName.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\'});if(u){u.hasBiometric=true;u.credId=BiometricAuth.getCredId(\'' + userName.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\');SessionVault.store(u);}};this.closest(\'div[style*=fixed]\').remove()});this.closest(\'div[style*=fixed]\').remove()">Enable</button>' +
       '<button style="padding:5px 10px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;color:var(--mu);font-family:var(--mono);font-size:7px;cursor:pointer" onclick="this.closest(\'div[style*=fixed]\').remove()">Later</button>' +
       '</div>';
     document.body.appendChild(toast_el);
@@ -9036,8 +9036,8 @@ window.renderProfiles = function() {
           '</div>' +
           '<div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">' +
           (u.hasBiometric ? '<span style="font-family:var(--mono);font-size:6.5px;color:var(--gn)">🔏 Bio</span>' :
-            BiometricAuth.supported ? '<button style="padding:2px 6px;background:rgba(0,188,212,.1);border:1px solid rgba(0,188,212,.2);border-radius:3px;font-family:var(--mono);font-size:6.5px;cursor:pointer;color:var(--cy)" onclick="BiometricAuth.register(\'' + u.name.replace(/'/g,"\\'") + '\',function(r){if(r.ok)loadPanel(\'profiles\')})">+ Bio</button>' : '') +
-          '<button style="padding:2px 6px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:3px;font-family:var(--mono);font-size:6.5px;cursor:pointer;color:var(--rd)" onclick="SessionVault.remove(\'' + u.name.replace(/'/g,"\\'") + '\',\'' + u.role + '\');loadPanel(\'profiles\')">Remove</button>' +
+            BiometricAuth.supported ? '<button style="padding:2px 6px;background:rgba(0,188,212,.1);border:1px solid rgba(0,188,212,.2);border-radius:3px;font-family:var(--mono);font-size:6.5px;cursor:pointer;color:var(--cy)" onclick="BiometricAuth.register(\'' + u.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\',function(r){if(r.ok)loadPanel(\'profiles\')})">+ Bio</button>' : '') +
+          '<button style="padding:2px 6px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.15);border-radius:3px;font-family:var(--mono);font-size:6.5px;cursor:pointer;color:var(--rd)" onclick="SessionVault.remove(\'' + u.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'") + '\',\'' + u.role + '\');loadPanel(\'profiles\')">Remove</button>' +
           '</div>' +
           '</div>';
       }).join('') + '</div>'
