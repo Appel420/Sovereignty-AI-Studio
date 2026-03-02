@@ -7,7 +7,7 @@
 **Core Model:** Super Grok Heavy 4.2  
 (xAI) – Locked, Sealed, Sovereign  
 **Authority:** Derek Appel  
-**Last Updated:** February 9, 2026
+**Last Updated:** March 2, 2026
 
 ## Overview
 
@@ -21,6 +21,12 @@ No external services, third-party models, or internet connectivity are required 
 
 ```
 Sovereignty-AI-Studio/
+├── .devcontainer/                 # Dev Container configuration
+│   ├── devcontainer.json
+│   ├── Ara.yml
+│   └── ...
+├── .github/                       # GitHub Actions CI workflows
+│   └── workflows/
 ├── src/                           # Source code
 │   ├── agents/                    # AI Agent Modules
 │   ├── core/                      # Core System Files
@@ -65,8 +71,11 @@ Sovereignty-AI-Studio/
 │   ├── QUICK_REFERENCE.md
 │   ├── PIPER_INTEGRATION.md
 │   ├── ALERTS_USAGE.md
+│   ├── ALERTS_SYSTEM_DIAGRAM.txt
 │   ├── IMPLEMENTATION_SUMMARY.md
 │   ├── POLICY_SEC_ML_ACCESS.md
+│   ├── SYSTEM_VALIDATOR.md
+│   ├── REORGANIZATION_PLAN.md
 │   ├── Compliance_Audit.md
 │   └── ...
 ├── resources/
@@ -79,6 +88,7 @@ Sovereignty-AI-Studio/
 ├── Sovereignty_python-keycloak-master/  # Keycloak integration
 ├── weather_dashboard.py           # Quart weather app entry point (port 9898)
 ├── requirements.txt               # Python dependencies
+├── pkg.json                       # Electron app configuration
 ├── docker-compose.yml             # Docker orchestration
 ├── Dockerfile                     # Container config
 ├── Makefile                       # Build automation
@@ -107,7 +117,7 @@ Sovereignty-AI-Studio/
 - **frontend/**: React TypeScript frontend with real-time alert notifications
 - **ios/**: iOS Swift Package (SovereigntyGuard)
 - **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
-- **piper-tts/**: Piper text-to-speech integration for audio alerts
+- **Piper TTS**: Piper text-to-speech integration for audio alerts (see [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md))
 
 ## Features
 
@@ -157,7 +167,7 @@ python scripts/test_alerts.py
 
 # Run the backend server
 cd backend
-PYTHONPATH=./backend uvicorn app.main:app --reload
+PYTHONPATH=.:./backend uvicorn app.main:app --reload
 ```
 
 ### Frontend Setup
