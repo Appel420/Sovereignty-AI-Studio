@@ -46,5 +46,12 @@ async def mobile_status():
             "auth": "/api/v1/auth",
             "users": "/api/v1/users",
             "websocket": "/api/v1/alerts/ws/{user_id}",
+            "voice": "/api/v1/studio/voice/status",
+            "avatar": "/api/v1/studio/avatar/status",
+            "media": "/api/v1/studio/media/status",
+            "music": "/api/v1/studio/music/status",
+            "syntax": "/api/v1/studio/syntax/status",
+            "dashboard": "/api/v1/studio/dashboard/status",
+            "ble_eeg": "/api/v1/studio/ble-eeg/status",
         },
     }
