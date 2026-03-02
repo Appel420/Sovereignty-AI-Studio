@@ -106,7 +106,6 @@ xstate-statemachine==0.4.3
 humanbound-cli==0.5.0
 metorial-xai==1.0.5
 progressor-lib==1.0.1
-one-click-ai-spark==3.0.2
 
 # Data / DevOps
 dagster-multihost-launcher==0.1.2
