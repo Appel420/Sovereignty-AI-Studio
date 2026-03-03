@@ -65,6 +65,9 @@ media/
 # Docker
 docker-compose.override.yml
 
+# Bridge server runtime data
+data/
+
 # Piper TTS
 piper-tts/.git/
 piper-tts/build/
