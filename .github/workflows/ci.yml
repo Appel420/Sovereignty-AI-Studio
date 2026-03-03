@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python 3.11
@@ -18,9 +19,9 @@ jobs:
     - name: Install project dependencies
       run: |
         pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r .github/workflows/Requirements.txt
     - name: Install test dependencies
-      run: pip install pytest pytest-asyncio pytest-cov flake8 httpx
+      run: pip install flake8
     - name: Lint with flake8
       run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Run tests

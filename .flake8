@@ -28,13 +28,16 @@ exclude =
     src/utils/fonttools.py,
     src/utils/sources.py,
     src/utils/validator.py,
-    Secure_Audit.py,
+    scripts/Secure_Audit.py,
+    scripts/fullscan_cli.py,
+    scripts/multiAgentOrch.py,
+    scripts/reasercgerAgent.py,
+    scripts/subAgentorc.py,
+    scripts/Build_Judge.py,
+    scripts/Backend_API_AUTH.py,
+    scripts/eeg_streaming.py,
+<<<<<< copilot/fix-dependency-conflicts-requirements
+=======
     ring_gate_boot_nfc_9v.asm,
-    frontend,
-    multiAgentOrch.py,
-    reasercgerAgent.py,
-    subAgentorc.py,
-    fullscan_cli.py,
-    Build_Judge.py,
-    Backend_API_AUTH.py,
-    eeg_streaming.py
+>>>>>> main
+    frontend
