@@ -69,7 +69,17 @@ func verifyAndConnect() {
 }
 
 func connectToCSM() {
-    // Real socket connection, chain-signed
+    Task {
+        do {
+            let healthy = try await SovereigntyAPIClient.shared.healthCheck()
+            if healthy {
+                let status = try await SovereigntyAPIClient.shared.mobileStatus()
+                print("[CSM] Connected — service: \(status["service"] ?? "unknown")")
+            }
+        } catch {
+            print("[CSM] Connection failed: \(error)")
+        }
+    }
 }
 
 func armHoney() {
@@ -81,5 +91,6 @@ func armHoney() {
 }
 
 func armHoneypot(hash: String) async throws {
-    // Arm honeypot with the given hash
+    _ = try await SovereigntyAPIClient.shared.armHoneypot(hash: hash)
+    print("[Honeypot] Armed with hash: \(hash.prefix(16))...")
 }

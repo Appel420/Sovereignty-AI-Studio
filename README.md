@@ -21,65 +21,20 @@ No external services, third-party models, or internet connectivity are required 
 
 ```
 Sovereignty-AI-Studio/
-├── src/
-│   ├── agents/          # AI Agent Modules
-│   │   ├── AI-Lie-Detector.py
-│   │   ├── AI-Self-Lie-Detection.py
-│   │   ├── Coach_agent.py
-│   │   ├── Second_Squad_Agent.py
-│   │   ├── Pieces_Agent.py
-│   │   ├── eeg_agent.py
-│   │   ├── eeg_agent_qresist.py
-│   │   ├── eyes_agent.py
-│   │   └── XAI-Judge.py
-│   ├── core/            # Core System Files
-│   │   ├── Sovereignty_core.py
-│   │   ├── sovereign_mind.py
-│   │   ├── main.py
-│   │   ├── __init__.py
-│   │   ├── enable.py
-│   │   └── root.py
-│   ├── security/        # Security & Protection Modules
-│   │   ├── Scar-Keep.py
-│   │   ├── Scar-Memory.py
-│   │   ├── Scar-keep-tamper.py
-│   │   ├── scar-keep.py
-│   │   ├── scarExact.py
-│   │   ├── Syntax-Guard.py
-│   │   ├── Voice_Guard.py
-│   │   ├── echo_guard.py
-│   │   ├── SecureApp.py
-│   │   ├── Fortress-Protocol-7.887.Rust
-│   │   └── Alerts.Rust
-│   ├── models/          # Machine Learning Models
-│   │   ├── ML_Board.py
-│   │   ├── model_Definitions.py
-│   │   └── quantum_layer.py
-│   ├── utils/           # Utility Functions
-│   │   ├── argparser.py
-│   │   ├── subtools.py
-│   │   ├── cli.py
-│   │   ├── pickers.py
-│   │   ├── cardexport.py
-│   │   ├── sources.py
-│   │   ├── constance.py
-│   │   ├── validator.py
-│   │   ├── Verifier.py
-│   │   ├── Code_Clean.py
-│   │   ├── Remove-word.py
-│   │   ├── remove-Word.py
-│   │   ├── Bug.py
-│   │   ├── Reasoning.py
-│   │   ├── Mapping.py
-│   │   ├── xView.py
-│   │   ├── system_File_Log.py
-│   │   └── fonttools.py
-│   └── native/          # Native Code (C++, Swift, Rust)
-│       ├── main_v1_7_sovereign.cpp
-│       ├── Arc.swift
-│       ├── Main.swift
-│       ├── Honey.swift
-│       └── build.rs
+├── src/                           # Source code
+│   ├── agents/                    # AI Agent Modules
+│   ├── core/                      # Core System Files
+│   ├── security/                  # Security & Protection Modules
+│   ├── models/                    # Machine Learning Models
+│   ├── utils/                     # Utility Functions
+│   ├── ai_core/                   # Siri-Replace / Ara Core
+│   └── native/                    # Native Code (C++, Swift, Rust)
+├── backend/                       # FastAPI backend (port 9898)
+│   ├── app/                       # Application code
+│   ├── alembic/                   # Database migrations
+│   └── Dockerfile
+├── frontend/                      # React TypeScript frontend
+│   └── src/
 ├── apps/
 │   ├── dashboards/      # Dashboard Applications
 │   │   ├── Tools_Post_Quantum_Dashboard.html
@@ -165,8 +120,7 @@ Sovereignty-AI-Studio/
 ├── weather_dashboard.py # Quart weather dashboard entry point
 ├── LICENSE.MD
 ├── SECURITY.md
-├── README.md
-└── .gitignore
+└── README.md
 ```
 
 ## Key Components
@@ -178,6 +132,7 @@ Sovereignty-AI-Studio/
 - **src/utils/**: Utility functions and tools
 - **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
 - **apps/web/**: Web applications
+<<<<<< copilot/extract-zip-archive
 - **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
@@ -189,6 +144,18 @@ Sovereignty-AI-Studio/
 - **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
 - **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
 - **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
+=======
+- **scripts/**: Build, deployment, and utility scripts
+- **tests/**: Test suite (pytest + pytest-asyncio)
+- **docs/**: Project documentation
+- **resources/**: Assets, configurations, data files, and archives
+- **crypto/**: Cryptography modules
+- **backend/**: FastAPI backend with WebSocket support for live alerts (port 9898)
+- **frontend/**: React TypeScript frontend with real-time alert notifications
+- **ios/**: iOS Swift Package (SovereigntyGuard)
+- **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
+- **piper-tts/**: Piper text-to-speech integration for audio alerts
+>>>>>> main
 
 ## Features
 
@@ -253,10 +220,10 @@ pip install -r requirements.txt
 pip install -r backend/requirements.txt
 
 # Initialize the database
-python init_db.py
+python scripts/init_db.py
 
 # Test the alerts system
-python test_alerts.py
+python scripts/test_alerts.py
 
 # Run the backend server
 cd backend
@@ -271,8 +238,8 @@ cd frontend
 npm install
 
 # Set environment variables
-echo "REACT_APP_API_URL=http://localhost:8000/api/v1" > .env
-echo "REACT_APP_WS_URL=ws://localhost:8000" >> .env
+echo "REACT_APP_API_URL=http://localhost:9898/api/v1" > .env
+echo "REACT_APP_WS_URL=ws://localhost:9898" >> .env
 
 # Run the development server
 npm start
@@ -311,7 +278,7 @@ See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
 ```bash
 # Create a security alert
-curl -X POST "http://localhost:8000/api/v1/alerts/" \
+curl -X POST "http://localhost:9898/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -323,7 +290,7 @@ curl -X POST "http://localhost:8000/api/v1/alerts/" \
   }'
 
 # Create an alert with audio notification
-curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
+curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -339,7 +306,7 @@ curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
 The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/api/v1/alerts/ws/USER_ID');
+const ws = new WebSocket('ws://localhost:9898/api/v1/alerts/ws/USER_ID');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
