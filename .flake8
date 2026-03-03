@@ -36,8 +36,5 @@ exclude =
     scripts/Build_Judge.py,
     scripts/Backend_API_AUTH.py,
     scripts/eeg_streaming.py,
-<<<<<< copilot/fix-dependency-conflicts-requirements
-=======
     ring_gate_boot_nfc_9v.asm,
->>>>>> main
     frontend
