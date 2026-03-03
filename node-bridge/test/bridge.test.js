@@ -118,3 +118,15 @@ describe('Node Bridge – WebSocket', () => {
     assert.equal(msg.severity, 'warning');
   });
 });
+
+describe('Node Bridge – Status', () => {
+  it('GET /api/bridge/status returns service health', async () => {
+    const r = await request('/api/bridge/status');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.status, 'healthy');
+    assert.ok(r.body.services);
+    assert.ok(r.body.timestamp);
+    assert.equal(typeof r.body.websocket_clients, 'number');
+    assert.equal(typeof r.body.uptime, 'number');
+  });
+});

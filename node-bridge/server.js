@@ -122,6 +122,37 @@ function broadcast(data) {
   }
 }
 
+// GET /api/bridge/status — aggregated service connectivity
+app.get('/api/bridge/status', async (_req, res) => {
+  const services = { api: 'offline', weather: 'offline' };
+
+  const checkService = (url, key) =>
+    new Promise((resolve) => {
+      const target = new URL('/health', url);
+      const req = http.request(target, { method: 'GET', timeout: 3000 }, (r) => {
+        if (r.statusCode && r.statusCode < 500) services[key] = 'online';
+        r.resume();
+        resolve();
+      });
+      req.on('error', () => resolve());
+      req.on('timeout', () => { req.destroy(); resolve(); });
+      req.end();
+    });
+
+  await Promise.all([
+    checkService(BACKEND_URL, 'api'),
+    checkService(WEATHER_URL, 'weather'),
+  ]);
+
+  res.json({
+    status: 'healthy',
+    services,
+    websocket_clients: clients.size,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // POST /api/bridge/notify — Python backends can push alerts here
 app.post('/api/bridge/notify', (req, res) => {
   const { type, title, message, severity } = req.body;
