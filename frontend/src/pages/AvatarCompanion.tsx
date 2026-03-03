@@ -24,18 +24,18 @@ const AvatarCompanion: React.FC = () => {
         if (state.mood && typeof state.mood === 'string') setMood(state.mood);
         if (typeof state.eeg_linked === 'boolean') setEegLinked(state.eeg_linked);
       })
-      .catch(() => {});
+      .catch((err: unknown) => { console.error('Avatar state fetch failed:', err); });
   }, []);
 
   const handleMoodChange = async (m: string) => {
     setMood(m);
-    try { await AvatarAPI.updateMood(m); } catch { /* fallback to local state */ }
+    try { await AvatarAPI.updateMood(m); } catch (err) { console.error('Mood update failed:', err); }
   };
 
   const handleEEGToggle = async () => {
     const newVal = !eegLinked;
     setEegLinked(newVal);
-    try { await AvatarAPI.toggleEEGLink(newVal); } catch { /* fallback to local state */ }
+    try { await AvatarAPI.toggleEEGLink(newVal); } catch (err) { console.error('EEG toggle failed:', err); }
   };
 
   return (

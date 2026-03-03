@@ -14,6 +14,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { HealthAPI } from '../services/api';
 
+const SERVICE_CHECK_INTERVAL_MS = 30000;
+
 interface ServiceStatus {
   api: 'online' | 'offline' | 'loading';
   bridge: 'online' | 'offline' | 'loading';
@@ -120,7 +122,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     checkServices();
-    const interval = setInterval(checkServices, 30000);
+    const interval = setInterval(checkServices, SERVICE_CHECK_INTERVAL_MS);
     return () => clearInterval(interval);
   }, [checkServices]);
 

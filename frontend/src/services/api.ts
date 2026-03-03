@@ -4,6 +4,7 @@
  */
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9898/api/v1';
+const BRIDGE_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/, '');
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem('access_token');
@@ -29,14 +30,9 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 export const HealthAPI = {
   check: () => request<{ status: string }>('/status'),
   bridgeHealth: () =>
-    fetch(
-      (process.env.REACT_APP_API_URL || 'http://localhost:9898').replace(/\/api\/v1$/, '') + '/health'
-    ).then((r) => r.json()),
+    fetch(`${BRIDGE_BASE_URL}/health`).then((r) => r.json()),
   bridgeStatus: () =>
-    fetch(
-      (process.env.REACT_APP_API_URL || 'http://localhost:9898').replace(/\/api\/v1$/, '') +
-        '/api/bridge/status'
-    ).then((r) => r.json()),
+    fetch(`${BRIDGE_BASE_URL}/api/bridge/status`).then((r) => r.json()),
 };
 
 // ── Voice ──────────────────────────────────────────────────────────────
