@@ -42,6 +42,7 @@ Sovereignty-AI-Studio/
 ├── frontend/                      # React TypeScript frontend
 │   └── src/
 ├── apps/
+<<<<<< copilot/update-readme-file
 │   ├── dashboards/                # Dashboard Applications
 │   └── web/                       # Web Applications
 ├── ios/                           # iOS / Swift Package
@@ -94,6 +95,90 @@ Sovereignty-AI-Studio/
 ├── Makefile                       # Build automation
 ├── start-all.sh                   # Launch all services
 ├── setup-ish.sh                   # iSH/Alpine setup
+=======
+│   ├── dashboards/      # Dashboard Applications
+│   │   ├── Tools_Post_Quantum_Dashboard.html
+│   │   ├── Real_Validator.html
+│   │   └── SuperGrok-Heavy4-2-Validator.html
+│   └── web/             # Web Applications
+│       ├── Server.js
+│       └── Deploy.html
+├── backend/             # FastAPI Backend
+│   ├── app/
+│   │   ├── api/v1/      # REST & WebSocket API endpoints
+│   │   ├── core/        # Database, security, WebSocket hub
+│   │   ├── models/      # SQLAlchemy ORM models
+│   │   ├── schemas/     # Pydantic schemas
+│   │   └── services/    # Business logic (alerts, TTS, users)
+│   └── requirements.txt
+├── frontend/            # React TypeScript Frontend
+│   └── src/
+│       ├── Frontend_src_Auth.jsx    # Post-quantum auth login component
+│       ├── xai_in_cert_Chain.html   # xAI certificate chain viewer
+│       ├── components/  # Alert center, layout components
+│       ├── hooks/       # WebSocket and alert hooks
+│       ├── pages/       # Dashboard, generator pages
+│       └── services/    # API client services
+├── ios/                 # iOS Swift Package (SovereigntyGuard)
+│   └── Sources/SovereigntyGuard/
+│       ├── ContentView.swift
+│       ├── SovereigntyAPIClient.swift
+│       ├── AuditLogger.swift
+│       ├── DebuggerDetection.swift
+│       ├── FamilyGuardCore.swift
+│       └── VoiceCommandIntegrity.swift
+├── node-bridge/         # Node.js Bridge (frontend ↔ Python backends)
+│   ├── server.js
+│   ├── package.json
+│   └── test/bridge.test.js
+├── ai_core/             # Core AI modules
+│   ├── AI_Core.py
+│   ├── Siri_Replace_Ara-Core.py
+│   ├── ai_defense_module.py
+│   ├── lie_detector.py
+│   └── second_squad_agent.py
+├── resources/
+│   ├── assets/          # Binary & Font Assets
+│   │   ├── ESP42.bin
+│   │   ├── Knucklesandwich.txt.TTF
+│   │   └── Sovereignty_python-keycloak-master.zip
+│   ├── configs/         # Configuration Files
+│   │   ├── Armor.yaml
+│   │   ├── Breathe.json
+│   │   ├── Pip-mic.xml
+│   │   ├── Cargo.toml
+│   │   └── environment.yml
+│   └── data/            # Data Files & Documentation
+│       ├── AI Reading Accuracy
+│       ├── AI-LLM-Model-Choosing
+│       ├── AI_Error_Handling
+│       ├── AI_Eyes_Medical
+│       ├── AI_Reading_Rules
+│       ├── Ai-self-code-With-TamperLock
+│       ├── Airplane_blueprint.py
+│       ├── Animals-Ai-Humans-Resonance_bridge
+│       ├── Animals-Ai-Humans.txt
+│       ├── Bulletproof-AI-Code-Fix
+│       ├── HIPAA.txt
+│       ├── MidasV2.0
+│       ├── Ship
+│       ├── Sovereignty_Truth_Wire
+│       ├── UNC-AI-2026
+│       ├── Scar-tamper.txt
+│       ├── Scary_Truth.py
+│       └── SuperGrok-Heavy-4-2.py
+├── scripts/             # Build & Deployment Scripts
+│   └── deploy.sh
+├── crypto/              # Cryptography Modules
+│   └── Vault_crypto.js
+├── docs/                # Documentation
+├── .devcontainer/       # Dev container configuration
+├── .github/             # GitHub Actions and templates
+├── Backend_API_AUTH.py  # Post-quantum backend auth router (Dilithium2 + TOTP)
+├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
+├── Harvard_Sentences.txt # Standard TTS evaluation sentences
+├── weather_dashboard.py # Quart weather dashboard entry point
+>>>>>> main
 ├── LICENSE.MD
 ├── SECURITY.md
 └── README.md
@@ -101,13 +186,26 @@ Sovereignty-AI-Studio/
 
 ## Key Components
 
-- **src/agents/**: AI Agent Modules for various tasks
+- **src/agents/**: AI Agent Modules for various tasks including lie detection and EEG analysis
 - **src/core/**: Core system files for the AI platform
-- **src/security/**: Security and protection modules including live alerts
-- **src/models/**: Machine learning models
+- **src/security/**: Security and protection modules including live alerts and tamper detection
+- **src/models/**: Machine learning models and quantum layers
 - **src/utils/**: Utility functions and tools
-- **apps/dashboards/**: Dashboard applications
+- **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
 - **apps/web/**: Web applications
+<<<<<< copilot/extract-zip-archive
+- **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
+- **resources/**: Assets, configurations, and data files
+- **scripts/**: Build and deployment scripts
+- **crypto/**: Cryptography modules
+- **backend/**: FastAPI backend with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
+- **frontend/**: React TypeScript frontend with real-time alert notifications and post-quantum auth UI
+- **ios/**: iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging
+- **node-bridge/**: Node.js bridge connecting frontend, Python backends, and iSH/Code Pad
+- **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
+- **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
+- **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
+=======
 - **scripts/**: Build, deployment, and utility scripts
 - **tests/**: Test suite (pytest + pytest-asyncio)
 - **docs/**: Project documentation
@@ -117,7 +215,12 @@ Sovereignty-AI-Studio/
 - **frontend/**: React TypeScript frontend with real-time alert notifications
 - **ios/**: iOS Swift Package (SovereigntyGuard)
 - **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
+<<<<<< copilot/update-readme-file
 - **Piper TTS**: Piper text-to-speech integration for audio alerts (see [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md))
+=======
+- **piper-tts/**: Piper text-to-speech integration for audio alerts
+>>>>> main
+>>>>>> main
 
 ## Features
 
@@ -149,6 +252,28 @@ The platform includes a comprehensive real-time alert system for monitoring and 
 - `YUVA9V_TRIPPED` - Emergency protocols activated
 
 See [Piper Integration Documentation](docs/PIPER_INTEGRATION.md) for audio alert setup.
+
+### EEG Streaming System 🧠
+
+Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
+
+- Lab Streaming Layer (LSL) inlet for hardware-agnostic EEG device support
+- Band-power extraction: delta, theta, alpha, beta, gamma
+- Butterworth bandpass filtering and Welch power spectral density
+- Artifact detection and classification labeling
+- Server-Sent Events (SSE) broadcasting for live dashboard streaming
+- Thread-safe concurrent data store for polling endpoints
+
+### Post-Quantum Authentication 🔐
+
+`Backend_API_AUTH.py` implements quantum-resistant identity verification:
+
+- **Dilithium2** post-quantum digital signatures (CRYSTALS-Dilithium)
+- **TOTP** two-factor authentication as a second factor
+- Signed JWT-style tokens using the authenticated public key
+- Immutable audit log entries written to `/logs/auth.jsonl`
+- `frontend/src/Frontend_src_Auth.jsx`: browser-side Dilithium signing via WebAssembly
+- `frontend/src/xai_in_cert_Chain.html`: xAI certificate chain verification viewer
 
 ## Deployment
 
