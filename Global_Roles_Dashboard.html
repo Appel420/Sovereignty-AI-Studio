@@ -1851,12 +1851,12 @@ var D={
 var Agents = {
   registry: {},
 
-  register:function(name, handler){
+  register: function(name, handler){
     this.registry[name] = handler;
     console.log('Agent registered:', name);
   },
 
-  send:function(agent, payload){
+  send: function(agent, payload){
     if(!Bridge.ws || Bridge.ws.readyState !== 1){
       console.warn('Bridge offline');
       return;
@@ -1869,7 +1869,7 @@ var Agents = {
     }));
   },
 
-  receive:function(msg){
+  receive: function(msg){
     if(!msg.agent) return;
     var handler = this.registry[msg.agent];
     if(handler){
@@ -1974,7 +1974,6 @@ async function sendChat(){
       Agents.send(model,{
         prompt:memCtx+text,
         system:sys,
-        apiKey:model==='claude'?SS.get('sg_anthropic_key'):model==='gpt'?SS.get('sg_openai_key'):model==='grok'?SS.get('sg_xai_key'):'',
         session:STATE.sgToken
       });
       responseText='[Sent to '+model.toUpperCase()+' via Bridge port 9898] Waiting for agent response...';

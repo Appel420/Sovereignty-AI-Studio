@@ -2,6 +2,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('path');
 const { spawn } = require('child_process');
 const { WebSocket } = require('ws');
 
@@ -50,7 +51,7 @@ function waitForType(ws, expectedType, timeoutMs = 5000) {
 describe('server_9898 agent routing', () => {
   before(async () => {
     serverProc = spawn('node', ['server_9898.js'], {
-      cwd: '/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio',
+      cwd: path.resolve(__dirname, '..'),
       stdio: 'ignore',
     });
     await waitForWsOpen(SERVER_URL).then((ws) => ws.close());

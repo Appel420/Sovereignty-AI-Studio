@@ -186,9 +186,9 @@ function aiProxy(agent, payload) {
 
     const prompt = String((payload && payload.prompt) || '').slice(0, CFG.maxTextLen);
     const systemPrompt = String((payload && payload.system) || '');
-    const key = (payload && payload.apiKey) || process.env[prov.envKey] || '';
+    const key = process.env[prov.envKey] || '';
     if (!key) {
-      resolve({ error: 'Set ' + prov.envKey + ' env var or pass apiKey in payload' });
+      resolve({ error: 'Set ' + prov.envKey + ' env var on bridge server' });
       return;
     }
 
