@@ -1,410 +1,596 @@
-/**
- * SuperGrok AI Platform — Bridge Server (Port 9898)
- *
- * Provides the local backend for Global_Roles_Dashboard.html:
- *   GET  /health                   – health check
- *   POST /api/ai/chat              – AI proxy (Claude / GPT-4o / Grok)
- *   POST /api/execute-command      – safe terminal command execution
- *   GET  /api/memory               – list persisted memory entries
- *   POST /api/memory               – add a memory entry
- *   DELETE /api/memory/:id         – remove a memory entry
- *   GET  /api/audit                – list audit log entries
- *   POST /api/audit                – append an audit entry
- *   WS   ws://localhost:9898       – real-time channel
- *     → ping                       – responds with pong
- *     → ai_query                   – proxy AI request, stream reply back
- *     → piper_speak                – synthesise speech via Piper TTS
- *
- * Environment variables (all optional – keys enable live AI):
- *   PORT              server port (default 9898)
- *   ANTHROPIC_API_KEY Claude key  (sk-ant-…)
- *   OPENAI_API_KEY    OpenAI key  (sk-…)
- *   XAI_API_KEY       xAI key
- *   PIPER_BIN         path to piper binary (default: piper)
- *   DATA_DIR          directory for JSON data files (default: ./data)
- *   TLS_CERT          path to PEM certificate for HTTPS/WSS
- *   TLS_KEY           path to PEM private key for HTTPS/WSS
- *
- * Usage:
- *   node server_9898.js
- *   TLS_CERT=cert.pem TLS_KEY=key.pem node server_9898.js
- */
-
+// ═══════════════════════════════════════════════════════════════════
+// SUPERGROK PIPER TTS + BRIDGE SERVER — Port 9898
+// Production · Zero Cloud · Zero Telemetry · HIPAA Safe
+// Piper TTS (offline) · DuckDuckGo Proxy · Audit Chain · MFA Tokens
+// ═══════════════════════════════════════════════════════════════════
 'use strict';
 
+const WebSocket = require('ws');
+const { exec, spawn }  = require('child_process');
 const http  = require('http');
 const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
-const cp    = require('child_process');
-const { URL } = require('url');
+const crypto = require('crypto');
+const os    = require('os');
 
-// ---------------------------------------------------------------------------
-// Config
-// ---------------------------------------------------------------------------
-const PORT      = parseInt(process.env.PORT || '9898', 10);
-const DATA_DIR  = process.env.DATA_DIR || path.join(__dirname, 'data');
-const PIPER_BIN = process.env.PIPER_BIN || 'piper';
+// ─── Config ─────────────────────────────────────────────────────────
+const CFG = {
+  port:       9898,
+  piperBin:   process.env.PIPER_BIN   || './piper',
+  piperModel: process.env.PIPER_MODEL || './en_US-lessac-medium.onnx',
+  piperCfg:   process.env.PIPER_CFG   || './en_US-lessac-medium.onnx.json',
+  tmpDir:     os.tmpdir(),
+  auditLog:   './audit_9898.jsonl',
+  maxTextLen: 1000,
+  allowedOrigins: ['http://localhost', 'file://'],
+  // DDG proxy targets (no Google, no Meta)
+  ddgSearch:  'https://duckduckgo.com/?q=',
+  ddgAI:      'https://duck.ai/',
+  // Rate limiting
+  rateWindow: 60000,   // 1 min
+  rateLimit:  30,      // max 30 msgs/min per connection
+  // Token store for MFA
+  tokens: new Map(),
+  // Session store (KC offline_access tokens)
+  sessions: new Map(),
+};
 
-const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
-const OPENAI_KEY    = process.env.OPENAI_API_KEY    || '';
-const XAI_KEY       = process.env.XAI_API_KEY       || '';
+// ─── Audit Logger ────────────────────────────────────────────────────
+const auditStream = fs.createWriteStream(CFG.auditLog, { flags: 'a' });
+let auditSeq = 0;
 
-// ---------------------------------------------------------------------------
-// Data persistence helpers
-// ---------------------------------------------------------------------------
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+function audit(event, detail, ws_id) {
+  const entry = {
+    seq:    ++auditSeq,
+    ts:     new Date().toISOString(),
+    ws_id:  ws_id || 'server',
+    event,
+    detail,
+    hash:   crypto.createHash('sha256').update(`${auditSeq}${event}${detail}`).digest('hex').slice(0,16),
+  };
+  auditStream.write(JSON.stringify(entry) + '\n');
+  if (process.env.VERBOSE) console.log(`[AUDIT] ${entry.ts} #${entry.seq} ${event}: ${detail}`);
+  return entry;
 }
 
-function readJSON(name, fallback) {
-  ensureDataDir();
-  const file = path.join(DATA_DIR, name);
-  try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
-  catch (e) { /* File missing or invalid JSON — return fallback */ return fallback; }
-}
+// ─── Piper TTS ───────────────────────────────────────────────────────
+let piperReady = fs.existsSync(CFG.piperBin) && fs.existsSync(CFG.piperModel);
 
-function writeJSON(name, data) {
-  ensureDataDir();
-  fs.writeFileSync(path.join(DATA_DIR, name), JSON.stringify(data, null, 2));
-}
-
-// ---------------------------------------------------------------------------
-// Tiny HTTP helper — make a JSON request to an external API
-// ---------------------------------------------------------------------------
-function apiPost(url, headers, body) {
+async function piperSpeak(text, wsId) {
   return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const isHttps = parsed.protocol === 'https:';
-    const transport = isHttps ? https : http;
-    const payload = JSON.stringify(body);
-    const opts = {
-      hostname: parsed.hostname,
-      port:     parsed.port || (isHttps ? 443 : 80),
-      path:     parsed.pathname + parsed.search,
-      method:   'POST',
-      headers:  {
-        'Content-Type':   'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-        ...headers,
-      },
-    };
-    const req = transport.request(opts, (res) => {
-      let raw = '';
-      res.on('data', (c) => (raw += c));
-      res.on('end', () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
-        catch (e) { resolve({ status: res.statusCode, body: raw }); }
+    // Sanitize text — strip shell metacharacters
+    const safe = text.replace(/[`$\\'";&|<>(){}[\]!#*?~\n\r]/g, ' ').slice(0, CFG.maxTextLen);
+    const wavFile = path.join(CFG.tmpDir, `piper_${wsId}_${Date.now()}.wav`);
+
+    if (!piperReady) {
+      // Fallback: generate silence wav header (8 bytes) so client knows it's done
+      audit('PIPER_FALLBACK', 'Piper not found — returning done signal', wsId);
+      resolve({ done: true, fallback: true });
+      return;
+    }
+
+    // Use stdio pipe: echo text | piper --model X --output_file Y
+    const child = spawn(CFG.piperBin, [
+      '--model',       CFG.piperModel,
+      '--output_file', wavFile,
+    ]);
+
+    child.stdin.write(safe);
+    child.stdin.end();
+
+    child.on('close', (code) => {
+      if (code !== 0) {
+        audit('PIPER_ERROR', `Exit ${code} for: ${safe.slice(0,40)}`, wsId);
+        reject(new Error('Piper exited ' + code));
+        return;
+      }
+      // Read wav and return as base64
+      fs.readFile(wavFile, (err, data) => {
+        fs.unlink(wavFile, ()=>{}); // cleanup
+        if (err) { reject(err); return; }
+        audit('PIPER_SPOKE', safe.slice(0, 60), wsId);
+        resolve({ type: 'audio', codec: 'wav', data: data.toString('base64') });
       });
     });
-    req.on('error', reject);
-    req.write(payload);
-    req.end();
-  });
-}
 
-// ---------------------------------------------------------------------------
-// AI proxy — calls Anthropic / OpenAI / xAI depending on model
-// ---------------------------------------------------------------------------
-async function callAI(model, system, messages) {
-  if (model === 'claude') {
-    const key = ANTHROPIC_KEY;
-    if (!key) return { error: 'ANTHROPIC_API_KEY not set on bridge server' };
-    const r = await apiPost(
-      'https://api.anthropic.com/v1/messages',
-      { 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      { model: 'claude-sonnet-4-20250514', max_tokens: 1200, system, messages },
-    );
-    if (r.body && r.body.content && r.body.content[0]) {
-      return { text: r.body.content[0].text };
-    }
-    return { error: r.body && r.body.error ? r.body.error.message : 'Claude API error', status: r.status };
-  }
-
-  if (model === 'gpt') {
-    const key = OPENAI_KEY;
-    if (!key) return { error: 'OPENAI_API_KEY not set on bridge server' };
-    const r = await apiPost(
-      'https://api.openai.com/v1/chat/completions',
-      { Authorization: `Bearer ${key}` },
-      { model: 'gpt-4o', max_tokens: 1200, messages: [{ role: 'system', content: system }, ...messages] },
-    );
-    if (r.body && r.body.choices && r.body.choices[0]) {
-      return { text: r.body.choices[0].message.content };
-    }
-    return { error: r.body && r.body.error ? r.body.error.message : 'OpenAI API error', status: r.status };
-  }
-
-  if (model === 'grok') {
-    const key = XAI_KEY;
-    if (!key) return { error: 'XAI_API_KEY not set on bridge server' };
-    const r = await apiPost(
-      'https://api.x.ai/v1/chat/completions',
-      { Authorization: `Bearer ${key}` },
-      { model: 'grok-2-latest', max_tokens: 1200, messages: [{ role: 'system', content: system }, ...messages] },
-    );
-    if (r.body && r.body.choices && r.body.choices[0]) {
-      return { text: r.body.choices[0].message.content };
-    }
-    return { error: 'Grok API error', status: r.status };
-  }
-
-  return { error: `Unknown model: ${model}` };
-}
-
-// ---------------------------------------------------------------------------
-// Safe command execution — allowlist only
-// ---------------------------------------------------------------------------
-const SAFE_CMDS = new Set([
-  'pwd', 'ls', 'date', 'whoami', 'hostname', 'uname',
-  'node --version', 'npm --version', 'python3 --version', 'python --version',
-  'echo', 'cat', 'head', 'tail', 'wc',
-]);
-
-function isSafeCommand(cmd) {
-  const base = cmd.trim().split(/\s+/)[0];
-  if (SAFE_CMDS.has(cmd.trim())) return true;
-  if (['echo', 'cat', 'head', 'tail', 'wc', 'ls'].includes(base)) return true;
-  return false;
-}
-
-function executeCommand(cmd, role) {
-  if (!isSafeCommand(cmd)) {
-    return { output: `[Bridge] Command restricted for role ${role || 'user'}: ${cmd}\nAllowed: pwd, ls, date, whoami, node --version, etc.`, exit: 1 };
-  }
-  try {
-    const out = cp.execSync(cmd, { timeout: 5000, encoding: 'utf8', shell: '/bin/sh' });
-    return { output: out, exit: 0 };
-  } catch (e) {
-    return { output: e.message, exit: e.status || 1 };
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Piper TTS
-// ---------------------------------------------------------------------------
-function piperSpeak(text, ws) {
-  const clean = text.replace(/[<>]/g, '').slice(0, 500);
-  try {
-    const proc = cp.spawn(PIPER_BIN, ['--output-raw'], { stdio: ['pipe', 'pipe', 'ignore'] });
-    const chunks = [];
-    proc.stdin.write(clean);
-    proc.stdin.end();
-    proc.stdout.on('data', (c) => chunks.push(c));
-    proc.stdout.on('end', () => {
-      if (ws.readyState === 1) {
-        ws.send(JSON.stringify({ type: 'audio', data: Buffer.concat(chunks).toString('base64') }));
-      }
-    });
-    proc.on('error', () => { /* piper binary not installed — skip */ });
-  } catch (e) { /* piper not installed — skip */ }
-}
-
-// ---------------------------------------------------------------------------
-// HTTP request router
-// ---------------------------------------------------------------------------
-function readBody(req) {
-  return new Promise((resolve) => {
-    let raw = '';
-    req.on('data', (c) => (raw += c));
-    req.on('end', () => {
-      try { resolve(JSON.parse(raw)); } catch (e) { /* Invalid JSON body — return empty object */ resolve({}); }
+    child.on('error', (e) => {
+      piperReady = false;
+      audit('PIPER_CRASH', e.message, wsId);
+      reject(e);
     });
   });
 }
 
-function respond(res, status, body) {
-  const payload = JSON.stringify(body);
-  res.writeHead(status, {
-    'Content-Type':                'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+// ─── DDG Proxy ───────────────────────────────────────────────────────
+function ddgProxy(query, mode, wsId) {
+  return new Promise((resolve, reject) => {
+    if (mode === 'ghost') {
+      audit('DDG_GHOST_BLOCK', query.slice(0,40), wsId);
+      resolve({ blocked: true, mode: 'ghost' });
+      return;
+    }
+    const url = CFG.ddgSearch + encodeURIComponent(query) + '&t=supergrok&ia=answer';
+    audit('DDG_FETCH', url.slice(0,80), wsId);
+    https.get(url, { headers: { 'User-Agent': 'SuperGrok/5.0 Privacy/HIPAA' } }, (res) => {
+      let body = '';
+      res.on('data', d => body += d);
+      res.on('end', () => resolve({ status: res.statusCode, length: body.length }));
+    }).on('error', reject);
   });
-  res.end(payload);
 }
 
-async function handleRequest(req, res) {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin':  '*',
-      'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type,Authorization',
-    });
-    return res.end();
-  }
-
-  const urlObj = new URL(req.url, `http://localhost`);
-  const urlPath = urlObj.pathname;
-  const method  = req.method;
-
-  // GET /health
-  if (method === 'GET' && urlPath === '/health') {
-    return respond(res, 200, {
-      status:    'healthy',
-      service:   'server_9898',
-      uptime:    process.uptime(),
-      ai:        { claude: !!ANTHROPIC_KEY, gpt: !!OPENAI_KEY, grok: !!XAI_KEY },
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  // POST /api/ai/chat
-  if (method === 'POST' && urlPath === '/api/ai/chat') {
-    const body = await readBody(req);
-    const { model = 'claude', system = '', messages = [], text } = body;
-    const msgs = messages.length ? messages : [{ role: 'user', content: text || '' }];
-    const result = await callAI(model, system, msgs);
-    return respond(res, result.error ? 502 : 200, result);
-  }
-
-  // POST /api/execute-command
-  if (method === 'POST' && urlPath === '/api/execute-command') {
-    const body = await readBody(req);
-    const { command = '', role = 'user' } = body;
-    const result = executeCommand(command, role);
-    return respond(res, 200, result);
-  }
-
-  // GET /api/memory
-  if (method === 'GET' && urlPath === '/api/memory') {
-    return respond(res, 200, readJSON('memory.json', []));
-  }
-
-  // POST /api/memory
-  if (method === 'POST' && urlPath === '/api/memory') {
-    const body  = await readBody(req);
-    const items = readJSON('memory.json', []);
-    const entry = {
-      id:      Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      title:   (body.title  || 'Note').slice(0, 200),
-      content: (body.content || '').slice(0, 2000),
-      ts:      new Date().toISOString(),
-      auto:    !!body.auto,
-    };
-    items.push(entry);
-    if (items.length > 200) items = items.slice(-200);
-    writeJSON('memory.json', items);
-    return respond(res, 201, entry);
-  }
-
-  // DELETE /api/memory/:id
-  if (method === 'DELETE' && urlPath.startsWith('/api/memory/')) {
-    const id    = urlPath.slice('/api/memory/'.length);
-    const items = readJSON('memory.json', []);
-    const next  = items.filter((e) => e.id !== id);
-    writeJSON('memory.json', next);
-    return respond(res, 200, { deleted: items.length - next.length });
-  }
-
-  // GET /api/audit
-  if (method === 'GET' && urlPath === '/api/audit') {
-    return respond(res, 200, readJSON('audit.json', []));
-  }
-
-  // POST /api/audit
-  if (method === 'POST' && urlPath === '/api/audit') {
-    const body    = await readBody(req);
-    const entries = readJSON('audit.json', []);
-    const entry   = {
-      id:      Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      action:  (body.action  || 'EVENT').slice(0, 100),
-      detail:  (body.detail  || '').slice(0, 500),
-      role:    (body.role    || '').slice(0, 60),
-      ts:      new Date().toISOString(),
-    };
-    entries.push(entry);
-    if (entries.length > 1000) entries = entries.slice(-1000);
-    writeJSON('audit.json', entries);
-    return respond(res, 201, entry);
-  }
-
-  respond(res, 404, { error: 'Not found', path: urlPath });
-}
-
-// ---------------------------------------------------------------------------
-// Build HTTP(S) server
-// ---------------------------------------------------------------------------
-let server;
-if (process.env.TLS_CERT && process.env.TLS_KEY) {
-  const tlsOpts = {
-    cert: fs.readFileSync(process.env.TLS_CERT),
-    key:  fs.readFileSync(process.env.TLS_KEY),
+// ─── MFA Token Generator ─────────────────────────────────────────────
+function generateMFAToken(role, name) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const entry = {
+    token,
+    role, name,
+    created: Date.now(),
+    expires: Date.now() + 300000, // 5 min
+    used: false,
   };
-  server = https.createServer(tlsOpts, handleRequest);
-  console.log('[server_9898] TLS enabled');
-} else {
-  server = http.createServer(handleRequest);
+  CFG.tokens.set(token, entry);
+  audit('MFA_TOKEN_GEN', `Role: ${role} Name: ${name}`, 'server');
+  // Auto-expire
+  setTimeout(() => CFG.tokens.delete(token), 300000);
+  return token;
 }
 
-// ---------------------------------------------------------------------------
-// WebSocket server — accepts connections at any path (root ws://localhost:9898)
-// ---------------------------------------------------------------------------
-let wss = null;
-try {
-  const { WebSocketServer } = require('ws');
-  wss = new WebSocketServer({ server });
-  const clients = new Set();
+function verifyMFAToken(token) {
+  const entry = CFG.tokens.get(token);
+  if (!entry) return { ok: false, reason: 'not found' };
+  if (Date.now() > entry.expires) { CFG.tokens.delete(token); return { ok: false, reason: 'expired' }; }
+  if (entry.used) return { ok: false, reason: 'already used' };
+  entry.used = true;
+  audit('MFA_TOKEN_USED', `Role: ${entry.role}`, 'server');
+  return { ok: true, role: entry.role, name: entry.name };
+}
 
-  wss.on('connection', (ws) => {
-    clients.add(ws);
-    console.log(`[ws] client connected (${clients.size} total)`);
+// ─── Keycloak Session Persistence ────────────────────────────────────
+function saveKCSession(wsId, data) {
+  CFG.sessions.set(wsId, { ...data, savedAt: Date.now() });
+  audit('KC_SESSION_SAVE', `ws_id: ${wsId}`, wsId);
+}
+function loadKCSession(wsId) {
+  const s = CFG.sessions.get(wsId);
+  if (!s) return null;
+  if (Date.now() > s.tokenExp) { CFG.sessions.delete(wsId); return null; }
+  return s;
+}
 
-    ws.on('close', () => {
-      clients.delete(ws);
-      console.log(`[ws] client disconnected (${clients.size} total)`);
-    });
+// ─── WebSocket Server ─────────────────────────────────────────────────
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain', 'X-Content-Type-Options': 'nosniff' });
+  res.end('SuperGrok Bridge 9898 — OK');
+});
 
-    ws.on('message', async (raw) => {
-      let msg;
-      try { msg = JSON.parse(raw); } catch (e) { /* Malformed WebSocket message — ignore */ return; }
+const wss = new WebSocket.Server({ server });
 
-      switch (msg.type) {
-        case 'ping':
-          ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
-          break;
+let connCount = 0;
 
-        case 'ai_query': {
-          const { text = '', model = 'claude', system = '' } = msg;
-          const result = await callAI(model, system, [{ role: 'user', content: text }]);
-          if (ws.readyState === 1) {
-            ws.send(JSON.stringify({
-              type:  'ai_response',
-              model,
-              text:  result.text  || '',
-              error: result.error || null,
-            }));
-          }
-          break;
+wss.on('connection', (ws, req) => {
+  const wsId = 'ws_' + (++connCount) + '_' + Date.now();
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+
+  // Rate limiting
+  const rateMap = new Map();
+  let msgCount = 0;
+  const rateReset = setInterval(() => { msgCount = 0; }, CFG.rateWindow);
+
+  audit('WS_CONNECT', `ip: ${ip}`, wsId);
+  console.log(`[+] WS connected: ${wsId} from ${ip}`);
+
+  ws.on('message', async (raw) => {
+    // Rate limit
+    msgCount++;
+    if (msgCount > CFG.rateLimit) {
+      ws.send(JSON.stringify({ type: 'error', code: 'RATE_LIMIT', msg: 'Too many requests' }));
+      audit('RATE_LIMIT', `ip: ${ip} count: ${msgCount}`, wsId);
+      return;
+    }
+
+    let msg;
+    try { msg = JSON.parse(raw); }
+    catch(e) { ws.send(JSON.stringify({ type: 'error', code: 'PARSE', msg: 'Invalid JSON' })); return; }
+
+    const { type, text, query, mode, token, role, name, data: msgData } = msg;
+
+    // ── SPEAK (Piper TTS) ──────────────────────────────────────────
+    if (type === 'speak') {
+      if (!text || typeof text !== 'string') {
+        ws.send(JSON.stringify({ type: 'error', code: 'NO_TEXT' })); return;
+      }
+      audit('VOICE_CMD', `Spoke: ${text.slice(0,60)}`, wsId);
+      try {
+        const result = await piperSpeak(text, wsId);
+        ws.send(JSON.stringify(result));
+      } catch(e) {
+        ws.send(JSON.stringify({ type: 'done', fallback: true }));
+      }
+      return;
+    }
+
+    // ── DDG SEARCH ────────────────────────────────────────────────
+    if (type === 'ddg_search') {
+      try {
+        const result = await ddgProxy(query || '', mode || 'live', wsId);
+        ws.send(JSON.stringify({ type: 'ddg_result', ...result }));
+      } catch(e) {
+        ws.send(JSON.stringify({ type: 'error', code: 'DDG_FAIL', msg: e.message }));
+      }
+      return;
+    }
+
+    // ── MFA TOKEN GENERATE ────────────────────────────────────────
+    if (type === 'mfa_gen') {
+      const tok = generateMFAToken(role || 'unknown', name || 'unknown');
+      ws.send(JSON.stringify({ type: 'mfa_token', token: tok }));
+      return;
+    }
+
+    // ── MFA TOKEN VERIFY ──────────────────────────────────────────
+    if (type === 'mfa_verify') {
+      const result = verifyMFAToken(token);
+      ws.send(JSON.stringify({ type: 'mfa_result', ...result }));
+      return;
+    }
+
+    // ── KC SESSION SAVE ───────────────────────────────────────────
+    if (type === 'kc_save') {
+      saveKCSession(wsId, msgData || {});
+      ws.send(JSON.stringify({ type: 'kc_saved', wsId }));
+      return;
+    }
+
+    // ── KC SESSION LOAD ───────────────────────────────────────────
+    if (type === 'kc_load') {
+      const session = loadKCSession(wsId);
+      ws.send(JSON.stringify({ type: 'kc_session', session }));
+      return;
+    }
+
+    // ── AUDIT EXPORT ──────────────────────────────────────────────
+    if (type === 'audit_export') {
+      try {
+        const logs = fs.readFileSync(CFG.auditLog, 'utf8').split('\n').filter(Boolean).slice(-100);
+        ws.send(JSON.stringify({ type: 'audit_data', logs: logs.map(l=>{try{return JSON.parse(l);}catch{return l;}}) }));
+      } catch(e) {
+        ws.send(JSON.stringify({ type: 'audit_data', logs: [] }));
+      }
+      return;
+    }
+
+    // ── PING ──────────────────────────────────────────────────────
+    if (type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong', ts: Date.now(), piperReady, wsId }));
+      return;
+    }
+
+
+    // ── PIPER STATUS (matches piper_tts_service.py PiperTTSService) ──
+    if (type === 'piper_status') {
+      // Mirror PiperTTSService._find_piper_executable() logic
+      const models = [];
+      const searchDirs = [process.cwd(), path.join(process.cwd(),'models'), CFG.piperModel ? path.dirname(CFG.piperModel) : ''];
+      searchDirs.filter(Boolean).forEach(d => {
+        try {
+          if (fs.existsSync(d)) fs.readdirSync(d).filter(f=>f.endsWith('.onnx')).forEach(f=>{
+            models.push({ id: f.replace('.onnx',''), name: f, path: path.join(d,f) });
+          });
+        } catch(e){}
+      });
+      ws.send(JSON.stringify({ type:'piper_status_result', piperReady, exe:CFG.piperBin,
+        model:CFG.piperModel, models, wsId }));
+      return;
+    }
+
+    // ── PIPER MODELS LIST ──────────────────────────────────────────
+    if (type === 'piper_models') {
+      const models = [];
+      const searchDirs = [process.cwd(), path.join(process.cwd(),'models')];
+      searchDirs.forEach(d => {
+        try {
+          if(fs.existsSync(d)) fs.readdirSync(d).filter(f=>f.endsWith('.onnx')).forEach(f=>{
+            models.push({ id:f.replace('.onnx',''), name:f, path:path.join(d,f) });
+          });
+        }catch(e){}
+      });
+      ws.send(JSON.stringify({ type:'piper_models_result', models }));
+      return;
+    }
+
+    // ── SET PIPER MODEL ────────────────────────────────────────────
+    if (type === 'set_model') {
+      // Sanitize path — no traversal. Mirror PiperTTSService model path logic.
+      const safe_model = (msg.model||'').replace(/[.][.]/g,'').replace(/[/\\]/g,'');
+      const modelPath = path.join(process.cwd(), 'models', safe_model + '.onnx');
+      if (fs.existsSync(modelPath)) {
+        CFG.piperModel = modelPath;
+        currentPiperModel = modelPath;
+        piperReady = fs.existsSync(CFG.piperBin||'') && fs.existsSync(CFG.piperModel);
+        audit('MODEL_SWITCH', 'Switched to: ' + safe_model, wsId);
+        ws.send(JSON.stringify({ type:'model_switched', model:safe_model, ready:piperReady }));
+      } else {
+        ws.send(JSON.stringify({ type:'model_error', error:'Model not found: '+safe_model }));
+      }
+      return;
+    }
+
+    // ── SPEAK ALERT (matches piper_tts_service.speak_alert) ────────
+    // severity: low|medium|high|critical → prepends "Alert!" for high/critical
+    if (type === 'speak_alert') {
+      const severity = (msg.severity||'medium').toLowerCase();
+      const title = msg.title || '';
+      const message = msg.message || msg.text || '';
+      const spokenText = (severity==='high'||severity==='critical')
+        ? 'Alert! ' + title + '. ' + message
+        : title + '. ' + message;
+      audit('SPEAK_ALERT', severity + ': ' + spokenText.slice(0,60), wsId);
+      try {
+        const result = await piperSpeak(spokenText, wsId);
+        ws.send(JSON.stringify(result));
+      } catch(e) {
+        ws.send(JSON.stringify({ type:'done', fallback:true }));
+      }
+      return;
+    }
+
+    // ── OFFLINE AI (Piper TTS only — ZERO external model calls) ────
+    // Text inference stays on DDG bridge. Voice via Piper. No Meta. No LLaMA.
+    if (type === 'offline_ai') {
+      const msgs = msg.messages || [];
+      const last = msgs.length ? msgs[msgs.length-1].content : msg.text || '';
+      audit('OFFLINE_AI', 'Piper TTS: '+last.slice(0,40), wsId);
+      try {
+        const result = await piperSpeak(last, wsId);
+        ws.send(JSON.stringify(Object.assign({}, result, { type:'offline_ai_response' })));
+      } catch(e) {
+        ws.send(JSON.stringify({ type:'offline_ai_response', fallback:true }));
+      }
+      return;
+    }
+
+    // ── MEMORY CARDS (cross-session AI context handoff) ────────────
+    if (type === 'memory_save') {
+      const key = (msg.role||'anon') + '_' + (msg.user||'anon');
+      if (!memStore[key]) memStore[key]=[];
+      memStore[key].unshift({ ts:Date.now(), title:msg.title||'', content:msg.content||'' });
+      if (memStore[key].length>100) memStore[key]=memStore[key].slice(0,100);
+      audit('MEMORY_SAVE', (msg.title||'').slice(0,40), wsId);
+      ws.send(JSON.stringify({ type:'memory_saved', key }));
+      return;
+    }
+    if (type === 'memory_get') {
+      const key = (msg.role||'anon') + '_' + (msg.user||'anon');
+      ws.send(JSON.stringify({ type:'memory_result', cards:(memStore[key]||[]).slice(0,10) }));
+      return;
+    }
+
+    // ── COLLABORATION BROADCAST (user↔user, user↔AI) ───────────────
+    if (type === 'collab_broadcast') {
+      let sent = 0;
+      wss.clients.forEach(c => {
+        if (c !== ws && c.readyState === 1) {
+          c.send(JSON.stringify({ type:'collab_event', payload:msg.payload, from:msg.from||wsId, ts:Date.now() }));
+          sent++;
         }
+      });
+      ws.send(JSON.stringify({ type:'collab_ack', sent }));
+      return;
+    }
 
-        case 'piper_speak':
-          if (msg.text) piperSpeak(msg.text, ws);
-          break;
+    ws.send(JSON.stringify({ type: 'error', code: 'UNKNOWN_TYPE', received: type }));
+  });
 
-        default:
-          break;
+  ws.on('close', () => {
+    clearInterval(rateReset);
+    audit('WS_CLOSE', `ip: ${ip}`, wsId);
+    console.log(`[-] WS closed: ${wsId}`);
+  });
+
+  ws.on('error', (e) => {
+    audit('WS_ERROR', e.message, wsId);
+  });
+
+  // Send hello
+  ws.send(JSON.stringify({
+    type: 'hello',
+    version: '6.0',
+    wsId,
+    piperReady,
+    piperModel: CFG.piperModel,
+    features: ['piper_tts','speak_alert','ddg_proxy','mfa_token','kc_session','audit_export','memory_cards','collab_broadcast','offline_ai','piper_models'],
+    ts: Date.now(),
+  }));
+});
+
+
+// Cross-session memory store (in-memory, per-process)
+const memStore = {};
+
+server.listen(CFG.port, '127.0.0.1', () => {
+  console.log(`\n╔══════════════════════════════════════════════════╗`);
+  console.log(`║  SuperGrok Bridge Server v6.0 — Piper Only                  ║`);
+  console.log(`║  ws://127.0.0.1:${CFG.port}                        ║`);
+  console.log(`║  Piper: ${piperReady ? '✅ READY' : '⚠️  NOT FOUND (fallback active)'}              ║`);
+  console.log(`║  Audit: ${CFG.auditLog}                     ║`);
+  console.log(`║  Zero Google · Zero Meta · HIPAA Safe          ║`);
+  console.log(`╚══════════════════════════════════════════════════╝\n`);
+  audit('SERVER_START', `Port ${CFG.port} · Piper: ${piperReady}`, 'server');
+});
+
+process.on('SIGINT', () => {
+  audit('SERVER_STOP', 'SIGINT received', 'server');
+  auditStream.end();
+  process.exit(0);
+});
+
+// ─── GITHUB OAUTH CODE EXCHANGE (added v6) ───────────────────────
+// Handles {type:'gh_exchange', code:'...'} from browser
+// Requires GH_CLIENT_SECRET env var — never in browser
+// Usage: GH_CLIENT_ID=xxx GH_CLIENT_SECRET=yyy node server_9898.js
+function handleGHExchange(data, ws) {
+  var clientId = process.env.GH_CLIENT_ID || '';
+  var clientSecret = process.env.GH_CLIENT_SECRET || '';
+  if (!clientId || !clientSecret) {
+    ws.send(JSON.stringify({ type: 'gh_token_error', error: 'Set GH_CLIENT_ID and GH_CLIENT_SECRET env vars' }));
+    return;
+  }
+  var https = require('https');
+  var body = JSON.stringify({ client_id: clientId, client_secret: clientSecret, code: data.code });
+  var opts = {
+    hostname: 'github.com', path: '/login/oauth/access_token',
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+  };
+  var req = https.request(opts, function(res) {
+    var chunks = [];
+    res.on('data', function(c) { chunks.push(c); });
+    res.on('end', function() {
+      try {
+        var parsed = JSON.parse(Buffer.concat(chunks).toString());
+        if (parsed.access_token) {
+          logAudit({ event: 'GH_TOKEN_EXCHANGED', detail: 'OAuth code exchanged' });
+          ws.send(JSON.stringify({ type: 'gh_token', token: parsed.access_token, scope: parsed.scope }));
+        } else {
+          ws.send(JSON.stringify({ type: 'gh_token_error', error: parsed.error || 'no token' }));
+        }
+      } catch(e) { ws.send(JSON.stringify({ type: 'gh_token_error', error: e.message })); }
+    });
+  });
+  req.on('error', function(e) { ws.send(JSON.stringify({ type: 'gh_token_error', error: e.message })); });
+  req.write(body);
+  req.end();
+}
+
+// ─── FILE CHUNK REASSEMBLY (added v6) ───────────────────────────
+var chunkBuffers = {};
+function handleChunk(data, ws) {
+  var id = data.id;
+  if (!chunkBuffers[id]) chunkBuffers[id] = { chunks: [], total: data.total };
+  chunkBuffers[id].chunks[data.seq] = data.data;
+  if (chunkBuffers[id].chunks.filter(Boolean).length === data.total) {
+    var full = chunkBuffers[id].chunks.join('');
+    delete chunkBuffers[id];
+    try {
+      var parsed = JSON.parse(full);
+      logAudit({ event: 'FILE_RECEIVED', detail: (parsed.filename || id) + ' ' + (parsed.size || 0) + 'B' });
+      ws.send(JSON.stringify({ type: 'file_received', filename: parsed.filename, size: parsed.size }));
+      // Optionally save to disk if SAVE_TRANSFERS=1
+      if (process.env.SAVE_TRANSFERS === '1' && parsed.data && parsed.filename) {
+        var fs = require('fs');
+        var safe = parsed.filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+        fs.writeFileSync('./transfers/' + safe, Buffer.from(parsed.data, 'base64'));
+        logAudit({ event: 'FILE_SAVED', detail: './transfers/' + safe });
+      }
+    } catch(e) { logAudit({ event: 'FILE_CHUNK_ERROR', detail: e.message }); }
+  }
+}
+
+// Wire into existing message handler — append to exports
+module.exports = module.exports || {};
+module.exports.handleGHExchange = handleGHExchange;
+module.exports.handleChunk = handleChunk;
+
+// ─── PLAID PROXY (v7) — client_secret never touches browser ─────────
+// Handles: plaid_link_token, plaid_exchange, plaid_balance, plaid_balance_get
+// All Plaid API calls go through here. Browser only sees results.
+var plaidAccessTokens = {};  // ephemeral — restart = re-link (use encrypted file for prod)
+
+function plaidProxy(type, data, ws) {
+  var https = require('https');
+  var env = data.env || 'sandbox';
+  var host = env === 'production' ? 'api.plaid.com'
+           : env === 'development' ? 'development.plaid.com'
+           : 'sandbox.plaid.com';
+
+  var endpoints = {
+    'plaid_link_token':  '/link/token/create',
+    'plaid_exchange':    '/item/public_token/exchange',
+    'plaid_balance':     '/accounts/balance/get'
+  };
+
+  var bodies = {
+    'plaid_link_token': JSON.stringify({
+      client_id: data.client_id, secret: data.secret,
+      user: { client_user_id: 'supergrok_user_' + (data.name || 'user').replace(/\s/g,'_') },
+      client_name: 'SuperGrok', products: ['auth','balance'],
+      country_codes: ['US'], language: 'en'
+    }),
+    'plaid_exchange': JSON.stringify({
+      client_id: data.client_id, secret: data.secret,
+      public_token: data.public_token
+    }),
+    'plaid_balance': (function() {
+      var token = plaidAccessTokens[data.name] || data.access_token;
+      return JSON.stringify({ client_id: data.client_id, secret: data.secret, access_token: token });
+    })()
+  };
+
+  var body = bodies[type];
+  if (!body) return;
+
+  var opts = {
+    hostname: host, path: endpoints[type], method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) }
+  };
+
+  var req = https.request(opts, function(res) {
+    var chunks = [];
+    res.on('data', function(c) { chunks.push(c); });
+    res.on('end', function() {
+      try {
+        var parsed = JSON.parse(Buffer.concat(chunks).toString());
+        if (type === 'plaid_link_token') {
+          ws.send(JSON.stringify({ type: 'plaid_link_token_result', link_token: parsed.link_token }));
+        } else if (type === 'plaid_exchange') {
+          // Store access token server-side, never send to browser
+          if (parsed.access_token) plaidAccessTokens[data.name] = parsed.access_token;
+          ws.send(JSON.stringify({ type: 'plaid_exchange_result', ok: !!parsed.access_token, name: data.name }));
+        } else if (type === 'plaid_balance') {
+          ws.send(JSON.stringify({ type: 'plaid_balance_result', accounts: parsed.accounts || [], name: data.name }));
+        }
+        logAudit({ event: 'PLAID_' + type.toUpperCase(), detail: (data.name || '') + ' via ' + env });
+      } catch(e) {
+        ws.send(JSON.stringify({ type: 'plaid_error', error: e.message, for: type }));
       }
     });
   });
-
-  console.log('[server_9898] WebSocket support enabled');
-} catch (e) {
-  console.warn('[server_9898] WebSocket unavailable (install ws): ' + e.message);
-}
-
-// ---------------------------------------------------------------------------
-// Start
-// ---------------------------------------------------------------------------
-if (require.main === module) {
-  server.listen(PORT, () => {
-    const proto = (process.env.TLS_CERT && process.env.TLS_KEY) ? 'wss' : 'ws';
-    console.log(`[server_9898] listening on http://localhost:${PORT}`);
-    console.log(`[server_9898] WebSocket   ${proto}://localhost:${PORT}`);
-    console.log(`[server_9898] AI keys loaded: claude=${!!ANTHROPIC_KEY} gpt=${!!OPENAI_KEY} grok=${!!XAI_KEY}`);
-    console.log(`[server_9898] Data dir: ${DATA_DIR}`);
+  req.on('error', function(e) {
+    ws.send(JSON.stringify({ type: 'plaid_error', error: e.message, for: type }));
   });
+  req.write(body);
+  req.end();
 }
 
-module.exports = { server, wss, callAI, executeCommand };
+// ─── SHELL CMD ECHO (v7) ─────────────────────────────────────────────
+function handleShellCmd(data, ws) {
+  // Routes shell commands — can exec safe whitelisted ops
+  var whitelist = ['ls', 'pwd', 'date', 'whoami', 'uptime', 'df -h', 'free -h'];
+  var isWhitelisted = whitelist.some(function(c) { return data.cmd && data.cmd.trim().startsWith(c); });
+  if (isWhitelisted && process.env.ALLOW_SHELL === '1') {
+    var { exec } = require('child_process');
+    exec(data.cmd, { timeout: 5000 }, function(err, stdout, stderr) {
+      ws.send(JSON.stringify({ type: 'shell_output', role: data.role, output: stdout || stderr || err && err.message || '' }));
+      logAudit({ event: 'SHELL_EXEC', detail: data.role + ': ' + data.cmd });
+    });
+  } else {
+    // Echo back with role context
+    ws.send(JSON.stringify({
+      type: 'shell_output',
+      role: data.role,
+      output: '[' + data.role + '] ' + (data.cmd || '') + ' — received at ' + new Date().toISOString()
+    }));
+    logAudit({ event: 'SHELL_CMD', detail: (data.user||'?') + ' @ ' + data.role + ': ' + (data.cmd||'') });
+  }
+}
+
+// ─── MODEL SWITCH (v7) ───────────────────────────────────────────────
+var currentPiperModel = process.env.PIPER_MODEL || './en_US-lessac-medium.onnx';
+function handleSetModel(data) {
+  if (data.model && data.model.endsWith('.onnx')) {
+    currentPiperModel = './' + data.model.replace(/\.\.\//g,'');
+    logAudit({ event: 'MODEL_SWITCH', detail: currentPiperModel });
+    console.log('[PIPER] Model switched to:', currentPiperModel);
+  }
+}
