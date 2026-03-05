@@ -36,5 +36,6 @@ exclude =
     scripts/Build_Judge.py,
     scripts/Backend_API_AUTH.py,
     scripts/eeg_streaming.py,
+    immutablelogger.py,
     ring_gate_boot_nfc_9v.asm,
     frontend
