@@ -120,6 +120,104 @@ function ddgProxy(query, mode, wsId) {
   });
 }
 
+function aiProxy(agent, payload) {
+  return new Promise((resolve) => {
+    const providers = {
+      claude: {
+        host: 'api.anthropic.com',
+        path: '/v1/messages',
+        envKey: 'ANTHROPIC_API_KEY',
+        headers: (key) => ({
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+        }),
+        body: (prompt, systemPrompt) => JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1200,
+          system: systemPrompt || 'You are SuperGrok AI assistant.',
+          messages: [{ role: 'user', content: prompt }],
+        }),
+        extract: (resp) => resp.content && resp.content[0] && resp.content[0].text,
+      },
+      gpt: {
+        host: 'api.openai.com',
+        path: '/v1/chat/completions',
+        envKey: 'OPENAI_API_KEY',
+        headers: (key) => ({
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + key,
+        }),
+        body: (prompt, systemPrompt) => JSON.stringify({
+          model: 'gpt-4o',
+          max_tokens: 1200,
+          messages: [
+            { role: 'system', content: systemPrompt || '' },
+            { role: 'user', content: prompt },
+          ],
+        }),
+        extract: (resp) => resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content,
+      },
+      grok: {
+        host: 'api.x.ai',
+        path: '/v1/chat/completions',
+        envKey: 'XAI_API_KEY',
+        headers: (key) => ({
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + key,
+        }),
+        body: (prompt, systemPrompt) => JSON.stringify({
+          model: 'grok-2-latest',
+          max_tokens: 1200,
+          messages: [
+            { role: 'system', content: systemPrompt || '' },
+            { role: 'user', content: prompt },
+          ],
+        }),
+        extract: (resp) => resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content,
+      },
+    };
+
+    const prov = providers[agent];
+    if (!prov) {
+      resolve({ error: 'Unknown agent: ' + agent });
+      return;
+    }
+
+    const prompt = String((payload && payload.prompt) || '').slice(0, CFG.maxTextLen);
+    const systemPrompt = String((payload && payload.system) || '');
+    const key = (payload && payload.apiKey) || process.env[prov.envKey] || '';
+    if (!key) {
+      resolve({ error: 'Set ' + prov.envKey + ' env var or pass apiKey in payload' });
+      return;
+    }
+
+    const body = prov.body(prompt, systemPrompt);
+    const req = https.request({
+      hostname: prov.host,
+      path: prov.path,
+      method: 'POST',
+      headers: Object.assign({}, prov.headers(key), { 'Content-Length': Buffer.byteLength(body) }),
+      timeout: 30000,
+    }, (res) => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(Buffer.concat(chunks).toString());
+          resolve({ text: prov.extract(parsed) || 'No response' });
+        } catch (e) {
+          resolve({ error: 'Parse error: ' + e.message });
+        }
+      });
+    });
+    req.on('error', (e) => resolve({ error: 'Network error: ' + e.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'AI API timeout' }); });
+    req.write(body);
+    req.end();
+  });
+}
+
 // ─── MFA Token Generator ─────────────────────────────────────────────
 function generateMFAToken(role, name) {
   const token = crypto.randomBytes(32).toString('hex');
@@ -264,6 +362,20 @@ wss.on('connection', (ws, req) => {
     // ── PING ──────────────────────────────────────────────────────
     if (type === 'ping') {
       ws.send(JSON.stringify({ type: 'pong', ts: Date.now(), piperReady, wsId }));
+      return;
+    }
+
+    // ── AGENT ROUTING ──────────────────────────────────────────────
+    if (type === 'agent_request') {
+      const agent = String(msg.agent || '').toLowerCase();
+      const payload = msg.payload || {};
+      const result = await aiProxy(agent, payload);
+      ws.send(JSON.stringify({
+        type: 'agent_response',
+        agent,
+        payload: result.error ? { text: result.error, error: true } : { text: result.text || '' },
+        ts: Date.now(),
+      }));
       return;
     }
 
