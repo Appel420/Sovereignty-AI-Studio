@@ -1845,6 +1845,60 @@ var D={
   }
 };
 
+// ─────────────────────────────────────
+// AI AGENT REGISTRY
+// ─────────────────────────────────────
+var Agents = {
+  registry: {},
+
+  register: function(name, handler){
+    this.registry[name] = handler;
+    console.log('Agent registered:', name);
+  },
+
+  send: function(agent, payload){
+    if(!Bridge.ws || Bridge.ws.readyState !== 1){
+      console.warn('Bridge offline');
+      return;
+    }
+    Bridge.ws.send(JSON.stringify({
+      type:'agent_request',
+      agent:agent,
+      payload:payload,
+      ts:Date.now()
+    }));
+  },
+
+  receive: function(msg){
+    if(!msg.agent) return;
+    var handler = this.registry[msg.agent];
+    if(handler){
+      handler(msg.payload || {});
+    }else{
+      console.warn('Unknown agent:', msg.agent);
+    }
+  }
+};
+
+Agents.register('gpt', function(payload){
+  if(typeof addChatMsg === 'function'){
+    addChatMsg('ai', payload && payload.text ? payload.text : '', 'GPT');
+    scrollChat('chatMsgs');
+  }
+});
+Agents.register('claude', function(payload){
+  if(typeof addChatMsg === 'function'){
+    addChatMsg('ai', payload && payload.text ? payload.text : '', 'Claude');
+    scrollChat('chatMsgs');
+  }
+});
+Agents.register('grok', function(payload){
+  if(typeof addChatMsg === 'function'){
+    addChatMsg('ai', payload && payload.text ? payload.text : '', 'Grok');
+    scrollChat('chatMsgs');
+  }
+});
+
 var Bridge={
   ws:null,
   connect:function(){
@@ -1853,7 +1907,14 @@ var Bridge={
       this.ws.onopen=function(){STATE.bridgeOnline=true;STATE.piperActive=true;el('tbbBridge').textContent='⚡ LIVE';el('tbbBridge').classList.add('on');el('liveLabel').textContent='LIVE';addAudit('BRIDGE','Port 9898 connected');};
       this.ws.onclose=function(){STATE.bridgeOnline=false;STATE.piperActive=false;el('tbbBridge').textContent='⚡ 9898';el('tbbBridge').classList.remove('on');};
       this.ws.onerror=function(){STATE.bridgeOnline=false;};
-      this.ws.onmessage=function(e){try{var d=JSON.parse(e.data);if(d.type==='audio'){var a=new Audio('data:audio/wav;base64,'+d.data);a.play().catch(function(){});}}catch(err){}};
+      this.ws.onmessage=function(e){
+        try{
+          var d=JSON.parse(e.data);
+          if(d.type==='agent_response'){Agents.receive(d);return;}
+          if(d.type==='system'){console.log('Bridge:', d.message);return;}
+          if(d.type==='audio'){var a=new Audio('data:audio/wav;base64,'+d.data);a.play().catch(function(){});}
+        }catch(err){console.warn('Bridge parse error', err);}
+      };
     }catch(e){STATE.bridgeOnline=false;}
   },
   pingHealth:function(){
@@ -1865,6 +1926,19 @@ var Bridge={
     if(window.speechSynthesis){var u=new SpeechSynthesisUtterance(text);u.rate=1.1;window.speechSynthesis.speak(u);}
   }
 };
+
+setInterval(function(){
+  if(Bridge.ws && Bridge.ws.readyState===1){
+    Bridge.ws.send(JSON.stringify({type:'ping'}));
+  }
+},5000);
+
+document.addEventListener('DOMContentLoaded',function(){
+  if(!Bridge.ws){
+    Bridge.connect();
+  }
+  console.log('AI Bridge initialized');
+});
 
 function speak(text){if(STATE.aiVoice)Bridge.speak(text);}
 function saveAIKeys(){var ak=el('anthropicKey'),ok2=el('openaiKey'),xk=el('xaiKey');if(ak&&ak.value)SS.set('sg_anthropic_key',ak.value);if(ok2&&ok2.value)SS.set('sg_openai_key',ok2.value);if(xk&&xk.value)SS.set('sg_xai_key',xk.value);toast('API Keys saved','ok');}
@@ -1897,8 +1971,12 @@ async function sendChat(){
       var data3=await resp3.json();
       responseText=data3.choices&&data3.choices[0]?data3.choices[0].message.content:'Error from Grok API';
     }else if(Bridge.ws&&Bridge.ws.readyState===1){
-      Bridge.ws.send(JSON.stringify({type:'ai_query',text:memCtx+text,model:model,system:sys}));
-      responseText='[Sent to Bridge port 9898] No direct API key for '+model+'. Add key in Bridge Config → AI Provider Keys.';
+      Agents.send(model,{
+        prompt:memCtx+text,
+        system:sys,
+        session:STATE.sgToken
+      });
+      responseText='[Sent to '+model.toUpperCase()+' via Bridge port 9898] Waiting for agent response...';
     }else{
       responseText='No API key set for '+model+'. Open Bridge Config (⚡ 9898) → AI Provider Keys to add:\n• Claude: console.anthropic.com\n• GPT-4: platform.openai.com\n• Grok: console.x.ai';
     }
