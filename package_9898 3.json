@@ -1,0 +1,14 @@
+{
+  "name": "supergrok-bridge",
+  "version": "5.0.0",
+  "description": "SuperGrok Bridge Server — Piper TTS + DDG + MFA + KC Sessions",
+  "main": "server_9898.js",
+  "scripts": {
+    "start": "node server_9898.js",
+    "dev": "VERBOSE=1 node server_9898.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  },
+  "engines": { "node": ">=18.0.0" }
+}
