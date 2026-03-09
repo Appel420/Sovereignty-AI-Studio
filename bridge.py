@@ -169,7 +169,7 @@ class BridgeServer:
             reply = await self._chat_claude(msg, sys_prompt)
         elif agent_lower in ("gpt", "gpt-4o", "openai") and OPENAI_OK and OPENAI_KEY:
             reply = await self._chat_gpt(msg, sys_prompt)
-        elif agent_lower in ("grok", "grok4.20", "xai") and GROK_KEY:
+        elif agent_lower in ("grok", "grok-3", "grok4.20", "grok-4.20", "xai") and GROK_KEY:
             reply = await self._chat_grok(msg, sys_prompt)
         else:
             keys = {
@@ -235,7 +235,7 @@ class BridgeServer:
             max_size=50 * 1024 * 1024,
         )
         log.info("Bridge LIVE → ws://%s:%s", self.host, self.port)
-        await asyncio.Future()
+        await asyncio.Future()  # intentional: keep server alive until cancellation/interruption
 
     async def stop(self):
         log.info("Stopping BridgeServer...")
@@ -249,10 +249,16 @@ class BridgeServer:
         log.info("BridgeServer stopped.")
 
 
-if __name__ == "__main__":
+async def _main():
     server = BridgeServer()
     try:
-        asyncio.run(server.start())
+        await server.start()
+    finally:
+        await server.stop()
+
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(_main())
     except KeyboardInterrupt:
-        asyncio.run(server.stop())
         print("\nBridge stopped.")
