@@ -19,10 +19,13 @@ class Settings(BaseSettings):
 
     # AI Services
     openai_api_key: str
-   
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:3000", "http://localhost:8080", "http://localhost:9898"]
+    cors_origins: List[str] = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://localhost:9898"
+    ]
 
     class Config:
         env_file = ".env"
