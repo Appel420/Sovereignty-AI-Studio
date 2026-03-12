@@ -50,8 +50,8 @@ describe('Node Bridge – Health', () => {
     assert.equal(r.status, 200);
     assert.equal(r.body.status, 'healthy');
     assert.equal(r.body.service, 'node-bridge');
-    assert.ok(r.body.backends.api);
-    assert.ok(r.body.backends.weather);
+    assert.equal(r.body.backends.api, 'http://localhost:8000');
+    assert.equal(r.body.backends.weather, 'http://localhost:8001');
     assert.ok(r.body.timestamp);
   });
 });
