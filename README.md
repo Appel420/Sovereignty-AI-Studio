@@ -42,60 +42,6 @@ Sovereignty-AI-Studio/
 ├── frontend/                      # React TypeScript frontend
 │   └── src/
 ├── apps/
-<<<<<< copilot/update-readme-file
-│   ├── dashboards/                # Dashboard Applications
-│   └── web/                       # Web Applications
-├── ios/                           # iOS / Swift Package
-├── node-bridge/                   # Node.js Express+WS bridge (port 9898)
-├── scripts/                       # Build, Deployment & Utility Scripts
-│   ├── deploy.sh
-│   ├── init_db.py
-│   ├── demo_alerts.py
-│   ├── test_alerts.py
-│   ├── fullscan_cli.py
-│   ├── eeg_streaming.py
-│   ├── AI_iOS_Voice.py
-│   ├── Backend_API_AUTH.py
-│   ├── Build_Judge.py
-│   ├── Secure_Audit.py
-│   ├── agentMem.py
-│   ├── multiAgentOrch.py
-│   ├── subAgentorc.py
-│   ├── reasercgerAgent.py
-│   ├── parser.py
-│   ├── workflows.py
-│   └── Unlock_Tier_21.js
-├── tests/                         # Test suite
-│   ├── test_app.py
-│   └── test_weather.py
-├── docs/                          # Documentation
-│   ├── QUICK_REFERENCE.md
-│   ├── PIPER_INTEGRATION.md
-│   ├── ALERTS_USAGE.md
-│   ├── ALERTS_SYSTEM_DIAGRAM.txt
-│   ├── IMPLEMENTATION_SUMMARY.md
-│   ├── POLICY_SEC_ML_ACCESS.md
-│   ├── SYSTEM_VALIDATOR.md
-│   ├── REORGANIZATION_PLAN.md
-│   ├── Compliance_Audit.md
-│   └── ...
-├── resources/
-│   ├── assets/                    # Binary & Font Assets
-│   ├── configs/                   # Configuration Files
-│   ├── data/                      # Data Files & References
-│   └── archives/                  # ZIP Archives
-├── crypto/                        # Cryptography Modules
-├── ai_core/                       # AI Core Modules
-├── Sovereignty_python-keycloak-master/  # Keycloak integration
-├── weather_dashboard.py           # Quart weather app entry point (port 9898)
-├── requirements.txt               # Python dependencies
-├── pkg.json                       # Electron app configuration
-├── docker-compose.yml             # Docker orchestration
-├── Dockerfile                     # Container config
-├── Makefile                       # Build automation
-├── start-all.sh                   # Launch all services
-├── setup-ish.sh                   # iSH/Alpine setup
-=======
 │   ├── dashboards/      # Dashboard Applications
 │   │   ├── Tools_Post_Quantum_Dashboard.html
 │   │   ├── Real_Validator.html
@@ -178,7 +124,6 @@ Sovereignty-AI-Studio/
 ├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
 ├── Harvard_Sentences.txt # Standard TTS evaluation sentences
 ├── weather_dashboard.py # Quart weather dashboard entry point
->>>>>> main
 ├── LICENSE.MD
 ├── SECURITY.md
 └── README.md
@@ -193,7 +138,6 @@ Sovereignty-AI-Studio/
 - **src/utils/**: Utility functions and tools
 - **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
 - **apps/web/**: Web applications
-<<<<<< copilot/extract-zip-archive
 - **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
@@ -205,22 +149,7 @@ Sovereignty-AI-Studio/
 - **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
 - **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
 - **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
-=======
-- **scripts/**: Build, deployment, and utility scripts
-- **tests/**: Test suite (pytest + pytest-asyncio)
-- **docs/**: Project documentation
-- **resources/**: Assets, configurations, data files, and archives
-- **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend with WebSocket support for live alerts (port 9898)
-- **frontend/**: React TypeScript frontend with real-time alert notifications
-- **ios/**: iOS Swift Package (SovereigntyGuard)
-- **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
-<<<<<< copilot/update-readme-file
 - **Piper TTS**: Piper text-to-speech integration for audio alerts (see [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md))
-=======
-- **piper-tts/**: Piper text-to-speech integration for audio alerts
->>>>> main
->>>>>> main
 
 ## Features
 
