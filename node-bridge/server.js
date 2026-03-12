@@ -10,6 +10,7 @@
  *   ALL  /api/weather*            – proxy to Quart    (WEATHER_URL)
  *   ALL  /api/forecast*           – proxy to Quart    (WEATHER_URL)
  *   POST /api/bridge/notify       – push real-time alert to WebSocket clients
+ *   GET  /api/bridge/status       – aggregated backend service health
  *   WS   /ws/alerts               – WebSocket for live alerts
  */
 
@@ -121,6 +122,37 @@ function broadcast(data) {
     if (ws.readyState === 1) ws.send(payload);  // 1 === WebSocket.OPEN
   }
 }
+
+// GET /api/bridge/status — aggregated service connectivity
+app.get('/api/bridge/status', async (_req, res) => {
+  const services = { api: 'offline', weather: 'offline' };
+
+  const checkService = (url, key) =>
+    new Promise((resolve) => {
+      const target = new URL('/health', url);
+      const req = http.request(target, { method: 'GET' }, (r) => {
+        if (r.statusCode && r.statusCode < 500) services[key] = 'online';
+        r.resume();
+        resolve();
+      });
+      req.setTimeout(3000, () => { req.destroy(); resolve(); });
+      req.on('error', () => resolve());
+      req.end();
+    });
+
+  await Promise.all([
+    checkService(BACKEND_URL, 'api'),
+    checkService(WEATHER_URL, 'weather'),
+  ]);
+
+  res.json({
+    status: 'healthy',
+    services,
+    websocket_clients: clients.size,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // POST /api/bridge/notify — Python backends can push alerts here
 app.post('/api/bridge/notify', (req, res) => {

@@ -36,6 +36,9 @@ exclude =
     scripts/Build_Judge.py,
     scripts/Backend_API_AUTH.py,
     scripts/eeg_streaming.py,
+<<<<<< copilot/bridge-dashboard-functionality
+=======
     immutablelogger.py,
+>>>>>> main
     ring_gate_boot_nfc_9v.asm,
     frontend

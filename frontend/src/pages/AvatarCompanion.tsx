@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserCircleIcon } from '@heroicons/react/24/outline';
+import { AvatarAPI } from '../services/api';
 
 const styles = [
   { id: 'robot', emoji: '🤖', name: 'Robot' },
@@ -16,6 +17,26 @@ const AvatarCompanion: React.FC = () => {
   const [selectedStyle, setSelectedStyle] = useState('robot');
   const [mood, setMood] = useState('neutral');
   const [eegLinked, setEegLinked] = useState(false);
+
+  useEffect(() => {
+    AvatarAPI.getState()
+      .then((state: Record<string, unknown>) => {
+        if (state.mood && typeof state.mood === 'string') setMood(state.mood);
+        if (typeof state.eeg_linked === 'boolean') setEegLinked(state.eeg_linked);
+      })
+      .catch((err: unknown) => { console.error('Avatar state fetch failed:', err); });
+  }, []);
+
+  const handleMoodChange = async (m: string) => {
+    setMood(m);
+    try { await AvatarAPI.updateMood(m); } catch (err) { console.error('Mood update failed:', err); }
+  };
+
+  const handleEEGToggle = async () => {
+    const newVal = !eegLinked;
+    setEegLinked(newVal);
+    try { await AvatarAPI.toggleEEGLink(newVal); } catch (err) { console.error('EEG toggle failed:', err); }
+  };
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -76,7 +97,7 @@ const AvatarCompanion: React.FC = () => {
               {moods.map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMood(m)}
+                  onClick={() => handleMoodChange(m)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     mood === m
                       ? 'bg-violet-600 text-white'
@@ -98,7 +119,7 @@ const AvatarCompanion: React.FC = () => {
                 </p>
               </div>
               <button
-                onClick={() => setEegLinked(!eegLinked)}
+                onClick={() => handleEEGToggle()}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                   eegLinked ? 'bg-teal-600' : 'bg-gray-300'
                 }`}

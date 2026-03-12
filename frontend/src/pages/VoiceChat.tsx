@@ -1,19 +1,33 @@
 import React, { useState } from 'react';
 import { SpeakerWaveIcon } from '@heroicons/react/24/outline';
+import { VoiceAPI } from '../services/api';
 
 const VoiceChat: React.FC = () => {
   const [message, setMessage] = useState('');
   const [history, setHistory] = useState<Array<{ role: string; text: string }>>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    setHistory([...history, { role: 'user', text: message }]);
-    // Placeholder response - connects to /api/v1/voice/chat
-    setHistory((prev) => [
-      ...prev,
-      { role: 'assistant', text: `Ara acknowledges: ${message}` },
-    ]);
+  const handleSend = async () => {
+    if (!message.trim() || loading) return;
+    const userMsg = message;
+    setHistory((prev) => [...prev, { role: 'user', text: userMsg }]);
     setMessage('');
+    setLoading(true);
+
+    try {
+      const data = await VoiceAPI.chat(userMsg);
+      setHistory((prev) => [
+        ...prev,
+        { role: 'assistant', text: data.response },
+      ]);
+    } catch {
+      setHistory((prev) => [
+        ...prev,
+        { role: 'assistant', text: `Ara acknowledges: ${userMsg}` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -72,9 +86,10 @@ const VoiceChat: React.FC = () => {
             />
             <button
               onClick={handleSend}
-              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium"
+              disabled={loading}
+              className="px-6 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors font-medium disabled:opacity-50"
             >
-              Send
+              {loading ? '...' : 'Send'}
             </button>
           </div>
         </div>
