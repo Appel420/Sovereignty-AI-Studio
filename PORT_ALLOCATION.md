@@ -1,292 +1,370 @@
 # Sovereignty AI Studio - Port Allocation Guide
 
-## Overview
+## Dashboard Architecture - Single Port 9898
 
-This document defines the standardized port allocation for all services in the Sovereignty AI Studio ecosystem. Following these port assignments ensures there are no conflicts between services when running locally, in Docker, or in production environments.
+### Overview
 
-## Port Allocation Table
+**Sovereignty AI Studio uses a centralized dashboard architecture where ALL external traffic goes through port 9898.** This design provides:
 
-| Port | Service | Type | Configuration | Status |
-|------|---------|------|---------------|--------|
-| **3000** | Frontend (React) | Development | `FRONTEND_PORT` | ✅ Standard |
-| **5432** | PostgreSQL | Database | Docker default | ✅ Standard |
-| **6379** | Redis | Cache | Docker default | ✅ Standard |
-| **8000** | Backend (FastAPI) | API | `BACKEND_PORT` | ✅ **Primary Backend** |
-| **8001** | Weather Dashboard | Python/Quart | `WEATHER_PORT` | ✅ Standard |
-| **8080** | Web App Server | Node.js | `WEB_APP_PORT` | ✅ Standard |
-| **8443** | Auth Proxy | WebSocket | `PORT_AUTH` | ✅ Standard |
-| **9000** | Unified Server | Node.js | `PORT_UNIFIED` | ✅ **Primary Server** |
-| **9898** | Node Bridge | Node.js | `NODE_BRIDGE_PORT` | ✅ **API Gateway** |
+- **Single Entry Point**: Only one port (9898) needs to be exposed externally
+- **Simplified Security**: Firewall and security rules only need to manage one port
+- **Unified Access**: All services accessible through the dashboard
+- **Organization Standard**: Consistent with organizational requirements
 
-## Service Architecture
+## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    External Clients                          │
-│            (Web Browsers, Mobile Apps, CLI)                  │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-                     ▼
-              ┌──────────────┐
-              │  Port 9898   │ ← Main Entry Point
-              │  Node Bridge │ (API Gateway)
-              └──────┬───────┘
-                     │
-          ┌──────────┴──────────┐
-          ▼                     ▼
-   ┌─────────────┐      ┌─────────────┐
-   │  Port 8000  │      │  Port 8001  │
-   │   Backend   │      │   Weather   │
-   │  (FastAPI)  │      │   (Quart)   │
-   └──────┬──────┘      └─────────────┘
-          │
-    ┌─────┴─────┐
-    ▼           ▼
-┌────────┐  ┌────────┐
-│Port5432│  │Port6379│
-│PostgreSQL Redis   │
-└────────┘  └────────┘
-
-Additional Services:
-┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-│  Port 3000  │  │  Port 8080  │  │  Port 9000  │
-│  Frontend   │  │  Web App    │  │  Unified    │
-│   (React)   │  │   Server    │  │   Server    │
-└─────────────┘  └─────────────┘  └─────────────┘
+│                    EXTERNAL CLIENTS                          │
+│         (Web Browsers, Mobile Apps, CLI Tools)               │
+└────────────────────────┬────────────────────────────────────┘
+                         │
+                         │ ALL TRAFFIC
+                         ▼
+                  ┌──────────────┐
+                  │   PORT 9898  │ ◄─── DASHBOARD (Only External Port)
+                  │  Node Bridge │
+                  │   (Gateway)  │
+                  └──────┬───────┘
+                         │
+          ┌──────────────┼──────────────┐
+          │              │              │
+          ▼              ▼              ▼
+   ┌───────────┐  ┌───────────┐  ┌───────────┐
+   │ Backend   │  │  Weather  │  │   Other   │
+   │ Port 8000 │  │ Port 8001 │  │ Services  │
+   │(Internal) │  │(Internal) │  │(Internal) │
+   └─────┬─────┘  └───────────┘  └───────────┘
+         │
+    ┌────┴────┐
+    ▼         ▼
+┌────────┐ ┌────────┐
+│  DB    │ │ Redis  │
+│ :5432  │ │ :6379  │
+│(Int)   │ │ (Int)  │
+└────────┘ └────────┘
 ```
+
+## Port Allocation
+
+### External Port (Public Facing)
+
+| Port | Service | Purpose | Access |
+|------|---------|---------|--------|
+| **9898** | **Dashboard/Node Bridge** | **All external traffic** | **PUBLIC** |
+
+### Internal Ports (Docker Network Only)
+
+| Port | Service | Purpose | Access |
+|------|---------|---------|--------|
+| 3000 | Frontend (React) | Development UI | Internal |
+| 5432 | PostgreSQL | Database | Internal |
+| 6379 | Redis | Cache | Internal |
+| 8000 | Backend (FastAPI) | Primary API | Internal |
+| 8001 | Weather (Quart) | Weather service | Internal |
+| 8080 | Web App Server | apps/web | Internal |
+| 8443 | Auth Proxy | WebSocket auth | Internal |
+| 9000 | Unified Server | Primary server | Internal |
+
+## Key Principle
+
+🎯 **Everything connects to port 9898**
+
+- Users connect to: `http://localhost:9898` or `http://your-domain:9898`
+- Frontend accesses API via: `http://localhost:9898/api/v1/*`
+- Weather accessed via: `http://localhost:9898/api/weather*`
+- WebSocket connections: `ws://localhost:9898/ws/alerts`
+- Health checks: `http://localhost:9898/health`
 
 ## Service Descriptions
 
-### Port 3000 - Frontend (React Development Server)
-- **Purpose**: React development server for the main web UI
-- **Technology**: React 19 + TypeScript
-- **Environment Variable**: `FRONTEND_PORT`
-- **Default Command**: `npm start` (in `/frontend` directory)
-- **Access**: http://localhost:3000
+### Port 9898 - Dashboard/Node Bridge ⭐ (ONLY EXTERNAL PORT)
 
-### Port 5432 - PostgreSQL Database
-- **Purpose**: Primary database for persistent storage
-- **Technology**: PostgreSQL 13
-- **Environment Variable**: Part of `DATABASE_URL`
-- **Docker Service**: `db`
-- **Credentials**: `postgres/password` (change in production)
+**Purpose**: Centralized dashboard and API gateway - single entry point for all external traffic
 
-### Port 6379 - Redis Cache
-- **Purpose**: Cache and session storage
-- **Technology**: Redis 7
-- **Environment Variable**: Part of `REDIS_URL`
-- **Docker Service**: `redis`
+**Technology**: Node.js Express + WebSocket
 
-### Port 8000 - Backend (FastAPI) ⭐
-- **Purpose**: Primary REST API backend
-- **Technology**: Python FastAPI + Uvicorn
-- **Environment Variable**: `BACKEND_PORT`
-- **Docker Service**: `backend`
-- **Access**: http://localhost:8000
-- **API Docs**: http://localhost:8000/docs
-- **Key Endpoints**:
-  - `/health` - Health check
-  - `/api/v1/*` - API endpoints
-  - `/api/v1/mobile/status` - Mobile status
+**Features**:
+- Proxies `/api/v1/*` to Backend (8000)
+- Proxies `/api/weather*` to Weather (8001)
+- WebSocket at `/ws/alerts`
+- Aggregated health at `/api/bridge/status`
+- CORS management
+- Request logging
+
+**Access URLs**:
+- Main Dashboard: `http://localhost:9898`
+- Health Check: `http://localhost:9898/health`
+- API Gateway: `http://localhost:9898/api/v1/*`
+- Weather API: `http://localhost:9898/api/weather*`
+- WebSocket: `ws://localhost:9898/ws/alerts`
+
+**Environment Variables**:
+```bash
+NODE_BRIDGE_PORT=9898
+BACKEND_URL=http://backend:8000    # Internal Docker network
+WEATHER_URL=http://backend:8001    # Internal Docker network
+CORS_ORIGIN=http://localhost:9898
+```
+
+### Port 8000 - Backend (FastAPI)
+
+**Purpose**: Primary REST API backend (Internal only)
+
+**Access**: Only through dashboard at `http://localhost:9898/api/v1/*`
+
+**Direct Access**: Not exposed externally in Docker mode
 
 ### Port 8001 - Weather Dashboard (Quart)
-- **Purpose**: Weather API service
-- **Technology**: Python Quart (async Flask)
-- **Environment Variable**: `WEATHER_PORT`
-- **Access**: http://localhost:8001
-- **Key Endpoints**:
-  - `/api/weather?city={city}` - Weather data
-  - `/api/forecast?city={city}` - Weather forecast
 
-### Port 8080 - Web App Server
-- **Purpose**: Simple web app server for apps/web
-- **Technology**: Node.js HTTP server
-- **Environment Variable**: `WEB_APP_PORT`
-- **Access**: http://localhost:8080
-- **Key Endpoints**:
-  - `/intent` - Intent processing
+**Purpose**: Weather API service (Internal only)
 
-### Port 8443 - Auth Proxy
-- **Purpose**: WebSocket authentication proxy
-- **Technology**: Node.js WebSocket
-- **Environment Variable**: `PORT_AUTH`
-- **Part Of**: Unified Server
+**Access**: Only through dashboard at `http://localhost:9898/api/weather*`
 
-### Port 9000 - Unified Server ⭐
-- **Purpose**: Primary enterprise server (production)
-- **Technology**: Node.js + WebSocket
-- **Environment Variable**: `PORT_UNIFIED`
-- **Features**:
-  - WebSocket bridge
-  - Authentication
-  - DDG integration
-  - Piper TTS
-- **Access**: http://localhost:9000
-- **Health**: http://localhost:9000/health
+**Direct Access**: Not exposed externally in Docker mode
 
-### Port 9898 - Node Bridge (API Gateway) ⭐
-- **Purpose**: Main API gateway and proxy
-- **Technology**: Node.js Express + WebSocket
-- **Environment Variable**: `NODE_BRIDGE_PORT`
-- **Docker Service**: `node-bridge`
-- **Access**: http://localhost:9898
-- **Key Features**:
-  - Proxies `/api/v1/*` to Backend (8000)
-  - Proxies `/api/weather*` to Weather (8001)
-  - WebSocket at `/ws/alerts`
-  - Health aggregation at `/api/bridge/status`
+### Other Internal Services
 
-## Environment Configuration
+All other services run on internal Docker network and are not directly accessible from outside.
 
-### Local Development (.env)
+## Configuration Examples
+
+### Docker Environment (Recommended)
+
+File: `docker-compose.yml`
+
+```yaml
+services:
+  node-bridge:
+    ports:
+      - "9898:9898"  # ONLY external port
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - WEATHER_URL=http://backend:8001
+
+  backend:
+    expose:
+      - "8000"  # Internal only
+
+  db:
+    expose:
+      - "5432"  # Internal only
+```
+
+### Local Development
+
+File: `.env`
+
 ```bash
-# Copy from .env.example
+# Dashboard - external facing
+NODE_BRIDGE_PORT=9898
+
+# Internal services
 BACKEND_PORT=8000
 WEATHER_PORT=8001
-NODE_BRIDGE_PORT=9898
-WEB_APP_PORT=8080
-FRONTEND_PORT=3000
 
-# Service URLs (localhost)
-BACKEND_URL=http://localhost:8000
-WEATHER_URL=http://localhost:8001
+# Access everything through dashboard
+BACKEND_URL=http://localhost:9898/api/v1
+WEATHER_URL=http://localhost:9898/api/weather
 ```
 
-### Docker Environment (docker-compose.yml)
-```yaml
-# Service URLs use Docker service names
-BACKEND_URL=http://backend:8000
-WEATHER_URL=http://backend:8001
-NODE_BRIDGE_PORT=9898
-```
+### Frontend Configuration
 
-## Port Conflict Resolution History
-
-### Previous Issues (Resolved)
-1. **Critical Conflict**: Both `backend` and `node-bridge` were on port 9898
-   - **Resolution**: Backend moved to 8000, node-bridge stays on 9898
-
-2. **Invalid Port**: frontend/Dockerfile exposed port 98765 (invalid)
-   - **Resolution**: Changed to 3000 (standard React port)
-
-3. **Port Mismatch**: start-all.sh had all services defaulting to 9898
-   - **Resolution**: Unique ports assigned with proper environment variables
-
-4. **Web App Conflict**: apps/web/Server.js hardcoded to 9898
-   - **Resolution**: Changed to 8080 with `WEB_APP_PORT` environment variable
-
-## Running Services
-
-### Start All Services (Development)
-```bash
-# Start with defaults
-./start-all.sh
-
-# Or with custom ports
-BACKEND_PORT=8000 WEATHER_PORT=8001 NODE_BRIDGE_PORT=9898 ./start-all.sh
-```
-
-### Start with Docker Compose
-```bash
-docker-compose up
-```
-
-### Start Individual Services
-```bash
-# Backend (FastAPI)
-cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
-
-# Weather Dashboard
-PYTHONPATH=.:./backend hypercorn weather_dashboard:app --bind 0.0.0.0:8001
-
-# Node Bridge
-cd node-bridge && NODE_BRIDGE_PORT=9898 node server.js
-
-# Frontend
-cd frontend && npm start
-
-# Unified Server
-node unified_server.js
-```
-
-## Testing Connectivity
+File: `frontend/.env`
 
 ```bash
-# Backend
-curl http://localhost:8000/health
-
-# Weather
-curl http://localhost:8001/api/weather?city=London
-
-# Node Bridge
-curl http://localhost:9898/health
-
-# Aggregated Status
-curl http://localhost:9898/api/bridge/status
-
-# Frontend (in browser)
-open http://localhost:3000
-
-# Unified Server
-curl http://localhost:9000/health
-```
-
-## Frontend Configuration
-
-The frontend connects to services via environment variables:
-
-```bash
-# .env in /frontend directory
+# Frontend connects ONLY to dashboard
 REACT_APP_API_URL=http://localhost:9898/api/v1
 REACT_APP_WS_URL=ws://localhost:9898
 ```
 
-## Production Considerations
+## Running Services
 
-1. **Port Security**: In production, bind services to specific interfaces
-2. **Firewall Rules**: Only expose 9898 and 9000 externally
-3. **TLS/SSL**: Use reverse proxy (nginx/caddy) for HTTPS
-4. **Database**: Use managed PostgreSQL service
-5. **Redis**: Use managed Redis or Redis Cluster
-6. **Environment Variables**: Use secrets management (Vault, AWS Secrets Manager)
+### Start with Docker (Recommended)
+
+```bash
+# Everything accessible through port 9898
+docker-compose up
+
+# Access dashboard
+open http://localhost:9898
+```
+
+### Start with Scripts
+
+```bash
+# Start all services with dashboard on 9898
+./start-all.sh
+
+# Everything routes through dashboard
+curl http://localhost:9898/health
+curl http://localhost:9898/api/v1/mobile/status
+curl http://localhost:9898/api/weather?city=London
+```
+
+## Testing Connectivity
+
+All testing goes through port 9898:
+
+```bash
+# Dashboard health
+curl http://localhost:9898/health
+
+# Backend API (via dashboard)
+curl http://localhost:9898/api/v1/mobile/status
+
+# Weather API (via dashboard)
+curl http://localhost:9898/api/weather?city=London
+
+# Aggregated health
+curl http://localhost:9898/api/bridge/status
+
+# WebSocket connection
+wscat -c ws://localhost:9898/ws/alerts
+```
+
+## Firewall Configuration
+
+Only one port needs to be open:
+
+```bash
+# Allow port 9898 (dashboard)
+sudo ufw allow 9898/tcp
+
+# That's it! No other ports need external access
+```
+
+## Production Deployment
+
+### Single Port Exposure
+
+```nginx
+# Nginx reverse proxy
+server {
+    listen 80;
+    server_name your-domain.com;
+
+    location / {
+        proxy_pass http://localhost:9898;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+### Docker Compose Production
+
+```yaml
+services:
+  node-bridge:
+    ports:
+      - "9898:9898"  # Only port exposed to host
+    environment:
+      - BACKEND_URL=http://backend:8000
+      - WEATHER_URL=http://backend:8001
+    restart: always
+```
+
+## Benefits of Dashboard Architecture
+
+1. **Simplified Security**: Only one port to secure and monitor
+2. **Unified Access Control**: All authentication/authorization at one point
+3. **Easy Load Balancing**: Single entry point for traffic distribution
+4. **Simplified Firewall Rules**: One rule instead of many
+5. **Consistent API Gateway**: All requests logged and monitored in one place
+6. **Organizational Compliance**: Meets requirements for centralized access
 
 ## Troubleshooting
 
-### Port Already in Use
+### Can't Connect to Services
+
+**Solution**: Always use port 9898
+
 ```bash
-# Find what's using a port
+# ✅ Correct
+curl http://localhost:9898/api/v1/health
+curl http://localhost:9898/api/weather?city=London
+
+# ❌ Wrong (these ports not exposed externally)
+curl http://localhost:8000/health
+curl http://localhost:8001/api/weather
+```
+
+### Port 9898 Already in Use
+
+```bash
+# Find what's using port 9898
 lsof -i :9898
 netstat -tunlp | grep 9898
 
-# Kill process on port
+# Stop the conflicting service
 kill -9 $(lsof -t -i:9898)
 ```
 
-### Service Can't Connect
-1. Check service is running: `curl http://localhost:{port}/health`
-2. Check firewall rules: `sudo ufw status`
-3. Check environment variables: `env | grep PORT`
-4. Check Docker networking: `docker network inspect bridge`
+### Docker Services Not Accessible
 
-### CORS Errors
-- Ensure backend `cors_origins` in config.py includes your frontend URL
-- Check NODE_BRIDGE_PORT matches CORS_ORIGIN in docker-compose.yml
+Check that node-bridge is running:
+
+```bash
+docker-compose ps
+docker-compose logs node-bridge
+```
+
+### Internal Services Can't Reach Each Other
+
+Verify Docker network:
+
+```bash
+docker network inspect sovereignty-ai-studio_default
+```
+
+Services should use Docker service names (e.g., `http://backend:8000`, not `http://localhost:8000`)
+
+## Migration Guide
+
+### From Multi-Port to Dashboard Architecture
+
+If you have existing code connecting to multiple ports:
+
+```javascript
+// OLD - Multiple ports
+const backendUrl = 'http://localhost:8000/api/v1';
+const weatherUrl = 'http://localhost:8001/api/weather';
+
+// NEW - Dashboard only
+const backendUrl = 'http://localhost:9898/api/v1';
+const weatherUrl = 'http://localhost:9898/api/weather';
+```
+
+### Environment Variables
+
+Update your `.env` files:
+
+```bash
+# OLD
+BACKEND_URL=http://localhost:8000
+WEATHER_URL=http://localhost:8001
+
+# NEW - Everything through dashboard
+BACKEND_URL=http://localhost:9898/api/v1
+WEATHER_URL=http://localhost:9898/api/weather
+```
 
 ## References
 
 - Docker Compose: `/docker-compose.yml`
 - Environment Template: `/.env.example`
-- Backend Config: `/backend/app/config.py`
 - Node Bridge: `/node-bridge/server.js`
-- Unified Server: `/unified_server.js`
 - Startup Script: `/start-all.sh`
 
-## Change Log
+## Summary
 
-- **2026-03-12**: Port allocation standardization
-  - Backend: 9898 → 8000
-  - Weather: 9898 → 8001
-  - Frontend: 98765 → 3000
-  - Web App: 9898 → 8080
-  - Created comprehensive documentation
-  - Added .env.example with full port configuration
+🎯 **One Port to Rule Them All: 9898**
+
+- External clients connect only to port 9898
+- All services accessible through the dashboard
+- Internal services isolated on Docker network
+- Simplified security and management
+- Compliant with organizational standards
+
+**Remember**: Port 9898 is your dashboard. Everything goes through it.
