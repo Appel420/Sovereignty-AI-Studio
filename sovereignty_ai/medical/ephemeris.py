@@ -1,7 +1,7 @@
 """SPICE ephemeris calculator - celestial anchor and birth synchronization."""
 
-from typing import Tuple, Optional, Dict
-from datetime import datetime
+from typing import Tuple, Optional, Dict, Any
+from datetime import datetime, timedelta
 import numpy as np
 
 
@@ -183,7 +183,7 @@ class EphemerisCalculator:
         birth_datetime: datetime,
         latitude: float,
         longitude: float
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         """
         Synchronize celestial positions with birth data.
         
@@ -261,7 +261,7 @@ class EphemerisCalculator:
         
         # Search daily
         for day in range(days_ahead):
-            check_date = start_date + datetime.timedelta(days=day)
+            check_date = start_date + timedelta(days=day)
             alignment = self.calculate_alignment(body1, body2, body3, check_date)
             
             if alignment < min_alignment:
