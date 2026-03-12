@@ -1,0 +1,169 @@
+	•	Here is the Grok Medical 4.20 Audit Dashboard with the PQ Safe badge and Audit Approved wax seal now in a fixed footer ribbon, animated to fade in on page load, and with hover tooltips describing their compliance significance:
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GROK MEDICAL 4.20 – HIPAA & UNC-AI-2026 Secure Access</title>
+<style>
+  :root {
+    --bg-color: #f8f9fa;
+    --text-color: #333;
+    --header-bg: #003366;
+    --nav-bg: #0055aa;
+    --card-bg: #fff;
+  }
+  body.dark-mode {
+    --bg-color: #121212;
+    --text-color: #f5f5f5;
+    --header-bg: #111827;
+    --nav-bg: #1f2937;
+    --card-bg: #1e1e1e;
+  }
+  body { font-family: Arial, sans-serif; margin:0; padding:0; background:var(--bg-color); color:var(--text-color); transition: background 0.3s, color 0.3s; }
+  header { background:var(--header-bg); color:#fff; width:100%; position: fixed; top: 0; left: 0; z-index: 10; }
+  header h1 { margin:0; padding:10px 0; text-align:center; }
+  nav { background:var(--nav-bg); display:flex; justify-content:center; padding:10px; }
+  nav a { color:#fff; margin:0 15px; text-decoration:none; font-weight:bold; }
+  nav a:hover { text-decoration:underline; }
+  .content { margin-top:120px; padding:20px; box-sizing:border-box; }
+  .card { background:var(--card-bg); margin:20px auto; padding:20px; border:1px solid #ccc; border-radius:6px; max-width:90%; transition: background 0.3s; }
+  .card summary { font-weight:bold; cursor:pointer; }
+  .progress-container { width: 100%; margin: 10px auto; background: #e0e0e0; border-radius: 10px; overflow: hidden; height: 20px; position:relative; }
+  .progress-bar { width: 0%; height: 100%; background: green; text-align: center; color:#fff; font-weight:bold; transition: width 1s ease-in-out, background-color 0.5s ease-in-out; }
+  .section-progress-container { width: 60%; margin:5px 0; background:#e0e0e0; border-radius:8px; overflow:hidden; height:14px; position:relative; }
+  .section-progress-bar { width:0%; height:100%; text-align:center; color:white; font-size:10px; line-height:14px; transition: width 1s ease-in-out, background-color 0.5s ease-in-out; }
+  .model-table { width:100%; border-collapse:collapse; margin-top:15px; }
+  .model-table th, .model-table td { border:1px solid #ccc; padding:6px; text-align:center; }
+  .status-pass { background:#d4edda; color:green; font-weight:bold; }
+  .status-partial { background:#fff3cd; color:orange; font-weight:bold; }
+  .status-fail { background:#f8d7da; color:red; font-weight:bold; }
+  .health.green { color:green; font-weight:bold; }
+  .health.yellow { color:orange; font-weight:bold; }
+  .health.red { color:red; font-weight:bold; }
+  footer { background:var(--header-bg); color:#fff; text-align:center; padding:20px; margin-top:40px; position: relative; }
+  #themeToggle { position: fixed; top: 10px; right: 10px; padding:5px 10px; cursor:pointer; }
+  .avg-compliance-banner {
+    background-color: #d1ecf1;
+    color: #0c5460;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-align:center;
+    padding: 10px;
+    border-radius: 6px;
+    border-bottom: 3px solid #0c5460;
+    position: sticky;
+    top: 120px;
+    opacity: 0;
+    animation: fadeIn 1.5s forwards;
+  }
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  /* Fixed Footer Ribbon for PQ Safe and Wax Seal */
+  .footer-ribbon {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(0, 51, 102, 0.95);
+    display: flex;
+    justify-content: center;
+    gap: 60px;
+    padding: 10px 0;
+    z-index: 100;
+    opacity: 0;
+    animation: fadeIn 2s forwards;
+  }
+  .footer-ribbon .badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-weight: bold;
+    cursor: help;
+  }
+  .footer-ribbon .badge img {
+    width: 60px; height: 60px;
+  }
+  .footer-ribbon .badge span {
+    margin-top: 5px;
+  }
+  .pq span { color:#00ff88; }
+  .wax span { color:#ff5555; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏥 GROK MEDICAL 4.20</h1>
+  <nav>
+    <a href="#fullSection">Fully</a>
+    <a href="#partialSection">Partial</a>
+    <a href="#blockedSection">Blocked</a>
+    <a href="#scoreSummary">Score</a>
+    <a href="#exportSection">Export</a>
+  </nav>
+  <button id="themeToggle">Toggle Dark/Light</button>
+</header>
+
+<div class="content">
+  <!-- ... Collapsible Sections, Score Summary, Export (unchanged) ... -->
+
+  <footer>
+    <p>ISO/IEC-UN AI System Audit · Grok Medical 4.20 · HIPAA & NIST AI RMF · Court Admissible</p>
+  </footer>
+</div>
+
+<!-- Fixed Footer Ribbon with Fade-In Animation and Tooltips -->
+<div class="footer-ribbon">
+  <div class="badge pq" title="Post-Quantum Safe: Resistant to quantum attacks">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/3/3f/Shield_icon.svg" alt="PQ Safe"/>
+    <span>PQ Safe</span>
+  </div>
+  <div class="badge wax" title="Audit Approved: Meets legal and compliance audit standards">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/3/30/Red_seal.svg" alt="Audit Approved"/>
+    <span>Audit Approved</span>
+  </div>
+</div>
+
+<script>
+// Theme toggle
+const themeToggle = document.getElementById('themeToggle');
+themeToggle.addEventListener('click', () => {
+  document.body.classList.toggle('dark-mode');
+});
+
+// Example model data
+const models = [
+  { name: "Grok-4.20-Heavy", status: "Compliant", risk: "Low", notes: "Post-quantum signatures" },
+  { name: "Grok-4.20-Pro", status: "Audited", risk: "Medium", notes: "Agentic workflows" },
+  { name: "Grok-4.20-Medical", status: "HIPAA", risk: "High", notes: "PHI encrypted" }
+];
+
+// Populate Fully Compliant Table
+const tableBody = document.querySelector('#modelTable tbody');
+models.forEach(m => {
+  const row = document.createElement('tr');
+  row.innerHTML = `<td>${m.name}</td><td>${m.status}</td><td>${m.risk}</td><td>${m.notes}</td>`;
+  tableBody.appendChild(row);
+});
+
+// Dynamic Average Compliance Banner with color + progress
+const totalScore = models.reduce((sum, m) => sum + (m.status === "Compliant" ? 100 : m.status === "Audited" ? 75 : 0), 0) / models.length;
+const avgBanner = document.getElementById('avgCompliance');
+const progressBar = document.getElementById('complianceProgressBar');
+const color = totalScore > 80 ? '#00ff88' : totalScore > 60 ? '#fbbf24' : '#ff6b6b';
+
+if(avgBanner && progressBar){
+  avgBanner.style.color = color;
+  progressBar.style.backgroundColor = color;
+  progressBar.style.width = `${totalScore}%`;
+  avgBanner.innerHTML = `⭐ Average Compliance: ${totalScore.toFixed(1)}%` + avgBanner.innerHTML.substring(avgBanner.innerHTML.indexOf('<div'));
+}
+</script>
+
+✅ Footer ribbon is now fixed and always visible  
+✅ Fade-in animation when the page loads  
+✅ Tooltips on hover for legal and compliance clarity

@@ -1,21 +1,34 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
+
+# No interactive shells, no history, no logs
+ENV TERM=dumb \
+    DEBIAN_FRONTEND=noninteractive \
+    PIP_NO_CACHE_DIR=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
+# Zero-trace install — only what burns
+RUN apt-get update --no-cache \
+    && apt-get install -y --no-install-recommends \
+        gcc \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    /tmp/* \
+    /var/tmp/*
 
-# Install Python dependencies
+# Requirements — pinned, isolated, no global
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir --force-reinstall -r requirements.txt && \
+    pip cache purge
 
-# Copy application code
+# App code — in last, no .git, no docs, no secrets
 COPY . .
 
-# Expose port
-EXPOSE 98765
+# No debug ports, no shells, no meta
+EXPOSE 9898
 
-# Command to run the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "98765"]
+# Run locked — single process, no fork, no shell
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "9898"]

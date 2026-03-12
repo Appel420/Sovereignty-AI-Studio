@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BookOpenIcon,
@@ -7,7 +7,19 @@ import {
   MicrophoneIcon,
   PencilIcon,
   SparklesIcon,
+  PhotoIcon,
+  SpeakerWaveIcon,
+  UserCircleIcon,
+  CommandLineIcon,
 } from '@heroicons/react/24/outline';
+import { HealthAPI } from '../services/api';
+
+const SERVICE_CHECK_INTERVAL_MS = 30000;
+
+interface ServiceStatus {
+  api: 'online' | 'offline' | 'loading';
+  bridge: 'online' | 'offline' | 'loading';
+}
 
 const features = [
   {
@@ -45,9 +57,75 @@ const features = [
     href: '/writing-assistant',
     color: 'bg-yellow-500',
   },
+  {
+    name: 'Media Generator',
+    description: 'Generate images, videos, audio, and music with AI',
+    icon: PhotoIcon,
+    href: '/media-generator',
+    color: 'bg-indigo-500',
+  },
+  {
+    name: 'Voice Chat',
+    description: 'Talk to Ara — AI voice interaction powered by Piper TTS',
+    icon: SpeakerWaveIcon,
+    href: '/voice-chat',
+    color: 'bg-teal-500',
+  },
+  {
+    name: 'Avatar Companion',
+    description: 'Customize your AI companion with EEG-linked mood',
+    icon: UserCircleIcon,
+    href: '/avatar-companion',
+    color: 'bg-violet-500',
+  },
+  {
+    name: 'Game Builder',
+    description: 'Build games, apps, and projects with AI assistance',
+    icon: CommandLineIcon,
+    href: '/game-builder',
+    color: 'bg-orange-500',
+  },
 ];
 
+const StatusDot: React.FC<{ status: 'online' | 'offline' | 'loading' }> = ({ status }) => {
+  const colors = {
+    online: 'bg-green-400',
+    offline: 'bg-red-400',
+    loading: 'bg-yellow-400 animate-pulse',
+  };
+  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${colors[status]}`} />;
+};
+
 const Dashboard: React.FC = () => {
+  const [serviceStatus, setServiceStatus] = useState<ServiceStatus>({
+    api: 'loading',
+    bridge: 'loading',
+  });
+
+  const checkServices = useCallback(async () => {
+    // Check API status
+    try {
+      await HealthAPI.check();
+      setServiceStatus((prev) => ({ ...prev, api: 'online' }));
+    } catch {
+      setServiceStatus((prev) => ({ ...prev, api: 'offline' }));
+    }
+
+    // Check bridge health
+    try {
+      await HealthAPI.bridgeHealth();
+      setServiceStatus((prev) => ({ ...prev, bridge: 'online' }));
+    } catch {
+      setServiceStatus((prev) => ({ ...prev, bridge: 'offline' }));
+    }
+  }, []);
+
+  useEffect(() => {
+    checkServices();
+    const interval = setInterval(checkServices, SERVICE_CHECK_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [checkServices]);
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="text-center mb-12">
@@ -55,12 +133,35 @@ const Dashboard: React.FC = () => {
           <SparklesIcon className="h-12 w-12 text-primary-600" />
         </div>
         <h1 className="text-4xl font-bold text-gray-900 font-space-grotesk mb-4">
-          Welcome to CreativeFlow AI
+          Welcome to Sovereignty AI Studio
         </h1>
         <p className="text-xl text-gray-600 max-w-2xl mx-auto">
           Your comprehensive platform for AI-powered content creation. Generate stories, 
           build campaigns, create presentations, and more with cutting-edge AI technology.
         </p>
+      </div>
+
+      {/* Service Status Bar */}
+      <div className="mb-8 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-700">System Status</h2>
+          <button
+            onClick={checkServices}
+            className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+          >
+            Refresh
+          </button>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-6">
+          <div className="flex items-center space-x-2">
+            <StatusDot status={serviceStatus.api} />
+            <span className="text-sm text-gray-600">API Backend</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <StatusDot status={serviceStatus.bridge} />
+            <span className="text-sm text-gray-600">Node Bridge</span>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
