@@ -42,60 +42,6 @@ Sovereignty-AI-Studio/
 ├── frontend/                      # React TypeScript frontend
 │   └── src/
 ├── apps/
-<<<<<< copilot/update-readme-file
-│   ├── dashboards/                # Dashboard Applications
-│   └── web/                       # Web Applications
-├── ios/                           # iOS / Swift Package
-├── node-bridge/                   # Node.js Express+WS bridge (port 9898)
-├── scripts/                       # Build, Deployment & Utility Scripts
-│   ├── deploy.sh
-│   ├── init_db.py
-│   ├── demo_alerts.py
-│   ├── test_alerts.py
-│   ├── fullscan_cli.py
-│   ├── eeg_streaming.py
-│   ├── AI_iOS_Voice.py
-│   ├── Backend_API_AUTH.py
-│   ├── Build_Judge.py
-│   ├── Secure_Audit.py
-│   ├── agentMem.py
-│   ├── multiAgentOrch.py
-│   ├── subAgentorc.py
-│   ├── reasercgerAgent.py
-│   ├── parser.py
-│   ├── workflows.py
-│   └── Unlock_Tier_21.js
-├── tests/                         # Test suite
-│   ├── test_app.py
-│   └── test_weather.py
-├── docs/                          # Documentation
-│   ├── QUICK_REFERENCE.md
-│   ├── PIPER_INTEGRATION.md
-│   ├── ALERTS_USAGE.md
-│   ├── ALERTS_SYSTEM_DIAGRAM.txt
-│   ├── IMPLEMENTATION_SUMMARY.md
-│   ├── POLICY_SEC_ML_ACCESS.md
-│   ├── SYSTEM_VALIDATOR.md
-│   ├── REORGANIZATION_PLAN.md
-│   ├── Compliance_Audit.md
-│   └── ...
-├── resources/
-│   ├── assets/                    # Binary & Font Assets
-│   ├── configs/                   # Configuration Files
-│   ├── data/                      # Data Files & References
-│   └── archives/                  # ZIP Archives
-├── crypto/                        # Cryptography Modules
-├── ai_core/                       # AI Core Modules
-├── Sovereignty_python-keycloak-master/  # Keycloak integration
-├── weather_dashboard.py           # Quart weather app entry point (port 9898)
-├── requirements.txt               # Python dependencies
-├── pkg.json                       # Electron app configuration
-├── docker-compose.yml             # Docker orchestration
-├── Dockerfile                     # Container config
-├── Makefile                       # Build automation
-├── start-all.sh                   # Launch all services
-├── setup-ish.sh                   # iSH/Alpine setup
-=======
 │   ├── dashboards/      # Dashboard Applications
 │   │   ├── Tools_Post_Quantum_Dashboard.html
 │   │   ├── Real_Validator.html
@@ -178,7 +124,6 @@ Sovereignty-AI-Studio/
 ├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
 ├── Harvard_Sentences.txt # Standard TTS evaluation sentences
 ├── weather_dashboard.py # Quart weather dashboard entry point
->>>>>> main
 ├── LICENSE.MD
 ├── SECURITY.md
 └── README.md
@@ -193,7 +138,6 @@ Sovereignty-AI-Studio/
 - **src/utils/**: Utility functions and tools
 - **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
 - **apps/web/**: Web applications
-<<<<<< copilot/extract-zip-archive
 - **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
@@ -205,22 +149,389 @@ Sovereignty-AI-Studio/
 - **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
 - **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
 - **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
-=======
-- **scripts/**: Build, deployment, and utility scripts
-- **tests/**: Test suite (pytest + pytest-asyncio)
-- **docs/**: Project documentation
-- **resources/**: Assets, configurations, data files, and archives
-- **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend with WebSocket support for live alerts (port 9898)
-- **frontend/**: React TypeScript frontend with real-time alert notifications
-- **ios/**: iOS Swift Package (SovereigntyGuard)
-- **node-bridge/**: Node.js Express+WS bridge proxying to backend (port 9898)
-<<<<<< copilot/update-readme-file
 - **Piper TTS**: Piper text-to-speech integration for audio alerts (see [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md))
-=======
-- **piper-tts/**: Piper text-to-speech integration for audio alerts
->>>>> main
->>>>>> main
+
+## AI Agent Integration
+
+Sovereignty AI Studio provides seamless integration with multiple AI agents, enabling you to connect with Claude, GPT, Grok, and GitHub Copilot in a unified, secure environment.
+
+### Supported AI Agents
+
+The platform integrates with four major AI providers through a WebSocket-based routing system:
+
+1. **Claude (Anthropic)** - Claude Sonnet 4 via `api.anthropic.com`
+2. **GPT (OpenAI)** - GPT-4o via `api.openai.com`
+3. **Grok (xAI)** - Grok-2-latest via `api.x.ai`
+4. **GitHub Copilot** - Native integration via GitHub OAuth
+
+### Agent Connection Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           Multi-Agent Connection System                  │
+├─────────────────────────────────────────────────────────┤
+│                                                           │
+│  Client Applications                                      │
+│  ├─ Frontend (React TS)                                  │
+│  ├─ iOS (Swift)                                          │
+│  └─ iSH/Code Pad                                         │
+│           ↓                                               │
+│  ┌────────────────────────────────────┐                 │
+│  │  WebSocket Bridge (Port 9898)      │                 │
+│  │  server_9898.js / unified_server   │                 │
+│  └────────────────────────────────────┘                 │
+│           ↓                                               │
+│  ┌─────────────────────────────────────────────────┐    │
+│  │         AI Agent Router (aiProxy)                │    │
+│  ├─────────────────────────────────────────────────┤    │
+│  │  ANTHROPIC_API_KEY → api.anthropic.com          │    │
+│  │  OPENAI_API_KEY    → api.openai.com             │    │
+│  │  XAI_API_KEY       → api.x.ai                   │    │
+│  │  GH_CLIENT_*       → github.com (OAuth)          │    │
+│  └─────────────────────────────────────────────────┘    │
+│           ↓                                               │
+│  Real-time responses with audit logging                  │
+│                                                           │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Agent Request Protocol
+
+Connect to any agent via WebSocket using the following message format:
+
+```javascript
+// Send agent request
+{
+  type: 'agent_request',
+  agent: 'claude' | 'gpt' | 'grok',
+  payload: {
+    prompt: 'Your question or instruction',
+    system: 'Optional system prompt'
+  }
+}
+
+// Receive agent response
+{
+  type: 'agent_response',
+  agent: 'claude',
+  payload: {
+    text: 'Agent response text'
+  },
+  ts: 1234567890
+}
+```
+
+**Key Features:**
+- Maximum prompt length: 1000 characters
+- Maximum tokens per response: 1200
+- Rate limiting: 30 messages/minute per connection
+- Automatic API key validation
+- Full audit logging for compliance
+
+### Environment Setup
+
+Create a `.env` file in the project root with your API keys:
+
+```bash
+# AI Agent API Keys
+ANTHROPIC_API_KEY=sk-ant-...      # Required for Claude
+OPENAI_API_KEY=sk-...              # Required for GPT
+XAI_API_KEY=xai-...                # Required for Grok
+
+# GitHub OAuth (for Copilot integration)
+GH_CLIENT_ID=your_github_client_id
+GH_CLIENT_SECRET=your_github_client_secret
+
+# Optional: Server Configuration
+PORT_UNIFIED=9000                  # Unified server port
+PORT_BRIDGE=9898                   # Bridge server port
+LOG_DIR=./logs                     # Audit log directory
+VERBOSE=1                          # Enable verbose logging
+```
+
+**Security Notes:**
+- Never commit API keys to version control
+- Use `.gitignore` to exclude `.env` files
+- Rotate keys regularly
+- Monitor audit logs in `./logs/audit.jsonl`
+
+### Agent Servers
+
+The repository includes two agent bridge servers:
+
+#### 1. Standalone Bridge Server (server_9898.js)
+
+Primary WebSocket bridge for agent routing:
+
+```bash
+# Install dependencies
+npm install --prefix . ws@^8.17.0
+
+# Start the server
+node server_9898.js
+```
+
+**Endpoints:**
+- `ws://localhost:9898` - WebSocket agent routing
+- `GET /health` - Health check
+- `GET /api/audit` - Audit log viewer
+- `POST /api/execute-command` - Command execution (requires auth)
+
+#### 2. Unified Server (unified_server.js)
+
+Comprehensive server with additional features:
+
+```bash
+# Install dependencies
+npm install --prefix . ws@^8.18.0
+
+# Start the server
+node unified_server.js
+```
+
+**Additional Features:**
+- GitHub OAuth authentication
+- DuckDuckGo search proxy
+- Piper TTS integration
+- Role-based access control (30+ roles)
+- Multi-factor authentication
+
+### GitHub Copilot Integration
+
+GitHub Copilot is integrated via the GitHub OAuth workflow:
+
+1. **Configure GitHub OAuth App**
+   - Go to GitHub Settings → Developer Settings → OAuth Apps
+   - Create a new OAuth App with callback URL: `http://localhost:9000/api/gh/callback`
+   - Copy Client ID and Client Secret to `.env`
+
+2. **Authenticate**
+   ```bash
+   # Start unified server
+   node unified_server.js
+
+   # Navigate to auth endpoint
+   curl http://localhost:9000/api/gh/login
+   ```
+
+3. **Use Copilot Features**
+   - Code suggestions in your IDE
+   - Pull request summaries
+   - Code review assistance
+
+### Testing Agent Connections
+
+Test your agent setup with the included test suite:
+
+```bash
+# Test agent routing
+node --test test/server9898-agent-routing.test.js
+
+# Test server endpoints
+node --test test/server9898.test.js
+
+# Run all server tests
+npm test
+```
+
+**Example Test:**
+
+```javascript
+// Test Claude agent connection
+const ws = new WebSocket('ws://localhost:9898');
+
+ws.on('open', () => {
+  ws.send(JSON.stringify({
+    type: 'agent_request',
+    agent: 'claude',
+    payload: {
+      prompt: 'Hello, Claude! Can you hear me?',
+      system: 'You are a helpful AI assistant.'
+    }
+  }));
+});
+
+ws.on('message', (data) => {
+  const response = JSON.parse(data);
+  console.log('Agent:', response.agent);
+  console.log('Response:', response.payload.text);
+});
+```
+
+### Agent Usage Best Practices
+
+1. **Keep Prompts Concise**
+   - Stay under 1000 characters for optimal performance
+   - Use clear, specific instructions
+
+2. **Handle Errors Gracefully**
+   - Check for `payload.error` in responses
+   - Common errors: Missing API key, rate limit exceeded, network timeout
+
+3. **Monitor Rate Limits**
+   - Stay under 30 requests/minute per connection
+   - Implement exponential backoff for retries
+
+4. **Use System Prompts Effectively**
+   - Define agent behavior and constraints
+   - Specify output format requirements
+
+5. **Review Audit Logs**
+   - Check `./logs/audit.jsonl` for all agent interactions
+   - Monitor for unusual patterns or errors
+
+### Integration Examples
+
+#### Frontend Integration (React/TypeScript)
+
+```typescript
+import { useEffect, useState } from 'react';
+
+function AgentChat() {
+  const [ws, setWs] = useState<WebSocket | null>(null);
+  const [response, setResponse] = useState('');
+
+  useEffect(() => {
+    const socket = new WebSocket('ws://localhost:9898');
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'agent_response') {
+        setResponse(data.payload.text || data.payload.error);
+      }
+    };
+
+    setWs(socket);
+    return () => socket.close();
+  }, []);
+
+  const askAgent = (agent: string, prompt: string) => {
+    ws?.send(JSON.stringify({
+      type: 'agent_request',
+      agent,
+      payload: { prompt }
+    }));
+  };
+
+  return (
+    <div>
+      <button onClick={() => askAgent('claude', 'Hello!')}>Ask Claude</button>
+      <button onClick={() => askAgent('gpt', 'Hello!')}>Ask GPT</button>
+      <button onClick={() => askAgent('grok', 'Hello!')}>Ask Grok</button>
+      <pre>{response}</pre>
+    </div>
+  );
+}
+```
+
+#### iOS Integration (Swift)
+
+```swift
+import Foundation
+
+class AgentClient {
+    private var webSocket: URLSessionWebSocketTask?
+
+    func connect() {
+        let url = URL(string: "ws://localhost:9898")!
+        webSocket = URLSession.shared.webSocketTask(with: url)
+        webSocket?.resume()
+        receiveMessage()
+    }
+
+    func askAgent(_ agent: String, prompt: String) {
+        let request: [String: Any] = [
+            "type": "agent_request",
+            "agent": agent,
+            "payload": ["prompt": prompt]
+        ]
+
+        let data = try! JSONSerialization.data(withJSONObject: request)
+        let message = URLSessionWebSocketTask.Message.data(data)
+        webSocket?.send(message) { error in
+            if let error = error {
+                print("Send error: \(error)")
+            }
+        }
+    }
+
+    private func receiveMessage() {
+        webSocket?.receive { [weak self] result in
+            switch result {
+            case .success(let message):
+                if case .data(let data) = message {
+                    let json = try? JSONSerialization.jsonObject(with: data)
+                    print("Response: \(json ?? [:])")
+                }
+                self?.receiveMessage()
+            case .failure(let error):
+                print("Receive error: \(error)")
+            }
+        }
+    }
+}
+```
+
+#### Python Integration
+
+```python
+import asyncio
+import websockets
+import json
+
+async def ask_agent(agent: str, prompt: str):
+    uri = "ws://localhost:9898"
+
+    async with websockets.connect(uri) as ws:
+        # Send request
+        request = {
+            "type": "agent_request",
+            "agent": agent,
+            "payload": {
+                "prompt": prompt,
+                "system": "You are a helpful assistant."
+            }
+        }
+        await ws.send(json.dumps(request))
+
+        # Receive response
+        response = await ws.recv()
+        data = json.loads(response)
+
+        if data.get("type") == "agent_response":
+            print(f"Agent: {data['agent']}")
+            print(f"Response: {data['payload'].get('text', data['payload'].get('error'))}")
+
+# Example usage
+asyncio.run(ask_agent("claude", "What is the meaning of life?"))
+```
+
+### Maintaining a Clean Environment
+
+The platform is designed to maintain a sanitized, self-updating environment:
+
+1. **Automated Code Cleanup**
+   - `.github/agents/my-agent.agent.md` - Template for cleanup agents
+   - Removes outdated dependencies
+   - Fixes syntax errors automatically
+   - Organizes files into appropriate folders
+
+2. **Structure Maintenance**
+   - Files are automatically placed in correct locations
+   - Folder structure is validated on startup
+   - Unused imports and dependencies are flagged
+
+3. **Continuous Integration**
+   - GitHub Actions workflow validates code quality
+   - Flake8 linting for Python code
+   - Pytest for automated testing
+   - Node.js tests for bridge servers
+
+4. **Agent Collaboration**
+   - Ara (Grok.x.ai) maintains folder structure
+   - Claude acts as copilot for code review
+   - All agents work together without conflicts
+   - Shared audit logging ensures coordination
 
 ## Features
 

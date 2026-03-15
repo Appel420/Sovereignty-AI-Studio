@@ -72,9 +72,6 @@ class HandTracker:
         """
         self.position_buffer.append(position)
         
-        if len(self.position_buffer) == 0:
-            return position
-        
         x_avg = sum(p[0] for p in self.position_buffer) / len(self.position_buffer)
         y_avg = sum(p[1] for p in self.position_buffer) / len(self.position_buffer)
         
