@@ -41,7 +41,7 @@ Sovereignty-AI-Studio/
 │   ├── utils/                     # Utility Functions
 │   ├── ai_core/                   # Siri-Replace / Ara Core
 │   └── native/                    # Native Code (C++, Swift, Rust)
-├── backend/                       # FastAPI backend (port 8000, surfaced via bridge on 9898)
+├── backend/                       # FastAPI backend (surfaced via bridge on port 9898)
 │   ├── app/                       # Application code
 │   ├── alembic/                   # Database migrations
 │   └── Dockerfile
@@ -148,7 +148,7 @@ Sovereignty-AI-Studio/
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
 - **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend on port 8000 (exposed through the bridge on 9898) with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
+- **backend/**: FastAPI backend surfaced through port 9898 with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
 - **frontend/**: React TypeScript frontend with real-time alert notifications and post-quantum auth UI
 - **ios/**: iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging
 - **node-bridge/**: Node.js bridge connecting frontend, Python backends, and iSH/Code Pad
@@ -249,7 +249,7 @@ GH_CLIENT_ID=your_github_client_id
 GH_CLIENT_SECRET=your_github_client_secret
 
 # Optional: Server Configuration
-PORT_UNIFIED=9000                  # Unified server port
+PORT_UNIFIED=9898                  # Unified server port
 PORT_BRIDGE=9898                   # Bridge server port
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging
@@ -308,7 +308,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
 
 1. **Configure GitHub OAuth App**
    - Go to GitHub Settings → Developer Settings → OAuth Apps
-   - Create a new OAuth App with callback URL: `http://localhost:9000/api/gh/callback`
+   - Create a new OAuth App with callback URL: `http://localhost:9898/api/gh/callback`
    - Copy Client ID and Client Secret to `.env`
 
 2. **Authenticate**
@@ -317,7 +317,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
    node unified_server.js
 
    # Navigate to auth endpoint
-   curl http://localhost:9000/api/gh/login
+   curl http://localhost:9898/api/gh/login
    ```
 
 3. **Use Copilot Features**

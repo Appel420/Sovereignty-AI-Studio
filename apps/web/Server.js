@@ -2,7 +2,7 @@
 const http = require('http');
 const { spawn } = require('child_process');
 
-const PORT = parseInt(process.env.WEB_APP_PORT || '8080', 10);
+const PORT = parseInt(process.env.WEB_APP_PORT || '9898', 10);
 
 const server = http.createServer((req, res) => {
   if (req.url === '/intent') {

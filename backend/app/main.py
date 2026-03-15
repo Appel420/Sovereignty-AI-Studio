@@ -39,7 +39,7 @@ async def mobile_status():
         "status": "online",
         "service": "Sovereignty AI Studio",
         "api_version": "v1",
-        "port": 8000,
+        "port": 9898,
         "endpoints": {
             "health": "/health",
             "alerts": "/api/v1/alerts",
