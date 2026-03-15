@@ -8,6 +8,22 @@ BRIDGE_PORT="${NODE_BRIDGE_PORT:-9898}"
 WEATHER_PORT="${WEATHER_PORT:-8001}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 
+wait_for_port_free() {
+  PORT="$1"
+  TIMEOUT="${2:-15}"
+  START=$(date +%s)
+  while nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; do
+    ELAPSED=$(( $(date +%s) - START ))
+    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+      echo "[warn] port $PORT still busy after ${TIMEOUT}s; skipping start for that service"
+      return 1
+    fi
+    echo "[wait] port $PORT busy, retrying..."
+    sleep 1
+  done
+  return 0
+}
+
 cleanup() {
   echo ""
   echo "[stop] shutting down..."
@@ -32,22 +48,30 @@ else
 fi
 
 # --- Quart weather dashboard ---
-echo "[start] weather dashboard on port $WEATHER_PORT"
-PYTHONPATH=.:./backend hypercorn weather_dashboard:app \
-  --bind "0.0.0.0:$WEATHER_PORT" &
-WEATHER_PID=$!
-sleep 2
+if wait_for_port_free "$WEATHER_PORT"; then
+  echo "[start] weather dashboard on port $WEATHER_PORT"
+  PYTHONPATH=.:./backend hypercorn weather_dashboard:app \
+    --bind "0.0.0.0:$WEATHER_PORT" &
+  WEATHER_PID=$!
+  sleep 2
+else
+  echo "[skip] weather dashboard not started (port busy)"
+fi
 
 # --- Node.js bridge ---
-echo "[start] node-bridge on port $BRIDGE_PORT"
-cd node-bridge
-WEATHER_URL="http://localhost:$WEATHER_PORT" \
-BACKEND_URL="http://localhost:$BACKEND_PORT" \
-NODE_BRIDGE_PORT="$BRIDGE_PORT" \
-  node server.js &
-BRIDGE_PID=$!
-cd ..
-sleep 1
+if wait_for_port_free "$BRIDGE_PORT"; then
+  echo "[start] node-bridge on port $BRIDGE_PORT"
+  cd node-bridge
+  WEATHER_URL="http://localhost:$WEATHER_PORT" \
+  BACKEND_URL="http://localhost:$BACKEND_PORT" \
+  NODE_BRIDGE_PORT="$BRIDGE_PORT" \
+    node server.js &
+  BRIDGE_PID=$!
+  cd ..
+  sleep 2
+else
+  echo "[skip] node-bridge not started (port busy)"
+fi
 
 echo ""
 echo "=== All services running ==="
