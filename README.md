@@ -17,6 +17,12 @@ The platform integrates specialized domains including computer vision, logical r
 
 No external services, third-party models, or internet connectivity are required for core operation.
 
+## Prerequisites
+
+- Python 3.12.x (CI target; 3.10+ should work)
+- Node.js >= 20.0.0 for the bridge and unified servers
+- Docker + Docker Compose for containerized workflows
+
 ## Project Structure
 
 ```
@@ -35,7 +41,7 @@ Sovereignty-AI-Studio/
 │   ├── utils/                     # Utility Functions
 │   ├── ai_core/                   # Siri-Replace / Ara Core
 │   └── native/                    # Native Code (C++, Swift, Rust)
-├── backend/                       # FastAPI backend (port 9898)
+├── backend/                       # FastAPI backend (port 8000, surfaced via bridge on 9898)
 │   ├── app/                       # Application code
 │   ├── alembic/                   # Database migrations
 │   └── Dockerfile
@@ -142,7 +148,7 @@ Sovereignty-AI-Studio/
 - **resources/**: Assets, configurations, and data files
 - **scripts/**: Build and deployment scripts
 - **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
+- **backend/**: FastAPI backend on port 8000 (exposed through the bridge on 9898) with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
 - **frontend/**: React TypeScript frontend with real-time alert notifications and post-quantum auth UI
 - **ios/**: iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging
 - **node-bridge/**: Node.js bridge connecting frontend, Python backends, and iSH/Code Pad
@@ -264,8 +270,8 @@ The repository includes two agent bridge servers:
 Primary WebSocket bridge for agent routing:
 
 ```bash
-# Install dependencies
-npm install --prefix . ws@^8.17.0
+# Install dependencies (Node 20+)
+npm install
 
 # Start the server
 node server_9898.js
@@ -282,8 +288,8 @@ node server_9898.js
 Comprehensive server with additional features:
 
 ```bash
-# Install dependencies
-npm install --prefix . ws@^8.18.0
+# Install dependencies (Node 20+)
+npm install
 
 # Start the server
 node unified_server.js
@@ -330,8 +336,8 @@ node --test test/server9898-agent-routing.test.js
 # Test server endpoints
 node --test test/server9898.test.js
 
-# Run all server tests
-npm test
+# Run both Node bridge tests together
+node --test test/server9898-agent-routing.test.js test/server9898.test.js
 ```
 
 **Example Test:**
