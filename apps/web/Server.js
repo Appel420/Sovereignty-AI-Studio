@@ -2,6 +2,8 @@
 const http = require('http');
 const { spawn } = require('child_process');
 
+const PORT = parseInt(process.env.WEB_APP_PORT || '8080', 10);
+
 const server = http.createServer((req, res) => {
   if (req.url === '/intent') {
     const py = spawn('python3', );
@@ -16,6 +18,6 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(9898, () => {
-  console.log('Node frontend on 9898 → talks to Python sovereign core');
+server.listen(PORT, () => {
+  console.log(`Node frontend on ${PORT} → talks to Python sovereign core`);
 });

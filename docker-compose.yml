@@ -3,8 +3,10 @@ version: '3.8'
 services:
   backend:
     build: ./backend
-    ports:
-      - "9898:9898"
+    # Internal only - no external port exposure
+    # Accessible via node-bridge on port 9898
+    expose:
+      - "8000"
     environment:
       - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
     depends_on:
@@ -13,11 +15,12 @@ services:
 
   node-bridge:
     build: ./node-bridge
+    # ONLY external port - all traffic goes through 9898
     ports:
       - "9898:9898"
     environment:
-      - BACKEND_URL=http://backend:9898
-      - WEATHER_URL=http://backend:9898
+      - BACKEND_URL=http://backend:8000
+      - WEATHER_URL=http://backend:8001
       - NODE_BRIDGE_PORT=9898
       - CORS_ORIGIN=http://localhost:9898
     depends_on:
@@ -29,15 +32,17 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: creativeflow_db
-    ports:
-      - "5432:5432"
+    # Internal only - accessible via backend services
+    expose:
+      - "5432"
     volumes:
       - db_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7
-    ports:
-      - "6379:6379"
+    # Internal only - accessible via backend services
+    expose:
+      - "6379"
 
 volumes:
   db_data:
