@@ -7,7 +7,7 @@
 **Core Model:** Super Grok Heavy 4.2  
 (xAI) – Locked, Sealed, Sovereign  
 **Authority:** Derek Appel  
-**Last Updated:** March 2, 2026
+**Last Updated:** March 15, 2026
 
 ## Overview
 
@@ -17,115 +17,41 @@ The platform integrates specialized domains including computer vision, logical r
 
 No external services, third-party models, or internet connectivity are required for core operation.
 
+## Gateway & Ports
+
+- **9898** — Node bridge gateway (only externally exposed entry point)
+- **8000** — FastAPI backend (internal; proxied through `/api/v1` on the bridge)
+- **8001** — Quart weather service (internal; proxied through `/api/weather` and `/api/forecast`)
+- Docker Compose exposes only the node-bridge on 9898; backend, PostgreSQL, and Redis stay on the internal network (see `PORT_ALLOCATION.md` for details).
+
+## Quick Start (local)
+
+1. Install Python dependencies: `make install` (installs `requirements.txt` and `backend/requirements.txt`).
+2. Install Node dependencies:
+   - Root / unified server: `npm install`
+   - Node bridge: `npm install --prefix node-bridge`
+3. Start the backend API on 8000: `PYTHONPATH=./backend uvicorn app.main:app --reload --port 8000`
+4. (Optional) Start the weather service on 8001: `PYTHONPATH=.:./backend hypercorn weather_dashboard:app --bind 0.0.0.0:8001`
+5. Start the node bridge gateway on 9898: `npm --prefix node-bridge start` (proxies to the backend and weather services; WebSocket at `/ws/alerts`).
+6. Run the WebSocket AI bridge when you need Claude/GPT/Grok routing: `node server_9898.js` (requires API keys in the environment).
+7. All services together: `./start-all.sh` (starts weather dashboard, node bridge, and optional Redis if available).
+
 ## Project Structure
 
 ```
 Sovereignty-AI-Studio/
-├── .devcontainer/                 # Dev Container configuration
-│   ├── devcontainer.json
-│   ├── Ara.yml
-│   └── ...
-├── .github/                       # GitHub Actions CI workflows
-│   └── workflows/
-├── src/                           # Source code
-│   ├── agents/                    # AI Agent Modules
-│   ├── core/                      # Core System Files
-│   ├── security/                  # Security & Protection Modules
-│   ├── models/                    # Machine Learning Models
-│   ├── utils/                     # Utility Functions
-│   ├── ai_core/                   # Siri-Replace / Ara Core
-│   └── native/                    # Native Code (C++, Swift, Rust)
-├── backend/                       # FastAPI backend (port 9898)
-│   ├── app/                       # Application code
-│   ├── alembic/                   # Database migrations
-│   └── Dockerfile
-├── frontend/                      # React TypeScript frontend
-│   └── src/
-├── apps/
-│   ├── dashboards/      # Dashboard Applications
-│   │   ├── Tools_Post_Quantum_Dashboard.html
-│   │   ├── Real_Validator.html
-│   │   └── SuperGrok-Heavy4-2-Validator.html
-│   └── web/             # Web Applications
-│       ├── Server.js
-│       └── Deploy.html
-├── backend/             # FastAPI Backend
-│   ├── app/
-│   │   ├── api/v1/      # REST & WebSocket API endpoints
-│   │   ├── core/        # Database, security, WebSocket hub
-│   │   ├── models/      # SQLAlchemy ORM models
-│   │   ├── schemas/     # Pydantic schemas
-│   │   └── services/    # Business logic (alerts, TTS, users)
-│   └── requirements.txt
-├── frontend/            # React TypeScript Frontend
-│   └── src/
-│       ├── Frontend_src_Auth.jsx    # Post-quantum auth login component
-│       ├── xai_in_cert_Chain.html   # xAI certificate chain viewer
-│       ├── components/  # Alert center, layout components
-│       ├── hooks/       # WebSocket and alert hooks
-│       ├── pages/       # Dashboard, generator pages
-│       └── services/    # API client services
-├── ios/                 # iOS Swift Package (SovereigntyGuard)
-│   └── Sources/SovereigntyGuard/
-│       ├── ContentView.swift
-│       ├── SovereigntyAPIClient.swift
-│       ├── AuditLogger.swift
-│       ├── DebuggerDetection.swift
-│       ├── FamilyGuardCore.swift
-│       └── VoiceCommandIntegrity.swift
-├── node-bridge/         # Node.js Bridge (frontend ↔ Python backends)
-│   ├── server.js
-│   ├── package.json
-│   └── test/bridge.test.js
-├── ai_core/             # Core AI modules
-│   ├── AI_Core.py
-│   ├── Siri_Replace_Ara-Core.py
-│   ├── ai_defense_module.py
-│   ├── lie_detector.py
-│   └── second_squad_agent.py
-├── resources/
-│   ├── assets/          # Binary & Font Assets
-│   │   ├── ESP42.bin
-│   │   ├── Knucklesandwich.txt.TTF
-│   │   └── Sovereignty_python-keycloak-master.zip
-│   ├── configs/         # Configuration Files
-│   │   ├── Armor.yaml
-│   │   ├── Breathe.json
-│   │   ├── Pip-mic.xml
-│   │   ├── Cargo.toml
-│   │   └── environment.yml
-│   └── data/            # Data Files & Documentation
-│       ├── AI Reading Accuracy
-│       ├── AI-LLM-Model-Choosing
-│       ├── AI_Error_Handling
-│       ├── AI_Eyes_Medical
-│       ├── AI_Reading_Rules
-│       ├── Ai-self-code-With-TamperLock
-│       ├── Airplane_blueprint.py
-│       ├── Animals-Ai-Humans-Resonance_bridge
-│       ├── Animals-Ai-Humans.txt
-│       ├── Bulletproof-AI-Code-Fix
-│       ├── HIPAA.txt
-│       ├── MidasV2.0
-│       ├── Ship
-│       ├── Sovereignty_Truth_Wire
-│       ├── UNC-AI-2026
-│       ├── Scar-tamper.txt
-│       ├── Scary_Truth.py
-│       └── SuperGrok-Heavy-4-2.py
-├── scripts/             # Build & Deployment Scripts
-│   └── deploy.sh
-├── crypto/              # Cryptography Modules
-│   └── Vault_crypto.js
-├── docs/                # Documentation
-├── .devcontainer/       # Dev container configuration
-├── .github/             # GitHub Actions and templates
-├── Backend_API_AUTH.py  # Post-quantum backend auth router (Dilithium2 + TOTP)
-├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
-├── Harvard_Sentences.txt # Standard TTS evaluation sentences
-├── weather_dashboard.py # Quart weather dashboard entry point
-├── LICENSE.MD
-├── SECURITY.md
+├── backend/                 # FastAPI backend (port 8000, proxied through node-bridge)
+├── node-bridge/             # Node gateway on 9898 (HTTP proxy + /ws/alerts)
+├── server_9898.js           # AI agent WebSocket bridge (Claude/GPT/Grok)
+├── unified_server.js        # Combined gateway/auth/agent server (port 9000, alias 9898/8443)
+├── frontend/                # React TypeScript frontend
+├── apps/                    # Dashboards and web utilities
+├── ai_core/                 # Core AI modules and agents
+├── resources/               # Assets, configs, and data
+├── docs/                    # Documentation (port allocation, alerts, etc.)
+├── scripts/                 # Deployment helpers (e.g., start-all.sh)
+├── docker-compose.yml       # Builds backend + node-bridge; only 9898 is exposed
+├── PORT_ALLOCATION.md       # Port map and routing expectations
 └── README.md
 ```
 
@@ -230,7 +156,7 @@ Connect to any agent via WebSocket using the following message format:
 
 ### Environment Setup
 
-Create a `.env` file in the project root with your API keys:
+Create a `.env` file in the project root with your API keys and service ports:
 
 ```bash
 # AI Agent API Keys
@@ -242,11 +168,20 @@ XAI_API_KEY=xai-...                # Required for Grok
 GH_CLIENT_ID=your_github_client_id
 GH_CLIENT_SECRET=your_github_client_secret
 
-# Optional: Server Configuration
+# Ports and service URLs
+NODE_BRIDGE_PORT=9898              # Only external port
+BACKEND_URL=http://localhost:8000  # Proxied by node-bridge at /api/v1
+WEATHER_URL=http://localhost:8001  # Proxied by node-bridge at /api/weather
+CORS_ORIGIN=http://localhost:9898
 PORT_UNIFIED=9000                  # Unified server port
-PORT_BRIDGE=9898                   # Bridge server port
+PORT_BRIDGE=9898                   # Bridge alias for unified server
+PORT_AUTH=8443                     # Auth alias for unified server
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging
+
+# Docker users: point BACKEND_URL/WEATHER_URL to service names
+# BACKEND_URL=http://backend:8000
+# WEATHER_URL=http://backend:8001
 ```
 
 **Security Notes:**
@@ -255,46 +190,25 @@ VERBOSE=1                          # Enable verbose logging
 - Rotate keys regularly
 - Monitor audit logs in `./logs/audit.jsonl`
 
-### Agent Servers
+### Gateway & Agent Servers
 
-The repository includes two agent bridge servers:
+#### Node Bridge Gateway (`node-bridge/server.js`)
+- Only exposed port (9898) for HTTP and WebSocket traffic.
+- Proxies `/api/v1/*` → FastAPI backend (8000) and `/api/weather*` & `/api/forecast*` → Quart weather (8001).
+- Real-time alerts over `ws://localhost:9898/ws/alerts`, `GET /health`, `GET /api/bridge/status`, and `POST /api/bridge/notify` for backend-to-frontend pushes.
+- Install dependencies: `npm install --prefix node-bridge`
+- Start: `npm --prefix node-bridge start`
 
-#### 1. Standalone Bridge Server (server_9898.js)
+#### WebSocket AI Bridge (`server_9898.js`)
+- Handles `agent_request` → Claude/GPT/Grok with 30 msg/min rate limits and optional Piper TTS fallback.
+- Uses environment keys `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `XAI_API_KEY`, and `PIPER_*` paths if TTS is enabled.
+- Install dependencies: `npm install`
+- Start: `node server_9898.js`
 
-Primary WebSocket bridge for agent routing:
-
-```bash
-# Install dependencies
-npm install --prefix . ws@^8.17.0
-
-# Start the server
-node server_9898.js
-```
-
-**Endpoints:**
-- `ws://localhost:9898` - WebSocket agent routing
-- `GET /health` - Health check
-- `GET /api/audit` - Audit log viewer
-- `POST /api/execute-command` - Command execution (requires auth)
-
-#### 2. Unified Server (unified_server.js)
-
-Comprehensive server with additional features:
-
-```bash
-# Install dependencies
-npm install --prefix . ws@^8.18.0
-
-# Start the server
-node unified_server.js
-```
-
-**Additional Features:**
-- GitHub OAuth authentication
-- DuckDuckGo search proxy
-- Piper TTS integration
-- Role-based access control (30+ roles)
-- Multi-factor authentication
+#### Unified Server (`unified_server.js`)
+- Combined gateway/auth/search/Piper + agent routing on port 9000 (aliases: 9898/8443).
+- Install dependencies: `npm install`
+- Start: `npm run start` (or `node unified_server.js`)
 
 ### GitHub Copilot Integration
 
@@ -693,11 +607,23 @@ ws.onmessage = (event) => {
 ## Testing
 
 ```bash
-# Run backend tests
+# Install dependencies first
+make install
+npm install
+npm install --prefix node-bridge
+
+# Run backend tests (FastAPI + services)
 make test
 
 # Run linter
 make lint
+
+# Node bridge tests
+npm --prefix node-bridge test
+
+# Agent routing tests
+node --test test/server9898-agent-routing.test.js
+node --test test/server9898.test.js
 
 # Clean up
 make clean
