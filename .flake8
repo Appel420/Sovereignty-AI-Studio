@@ -37,5 +37,6 @@ exclude =
     scripts/Backend_API_AUTH.py,
     scripts/eeg_streaming.py,
     immutablelogger.py,
+    Forbidden_words.py,
     ring_gate_boot_nfc_9v.asm,
     frontend
