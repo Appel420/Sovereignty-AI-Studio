@@ -79,3 +79,14 @@ piper-tts/*.tar.gz
 .pytest_cache/
 .coverage
 coverage.xml
+
+# Archives
+archives/*.zip
+
+# Temporary files
+*.tmp
+*.bak
+*~
+.DS_Store
+*.swp
+*.swo
