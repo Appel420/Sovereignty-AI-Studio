@@ -1,0 +1,9 @@
+{
+  "id": "template_plugin",
+  "name": "Template Plugin",
+  "version": "1.0.0",
+  "entry": "main.py",
+  "description": "A minimal Sovereignty AI Studio plugin template. Copy this directory and modify to create your own plugin.",
+  "author": "Sovereignty AI",
+  "tags": ["example", "template"]
+}
