@@ -8,7 +8,6 @@
 const WebSocket = require('ws');
 const { exec, spawn }  = require('child_process');
 const http  = require('http');
-const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 const crypto = require('crypto');
@@ -120,99 +119,55 @@ function ddgProxy(query, mode, wsId) {
   });
 }
 
+// ─── Sovereign AI Proxy ──────────────────────────────────────────────
+// Routes ALL AI requests through the self-hosted sovereign bridge.
+// No external SaaS. No data leaves the infrastructure.
+const SOVEREIGN_AI_URL = (process.env.SOVEREIGN_API_URL || 'http://localhost:8000/api/ai').replace(/\/$/, '');
+
 function aiProxy(agent, payload) {
   return new Promise((resolve) => {
-    const providers = {
-      claude: {
-        host: 'api.anthropic.com',
-        path: '/v1/messages',
-        envKey: 'ANTHROPIC_API_KEY',
-        headers: (key) => ({
-          'Content-Type': 'application/json',
-          'x-api-key': key,
-          'anthropic-version': '2023-06-01',
-        }),
-        body: (prompt, systemPrompt) => JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1200,
-          system: systemPrompt || 'You are SuperGrok AI assistant.',
-          messages: [{ role: 'user', content: prompt }],
-        }),
-        extract: (resp) => resp.content && resp.content[0] && resp.content[0].text,
-      },
-      gpt: {
-        host: 'api.openai.com',
-        path: '/v1/chat/completions',
-        envKey: 'OPENAI_API_KEY',
-        headers: (key) => ({
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + key,
-        }),
-        body: (prompt, systemPrompt) => JSON.stringify({
-          model: 'gpt-4o',
-          max_tokens: 1200,
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: prompt },
-          ],
-        }),
-        extract: (resp) => resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content,
-      },
-      grok: {
-        host: 'api.x.ai',
-        path: '/v1/chat/completions',
-        envKey: 'XAI_API_KEY',
-        headers: (key) => ({
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + key,
-        }),
-        body: (prompt, systemPrompt) => JSON.stringify({
-          model: 'grok-2-latest',
-          max_tokens: 1200,
-          messages: [
-            { role: 'system', content: systemPrompt || '' },
-            { role: 'user', content: prompt },
-          ],
-        }),
-        extract: (resp) => resp.choices && resp.choices[0] && resp.choices[0].message && resp.choices[0].message.content,
-      },
-    };
-
-    const prov = providers[agent];
-    if (!prov) {
-      resolve({ error: 'Unknown agent: ' + agent });
-      return;
-    }
-
     const prompt = String((payload && payload.prompt) || '').slice(0, CFG.maxTextLen);
     const systemPrompt = String((payload && payload.system) || '');
-    const key = process.env[prov.envKey] || '';
-    if (!key) {
-      resolve({ error: 'Set ' + prov.envKey + ' env var on bridge server' });
-      return;
-    }
+    const messages = [];
+    if (systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+    messages.push({ role: 'user', content: prompt });
 
-    const body = prov.body(prompt, systemPrompt);
-    const req = https.request({
-      hostname: prov.host,
-      path: prov.path,
+    const body = JSON.stringify({
+      messages,
+      max_tokens: 1200,
+      context: { agent: agent || 'sovereign' },
+    });
+
+    const sovereignUrl = new URL(SOVEREIGN_AI_URL + '/chat');
+    const reqOptions = {
+      hostname: sovereignUrl.hostname,
+      port: sovereignUrl.port || 80,
+      path: sovereignUrl.pathname,
       method: 'POST',
-      headers: Object.assign({}, prov.headers(key), { 'Content-Length': Buffer.byteLength(body) }),
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
       timeout: 30000,
-    }, (res) => {
+    };
+
+    const req = http.request(reqOptions, (res) => {
       const chunks = [];
       res.on('data', c => chunks.push(c));
       res.on('end', () => {
         try {
           const parsed = JSON.parse(Buffer.concat(chunks).toString());
-          resolve({ text: prov.extract(parsed) || 'No response' });
+          const text = parsed.text || parsed.response ||
+            (parsed.choices && parsed.choices[0] && parsed.choices[0].message && parsed.choices[0].message.content) ||
+            'No response';
+          resolve({ text });
         } catch (e) {
           resolve({ error: 'Parse error: ' + e.message });
         }
       });
     });
-    req.on('error', (e) => resolve({ error: 'Network error: ' + e.message }));
-    req.on('timeout', () => { req.destroy(); resolve({ error: 'AI API timeout' }); });
+    req.on('error', (e) => resolve({ error: 'Sovereign bridge error: ' + e.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ error: 'Sovereign AI timeout' }); });
     req.write(body);
     req.end();
   });

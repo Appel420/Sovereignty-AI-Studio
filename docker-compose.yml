@@ -1,6 +1,30 @@
-version: '3.8'
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sovereignty AI Studio — Self-Hosted Docker Stack
+# NO external SaaS. NO Ollama. NO third-party AI vendors.
+# All AI routes through the sovereign bridge (port 9898).
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
+<<<<<< copilot/remove-external-platform-dependencies
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sovereignty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:-sovereignty_db}
+    expose:
+      - "5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sovereignty}"]
+=======
   # ── Data stores ────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
@@ -14,12 +38,20 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+>>>>>> main
       interval: 10s
       timeout: 5s
       retries: 5
 
+<<<<<< copilot/remove-external-platform-dependencies
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+======
   redis:
     image: redis:7
+>>>>>> main
     expose:
       - "6379"
     healthcheck:
@@ -28,15 +60,37 @@ services:
       timeout: 5s
       retries: 5
 
+<<<<<< copilot/remove-external-platform-dependencies
+  # ── Python Backend (FastAPI) ──────────────────────────────────────────────
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      SOVEREIGN_MODEL_PATH: ${SOVEREIGN_MODEL_PATH:-/models/sovereign.gguf}
+      SOVEREIGN_ONNX_PATH: ${SOVEREIGN_ONNX_PATH:-/models/sovereign.onnx}
+      SOVEREIGN_API_URL: http://node-bridge:9898/api/ai
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
+      LOG_DIR: /app/logs
+    volumes:
+      - ./logs:/app/logs
+      # Mount model directory if SOVEREIGN_MODELS_DIR is set (optional)
+      # Set SOVEREIGN_MODELS_DIR=/path/to/your/models in .env to enable local inference
+======
   # ── Backend FastAPI ────────────────────────────────────────────────────────
   backend:
     build: ./backend
     expose:
       - "8000"
     environment:
-<<<<<< copilot/integrate-production-features
+<<<<< copilot/integrate-production-features
       - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
-<<<<<< copilot/organize-sov-ai-studio-repo
+<<<<< copilot/organize-sov-ai-studio-repo
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-sovereignty-one-secret}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -47,17 +101,33 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-======
+=====
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-sovereign-secret-change-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - XAI_API_KEY=${XAI_API_KEY:-}
+>>>>>> main
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+<<<<<< copilot/remove-external-platform-dependencies
+
+  # ── Node.js Sovereign Bridge (only external port: 9898) ───────────────────
+  node-bridge:
+    build: ./node-bridge
+    restart: unless-stopped
+    ports:
+      - "9898:9898"
+    environment:
+      NODE_BRIDGE_PORT: "9898"
+      BACKEND_URL: http://backend:8000
+      SOVEREIGN_API_URL: http://backend:8000/api/ai
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
+=======
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -72,7 +142,7 @@ services:
       - postgres
       - redis
       >> main
->>>>> main
+>>>> main
 
   # ── Node gateway / bridge (external entry point on port 9898) ─────────────
   node-bridge:
@@ -85,8 +155,9 @@ services:
       - GATEWAY_URL=http://gateway:9000
       - NODE_BRIDGE_PORT=9898
       - CORS_ORIGIN=http://localhost:9898
+>>>>>> main
     depends_on:
-<<<<<< copilot/integrate-production-features
+<<<<< copilot/integrate-production-features
       backend:
         condition: service_healthy
     healthcheck:
@@ -97,6 +168,26 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+<<<<<< copilot/remove-external-platform-dependencies
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
+      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - node-bridge
+
+volumes:
+  db_data:
+    driver: local
+=======
   db:
 <<<<<< copilot/organize-sov-ai-studio-repo
     image: postgres:16
@@ -263,5 +354,6 @@ volumes:
 
 volumes:
   postgres_data:
+>>>>> main
 >>>>> main
 >>>>>> main
