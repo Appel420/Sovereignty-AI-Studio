@@ -77,12 +77,9 @@ class BFSNavigator:
         if self.grid[r][c] == '#':
             return False
         
-        # Danger check
-        if self.avoid_danger and self.grid[r][c] == 'X':
-            return False
-        
-        # Danger proximity check
-        if self.avoid_danger and self.max_danger_proximity > 0:
+        # Danger proximity check (covers direct danger cells when proximity >= 0,
+        # and also neighbouring cells within max_danger_proximity steps)
+        if self.avoid_danger and self.max_danger_proximity >= 0:
             for dr in range(-self.max_danger_proximity, self.max_danger_proximity + 1):
                 for dc in range(-self.max_danger_proximity, self.max_danger_proximity + 1):
                     nr, nc = r + dr, c + dc
