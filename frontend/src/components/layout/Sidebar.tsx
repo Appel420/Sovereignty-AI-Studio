@@ -39,7 +39,7 @@ const platformNavigation = [
 
 const Sidebar: React.FC = () => {
   return (
-    <div className="w-64 bg-white shadow-sm border-r border-gray-200 overflow-y-auto">
+    <div className="w-64 h-screen bg-white shadow-sm border-r border-gray-200 overflow-y-auto">
       <nav className="mt-8 px-4">
         <ul className="space-y-2">
           {navigation.map((item) => (

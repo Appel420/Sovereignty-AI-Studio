@@ -4,7 +4,7 @@ Usage tracking service — records AI token consumption per user/org/provider.
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sqlfunc
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from app.models.usage import UsageRecord
 
@@ -50,7 +50,7 @@ def get_user_usage_summary(
     days: int = 30,
 ) -> dict:
     """Return aggregated usage stats for a user over the last N days."""
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     rows = (
         db.query(
             UsageRecord.provider,
@@ -100,7 +100,7 @@ def get_org_usage_summary(
     org_id: int,
     days: int = 30,
 ) -> dict:
-    since = datetime.utcnow() - timedelta(days=days)
+    since = datetime.now(timezone.utc) - timedelta(days=days)
     rows = (
         db.query(
             UsageRecord.provider,

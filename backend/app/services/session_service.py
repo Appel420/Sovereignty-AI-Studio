@@ -3,7 +3,7 @@ Session management service — create, validate, and revoke user sessions.
 """
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -29,7 +29,7 @@ def create_session(
         data=json.dumps(data or {}),
         ip_address=ip_address,
         user_agent=user_agent,
-        expires_at=datetime.utcnow() + timedelta(hours=ttl_hours),
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=ttl_hours),
     )
     db.add(session)
     db.commit()
@@ -53,11 +53,11 @@ def validate_session(db: Session, token: str) -> Optional[UserSession]:
     session = get_session(db, token)
     if not session:
         return None
-    if session.expires_at < datetime.utcnow():
+    if session.expires_at < datetime.now(timezone.utc):
         session.is_active = False
         db.commit()
         return None
-    session.last_accessed_at = datetime.utcnow()
+    session.last_accessed_at = datetime.now(timezone.utc)
     db.commit()
     return session
 
@@ -88,7 +88,7 @@ def get_active_sessions(db: Session, user_id: int) -> list:
         .filter(
             UserSession.user_id == user_id,
             UserSession.is_active.is_(True),
-            UserSession.expires_at > datetime.utcnow(),
+            UserSession.expires_at > datetime.now(timezone.utc),
         )
         .order_by(UserSession.last_accessed_at.desc())
         .all()
