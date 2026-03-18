@@ -111,7 +111,15 @@ def hash_password(plain: str) -> str:
         import bcrypt  # type: ignore[import]
         return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
     except ImportError:
-        logger.warning("bcrypt not installed; using SHA-256 fallback (not production-safe)")
+        env = os.getenv("ENVIRONMENT", "development").lower()
+        if env == "production":
+            raise RuntimeError(
+                "bcrypt is required in production. Run: pip install bcrypt"
+            )
+        logger.error(
+            "bcrypt not installed; using SHA-256 fallback — NOT safe for production. "
+            "Install bcrypt: pip install bcrypt"
+        )
         salt = os.urandom(16).hex()
         h = hashlib.sha256(f"{salt}{plain}".encode()).hexdigest()
         return f"sha256${salt}${h}"

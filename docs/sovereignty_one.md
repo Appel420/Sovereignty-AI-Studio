@@ -157,3 +157,39 @@ Sovereignty is not a destination — it is a trajectory.
 
 *Documentation maintained by the Sovereignty AI Studio sovereign agent network.*
 *Last updated: 2026-03-18*
+
+---
+
+## Local Inference Setup
+
+### GGUF Models (Recommended)
+Set `SOVEREIGN_MODEL_PATH` to any GGUF-format model:
+```bash
+SOVEREIGN_MODEL_PATH=/models/llama-3-8b.gguf
+SOVEREIGN_PROVIDER_ORDER=local_gguf,sovereign_api
+```
+Requires: `pip install llama-cpp-python`
+
+### ONNX Models
+`ONNXProvider` in `ai_core/providers/local_inference.py` provides a base class.
+Because ONNX models have model-specific input/output tensor names, you must subclass it:
+```python
+from ai_core.providers.local_inference import ONNXProvider
+
+class MyONNXProvider(ONNXProvider):
+    def chat(self, messages, *, context=None, max_tokens=1200, stream=False):
+        self._load_model()
+        prompt = _messages_to_prompt(messages)
+        # Bind inputs specific to your model
+        inputs = {self._session.get_inputs()[0].name: [[prompt]]}
+        outputs = self._session.run(None, inputs)
+        return outputs[0][0]
+```
+Register your subclass in `ai_core/sovereign_bridge.py` by extending `_load_provider()`.
+
+### Sovereign API
+Point to any self-hosted LLM API that accepts OpenAI-compatible chat completions:
+```bash
+SOVEREIGN_API_URL=http://my-llm-server:8080/v1
+SOVEREIGN_API_JWT=your-jwt-token
+```

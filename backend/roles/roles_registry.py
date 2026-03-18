@@ -160,7 +160,7 @@ _r("org_admin",    "Org Admin",     level=4, category="general",
 # ─── Security Admin ───────────────────────────────────────────────────────
 _r("security_admin", "Security Admin", level=5, category="security",
    permissions=["security:admin", "audit:admin", "user:admin",
-                "org:admin", "data:admin" if "data:admin" in PERMS else "data:write"],
+                "org:admin", "data:write"],
    inherits=["org_admin"])
 
 # ─── Executive L5 (highest non-override clearance) ────────────────────────

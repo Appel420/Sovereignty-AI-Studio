@@ -57,7 +57,8 @@ services:
       LOG_DIR: /app/logs
     volumes:
       - ./logs:/app/logs
-      - ${SOVEREIGN_MODEL_PATH:-/dev/null}:/models/sovereign.gguf:ro
+      # Mount model directory if SOVEREIGN_MODELS_DIR is set (optional)
+      # Set SOVEREIGN_MODELS_DIR=/path/to/your/models in .env to enable local inference
     depends_on:
       db:
         condition: service_healthy
