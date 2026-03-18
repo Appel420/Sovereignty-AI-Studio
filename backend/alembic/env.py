@@ -21,6 +21,11 @@ from app.models.user import User         # noqa: E402
 from app.models.project import Project   # noqa: E402
 from app.models.generation import Generation  # noqa: E402
 from app.models.media import Media       # noqa: E402
+from app.models.organization import Organization, Membership, OrgProject, ProjectPermission  # noqa: E402
+from app.models.usage import UsageRecord  # noqa: E402
+from app.models.session import UserSession  # noqa: E402
+from app.models.audit_log import AuditLog  # noqa: E402
+from app.models.plugin import Plugin  # noqa: E402
 
 # this is the Alembic Config object
 config = context.config
