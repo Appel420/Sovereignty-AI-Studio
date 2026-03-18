@@ -50,37 +50,41 @@ async def test_broadcast_ai_response_excludes_origin():
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_returns_offline_message_without_keys():
+async def test_ai_chat_returns_sovereign_bridge_response(monkeypatch):
+    """ai_chat should return a response routed through the sovereign bridge."""
     srv = bridge.BridgeServer()
     ws = DummyWS()
 
-    await srv.ai_chat(ws, msg="hi", agent="gpt", context="c1")
+    async def fake_sovereign(msg: str, sys_prompt: str, agent: str = "sovereign") -> str:
+        return "sovereign-response"
+
+    monkeypatch.setattr(srv, "_chat_sovereign", fake_sovereign)
+
+    await srv.ai_chat(ws, msg="hi", agent="sovereign", context="c1")
 
     assert len(ws.sent) == 1
     payload = ws.sent[0]
     assert payload["type"] == "ai_response"
-    assert payload["agent"] == "gpt"
-    assert "offline" in payload["text"]
-    assert "OPENAI_API_KEY" in payload["text"]
+    assert payload["agent"] == "sovereign"
+    assert payload["text"] == "sovereign-response"
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_routes_to_private_gpt_handler(monkeypatch):
+async def test_ai_chat_routes_through_sovereign_bridge(monkeypatch):
+    """ai_chat should always route through _chat_sovereign regardless of agent name."""
     srv = bridge.BridgeServer()
     ws = DummyWS()
 
-    async def fake_chat_gpt(msg: str, sys_prompt: str) -> str:
+    async def fake_sovereign(msg: str, sys_prompt: str, agent: str = "sovereign") -> str:
         assert msg == "route this"
-        assert "SuperGrok" in sys_prompt
-        return "from-gpt"
+        assert "sovereign" in sys_prompt.lower()
+        return "from-sovereign"
 
-    monkeypatch.setattr(bridge, "OPENAI_OK", True)
-    monkeypatch.setattr(bridge, "OPENAI_KEY", "test-key")
-    monkeypatch.setattr(srv, "_chat_gpt", fake_chat_gpt)
+    monkeypatch.setattr(srv, "_chat_sovereign", fake_sovereign)
 
-    await srv.ai_chat(ws, msg="route this", agent="gpt", context="ctx")
+    await srv.ai_chat(ws, msg="route this", agent="any-agent", context="ctx")
 
-    assert ws.sent[0]["text"] == "from-gpt"
+    assert ws.sent[0]["text"] == "from-sovereign"
 
 
 @pytest.mark.asyncio
