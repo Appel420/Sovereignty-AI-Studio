@@ -1,0 +1,18 @@
+[Unit]
+Description=Sovereignty AI Studio — TLS Certificate Rotation
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/sovereignty/scripts/tls_rotate.sh
+User=root
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=tls-rotate
+
+# Security hardening
+PrivateTmp=true
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target

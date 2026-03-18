@@ -157,3 +157,13 @@ wagtail-thumbnail-choice-block==0.1.5
 # Testing
 pytest==8.3.3
 pytest-asyncio==0.23.8
+# Multi-agent & observability
+prometheus-client==0.21.0
+asyncpg==0.30.0
+aioredis==2.0.1
+aiohttp==3.13.3
+
+# Database (async support for SQLAlchemy)
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+redis==5.2.1

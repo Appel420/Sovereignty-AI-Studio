@@ -1,8 +1,12 @@
 from fastapi import APIRouter
 from app.api.v1.endpoints import (
     test, auth, users, alerts, studio,
+<<<<<< copilot/integrate-production-features
     generation, media, voice, avatar, music, syntax, ble_lidar,
     organizations, audit, marketplace, telemetry,
+=======
+    generation, media, voice, avatar, music, syntax, ble_lidar, org,
+>>>>>> main
 )
 
 api_router = APIRouter()
@@ -25,6 +29,7 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(marketplace.router, prefix="/marketplace", tags=["marketplace"])
 api_router.include_router(telemetry.router, prefix="/telemetry", tags=["telemetry"])
 
+api_router.include_router(org.router, prefix="/org", tags=["organizations"])
 
 
 @api_router.get("/status")
