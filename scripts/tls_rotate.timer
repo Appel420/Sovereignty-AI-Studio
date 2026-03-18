@@ -3,8 +3,10 @@ Description=Sovereignty AI Studio — TLS Certificate Rotation Timer
 Requires=tls_rotate.service
 
 [Timer]
-# Rotate every 80 days (10 days before 90-day expiry)
-OnCalendar=*-*-* 03:00:00
+# Rotate every ~80 days (10 days before the 90-day expiry window)
+# Runs on the 1st of every month; a certificate valid for 90 days will
+# always be refreshed well before it expires.
+OnCalendar=*-*-01 03:00:00
 RandomizedDelaySec=1800
 Persistent=true
 Unit=tls_rotate.service

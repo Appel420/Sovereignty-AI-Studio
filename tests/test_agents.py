@@ -9,6 +9,7 @@ Covers:
 """
 
 import asyncio
+import json
 import os
 import sys
 import pytest
@@ -119,7 +120,6 @@ class TestAIRouterProviderSelection:
 # ── PluginAgent ───────────────────────────────────────────────────────────────
 
 import tempfile
-import json
 from pathlib import Path
 from agents.plugin_agent.plugin_manager import PluginAgent
 
@@ -240,8 +240,7 @@ from event_bus import bus as event_bus
 
 class TestEventBus:
     def setup_method(self):
-        # Reset local queue between tests
-        import asyncio
+        # Drain the in-process queue between tests
         from event_bus.bus import _local_queue
         while not _local_queue.empty():
             try:
@@ -259,7 +258,7 @@ class TestEventBus:
         event_bus.register_handler("test_agent", handler)
         await event_bus.send_event("test_agent", {"action": "ping"})
 
-        # Process one iteration
+        # Verify the event lands in the local queue
         from event_bus.bus import _local_queue
         event = await asyncio.wait_for(_local_queue.get(), timeout=1.0)
         assert event["agent_id"] == "test_agent"

@@ -143,8 +143,9 @@ async def _example_pipeline(
     """Demonstrate all agents cooperating through the Judge."""
     logger.info("=== Running example pipeline ===")
 
-    # 1. Voice wizard
-    for _ in range(len(["step1", "step2", "step3"])):
+    # 1. Voice wizard — walk through all wizard steps
+    from agents.voice_assist_agent.voice_manager import _WIZARD_STEPS
+    for _ in range(len(_WIZARD_STEPS)):
         resp = await voice_assist.handle_command({"command": "wizard_step", "payload": {}})
         logger.info("Voice wizard: %s", resp["text"])
 
