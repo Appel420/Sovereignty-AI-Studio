@@ -1,0 +1,324 @@
+{
+  "roles": [
+    {
+      "category": "EXECUTIVE",
+      "level": 5,
+      "icon": "👑",
+      "title": "Supreme Commander",
+      "description": "Highest executive authority with full platform access and override capabilities",
+      "permissions": ["*"]
+    },
+    {
+      "category": "EXECUTIVE",
+      "level": 5,
+      "icon": "🏛️",
+      "title": "Chief Executive Officer",
+      "description": "Platform-wide executive control over all systems and organizations",
+      "permissions": ["org:manage", "platform:configure", "users:manage", "billing:manage"]
+    },
+    {
+      "category": "EXECUTIVE",
+      "level": 4,
+      "icon": "⚖️",
+      "title": "Chief Operations Officer",
+      "description": "Operational oversight of all platform services and deployments",
+      "permissions": ["org:manage", "platform:monitor", "users:manage"]
+    },
+    {
+      "category": "EXECUTIVE",
+      "level": 4,
+      "icon": "🔐",
+      "title": "Chief Security Officer",
+      "description": "Security policy and audit oversight across all tenants",
+      "permissions": ["audit:read", "security:configure", "users:suspend"]
+    },
+    {
+      "category": "GOVERNMENT & JUDICIAL",
+      "level": 5,
+      "icon": "🏛️",
+      "title": "Head of State",
+      "description": "Top-level governmental authority with diplomatic and executive powers",
+      "permissions": ["org:manage", "audit:read", "users:manage", "policy:set"]
+    },
+    {
+      "category": "GOVERNMENT & JUDICIAL",
+      "level": 5,
+      "icon": "⚖️",
+      "title": "Chief Justice",
+      "description": "Judicial oversight and final ruling authority on platform disputes",
+      "permissions": ["audit:read", "policy:enforce", "users:suspend"]
+    },
+    {
+      "category": "GOVERNMENT & JUDICIAL",
+      "level": 4,
+      "icon": "🏛️",
+      "title": "Attorney General",
+      "description": "Legal compliance enforcement and regulatory oversight",
+      "permissions": ["audit:read", "compliance:manage", "legal:enforce"]
+    },
+    {
+      "category": "GOVERNMENT & JUDICIAL",
+      "level": 3,
+      "icon": "📜",
+      "title": "Legislative Director",
+      "description": "Policy drafting and regulatory coordination",
+      "permissions": ["policy:draft", "audit:read"]
+    },
+    {
+      "category": "LEGAL & JUSTICE",
+      "level": 4,
+      "icon": "⚖️",
+      "title": "Senior Judge",
+      "description": "Adjudicates platform policy disputes and compliance violations",
+      "permissions": ["audit:read", "policy:enforce", "users:review"]
+    },
+    {
+      "category": "LEGAL & JUSTICE",
+      "level": 3,
+      "icon": "📋",
+      "title": "Legal Counsel",
+      "description": "Provides legal guidance on platform operations and user disputes",
+      "permissions": ["audit:read", "legal:advise"]
+    },
+    {
+      "category": "LEGAL & JUSTICE",
+      "level": 2,
+      "icon": "📝",
+      "title": "Compliance Officer",
+      "description": "Monitors and reports on regulatory compliance",
+      "permissions": ["audit:read", "compliance:report"]
+    },
+    {
+      "category": "INTELLIGENCE OPERATIONS",
+      "level": 5,
+      "icon": "🕵️",
+      "title": "Director of Intelligence",
+      "description": "Strategic intelligence oversight with access to all monitoring systems",
+      "permissions": ["audit:read", "security:monitor", "ai:configure", "users:monitor"]
+    },
+    {
+      "category": "INTELLIGENCE OPERATIONS",
+      "level": 4,
+      "icon": "🔍",
+      "title": "Senior Intelligence Analyst",
+      "description": "Advanced threat analysis and counter-intelligence operations",
+      "permissions": ["audit:read", "security:monitor", "ai:use"]
+    },
+    {
+      "category": "INTELLIGENCE OPERATIONS",
+      "level": 3,
+      "icon": "📡",
+      "title": "Intelligence Officer",
+      "description": "Operational intelligence gathering and pattern analysis",
+      "permissions": ["audit:read", "ai:use", "data:analyze"]
+    },
+    {
+      "category": "INTELLIGENCE OPERATIONS",
+      "level": 2,
+      "icon": "🔎",
+      "title": "Intelligence Analyst",
+      "description": "Data analysis and intelligence report production",
+      "permissions": ["ai:use", "data:read"]
+    },
+    {
+      "category": "DIPLOMACY & FOREIGN AFFAIRS",
+      "level": 4,
+      "icon": "🌐",
+      "title": "Ambassador",
+      "description": "Diplomatic liaison with cross-organization communication rights",
+      "permissions": ["org:communicate", "data:share", "ai:use"]
+    },
+    {
+      "category": "DIPLOMACY & FOREIGN AFFAIRS",
+      "level": 3,
+      "icon": "🤝",
+      "title": "Diplomatic Envoy",
+      "description": "Cross-organization collaboration and negotiation",
+      "permissions": ["org:communicate", "ai:use"]
+    },
+    {
+      "category": "DIPLOMACY & FOREIGN AFFAIRS",
+      "level": 2,
+      "icon": "📨",
+      "title": "Foreign Affairs Attaché",
+      "description": "Administrative support for diplomatic communications",
+      "permissions": ["org:communicate"]
+    },
+    {
+      "category": "UNITED NATIONS",
+      "level": 5,
+      "icon": "🌍",
+      "title": "Secretary-General",
+      "description": "Highest UN-level authority with global platform governance",
+      "permissions": ["*"]
+    },
+    {
+      "category": "UNITED NATIONS",
+      "level": 4,
+      "icon": "🌐",
+      "title": "Under-Secretary-General",
+      "description": "Senior UN administrative and operational authority",
+      "permissions": ["org:manage", "users:manage", "audit:read"]
+    },
+    {
+      "category": "UNITED NATIONS",
+      "level": 3,
+      "icon": "🏛️",
+      "title": "UN Special Rapporteur",
+      "description": "Independent monitoring and reporting on platform human rights compliance",
+      "permissions": ["audit:read", "compliance:report"]
+    },
+    {
+      "category": "SAFETY & EMERGENCY",
+      "level": 4,
+      "icon": "🚨",
+      "title": "Emergency Response Director",
+      "description": "Platform-wide emergency protocol authority with override access",
+      "permissions": ["platform:override", "users:notify", "audit:read"]
+    },
+    {
+      "category": "SAFETY & EMERGENCY",
+      "level": 3,
+      "icon": "🔴",
+      "title": "Incident Commander",
+      "description": "Incident response coordination and escalation authority",
+      "permissions": ["users:notify", "audit:read", "security:respond"]
+    },
+    {
+      "category": "SAFETY & EMERGENCY",
+      "level": 2,
+      "icon": "🛡️",
+      "title": "Safety Officer",
+      "description": "Safety compliance monitoring and hazard reporting",
+      "permissions": ["audit:read", "compliance:report"]
+    },
+    {
+      "category": "HEALTH & MEDICAL",
+      "level": 4,
+      "icon": "🏥",
+      "title": "Chief Medical Officer",
+      "description": "Medical AI oversight with authority over health data protocols",
+      "permissions": ["health:configure", "data:health", "audit:read", "ai:use"]
+    },
+    {
+      "category": "HEALTH & MEDICAL",
+      "level": 3,
+      "icon": "⚕️",
+      "title": "Senior Medical Advisor",
+      "description": "Clinical guidance for AI-assisted medical applications",
+      "permissions": ["health:advise", "ai:use", "data:health"]
+    },
+    {
+      "category": "HEALTH & MEDICAL",
+      "level": 2,
+      "icon": "💊",
+      "title": "Medical Analyst",
+      "description": "Health data analysis and medical AI evaluation",
+      "permissions": ["ai:use", "data:health"]
+    },
+    {
+      "category": "PUBLIC HEALTH",
+      "level": 4,
+      "icon": "🦺",
+      "title": "Public Health Director",
+      "description": "Population-level health monitoring and AI deployment for public health",
+      "permissions": ["health:public", "ai:use", "data:aggregate", "audit:read"]
+    },
+    {
+      "category": "PUBLIC HEALTH",
+      "level": 3,
+      "icon": "🔬",
+      "title": "Epidemiologist",
+      "description": "Disease pattern analysis and outbreak response using AI tools",
+      "permissions": ["ai:use", "data:aggregate", "health:analyze"]
+    },
+    {
+      "category": "PUBLIC HEALTH",
+      "level": 2,
+      "icon": "📊",
+      "title": "Public Health Analyst",
+      "description": "Public health data collection and statistical analysis",
+      "permissions": ["ai:use", "data:read"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 5,
+      "icon": "💻",
+      "title": "Chief Technology Officer",
+      "description": "Platform technology strategy and infrastructure ownership",
+      "permissions": ["platform:configure", "ai:configure", "security:configure", "org:manage"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 4,
+      "icon": "🔒",
+      "title": "Chief Information Security Officer",
+      "description": "Information security policy and incident response authority",
+      "permissions": ["security:configure", "audit:read", "users:suspend"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 3,
+      "icon": "🛡️",
+      "title": "Security Architect",
+      "description": "Security system design and threat modeling",
+      "permissions": ["security:design", "audit:read", "ai:configure"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 3,
+      "icon": "⚙️",
+      "title": "Platform Engineer",
+      "description": "Infrastructure management and deployment operations",
+      "permissions": ["platform:deploy", "ai:configure"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 2,
+      "icon": "🔧",
+      "title": "Security Analyst",
+      "description": "Threat detection and security event analysis",
+      "permissions": ["audit:read", "security:monitor"]
+    },
+    {
+      "category": "TECHNOLOGY & CYBERSECURITY",
+      "level": 1,
+      "icon": "💡",
+      "title": "Developer",
+      "description": "Platform development and integration contributor",
+      "permissions": ["ai:use", "project:create"]
+    },
+    {
+      "category": "EDUCATION",
+      "level": 4,
+      "icon": "🎓",
+      "title": "Chief Education Officer",
+      "description": "Educational AI policy and platform curriculum oversight",
+      "permissions": ["education:configure", "ai:use", "org:manage", "audit:read"]
+    },
+    {
+      "category": "EDUCATION",
+      "level": 3,
+      "icon": "📚",
+      "title": "Academic Director",
+      "description": "Academic program management and AI-assisted learning oversight",
+      "permissions": ["education:manage", "ai:use"]
+    },
+    {
+      "category": "EDUCATION",
+      "level": 2,
+      "icon": "🏫",
+      "title": "Instructor",
+      "description": "Course delivery and student AI tool supervision",
+      "permissions": ["ai:use", "education:teach"]
+    },
+    {
+      "category": "EDUCATION",
+      "level": 1,
+      "icon": "📖",
+      "title": "Student",
+      "description": "Learner with access to educational AI tools",
+      "permissions": ["ai:use"]
+    }
+  ]
+}
