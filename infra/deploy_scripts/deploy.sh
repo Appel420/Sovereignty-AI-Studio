@@ -8,14 +8,21 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }
 
+# Detect compose command (supports both docker compose and docker-compose)
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
+else
+  COMPOSE=""
+fi
+
 # ── Prerequisites check ──────────────────────────────────────────────────────
 check_prerequisites() {
   log "Checking prerequisites..."
-  command -v docker    >/dev/null 2>&1 || die "docker is required but not installed"
-  command -v docker compose >/dev/null 2>&1 || \
-    command -v docker-compose >/dev/null 2>&1 || \
-    die "docker compose is required but not installed"
-  log "Prerequisites OK"
+  command -v docker >/dev/null 2>&1 || die "docker is required but not installed"
+  [[ -n "${COMPOSE}" ]] || die "docker compose / docker-compose is required but not installed"
+  log "Prerequisites OK (using: ${COMPOSE})"
 }
 
 # ── Environment setup ────────────────────────────────────────────────────────
@@ -37,13 +44,13 @@ setup_env() {
 init_database() {
   log "Waiting for database to be ready..."
   local retries=30
-  until docker compose exec -T db pg_isready -U postgres >/dev/null 2>&1; do
+  until ${COMPOSE} exec -T db pg_isready -U postgres >/dev/null 2>&1; do
     retries=$((retries - 1))
     [[ $retries -le 0 ]] && die "Database did not become ready in time"
     sleep 2
   done
   log "Database ready. Applying schema..."
-  docker compose exec -T db psql -U postgres -d creativeflow_db \
+  ${COMPOSE} exec -T db psql -U postgres -d creativeflow_db \
     -f /dev/stdin < "${REPO_ROOT}/backend/db/schema.sql" || \
     log "Schema may already exist — continuing"
   log "Database schema applied"
@@ -54,9 +61,9 @@ start_services() {
   log "Building and starting services..."
   cd "${REPO_ROOT}"
 
-  docker compose pull --ignore-pull-failures 2>/dev/null || true
-  docker compose build --parallel
-  docker compose up -d --remove-orphans
+  ${COMPOSE} pull --ignore-pull-failures 2>/dev/null || true
+  ${COMPOSE} build --parallel
+  ${COMPOSE} up -d --remove-orphans
 
   log "Services started. Checking health..."
   sleep 5
@@ -68,7 +75,7 @@ start_services() {
     attempt=$((attempt + 1))
     [[ $attempt -gt $max_attempts ]] && {
       log "Health check failed. Showing logs:"
-      docker compose logs --tail=50
+      ${COMPOSE} logs --tail=50
       die "Services did not become healthy"
     }
     log "Waiting for services to be healthy (attempt ${attempt}/${max_attempts})..."
@@ -87,14 +94,14 @@ show_status() {
   echo "  API Gateway:  http://localhost:9898"
   echo "  Health:       http://localhost:9898/health"
   echo "══════════════════════════════════════════════════"
-  docker compose ps
+  ${COMPOSE} ps
 }
 
 # ── Teardown ─────────────────────────────────────────────────────────────────
 teardown() {
   log "Stopping all services..."
   cd "${REPO_ROOT}"
-  docker compose down --remove-orphans
+  ${COMPOSE} down --remove-orphans
   log "All services stopped"
 }
 
@@ -121,11 +128,11 @@ main() {
       ;;
     status)
       cd "${REPO_ROOT}"
-      docker compose ps
+      ${COMPOSE} ps
       ;;
     logs)
       cd "${REPO_ROOT}"
-      docker compose logs -f "${2:-}"
+      ${COMPOSE} logs -f "${2:-}"
       ;;
     *)
       echo "Usage: $0 {up|down|restart|status|logs [service]}"

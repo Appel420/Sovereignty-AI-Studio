@@ -35,6 +35,8 @@
 // ──────────────────────────────────────────────
 // System Parameters
 // ──────────────────────────────────────────────
+const float ADC_MAX             = 4095.0;  // 12-bit ADC (ESP32)
+const float ADC_VREF            = 3.3;     // Reference voltage (V)
 const float TDS_TARGET_PPM      = 50.0;
 const float TDS_MAX_FEED_PPM    = 45000.0;
 const float PH_SAFE_MIN         = 6.0;
@@ -76,6 +78,8 @@ float pv_power    = 0.0;
 unsigned long lastCdiCycle    = 0;
 unsigned long lastAntiscale   = 0;
 unsigned long modeStartTime   = 0;
+unsigned long antiscaleStart  = 0;
+const unsigned long ANTISCALE_FLUSH_MS = 30000; // 30s non-blocking flush
 
 // ──────────────────────────────────────────────
 // Sensor Reading Functions
@@ -83,45 +87,45 @@ unsigned long modeStartTime   = 0;
 float readTDS() {
   int raw = analogRead(TDS_SENSOR_PIN);
   // TDS probe: 3V3 ref, 1024 steps, calibration factor 0.5
-  float voltage = raw * (3.3 / 4095.0);
+  float voltage = raw * (ADC_VREF / ADC_MAX);
   return voltage * 1000.0 * 0.5 * (1.0 / (1.0 + 0.02 * (temp_c - 25.0)));
 }
 
 float readPH() {
   int raw = analogRead(PH_SENSOR_PIN);
-  float voltage = raw * (3.3 / 4095.0);
+  float voltage = raw * (ADC_VREF / ADC_MAX);
   return 3.5 * voltage + 0.0; // linear calibration
 }
 
 float readORP() {
   int raw = analogRead(ORP_SENSOR_PIN);
-  float voltage = raw * (3.3 / 4095.0) - 1.65;
+  float voltage = raw * (ADC_VREF / ADC_MAX) - (ADC_VREF / 2.0);
   return voltage * 1000.0; // mV
 }
 
 float readTemp() {
   int raw = analogRead(TEMP_SENSOR_PIN);
-  float voltage = raw * (3.3 / 4095.0);
+  float voltage = raw * (ADC_VREF / ADC_MAX);
   return (voltage - 0.5) * 100.0; // LM35: 10mV/°C, offset 500mV
 }
 
 float readPressure() {
   int raw = analogRead(PRESSURE_PIN);
-  float voltage = raw * (3.3 / 4095.0);
+  float voltage = raw * (ADC_VREF / ADC_MAX);
   return (voltage / 3.3) * PRESSURE_MAX_BAR;
 }
 
 float readFlow() {
   // Pulse-counting flow meter — simplified for analog reading here
   int raw = analogRead(FLOW_SENSOR_PIN);
-  return raw * (10.0 / 4095.0); // 0–10 LPM range
+  return raw * (10.0 / ADC_MAX); // 0–10 LPM range
 }
 
 void readPVMonitor() {
   int vRaw = analogRead(PV_VOLTAGE_PIN);
   int iRaw = analogRead(PV_CURRENT_PIN);
-  pv_voltage = vRaw * (60.0 / 4095.0);   // 0–60V
-  pv_current = iRaw * (20.0 / 4095.0);   // 0–20A
+  pv_voltage = vRaw * (60.0 / ADC_MAX);   // 0–60V
+  pv_current = iRaw * (20.0 / ADC_MAX);   // 0–20A
   pv_power   = pv_voltage * pv_current;
 }
 
@@ -183,11 +187,20 @@ void runPlasmaZLD() {
 }
 
 void runAntiscale() {
-  digitalWrite(ANTISCALE_PIN,   HIGH);
-  digitalWrite(CDI_PUMP_PIN,    HIGH);
-  delay(30000); // 30s flush
-  digitalWrite(ANTISCALE_PIN,   LOW);
-  digitalWrite(CDI_PUMP_PIN,    LOW);
+  unsigned long now = millis();
+  if (antiscaleStart == 0) {
+    // Begin flush cycle
+    antiscaleStart = now;
+    digitalWrite(ANTISCALE_PIN, HIGH);
+    digitalWrite(CDI_PUMP_PIN,  HIGH);
+  } else if (now - antiscaleStart >= ANTISCALE_FLUSH_MS) {
+    // Flush complete — return to idle
+    digitalWrite(ANTISCALE_PIN, LOW);
+    digitalWrite(CDI_PUMP_PIN,  LOW);
+    antiscaleStart = 0;
+    currentMode = MODE_IDLE;
+  }
+  // Safety checks continue to run normally between calls
 }
 
 // ──────────────────────────────────────────────
