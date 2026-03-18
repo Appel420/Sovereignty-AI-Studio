@@ -151,7 +151,7 @@ pytest-asyncio==0.23.8
 prometheus-client==0.21.0
 asyncpg==0.30.0
 aioredis==2.0.1
-aiohttp==3.11.10
+aiohttp==3.13.3
 
 # Database (async support for SQLAlchemy)
 sqlalchemy[asyncio]==2.0.36
