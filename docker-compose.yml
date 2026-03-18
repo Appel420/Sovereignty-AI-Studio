@@ -1,21 +1,60 @@
 version: '3.8'
 
 services:
+  # ── Data stores ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-creativeflow_db}
+    expose:
+      - "5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Keep legacy alias so existing code referencing 'db' still works
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-creativeflow_db}
+    expose:
+      - "5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend FastAPI ────────────────────────────────────────────────────────
   backend:
     build: ./backend
-    # Internal only - no external port exposure
-    # Accessible via node-bridge on port 9898
     expose:
       - "8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-creativeflow_db}
+      - REDIS_URL=redis://redis:6379
     depends_on:
-      - db
+      - postgres
       - redis
 
+  # ── Node gateway / bridge ─────────────────────────────────────────────────
   node-bridge:
     build: ./node-bridge
-    # ONLY external port - all traffic goes through 9898
     ports:
       - "9898:9898"
     environment:
@@ -26,23 +65,95 @@ services:
     depends_on:
       - backend
 
-  db:
-    image: postgres:13
+  # ── Multi-agent system ────────────────────────────────────────────────────
+  judge_agent:
+    build:
+      context: .
+      dockerfile: agents/judge_agent/Dockerfile
+    expose:
+      - "9001"
+      - "8000"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: creativeflow_db
-    # Internal only - accessible via backend services
-    expose:
-      - "5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
+      - JUDGE_METRICS_PORT=8000
+    depends_on:
+      - redis
 
-  redis:
-    image: redis:7
-    # Internal only - accessible via backend services
+  ai_router_agent:
+    build:
+      context: .
+      dockerfile: agents/ai_router_agent/Dockerfile
     expose:
-      - "6379"
+      - "8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  plugin_agent:
+    build:
+      context: .
+      dockerfile: agents/plugin_agent/Dockerfile
+    expose:
+      - "8002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
+
+  platform_agent:
+    build:
+      context: .
+      dockerfile: agents/platform_agent/Dockerfile
+    expose:
+      - "8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - YOUTUBE_STREAM_ID=${YOUTUBE_STREAM_ID:-}
+      - KICK_CHANNEL=${KICK_CHANNEL:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  voice_assist_agent:
+    build:
+      context: .
+      dockerfile: agents/voice_assist_agent/Dockerfile
+    expose:
+      - "8004"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - judge_agent
+      - redis
+
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    ports:
+      - "9898:9898"
+    environment:
+      - GATEWAY_PORT=9898
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
 
 volumes:
+  postgres_data:
   db_data:
