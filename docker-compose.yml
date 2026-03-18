@@ -36,6 +36,18 @@ services:
     environment:
 <<<<<< copilot/integrate-production-features
       - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
+<<<<<< copilot/organize-sov-ai-studio-repo
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-sovereignty-one-secret}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - LOCAL_MODEL=${LOCAL_MODEL:-llama3}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+======
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=${SECRET_KEY:-sovereign-secret-change-in-production}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
@@ -53,13 +65,14 @@ services:
       retries: 3
       start_period: 20s
     restart: unless-stopped
-=======
+======
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-creativeflow_db}
       - REDIS_URL=redis://redis:6379
     depends_on:
       - postgres
       - redis
->>>>>> main
+      >> main
+>>>>> main
 
   # ── Node gateway / bridge (external entry point on port 9898) ─────────────
   node-bridge:
@@ -85,8 +98,11 @@ services:
     restart: unless-stopped
 
   db:
+<<<<<< copilot/organize-sov-ai-studio-repo
+    image: postgres:16
+======
     image: postgres:16-alpine
-=======
+======
       - backend
       - gateway
 
@@ -98,7 +114,8 @@ services:
     expose:
       - "9001"
       - "8000"
->>>>>> main
+>>>>> main
+>>>>> main
     environment:
       - JUDGE_METRICS_PORT=8000
     depends_on:
@@ -109,10 +126,22 @@ services:
       context: .
       dockerfile: agents/ai_router_agent/Dockerfile
     expose:
-<<<<<< copilot/integrate-production-features
+<<<<< copilot/integrate-production-features
       - "5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+<<<<<< copilot/organize-sov-ai-studio-repo
+      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+======
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d creativeflow_db"]
       interval: 10s
@@ -123,11 +152,29 @@ services:
 
   redis:
     image: redis:7-alpine
+>>>>>> main
     # Internal only - accessible via backend services
     expose:
       - "6379"
     volumes:
       - redis_data:/data
+<<<<<< copilot/organize-sov-ai-studio-repo
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - node-bridge
+    profiles:
+      - production
+
+volumes:
+  db_data:
+  redis_data:
+======
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -140,7 +187,7 @@ services:
 volumes:
   db_data:
   redis_data:
-=======
+======
       - "8001"
     environment:
       - REDIS_URL=redis://redis:6379
@@ -216,4 +263,5 @@ volumes:
 
 volumes:
   postgres_data:
+>>>>> main
 >>>>>> main
