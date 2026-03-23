@@ -1,4 +1,4 @@
-<<<<<< copilot/remove-external-platform-dependencies
+<< copilot/remove-external-platform-dependencies
 # Sovereignty AI Studio ⚔️
 
 > **Zero third-party vendor lock-in. No Ollama. No Google. No Meta. No Vercel. No OpenAI.**
@@ -8,7 +8,7 @@
 
 ## Architecture
 
-```
+
 Port 9898 (ONLY external port)
      │
      ▼
@@ -30,11 +30,11 @@ Backend FastAPI (port 8000, internal)
      │
      ├── Postgres 16 (port 5432, internal)  ← db/schema.sql
      └── Redis 7    (port 6379, internal)
-```
+
 
 ## Quick Start
 
-```bash
+bash
 # 1. Copy environment config
 cp .env.example .env
 # Edit .env — set JWT_SECRET, SOVEREIGN_MODEL_PATH, database passwords
@@ -44,7 +44,7 @@ docker compose up -d
 
 # 3. Check health
 curl http://localhost:9898/health
-```
+
 
 ## Key Components
 
@@ -159,7 +159,7 @@ See [docs/sovereignty_one.md](docs/sovereignty_one.md) for full technical docume
 
 ### Deploy
 
-```bash
+bash
 # Clone the repo
 git clone https://github.com/Appel420/Sovereignty-AI-Studio.git
 cd Sovereignty-AI-Studio
@@ -174,7 +174,6 @@ docker compose up -d
 # Apply database schema (auto-applied on first start)
 # Health check:
 curl http://localhost:9898/health
-```
 
 **Services started:**
 | Service | Port | Notes |
@@ -185,15 +184,15 @@ curl http://localhost:9898/health
 | Redis 7 | internal | Session + cache store |
 
 **Production with Nginx reverse proxy:**
-```bash
+bash
 docker compose --profile production up -d
-```
+
 
 ---
 
 ## Architecture Overview
 
-```
+
 [Client Browser / API Consumer]
          │
          ▼
@@ -204,7 +203,7 @@ docker compose --profile production up -d
          │
     ┌────┴────┐
     ▼         ▼
-[FastAPI :8000]   [Agent Worker]
+[FastAPI :9898]   [Agent Worker]
     │
   ┌─┴──────────────┐
   ▼                ▼
@@ -214,7 +213,7 @@ docker compose --profile production up -d
   ├── GPT (OpenAI)
   ├── Anthropic (Claude)
   └── Local (self-hosted inference)
-```
+
 
 All traffic enters through **port 9898** only. The backend, database, and Redis are internal Docker services not exposed to the host.
 
@@ -295,9 +294,9 @@ Experimental cancer treatment combining Sonodynamic Therapy with ¹⁰B-enriched
 All requests proxied through `http://localhost:9898`.
 
 ### Authentication
-```
+
 Authorization: Bearer <JWT>
-```
+
 JWT signed with `JWT_SECRET` env var.
 
 ### Endpoints
@@ -314,21 +313,21 @@ JWT signed with `JWT_SECRET` env var.
 | `GET` | `/health` | Health check |
 
 ### POST /api/ai
-```json
+json
 {
   "prompt": "Summarize this document",
   "orgId": "uuid",
   "projectId": "uuid",
   "provider": "gpt"  // optional: "gpt" | "anthropic" | "local"
 }
-```
+
 Response:
-```json
+json
 {
   "result": "...",
   "provider": "gpt"
 }
-```
+
 
 ---
 
@@ -354,7 +353,7 @@ The platform includes a comprehensive role hierarchy across 11 categories (`back
 
 ## Environment Variables
 
-```bash
+bash
 # Core
 DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
 REDIS_URL=redis://redis:6379
@@ -372,13 +371,13 @@ LOCAL_MODEL=llama3
 BACKEND_URL=http://backend:8000
 NODE_BRIDGE_PORT=9898
 CORS_ORIGIN=http://localhost:9898
-```
+
 
 ---
 
 ## Directory Structure
 
-```
+
 Sovereignty-AI-Studio/
 ├── backend/
 │   ├── api/               # JS API handlers (org, project, ai)
@@ -408,7 +407,7 @@ Sovereignty-AI-Studio/
 ├── node-bridge/           # Node.js WebSocket + HTTP gateway
 ├── docker-compose.yml     # Full service stack
 └── .env.example           # Environment variable template
-```
+
 
 ---
 
@@ -422,4 +421,4 @@ Sovereignty-AI-Studio/
 All hardware designs are released under **CERN-OHL-S-2.0**.  
 Software is released under the **MIT License**.  
 See [LICENSE](LICENSE) and [SECURITY.md](SECURITY.md) for details.
->>>>>> main
+> main
