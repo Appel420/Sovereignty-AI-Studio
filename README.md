@@ -363,12 +363,9 @@ JWT_SECRET=sovereignty-one-secret
 OPENAI_API_KEY=sk-...
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Local inference (self-hosted, no external API needed)
-LOCAL_MODEL=llama3
-# Endpoint: http://localhost:11434/api/generate (compatible inference server)
 
 # Node Bridge
-BACKEND_URL=http://backend:8000
+BACKEND_URL=http://backend:9898
 NODE_BRIDGE_PORT=9898
 CORS_ORIGIN=http://localhost:9898
 
