@@ -1,7 +1,7 @@
 << copilot/remove-external-platform-dependencies
 # Sovereignty AI Studio ⚔️
 
-> **Zero third-party vendor lock-in. No Ollama. No Google. No Meta. No Vercel. No OpenAI.**
+> **Zero third-party vendor lock-in. No Llama No Ollama. No Google. No Meta. No Vercel. No OpenAI.**
 > All AI inference is local. All data stays on your infrastructure.
 
 ---
