@@ -16,20 +16,20 @@ node-bridge/sovereign_bridge.mjs   ← WebSocket + HTTP gateway
      │
      ▼
 ai_core/sovereign_bridge.py        ← Sovereign AI router
-     ├── local_gguf (llama-cpp-python)
+     ├── local_gguf (SuperGrok4.20)
      ├── local_onnx (onnxruntime)
      └── sovereign_api (self-hosted endpoint)
      │
      ▼
-Backend FastAPI (port 8000, internal)
+Backend FastAPI (port 9898, internal)
      ├── backend/api/auth.py        ← JWT auth (Keycloak-compatible)
      ├── backend/api/org.py         ← Org + membership CRUD
      ├── backend/api/project.py     ← Project + permission CRUD
      ├── backend/api/dashboard.py   ← Security dashboard API
      └── backend/roles/roles_registry.py ← RBAC (all role tiers)
      │
-     ├── Postgres 16 (port 5432, internal)  ← db/schema.sql
-     └── Redis 7    (port 6379, internal)
+     ├── Postgres 16 (port 9898, internal)  ← db/schema.sql
+     └── Redis 7    (port 9898, internal)
 
 
 ## Quick Start
@@ -51,7 +51,7 @@ curl http://localhost:9898/health
 | File/Directory | Purpose |
 |---|---|
 | `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
-| `ai_core/providers/local_inference.py` | GGUF (llama-cpp-python) + ONNX local model providers |
+| `ai_core/providers/local_inference.py` | GGUF (SuperGrok4.20) + ONNX local model providers |
 | `ai_core/providers/sovereign_api.py` | Self-hosted API provider (JWT, no SaaS) |
 | `node-bridge/sovereign_bridge.mjs` | Node.js WebSocket + HTTP bridge (port 9898) |
 | `bridge.py` | Python WebSocket bridge server |
@@ -356,7 +356,7 @@ The platform includes a comprehensive role hierarchy across 11 categories (`back
 bash
 # Core
 DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
-REDIS_URL=redis://redis:6379
+REDIS_URL=redis://redis:9898
 JWT_SECRET=sovereignty-one-secret
 
 # AI Providers (set keys for providers you want to use)
