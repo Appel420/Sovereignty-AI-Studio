@@ -8,11 +8,23 @@ BRIDGE_PORT="${NODE_BRIDGE_PORT:-9898}"
 WEATHER_PORT="${WEATHER_PORT:-8001}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 
+STARTED=""
+SKIPPED=""
+
+# Portable port-in-use check: tries nc first, then /dev/tcp fallback
+_port_in_use() {
+  if command -v nc >/dev/null 2>&1; then
+    nc -z 127.0.0.1 "$1" >/dev/null 2>&1
+  else
+    (echo >/dev/tcp/127.0.0.1/"$1") >/dev/null 2>&1
+  fi
+}
+
 wait_for_port_free() {
   PORT="$1"
   TIMEOUT="${2:-15}"
   START=$(date +%s)
-  while nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; do
+  while _port_in_use "$PORT"; do
     ELAPSED=$(( $(date +%s) - START ))
     if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
       echo "[warn] port $PORT still busy after ${TIMEOUT}s; skipping start for that service"
@@ -40,6 +52,7 @@ if command -v redis-server >/dev/null 2>&1; then
     echo "[start] redis on port 6379"
     redis-server --daemonize yes
     REDIS_PID=$(cat /var/run/redis.pid 2>/dev/null || echo "")
+    STARTED="${STARTED} redis"
   else
     echo "[skip]  redis already running"
   fi
@@ -54,8 +67,10 @@ if wait_for_port_free "$WEATHER_PORT"; then
     --bind "0.0.0.0:$WEATHER_PORT" &
   WEATHER_PID=$!
   sleep 2
+  STARTED="${STARTED} weather"
 else
-  echo "[skip] weather dashboard not started (port busy)"
+  echo "[skip] weather dashboard not started (port $WEATHER_PORT busy)"
+  SKIPPED="${SKIPPED} weather(:$WEATHER_PORT)"
 fi
 
 # --- Node.js bridge ---
@@ -69,12 +84,20 @@ if wait_for_port_free "$BRIDGE_PORT"; then
   BRIDGE_PID=$!
   cd ..
   sleep 2
+  STARTED="${STARTED} bridge"
 else
-  echo "[skip] node-bridge not started (port busy)"
+  echo "[skip] node-bridge not started (port $BRIDGE_PORT busy)"
+  SKIPPED="${SKIPPED} bridge(:$BRIDGE_PORT)"
 fi
 
 echo ""
-echo "=== All services running ==="
+if [ -n "$SKIPPED" ]; then
+  echo "=== WARNING: Some services were skipped ==="
+  echo "  Skipped:${SKIPPED}"
+  echo "  Started:${STARTED}"
+else
+  echo "=== All services running ==="
+fi
 echo "  Bridge:   http://localhost:$BRIDGE_PORT/health"
 echo "  Weather:  http://localhost:$WEATHER_PORT/api/weather?city=London"
 echo "  WS:       ws://localhost:$BRIDGE_PORT/ws/alerts"

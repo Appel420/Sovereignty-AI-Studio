@@ -426,7 +426,7 @@ export function useRealFocus(opts: UseFocusOptions = {}): {
   connectSSE: () => void;
 } {
   const {
-    sseUrl          = "http://localhost:9898/api/eeg/live",
+    sseUrl          = "http://localhost:5000/api/eeg/live",
     onNudge,
     onDrift,
     onDistraction,
@@ -684,7 +684,7 @@ export function useRealFocus(opts: UseFocusOptions = {}): {
         ...f,
         connected: false,
         mode: "error",
-        error: "SSE connection lost. Is eeg_streaming.py running on :9898?",
+        error: `SSE connection lost. Is eeg_streaming.py running on ${new URL(sseUrl).host}?`,
       }));
     };
   }, [sseUrl, onNudge]);

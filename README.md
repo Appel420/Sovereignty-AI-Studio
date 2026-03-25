@@ -249,7 +249,7 @@ GH_CLIENT_ID=your_github_client_id
 GH_CLIENT_SECRET=your_github_client_secret
 
 # Optional: Server Configuration
-PORT_UNIFIED=9898                  # Unified server port
+PORT_UNIFIED=9000                  # Unified server port
 PORT_BRIDGE=9898                   # Bridge server port
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging
