@@ -1,8 +1,36 @@
+// codex/resolve-conflicts
+# Sovereignty AI Studio ⚔️
+
+> **Zero third-party vendor lock-in. No OpenAI. No Anthropic. No Google. No Meta. No Vercel.**  
+> All AI inference is local and stays on your infrastructure.
+=======
 # Sovereignty AI Studio
+main
 
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
+ codex/resolve-conflicts
+## Architecture (single external port)
+
+
+Port 9898 (ONLY external port)
+     │
+     ▼
+node-bridge (WebSocket + HTTP gateway)
+     │
+     ▼
+backend (FastAPI on 8000, internal)
+     │
+ ┌───┴───────────────┐
+ ▼                   ▼
+PostgreSQL (5432)   Redis (6379)
+
+
+All host traffic enters through **port 9898**. Backend, database, and Redis remain on the internal Docker network.
+
+---
+=======
 **Private Sovereign AI Research and Development Platform**  
 **Core Model:** Super Grok Heavy 4.2  
 (xAI) – Locked, Sealed, Sovereign  
@@ -14,18 +42,76 @@
 Sovereignty AI Studio is a fully private, self-contained research and production environment for advanced sovereign artificial intelligence systems.
 
 The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All components are designed for complete operational independence, end-to-end encryption, and tamper-resistant execution.
+ main
 
 No external services, third-party models, or internet connectivity are required for core operation.
 
+// codex/resolve-conflicts
+bash
+# 1. Copy environment config
+cp .env.example .env
+# Edit .env — set JWT_SECRET, database passwords, model paths
+=======
 ## Prerequisites
+  main
 
 - Python 3.12.x (CI target; 3.10+ should work)
 - Node.js >= 20.0.0 for the bridge and unified servers
 - Docker + Docker Compose for containerized workflows
 
+ codex/resolve-conflicts
+# 3. Check health
+curl http://localhost:9898/health
+
+**Services started**
+
+| Service | Port | Notes |
+|---------|------|-------|
+| node-bridge (gateway) | 9898 | Only external port |
+| backend (FastAPI) | internal | Routed via node-bridge |
+| PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
+| Redis 7 | internal | Cache + session store |
+
+For production with TLS and static assets, enable the bundled Nginx reverse proxy:
+
+bash
+docker compose --profile production up -d
+
+
+---
+
+## Key Components
+
+| Path | Purpose |
+| --- | --- |
+| `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
+| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge (port 9898) |
+| `bridge.py` | Python WebSocket bridge server |
+| `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
+| `backend/app/api/v1` | FastAPI endpoints (auth, orgs, media, voice, telemetry, etc.) |
+| `frontend/src/views` | React views, including organization management |
+| `docs/` | Hardware and research documentation |
+| `docker-compose.yml` | Self-hosted stack (Postgres, Redis, Backend, Bridge, Nginx) |
+
+---
+
+## Sovereignty One Water Systems
+
+The `firmware/esp32_controller.ino` controls a CDI+MED hybrid water purification system:
+- Pump control based on PV voltage + TDS thresholds
+- Anti-scaling polarity reversal every 15 minutes
+- Safety interlocks (over-pressure, over-temperature)
+- 1 Hz JSON telemetry via Serial
+
+See [docs/sovereignty_one.md](docs/sovereignty_one.md) for full technical documentation.
+
+---
+
+*From Hello to Goodbye — Sovereignty AI Studio is a sovereign platform for the people.*
+=======
 ## Project Structure
 
-```
+
 Sovereignty-AI-Studio/
 ├── .devcontainer/                 # Dev Container configuration
 │   ├── devcontainer.json
@@ -133,7 +219,7 @@ Sovereignty-AI-Studio/
 ├── LICENSE.MD
 ├── SECURITY.md
 └── README.md
-```
+
 
 ## Key Components
 
@@ -172,7 +258,7 @@ The platform integrates with four major AI providers through a WebSocket-based r
 
 ### Agent Connection Architecture
 
-```
+
 ┌─────────────────────────────────────────────────────────┐
 │           Multi-Agent Connection System                  │
 ├─────────────────────────────────────────────────────────┤
@@ -199,13 +285,13 @@ The platform integrates with four major AI providers through a WebSocket-based r
 │  Real-time responses with audit logging                  │
 │                                                           │
 └─────────────────────────────────────────────────────────┘
-```
+
 
 ### Agent Request Protocol
 
 Connect to any agent via WebSocket using the following message format:
 
-```javascript
+javascript
 // Send agent request
 {
   type: 'agent_request',
@@ -225,7 +311,7 @@ Connect to any agent via WebSocket using the following message format:
   },
   ts: 1234567890
 }
-```
+
 
 **Key Features:**
 - Maximum prompt length: 1000 characters
@@ -238,7 +324,7 @@ Connect to any agent via WebSocket using the following message format:
 
 Create a `.env` file in the project root with your API keys:
 
-```bash
+bash
 # AI Agent API Keys
 ANTHROPIC_API_KEY=sk-ant-...      # Required for Claude
 OPENAI_API_KEY=sk-...              # Required for GPT
@@ -257,7 +343,7 @@ VERBOSE=1                          # Enable verbose logging
 # Optional: HTTPS/TLS (see scripts/generate-certs.sh)
 TLS_CERT=./certs/cert.pem         # Path to TLS certificate
 TLS_KEY=./certs/key.pem           # Path to TLS private key
-```
+
 
 **HTTPS Support:**
 - Run `./scripts/generate-certs.sh` to generate self-signed certs for local dev
@@ -279,13 +365,13 @@ The repository includes two agent bridge servers:
 
 Primary WebSocket bridge for agent routing:
 
-```bash
+bash
 # Install dependencies (Node 20+)
 npm install
 
 # Start the server
 node server_9898.js
-```
+
 
 **Endpoints:**
 - `ws://localhost:9898` - WebSocket agent routing
@@ -297,13 +383,13 @@ node server_9898.js
 
 Comprehensive server with additional features:
 
-```bash
+bash
 # Install dependencies (Node 20+)
 npm install
 
 # Start the server
 node unified_server.js
-```
+
 
 **Additional Features:**
 - GitHub OAuth authentication
@@ -322,13 +408,13 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
    - Copy Client ID and Client Secret to `.env`
 
 2. **Authenticate**
-   ```bash
+   bash
    # Start unified server
    node unified_server.js
 
    # Navigate to auth endpoint
    curl http://localhost:9898/api/gh/login
-   ```
+   
 
 3. **Use Copilot Features**
    - Code suggestions in your IDE
@@ -339,7 +425,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
 
 Test your agent setup with the included test suite:
 
-```bash
+bash
 # Test agent routing
 node --test test/server9898-agent-routing.test.js
 
@@ -348,11 +434,11 @@ node --test test/server9898.test.js
 
 # Run both Node bridge tests together
 node --test test/server9898-agent-routing.test.js test/server9898.test.js
-```
+
 
 **Example Test:**
 
-```javascript
+javascript
 // Test Claude agent connection
 const ws = new WebSocket('ws://localhost:9898');
 
@@ -372,7 +458,7 @@ ws.on('message', (data) => {
   console.log('Agent:', response.agent);
   console.log('Response:', response.payload.text);
 });
-```
+
 
 ### Agent Usage Best Practices
 
@@ -400,7 +486,7 @@ ws.on('message', (data) => {
 
 #### Frontend Integration (React/TypeScript)
 
-```typescript
+typescript
 import { useEffect, useState } from 'react';
 
 function AgentChat() {
@@ -438,11 +524,11 @@ function AgentChat() {
     </div>
   );
 }
-```
+
 
 #### iOS Integration (Swift)
 
-```swift
+swift
 import Foundation
 
 class AgentClient {
@@ -486,11 +572,11 @@ class AgentClient {
         }
     }
 }
-```
+
 
 #### Python Integration
 
-```python
+python
 import asyncio
 import websockets
 import json
@@ -520,7 +606,7 @@ async def ask_agent(agent: str, prompt: str):
 
 # Example usage
 asyncio.run(ask_agent("claude", "What is the meaning of life?"))
-```
+
 
 ### Maintaining a Clean Environment
 
@@ -606,7 +692,7 @@ Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
 
 ### Backend Setup
 
-```bash
+bash
 # Install Python dependencies
 pip install -r requirements.txt
 pip install -r backend/requirements.txt
@@ -620,11 +706,11 @@ python scripts/test_alerts.py
 # Run the backend server
 cd backend
 PYTHONPATH=.:./backend uvicorn app.main:app --reload
-```
+
 
 ### Frontend Setup
 
-```bash
+bash
 # Install Node dependencies
 cd frontend
 npm install
@@ -635,21 +721,21 @@ echo "REACT_APP_WS_URL=ws://localhost:9898" >> .env
 
 # Run the development server
 npm start
-```
+
 
 ### Docker Deployment
 
-```bash
+bash
 # Build and deploy with Docker Compose
 make build
 make deploy
-```
+
 
 ### Piper TTS Setup (Optional)
 
 For audio alert notifications:
 
-```bash
+bash
 # Build Piper
 cd piper-tts
 make
@@ -660,7 +746,7 @@ tar -xzf voice-en-us-libritts-high.tar.gz
 
 # Set environment variable
 export PIPER_MODEL_PATH=./voice-en-us-libritts-high.onnx
-```
+
 
 See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
@@ -668,7 +754,7 @@ See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
 ### Creating Alerts via API
 
-```bash
+bash
 # Create a security alert
 curl -X POST "http://localhost:9898/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -691,24 +777,24 @@ curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
     "message": "Critical system failure detected",
     "severity": "critical"
   }'
-```
+
 
 ### WebSocket Connection
 
 The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
 
-```javascript
+javascript
 const ws = new WebSocket('ws://localhost:9898/api/v1/alerts/ws/USER_ID');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
   console.log('Received alert:', message);
 };
-```
+
 
 ## Testing
 
-```bash
+ bash
 # Run backend tests
 make test
 
@@ -717,7 +803,7 @@ make lint
 
 # Clean up
 make clean
-```
+
 
 ## Execution and Chain Validation
 
@@ -738,3 +824,4 @@ Execution is controlled via the `./Ship` script, which performs:
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
 
 Copyright (C) 2026 Appel420
+ main

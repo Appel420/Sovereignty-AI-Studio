@@ -1,50 +1,74 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# Sovereignty AI Studio — Python Dependencies
-# All sovereign-compatible. No external SaaS phone-home dependencies.
+# Sovereignty AI Studio — Python Dependencies (self-hosted stack)
 # ─────────────────────────────────────────────────────────────────────────────
+   codex/resolve-conflicts
+
+# ── Core / Crypto ────────────────────────────────────────────────────────────
+argon2-cffi==23.1.0
+bcrypt==4.1.3
+blake3==1.0.7
+cryptography==46.0.5
+pyjwt==2.10.1
+python-jose[cryptography]==3.5.0
+
+# ── Async HTTP ───────────────────────────────────────────────────────────────
+anyio==3.7.1
+httpx==0.25.2
+requests==2.32.4
+
+# ── Database ─────────────────────────────────────────────────────────────────
+psycopg2-binary==2.9.9
+asyncpg==0.30.0
+sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
+redis==5.2.1
+aioredis==2.0.1
+
+# ── Metrics / Telemetry ──────────────────────────────────────────────────────
+prometheus-client==0.21.0
+
+# ── Web Frameworks ───────────────────────────────────────────────────────────
+=======
 # ── Web Frameworks ────────────────────────────────────────────────────────────
+ main
 fastapi==0.115.0
 uvicorn[standard]==0.32.0
 quart==0.20.0
 Flask==3.1.3
 
-# ── Database ──────────────────────────────────────────────────────────────────
-psycopg2-binary==2.9.9
+# ── Auth / Security ──────────────────────────────────────────────────────────
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.22
 
-# ── Auth / Security ───────────────────────────────────────────────────────────
-pyjwt==2.10.1
-bcrypt==4.1.3
-cryptography==46.0.5
-argon2-cffi==23.1.0
-
-# ── AI / Inference (local only) ───────────────────────────────────────────────
-# llama-cpp-python    — install separately: pip install llama-cpp-python
-# onnxruntime         — install separately: pip install onnxruntime
+# ── AI / Inference (local only) ──────────────────────────────────────────────
 numpy==1.26.4
+torch==2.8.0
+pennylane>=0.44.0
 
-# ── Voice / TTS / STT (self-hosted) ──────────────────────────────────────────
+# ── Voice / TTS / STT (self-hosted) ─────────────────────────────────────────
 pyttsx3==2.90
 piper-tts==1.4.1
 onnx-asr==0.10.2
 
-# ── WebSocket ─────────────────────────────────────────────────────────────────
+# ── WebSocket ────────────────────────────────────────────────────────────────
 websockets==13.1
-
-# ── Networking / SSH ──────────────────────────────────────────────────────────
-requests==2.32.4
 h11==0.16.0
 
-# ── Utilities ─────────────────────────────────────────────────────────────────
+# ── Utilities ────────────────────────────────────────────────────────────────
 python-dotenv==1.1.0
 pydantic==2.12.5
+pydantic-settings==2.8.0
 celery==5.4.0
+boto3==1.34.0
+pillow==12.1.1
+openai==1.3.5
+stability-sdk==0.8.1
 
-# ── Crypto (sovereign) ────────────────────────────────────────────────────────
-blake3==1.0.7
-
-# ── Testing ───────────────────────────────────────────────────────────────────
+# ── Testing ──────────────────────────────────────────────────────────────────
 pytest==8.3.3
 pytest-asyncio==0.23.8
+ codex/resolve-conflicts
+=======
 
 # ── Keycloak (self-hosted auth) ────────────────────────────────────────────────
 # python-keycloak is included in Sovereignty_python-keycloak-master/
@@ -59,3 +83,4 @@ aiohttp==3.13.3
 sqlalchemy[asyncio]==2.0.36
 alembic==1.14.0
 redis==5.2.1
+ main
