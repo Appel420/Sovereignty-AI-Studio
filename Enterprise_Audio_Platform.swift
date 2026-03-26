@@ -400,7 +400,7 @@ public final class PlatformAuthManager: NSObject, ObservableObject {
 
     public func authenticateYouTube() {
         let url = URL(string:
-            "https://accounts.google.com/o/oauth2/v2/auth?scope=https://www.googleapis.com/auth/youtube.readonly"
+            "https://accounts.com/o/oauth2/v2/auth?scope=https://www..com/auth/youtube.readonly"
         )!
 
         openAuthSession(url: url)
@@ -852,7 +852,7 @@ public final class OBSOverlayServer {
 
     public func startServer() {
 
-        listener = try? NWListener(using: .tcp, on: 8080)
+        listener = try? NWListener(using: .tcp, on: 9898)
 
         listener?.newConnectionHandler = { connection in
             connection.start(queue: .main)
@@ -877,7 +877,7 @@ public final class OBSOverlayServer {
 <div id="overlay">Waiting...</div>
 
 <script>
-const ws = new WebSocket("ws://localhost:8080")
+const ws = new WebSocket("ws://localhost:9898")
 
 ws.onmessage = (event) => {
   document.getElementById("overlay").innerText = event.data
@@ -1105,16 +1105,16 @@ enterprise-audio-platform/
 
 [ iOS App ]
      ↓
-[ API Gateway :3000 ]
+[ API Gateway :9898 ]
      ↓
- ├── Analytics Service :3001
- ├── AI Service        :3002
- ├── Chat Service      :3003
- ├── Revenue Service   :3004
+ ├── Analytics Service :9898
+ ├── AI Service        :9898
+ ├── Chat Service      :9898
+ ├── Revenue Service   :9898
      ↓
 [ PostgreSQL + Redis ]
 
-[ Web Dashboard :5173 ]
+[ Web Dashboard :9898 ]
 
 
 ⸻
@@ -1134,17 +1134,17 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
     ports:
-      - "5432:5432"
+      - "9898:9898"
 
   redis:
     image: redis:7
     ports:
-      - "6379:6379"
+      - "9898:9898"
 
   api:
     build: ../../services/api-gateway
     ports:
-      - "3000:3000"
+      - "9898:9898"
     depends_on:
       - postgres
       - redis
@@ -1152,22 +1152,22 @@ services:
   analytics:
     build: ../../services/analytics-service
     ports:
-      - "3001:3001"
+      - "9898:9898"
 
   ai:
     build: ../../services/ai-service
     ports:
-      - "3002:3002"
+      - "9898:9898"
 
   chat:
     build: ../../services/chat-service
     ports:
-      - "3003:3003"
+      - "9898:9898"
 
   revenue:
     build: ../../services/revenue-service
     ports:
-      - "3004:3004"
+      - "9898:9898"
 
 
 ⸻
@@ -1183,18 +1183,18 @@ const app = express()
 app.use(express.json())
 
 app.post("/chat", async (req, res) => {
-    const chat = await axios.post("http://chat:3003/chat", req.body)
-    const ai = await axios.post("http://ai:3002/respond", chat.data)
+    const chat = await axios.post("http://chat:9898/chat", req.body)
+    const ai = await axios.post("http://ai:9898/respond", chat.data)
 
     res.send(ai.data)
 })
 
 app.post("/analytics", async (req, res) => {
-    await axios.post("http://analytics:3001/track", req.body)
+    await axios.post("http://analytics:9898/track", req.body)
     res.send({ ok: true })
 })
 
-app.listen(3000, () => console.log("API Gateway running"))
+app.listen(9898, () => console.log("API Gateway running"))
 
 
 ⸻
@@ -1218,7 +1218,7 @@ app.post("/respond", async (req, res) => {
     res.send({ reply })
 })
 
-app.listen(3002, () => console.log("AI Service running"))
+app.listen(9898, () => console.log("AI Service running"))
 
 
 ⸻
@@ -1241,7 +1241,7 @@ app.post("/chat", (req, res) => {
     res.send({ username, message })
 })
 
-app.listen(3003, () => console.log("Chat Service running"))
+app.listen(9898, () => console.log("Chat Service running"))
 
 
 ⸻
@@ -1287,7 +1287,7 @@ app.get("/total", (req, res) => {
     res.send({ revenue })
 })
 
-app.listen(3004)
+app.listen(9898)
 
 
 ⸻
@@ -1312,7 +1312,7 @@ export default function Dashboard() {
   const [metrics, setMetrics] = useState([])
 
   useEffect(() => {
-    axios.get("http://localhost:3001/metrics")
+    axios.get("http://localhost:9898/metrics")
       .then(res => setMetrics(res.data))
   }, [])
 
@@ -1335,7 +1335,7 @@ Update your networking layer:
 
 func sendChat(_ msg: String) {
 
-    let url = URL(string: "http://localhost:3000/chat")!
+    let url = URL(string: "http://localhost:9898/chat")!
 
     var req = URLRequest(url: url)
     req.httpMethod = "POST"
@@ -1370,7 +1370,7 @@ docker-compose -f infrastructure/docker/docker-compose.yml up --build
 
 	2.	Send chat request
 
-POST http://localhost:3000/chat
+POST http://localhost:9898/chat
 
 	3.	Watch:
 
@@ -1423,7 +1423,7 @@ Immediately after this runs:
 
 ⸻
 
-🧭 WHAT YOU NOW HAVE (REALITY CHECK)
+🧭 WHAT YOU NOW HAVE (REALITY CHECK) 
 
 This is no longer a concept:
 
@@ -1536,7 +1536,7 @@ overlays/ai-overlay/index.html
 <div id="ai">AI ready...</div>
 
 <script>
-const ws = new WebSocket("ws://localhost:8080")
+const ws = new WebSocket("ws://localhost:9898")
 
 ws.onmessage = (event) => {
   document.getElementById("ai").innerText = event.data
@@ -1575,7 +1575,7 @@ client.on("message", async (channel, tags, message, self) => {
 
     console.log(`[CHAT] ${tags.username}: ${message}`)
 
-    const res = await axios.post("http://localhost:3000/chat", {
+    const res = await axios.post("http://localhost:9898/chat", {
         username: tags.username,
         message
     })
@@ -1620,7 +1620,7 @@ app.post("/respond", (req, res) => {
     res.send({ reply })
 })
 
-app.listen(3010, () => console.log("Persona service running"))
+app.listen(9898, () => console.log("Persona service running"))
 
 
 ⸻
@@ -1633,7 +1633,7 @@ const axios = require("axios")
 
 app.post("/respond", async (req, res) => {
 
-    const persona = await axios.post("http://persona-service:3010/respond", req.body)
+    const persona = await axios.post("http://persona-service:9898/respond", req.body)
 
     res.send(persona.data)
 })
@@ -1662,7 +1662,7 @@ Connect AI → OBS overlay:
 
 const WebSocket = require("ws")
 
-const wss = new WebSocket.Server({ port: 8080 })
+const wss = new WebSocket.Server({ port: 9898 })
 
 function broadcast(msg) {
     wss.clients.forEach(client => {

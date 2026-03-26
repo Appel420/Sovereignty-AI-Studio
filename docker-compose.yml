@@ -2,14 +2,17 @@ version: '3.9'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sovereignty AI Studio — Self-Hosted Docker Stack
-# NO external SaaS. NO Ollama. NO third-party AI vendors.
-# All AI routes through the sovereign bridge (port 9898).
+# All external traffic enters through port 9898 (node-bridge).
+# Backend, database, and Redis stay on the internal Docker network.
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
-<<<<<< copilot/remove-external-platform-dependencies
+    # codex/resolve-conflicts
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+=======
 
   # ── PostgreSQL ────────────────────────────────────────────────────────────
+    main
   db:
     image: postgres:16
     restart: unless-stopped
@@ -24,44 +27,41 @@ services:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sovereignty}"]
-=======
-  # ── Data stores ────────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_DB: ${POSTGRES_DB:-creativeflow_db}
-    expose:
-      - "5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
->>>>>> main
       interval: 10s
       timeout: 5s
       retries: 5
 
-<<<<<< copilot/remove-external-platform-dependencies
+ codex/resolve-conflicts
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    expose:
+      - "6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+=======
   # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-======
-  redis:
-    image: redis:7
->>>>>> main
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     expose:
       - "6379"
+   main
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
 
-<<<<<< copilot/remove-external-platform-dependencies
+    codex/resolve-conflicts
+  # ── Python Backend (FastAPI) ───────────────────────────────────────────────
+=======
   # ── Python Backend (FastAPI) ──────────────────────────────────────────────
+    main
   backend:
     build: ./backend
     restart: unless-stopped
@@ -77,45 +77,38 @@ services:
       SOVEREIGN_API_URL: http://node-bridge:9898/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
       LOG_DIR: /app/logs
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
     volumes:
       - ./logs:/app/logs
-      # Mount model directory if SOVEREIGN_MODELS_DIR is set (optional)
-      # Set SOVEREIGN_MODELS_DIR=/path/to/your/models in .env to enable local inference
-======
-  # ── Backend FastAPI ────────────────────────────────────────────────────────
-  backend:
-    build: ./backend
-    expose:
-      - "8000"
-    environment:
-<<<<< copilot/integrate-production-features
-      - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
-<<<<< copilot/organize-sov-ai-studio-repo
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-sovereignty-one-secret}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - LOCAL_MODEL=${LOCAL_MODEL:-llama3}
     depends_on:
       db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-=====
-      - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=${SECRET_KEY:-sovereign-secret-change-in-production}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - XAI_API_KEY=${XAI_API_KEY:-}
->>>>>> main
-    depends_on:
-      db:
+   codex/resolve-conflicts
         condition: service_healthy
       redis:
         condition: service_healthy
-<<<<<< copilot/remove-external-platform-dependencies
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  # ── Node.js Sovereign Bridge (only external port: 9898) ────────────────────
+=======
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
   # ── Node.js Sovereign Bridge (only external port: 9898) ───────────────────
+    main
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
@@ -124,40 +117,21 @@ services:
     environment:
       NODE_BRIDGE_PORT: "9898"
       BACKEND_URL: http://backend:8000
+      WEATHER_URL: http://backend:8001
+    codex/resolve-conflicts
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
+    depends_on:
+      backend:
+        condition: service_started
+
+  # ── Nginx Reverse Proxy (optional TLS) ─────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+=======
       SOVEREIGN_API_URL: http://backend:8000/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
-=======
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    restart: unless-stopped
-======
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-creativeflow_db}
-      - REDIS_URL=redis://redis:6379
     depends_on:
-      - postgres
-      - redis
-      >> main
->>>> main
-
-  # ── Node gateway / bridge (external entry point on port 9898) ─────────────
-  node-bridge:
-    build: ./node-bridge
-    ports:
-      - "9898:9898"
-    environment:
-      - BACKEND_URL=http://backend:8000
-      - WEATHER_URL=http://backend:8001
-      - GATEWAY_URL=http://gateway:9000
-      - NODE_BRIDGE_PORT=9898
-      - CORS_ORIGIN=http://localhost:9898
->>>>>> main
-    depends_on:
-<<<<< copilot/integrate-production-features
       backend:
         condition: service_healthy
     healthcheck:
@@ -166,49 +140,46 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    restart: unless-stopped
 
-<<<<<< copilot/remove-external-platform-dependencies
-  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
-  nginx:
-    image: nginx:alpine
+  # ── Keycloak (self-hosted SSO) ────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+   main
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
-      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
-      - ./frontend:/usr/share/nginx/html:ro
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-sovereignty}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    command: start-dev
     depends_on:
+ codex/resolve-conflicts
       - node-bridge
 
 volumes:
   db_data:
-    driver: local
+  redis_data:
 =======
-  db:
-<<<<<< copilot/organize-sov-ai-studio-repo
-    image: postgres:16
-======
-    image: postgres:16-alpine
-======
-      - backend
-      - gateway
+      db:
+        condition: service_healthy
+    profiles:
+      - keycloak
 
   # ── Multi-agent system ────────────────────────────────────────────────────
   judge_agent:
     build:
       context: .
       dockerfile: agents/judge_agent/Dockerfile
+    restart: unless-stopped
     expose:
       - "9001"
-      - "8000"
->>>>> main
->>>>> main
     environment:
-      - JUDGE_METRICS_PORT=8000
+      - JUDGE_METRICS_PORT=9001
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
 
@@ -216,69 +187,8 @@ volumes:
     build:
       context: .
       dockerfile: agents/ai_router_agent/Dockerfile
-    expose:
-<<<<< copilot/integrate-production-features
-      - "5432"
-    volumes:
-      - db_data:/var/lib/postgresql/data
-<<<<<< copilot/organize-sov-ai-studio-repo
-      - ./backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-======
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d creativeflow_db"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
->>>>>> main
-    # Internal only - accessible via backend services
     expose:
-      - "6379"
-    volumes:
-      - redis_data:/data
-<<<<<< copilot/organize-sov-ai-studio-repo
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - node-bridge
-    profiles:
-      - production
-
-volumes:
-  db_data:
-  redis_data:
-======
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 5s
-    restart: unless-stopped
-
-volumes:
-  db_data:
-  redis_data:
-======
       - "8001"
     environment:
       - REDIS_URL=redis://redis:6379
@@ -293,6 +203,7 @@ volumes:
     build:
       context: .
       dockerfile: agents/plugin_agent/Dockerfile
+    restart: unless-stopped
     expose:
       - "8002"
     environment:
@@ -306,6 +217,7 @@ volumes:
     build:
       context: .
       dockerfile: agents/platform_agent/Dockerfile
+    restart: unless-stopped
     expose:
       - "8003"
     environment:
@@ -325,6 +237,7 @@ volumes:
     build:
       context: .
       dockerfile: agents/voice_assist_agent/Dockerfile
+    restart: unless-stopped
     expose:
       - "8004"
     environment:
@@ -339,6 +252,7 @@ volumes:
     build:
       context: .
       dockerfile: gateway/Dockerfile
+    restart: unless-stopped
     expose:
       - "9000"
     environment:
@@ -352,8 +266,25 @@ volumes:
       - judge_agent
       - redis
 
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
+      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+    depends_on:
+      - node-bridge
+    profiles:
+      - production
+
 volumes:
-  postgres_data:
->>>>> main
->>>>> main
->>>>>> main
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+ main

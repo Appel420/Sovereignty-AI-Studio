@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+import os
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.api.v1.api import api_router
@@ -18,6 +19,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """Add OWASP-recommended security headers to every response."""
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    return response
+
 
 app.include_router(api_router, prefix="/api/v1")
 
@@ -39,7 +53,7 @@ async def mobile_status():
         "status": "online",
         "service": "Sovereignty AI Studio",
         "api_version": "v1",
-        "port": 8000,
+        "port": int(os.environ.get("BACKEND_PORT", 8000)),
         "endpoints": {
             "health": "/health",
             "alerts": "/api/v1/alerts",
