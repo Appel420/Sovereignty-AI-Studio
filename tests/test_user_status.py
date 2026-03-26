@@ -7,7 +7,7 @@ import os
 import sys
 import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -60,7 +60,7 @@ class TestUserStatusUpdateSchema:
 
 class TestUserStatusResponseSchema:
     def test_basic_fields(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         resp = UserStatusResponse(
             user_id=1,
             username="alice",
@@ -83,7 +83,7 @@ class TestUserStatusResponseSchema:
 
 class TestUserInDBStatusDefaults:
     def test_default_status_offline(self):
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         user = UserInDB(
             id=1,
             email="a@b.com",
@@ -136,6 +136,7 @@ class TestUpdateUserStatusService:
 
     def test_update_to_offline(self):
         mock_user = self._make_mock_user(status="online")
+        mock_user.last_seen = datetime.now(timezone.utc)
         db = MagicMock()
 
         with patch(
@@ -146,6 +147,8 @@ class TestUpdateUserStatusService:
 
         assert result is not None
         assert mock_user.status == "offline"
+        # last_seen should not be updated when going offline
+        assert mock_user.last_seen is not None
 
     def test_user_not_found_returns_none(self):
         db = MagicMock()

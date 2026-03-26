@@ -220,7 +220,8 @@ def update_user_status(
         return None
 
     db_user.status = new_status.value
-    db_user.last_seen = datetime.utcnow()
+    if new_status == UserStatus.online:
+        db_user.last_seen = datetime.utcnow()
     db.commit()
     db.refresh(db_user)
     return db_user
