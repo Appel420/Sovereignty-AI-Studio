@@ -4,7 +4,7 @@ from typing import Optional
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate, UserStatus
 from app.core.security import get_password_hash, verify_password
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 def get_user_by_id(db: Session, user_id: int) -> Optional[User]:
@@ -221,7 +221,7 @@ def update_user_status(
 
     db_user.status = new_status.value
     if new_status == UserStatus.online:
-        db_user.last_seen = datetime.utcnow()
+        db_user.last_seen = datetime.now(timezone.utc)
     db.commit()
     db.refresh(db_user)
     return db_user
