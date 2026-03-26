@@ -26,6 +26,8 @@ jobs:
   # =========================================================
   build-test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         python: ['3.11', '3.12']
@@ -53,7 +55,9 @@ jobs:
         run: pytest --cov=apps --cov=backend --cov=src --cov-report=xml --strict-markers -x --tb=short
 
       - name: Dependency safety check
-        run: safety check -r requirements.txt --output text || true
+        run: |
+          safety check -r .github/workflows/Requirements.txt --output text || true
+          safety check -r requirements.txt --output text || true
         continue-on-error: true
 
       - name: Upload coverage
@@ -167,6 +171,8 @@ jobs:
   security-scan:
     needs: build-test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
