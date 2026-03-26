@@ -7,7 +7,12 @@ version: '3.9'
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
+    # codex/resolve-conflicts
   # ── PostgreSQL ─────────────────────────────────────────────────────────────
+=======
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+    main
   db:
     image: postgres:16
     restart: unless-stopped
@@ -26,6 +31,7 @@ services:
       timeout: 5s
       retries: 5
 
+ codex/resolve-conflicts
   # ── Redis ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
@@ -33,6 +39,15 @@ services:
     expose:
       - "6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+=======
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    expose:
+      - "6379"
+   main
     volumes:
       - redis_data:/data
     healthcheck:
@@ -40,8 +55,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 5s
 
+    codex/resolve-conflicts
   # ── Python Backend (FastAPI) ───────────────────────────────────────────────
+=======
+  # ── Python Backend (FastAPI) ──────────────────────────────────────────────
+    main
   backend:
     build: ./backend
     restart: unless-stopped
@@ -57,10 +77,14 @@ services:
       SOVEREIGN_API_URL: http://node-bridge:9898/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
       LOG_DIR: /app/logs
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
     volumes:
       - ./logs:/app/logs
     depends_on:
       db:
+   codex/resolve-conflicts
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -72,6 +96,19 @@ services:
       start_period: 20s
 
   # ── Node.js Sovereign Bridge (only external port: 9898) ────────────────────
+=======
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Node.js Sovereign Bridge (only external port: 9898) ───────────────────
+    main
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
@@ -81,6 +118,7 @@ services:
       NODE_BRIDGE_PORT: "9898"
       BACKEND_URL: http://backend:8000
       WEATHER_URL: http://backend:8001
+    codex/resolve-conflicts
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
     depends_on:
       backend:
@@ -89,18 +127,164 @@ services:
   # ── Nginx Reverse Proxy (optional TLS) ─────────────────────────────────────
   nginx:
     image: nginx:alpine
+=======
+      SOVEREIGN_API_URL: http://backend:8000/api/ai
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9898/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Keycloak (self-hosted SSO) ────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+   main
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
-      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
-      - ./frontend:/usr/share/nginx/html:ro
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-sovereignty}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    command: start-dev
     depends_on:
+ codex/resolve-conflicts
       - node-bridge
 
 volumes:
   db_data:
   redis_data:
+=======
+      db:
+        condition: service_healthy
+    profiles:
+      - keycloak
+
+  # ── Multi-agent system ────────────────────────────────────────────────────
+  judge_agent:
+    build:
+      context: .
+      dockerfile: agents/judge_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "9001"
+    environment:
+      - JUDGE_METRICS_PORT=9001
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  ai_router_agent:
+    build:
+      context: .
+      dockerfile: agents/ai_router_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  plugin_agent:
+    build:
+      context: .
+      dockerfile: agents/plugin_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
+
+  platform_agent:
+    build:
+      context: .
+      dockerfile: agents/platform_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - YOUTUBE_STREAM_ID=${YOUTUBE_STREAM_ID:-}
+      - KICK_CHANNEL=${KICK_CHANNEL:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  voice_assist_agent:
+    build:
+      context: .
+      dockerfile: agents/voice_assist_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8004"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - judge_agent
+      - redis
+
+  # ── Python multi-agent gateway (internal port 9000) ───────────────────────
+  # External traffic still enters through node-bridge on port 9898.
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      - GATEWAY_PORT=9000
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
+      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+    depends_on:
+      - node-bridge
+    profiles:
+      - production
+
+volumes:
+  db_data:
+    driver: local
+  redis_data:
+    driver: local
+ main

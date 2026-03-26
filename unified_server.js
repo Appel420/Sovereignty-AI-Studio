@@ -1,7 +1,7 @@
 /**
  * SuperGrok Unified Server — Production Enterprise
  * Single process: Node.js + WebSocket bridge + Auth + DDG + GitHub + Plaid + Piper + ISH shell
- * Ports: 9000 (primary), 9898 (bridge alias), 8443 (auth alias)
+ * Ports: 9000 (unified internal), 9898 (bridge/gateway), 8443 (auth alias)
  * Run: node unified_server.js
  */
 'use strict';
@@ -24,6 +24,8 @@ const PIPER_MODEL  = process.env.PIPER_MODEL  || './en_US-lessac-medium.onnx';
 const LOG_DIR      = process.env.LOG_DIR      || './logs';
 const KEY_FILE     = process.env.KEY_FILE     || '.sg_master_key';
 const VERBOSE      = process.env.VERBOSE      === '1';
+const TLS_CERT     = process.env.TLS_CERT     || '';
+const TLS_KEY      = process.env.TLS_KEY      || '';
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -360,8 +362,9 @@ function readBody(req) {
   });
 }
 
-// ─── HTTP SERVER ──────────────────────────────────────────────────────
-const httpServer = http.createServer(async (req, res) => {
+// ─── HTTP(S) SERVER ──────────────────────────────────────────────────────
+const useTLS = TLS_CERT && TLS_KEY && fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY);
+const serverHandler = async (req, res) => {
   const ip  = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
   const url = req.url.split('?')[0];
 
@@ -465,7 +468,11 @@ const httpServer = http.createServer(async (req, res) => {
   }
 
   json(404,{detail:'not found'});
-});
+};
+
+const httpServer = useTLS
+  ? https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }, serverHandler)
+  : http.createServer(serverHandler);
 
 // ─── WEBSOCKET ────────────────────────────────────────────────────────
 const wss = new ws_mod.WebSocketServer({ server: httpServer });
@@ -575,20 +582,27 @@ wss.on('connection', (ws, req) => {
 });
 
 // ─── START PRIMARY PORT ───────────────────────────────────────────────
+const proto = useTLS ? 'https' : 'http';
+const wsproto = useTLS ? 'wss' : 'ws';
 httpServer.listen(PORT_UNIFIED, '127.0.0.1', () => {
-  audit('START', 'SuperGrok Unified :'+PORT_UNIFIED);
+  audit('START', 'SuperGrok Unified :'+PORT_UNIFIED+(useTLS?' (TLS)':''));
   process.stdout.write('\n╔══════════════════════════════════════════════════╗\n');
   process.stdout.write('║  SuperGrok Unified Server — LIVE                 ║\n');
-  process.stdout.write('║  Primary   http://127.0.0.1:'+PORT_UNIFIED+'               ║\n');
-  process.stdout.write('║  Bridge WS ws://127.0.0.1:'+PORT_BRIDGE+' (proxy)        ║\n');
-  process.stdout.write('║  Auth      http://127.0.0.1:'+PORT_AUTH+' (proxy)        ║\n');
+  process.stdout.write('║  Primary   '+proto+'://127.0.0.1:'+PORT_UNIFIED+'               ║\n');
+  process.stdout.write('║  Bridge WS '+wsproto+'://127.0.0.1:'+PORT_BRIDGE+' (proxy)        ║\n');
+  process.stdout.write('║  Auth      '+proto+'://127.0.0.1:'+PORT_AUTH+' (proxy)        ║\n');
   process.stdout.write('║  Piper TTS '+(piperReady?'✅ Ready    ':'⚠️  Not found  ')+'                       ║\n');
+  process.stdout.write('║  TLS       '+(useTLS?'✅ Enabled  ':'⚠️  Disabled  ')+'                       ║\n');
   process.stdout.write('║  Audit log '+ACCESS_LOG.slice(0,30).padEnd(30,' ')+'║\n');
   process.stdout.write('╚══════════════════════════════════════════════════╝\n\n');
 });
 
 // ─── PROXY LISTENERS (legacy ports keep working unchanged) ───────────
 function makeProxy(port, label) {
+  if (port === PORT_UNIFIED) {
+    process.stdout.write('  '+label+' uses primary :'+PORT_UNIFIED+' (no extra listener)\n');
+    return null;
+  }
   const srv = http.createServer((req, res) => {
     res.setHeader('Access-Control-Allow-Origin','*');
     res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');

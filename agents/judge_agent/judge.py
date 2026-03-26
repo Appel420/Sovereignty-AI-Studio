@@ -133,3 +133,20 @@ class JudgeAgent:
         # Keep log bounded
         if len(self._task_log) > 10_000:
             self._task_log = self._task_log[-5_000:]
+
+
+async def _run_forever() -> None:
+    """Keep the process alive once background servers are running."""
+    while True:
+        await asyncio.sleep(60)
+
+
+async def main() -> None:
+    logging.basicConfig(level=logging.INFO)
+    judge = JudgeAgent()
+    judge.start_metrics()
+    await _run_forever()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

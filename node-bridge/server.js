@@ -16,6 +16,8 @@
 
 const express = require('express');
 const http = require('http');
+const https = require('https');
+const fs = require('fs');
 const { WebSocketServer } = require('ws');
 
 // ---------------------------------------------------------------------------
@@ -24,6 +26,8 @@ const { WebSocketServer } = require('ws');
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9898', 10);
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
+const TLS_CERT = process.env.TLS_CERT || '';
+const TLS_KEY = process.env.TLS_KEY || '';
 
 const app = express();
 app.use(express.json());
@@ -91,7 +95,10 @@ app.use('/api/forecast', (req, res) => proxyRequest(WEATHER_URL, req, res));
 // ---------------------------------------------------------------------------
 // WebSocket — real-time alert channel
 // ---------------------------------------------------------------------------
-const server = http.createServer(app);
+const useTLS = TLS_CERT && TLS_KEY && fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY);
+const server = useTLS
+  ? https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }, app)
+  : http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws/alerts' });
 const clients = new Set();
 
@@ -176,8 +183,10 @@ app.post('/api/bridge/notify', (req, res) => {
 // ---------------------------------------------------------------------------
 if (require.main === module) {
   server.listen(PORT, () => {
-    console.log(`[node-bridge] listening on http://localhost:${PORT}`);
-    console.log(`[node-bridge] WebSocket   ws://localhost:${PORT}/ws/alerts`);
+    const proto = useTLS ? 'https' : 'http';
+    const wsproto = useTLS ? 'wss' : 'ws';
+    console.log(`[node-bridge] listening on ${proto}://localhost:${PORT}${useTLS ? ' (TLS)' : ''}`);
+    console.log(`[node-bridge] WebSocket   ${wsproto}://localhost:${PORT}/ws/alerts`);
     console.log(`[node-bridge] proxy /api/v1/*      → ${BACKEND_URL}`);
     console.log(`[node-bridge] proxy /api/weather/*  → ${WEATHER_URL}`);
     console.log(`[node-bridge] proxy /api/forecast/* → ${WEATHER_URL}`);
