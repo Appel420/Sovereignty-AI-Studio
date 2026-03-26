@@ -9,3 +9,4 @@ pydantic-settings
 email-validator
 sqlalchemy
 python-jose[cryptography]
+passlib[bcrypt]
