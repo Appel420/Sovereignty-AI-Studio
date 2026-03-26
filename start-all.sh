@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # start-all.sh — Launch every service for Sovereignty AI Studio
 # Works on iSH, Linux, macOS, and CI.
 
@@ -21,16 +21,17 @@ _port_in_use() {
 }
 
 wait_for_port_free() {
-  PORT="$1"
-  TIMEOUT="${2:-15}"
-  START=$(date +%s)
-  while _port_in_use "$PORT"; do
-    ELAPSED=$(( $(date +%s) - START ))
-    if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
-      echo "[warn] port $PORT still busy after ${TIMEOUT}s; skipping start for that service"
+  local port="$1"
+  local timeout="${2:-15}"
+  local start elapsed
+  start=$(date +%s)
+  while _port_in_use "$port"; do
+    elapsed=$(( $(date +%s) - start ))
+    if [ "$elapsed" -ge "$timeout" ]; then
+      echo "[warn] port $port still busy after ${timeout}s; skipping start for that service"
       return 1
     fi
-    echo "[wait] port $PORT busy, retrying..."
+    echo "[wait] port $port busy, retrying..."
     sleep 1
   done
   return 0
@@ -95,6 +96,8 @@ if [ -n "$SKIPPED" ]; then
   echo "=== WARNING: Some services were skipped ==="
   echo "  Skipped:${SKIPPED}"
   echo "  Started:${STARTED}"
+  # Exit non-zero if the bridge (required gateway) was skipped
+  case "$SKIPPED" in *bridge*) echo "[error] Bridge is a required service. Exiting."; exit 1;; esac
 else
   echo "=== All services running ==="
 fi

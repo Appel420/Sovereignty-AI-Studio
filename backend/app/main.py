@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
@@ -39,7 +40,7 @@ async def mobile_status():
         "status": "online",
         "service": "Sovereignty AI Studio",
         "api_version": "v1",
-        "port": 9898,
+        "port": int(os.environ.get("BACKEND_PORT", 8000)),
         "endpoints": {
             "health": "/health",
             "alerts": "/api/v1/alerts",

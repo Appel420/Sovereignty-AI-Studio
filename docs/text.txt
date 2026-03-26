@@ -1,0 +1,1 @@
+wc -l /home/claude/grok_edu/GrokEdu_MEGA_Dashboard.html && wc -c /home/claude/grok_edu/GrokEdu_MEGA_Dashboard.html && cp /home/claude/grok_edu/GrokEdu_MEGA_Dashboard.html /mnt/user-data/outputs/GrokEdu_MEGA_Dashboard.html

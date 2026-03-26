@@ -87,7 +87,7 @@ app = FastAPI(title="SuperGrok Security API", docs_url=None, redoc_url=None)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:9898","http://127.0.0.1:9898","null"],
+    allow_origins=["http://localhost:9898","http://127.0.0.1:9898"],
     allow_credentials=True,
     allow_methods=["POST","GET","OPTIONS"],
     allow_headers=["*"],

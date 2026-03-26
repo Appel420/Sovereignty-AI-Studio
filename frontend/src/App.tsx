@@ -11,6 +11,11 @@ import MediaGenerator from './pages/MediaGenerator';
 import VoiceChat from './pages/VoiceChat';
 import AvatarCompanion from './pages/AvatarCompanion';
 import GameBuilder from './pages/GameBuilder';
+import Organizations from './pages/Organizations';
+import ProjectDashboard from './pages/ProjectDashboard';
+import SecurityDashboard from './pages/SecurityDashboard';
+import Marketplace from './pages/Marketplace';
+import TelemetryDashboard from './pages/TelemetryDashboard';
 
 function App() {
   return (
@@ -27,6 +32,11 @@ function App() {
           <Route path="/voice-chat" element={<VoiceChat />} />
           <Route path="/avatar-companion" element={<AvatarCompanion />} />
           <Route path="/game-builder" element={<GameBuilder />} />
+          <Route path="/organizations" element={<Organizations />} />
+          <Route path="/organizations/:orgId" element={<ProjectDashboard />} />
+          <Route path="/security" element={<SecurityDashboard />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/telemetry" element={<TelemetryDashboard />} />
         </Routes>
       </Layout>
     </Router>

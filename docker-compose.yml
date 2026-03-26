@@ -1,48 +1,239 @@
-version: '3.8'
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Sovereignty AI Studio — Self-Hosted Docker Stack
+# NO external SaaS. NO Ollama. NO third-party AI vendors.
+# All AI routes through the sovereign bridge (port 9898).
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
-  backend:
-    build: ./backend
-    # Internal only - no external port exposure
-    # Accessible via node-bridge on port 9898
-    expose:
-      - "8000"
-    environment:
-      - DATABASE_URL=postgresql://postgres:password@db:5432/creativeflow_db
-    depends_on:
-      - db
-      - redis
 
-  node-bridge:
-    build: ./node-bridge
-    # ONLY external port - all traffic goes through 9898
-    ports:
-      - "9898:9898"
-    environment:
-      - BACKEND_URL=http://backend:8000
-      - WEATHER_URL=http://backend:8001
-      - NODE_BRIDGE_PORT=9898
-      - CORS_ORIGIN=http://localhost:9898
-    depends_on:
-      - backend
-
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
   db:
-    image: postgres:13
+    image: postgres:16
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: creativeflow_db
-    # Internal only - accessible via backend services
+      POSTGRES_USER: ${POSTGRES_USER:-sovereignty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:-sovereignty_db}
     expose:
       - "5432"
     volumes:
       - db_data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sovereignty}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── Redis ─────────────────────────────────────────────────────────────────
   redis:
-    image: redis:7
-    # Internal only - accessible via backend services
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     expose:
       - "6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # ── Python Backend (FastAPI) ──────────────────────────────────────────────
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      SOVEREIGN_MODEL_PATH: ${SOVEREIGN_MODEL_PATH:-/models/sovereign.gguf}
+      SOVEREIGN_ONNX_PATH: ${SOVEREIGN_ONNX_PATH:-/models/sovereign.onnx}
+      SOVEREIGN_API_URL: http://node-bridge:9898/api/ai
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
+      LOG_DIR: /app/logs
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      XAI_API_KEY: ${XAI_API_KEY:-}
+    volumes:
+      - ./logs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Node.js Sovereign Bridge (only external port: 9898) ───────────────────
+  node-bridge:
+    build: ./node-bridge
+    restart: unless-stopped
+    ports:
+      - "9898:9898"
+    environment:
+      NODE_BRIDGE_PORT: "9898"
+      BACKEND_URL: http://backend:8000
+      WEATHER_URL: http://backend:8001
+      SOVEREIGN_API_URL: http://backend:8000/api/ai
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9898/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # ── Keycloak (self-hosted SSO) ────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.5
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
+      KC_DB_USERNAME: ${POSTGRES_USER:-sovereignty}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+    command: start-dev
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - keycloak
+
+  # ── Multi-agent system ────────────────────────────────────────────────────
+  judge_agent:
+    build:
+      context: .
+      dockerfile: agents/judge_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "9001"
+    environment:
+      - JUDGE_METRICS_PORT=9001
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  ai_router_agent:
+    build:
+      context: .
+      dockerfile: agents/ai_router_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8001"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  plugin_agent:
+    build:
+      context: .
+      dockerfile: agents/plugin_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8002"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
+
+  platform_agent:
+    build:
+      context: .
+      dockerfile: agents/platform_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8003"
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
+      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
+      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - YOUTUBE_STREAM_ID=${YOUTUBE_STREAM_ID:-}
+      - KICK_CHANNEL=${KICK_CHANNEL:-}
+      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+    depends_on:
+      - judge_agent
+      - redis
+
+  voice_assist_agent:
+    build:
+      context: .
+      dockerfile: agents/voice_assist_agent/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8004"
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - judge_agent
+      - redis
+
+  # ── Python multi-agent gateway (internal port 9000) ───────────────────────
+  # External traffic still enters through node-bridge on port 9898.
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "9000"
+    environment:
+      - GATEWAY_PORT=9000
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - XAI_API_KEY=${XAI_API_KEY:-}
+      - PLUGIN_SDK_DIR=/app/plugin_sdk
+    depends_on:
+      - judge_agent
+      - redis
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
+      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+    depends_on:
+      - node-bridge
+    profiles:
+      - production
 
 volumes:
   db_data:
+    driver: local
+  redis_data:
+    driver: local

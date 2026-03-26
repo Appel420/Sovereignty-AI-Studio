@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-SuperGrok Bridge Server — localhost:9898
+Sovereignty AI Studio — Bridge Server (ws://localhost:9898)
 BridgeServer class-based architecture with:
+- Sovereign AI routing (no external SaaS, no Anthropic/OpenAI calls)
 - broadcast_ai_response helper
-- graceful shutdown via stop()
-- AI agent calls refactored into _chat_claude, _chat_gpt, _chat_grok
+- Graceful shutdown via stop()
+All AI requests route through ai_core.sovereign_bridge.
 """
 
 import asyncio
@@ -26,26 +27,11 @@ except ImportError:
     WS_OK = False
     print("WARNING: websockets not installed. Run: pip3 install websockets")
 
-try:
-    import anthropic
-
-    CLAUDE_OK = True
-except ImportError:
-    CLAUDE_OK = False
-
-try:
-    import openai
-
-    OPENAI_OK = True
-except ImportError:
-    OPENAI_OK = False
-
 PORT = int(os.environ.get("SG_PORT", 9898))
 HOST = os.environ.get("SG_HOST", "localhost")
-CLAUDE_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
-OPENAI_KEY = os.environ.get("OPENAI_API_KEY", "")
-GROK_KEY = os.environ.get("GROK_API_KEY", "")
-COPILOT_TOKEN = os.environ.get("GITHUB_COPILOT_TOKEN", "")
+SOVEREIGN_API_URL = os.environ.get(
+    "SOVEREIGN_API_URL", "http://localhost:8000/api/ai"
+).rstrip("/")
 
 ROOT_DIR = pathlib.Path(__file__).parent
 LOGS_DIR = ROOT_DIR / "logs"
@@ -98,87 +84,56 @@ class BridgeServer:
         }
         await self.broadcast(payload, exclude=exclude)
 
-    async def _chat_claude(self, msg: str, sys_prompt: str) -> str:
+    async def _chat_sovereign(self, msg: str, sys_prompt: str, agent: str = "sovereign") -> str:
+        """Route to the local sovereign AI bridge — no external SaaS."""
         try:
-            client = anthropic.Anthropic(api_key=CLAUDE_KEY)
-            result = client.messages.create(
-                model="claude-sonnet-4-5",
-                max_tokens=2048,
-                system=sys_prompt,
-                messages=[{"role": "user", "content": msg}],
-            )
-            return result.content[0].text if result.content else ""
-        except Exception as e:
-            log.error("Claude error: %s", e)
-            return f"[Claude error: {e}]"
+            from ai_core.sovereign_bridge import SovereignBridge
 
-    async def _chat_gpt(self, msg: str, sys_prompt: str) -> str:
-        try:
-            client = openai.OpenAI(api_key=OPENAI_KEY)
-            result = client.chat.completions.create(
-                model="gpt-4o",
-                max_tokens=2048,
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": msg},
-                ],
-            )
-            return result.choices[0].message.content or ""
-        except Exception as e:
-            log.error("GPT error: %s", e)
-            return f"[GPT-4o error: {e}]"
+            bridge = SovereignBridge()
+            messages = []
+            if sys_prompt:
+                messages.append({"role": "system", "content": sys_prompt})
+            messages.append({"role": "user", "content": msg})
+            return bridge.chat(messages)
+        except Exception as e:  # noqa: BLE001
+            log.warning("Sovereign bridge failed, falling back to HTTP: %s", e)
 
-    async def _chat_grok(self, msg: str, sys_prompt: str) -> str:
+        # HTTP fallback to the sovereign API endpoint
         try:
+            messages = [{"role": "user", "content": msg}]
+            if sys_prompt:
+                messages.insert(0, {"role": "system", "content": sys_prompt})
+            body = json.dumps({
+                "messages": messages,
+                "max_tokens": 2048,
+                "context": {"agent": agent},
+            }).encode()
             req = urllib.request.Request(
-                "https://api.x.ai/v1/chat/completions",
-                data=json.dumps(
-                    {
-                        "model": "grok-3",
-                        "messages": [
-                            {"role": "system", "content": sys_prompt},
-                            {"role": "user", "content": msg},
-                        ],
-                        "max_tokens": 2048,
-                    }
-                ).encode(),
-                headers={
-                    "Authorization": f"Bearer {GROK_KEY}",
-                    "Content-Type": "application/json",
-                },
+                f"{SOVEREIGN_API_URL}/chat",
+                data=body,
+                headers={"Content-Type": "application/json"},
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=30) as r:
                 data = json.loads(r.read())
-                return data["choices"][0]["message"]["content"]
-        except Exception as e:
-            log.error("Grok error: %s", e)
-            return f"[Grok error: {e}]"
+                return (
+                    data.get("text")
+                    or data.get("response")
+                    or (data.get("choices", [{}])[0].get("message", {}).get("content", ""))
+                    or "[no response]"
+                )
+        except Exception as e:  # noqa: BLE001
+            log.error("Sovereign API error: %s", e)
+            return f"[Sovereign bridge error: {e}]"
 
     async def ai_chat(self, ws, msg: str, agent: str, context: str, system: str = ""):
         sys_prompt = system or (
-            "You are a highly capable AI assistant integrated into SuperGrok — "
-            "a secure, on-device AI platform. Be precise and production-ready. "
+            "You are a sovereign AI assistant running entirely on self-hosted infrastructure. "
+            "No data leaves the network. Be precise and production-ready. "
             "Never fabricate data, and cite uncertainty when unsure."
         )
 
-        reply = ""
-        agent_lower = agent.lower()
-
-        if agent_lower in ("claude", "claude_sonnet", "") and CLAUDE_OK and CLAUDE_KEY:
-            reply = await self._chat_claude(msg, sys_prompt)
-        elif agent_lower in ("gpt", "gpt-4o", "openai") and OPENAI_OK and OPENAI_KEY:
-            reply = await self._chat_gpt(msg, sys_prompt)
-        elif agent_lower in ("grok", "grok-3", "grok4.20", "grok-4.20", "xai") and GROK_KEY:
-            reply = await self._chat_grok(msg, sys_prompt)
-        else:
-            keys = {
-                "claude": "ANTHROPIC_API_KEY",
-                "gpt": "OPENAI_API_KEY",
-                "grok": "GROK_API_KEY",
-                "copilot": "GITHUB_COPILOT_TOKEN",
-            }
-            reply = f"[{agent} offline — set {keys.get(agent_lower, 'API_KEY')} before starting bridge.py]"
+        reply = await self._chat_sovereign(msg, sys_prompt, agent)
 
         log.info("%s response: %s...", agent, reply[:50])
         await self.send(
