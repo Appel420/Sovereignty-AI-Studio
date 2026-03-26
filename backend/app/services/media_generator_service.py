@@ -215,9 +215,12 @@ class MediaGeneratorService:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(sample_rate)
-                for i in range(n_samples):
-                    sample = int(16000 * math.sin(2 * math.pi * frequency * i / sample_rate))
-                    wf.writeframes(struct.pack("<h", sample))
+                # Pre-compute all samples into a buffer for efficiency
+                frames = b"".join(
+                    struct.pack("<h", int(16000 * math.sin(2 * math.pi * frequency * i / sample_rate)))
+                    for i in range(n_samples)
+                )
+                wf.writeframes(frames)
 
             job.result_path = out_path
             job.status = GenerationStatus.COMPLETED

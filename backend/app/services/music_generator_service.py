@@ -157,13 +157,16 @@ class MusicGeneratorService:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(sample_rate)
-                for i in range(n_samples):
-                    t = i / sample_rate
-                    # Amplitude-modulated tone: carrier × beat envelope
-                    envelope = 0.5 + 0.5 * math.sin(2 * math.pi * beat_freq * t)
-                    sample = int(16000 * envelope * math.sin(2 * math.pi * base_freq * t))
-                    sample = max(-32767, min(32767, sample))
-                    wf.writeframes(struct.pack("<h", sample))
+                # Pre-compute all samples into a buffer for efficiency
+                frames = b"".join(
+                    struct.pack("<h", max(-32767, min(32767, int(
+                        16000
+                        * (0.5 + 0.5 * math.sin(2 * math.pi * beat_freq * i / sample_rate))
+                        * math.sin(2 * math.pi * base_freq * i / sample_rate)
+                    ))))
+                    for i in range(n_samples)
+                )
+                wf.writeframes(frames)
 
             job.result_path = out_path
             job.status = MusicStatus.COMPLETED

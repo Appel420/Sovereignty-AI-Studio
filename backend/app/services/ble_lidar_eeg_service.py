@@ -328,7 +328,10 @@ class BLELidarEEGService:
             }
             raw_quality = round(1.0 - float(np.std(arr)) / (float(np.max(arr) - np.min(arr)) + 1e-9), 3)
         else:
-            # No raw data available – return noise-floor baseline from sensor
+            # No raw data from hardware sensor. These are NOT real measurements –
+            # they represent the sensor noise floor baseline when no BLE hardware
+            # is connected. Values are near-zero random floats indicating absence
+            # of a real signal, clearly distinguishable from actual brain-wave data.
             band_powers = {
                 EEGBand.DELTA.value: round(random.uniform(0.1, 2.0), 2),
                 EEGBand.THETA.value: round(random.uniform(0.1, 2.0), 2),

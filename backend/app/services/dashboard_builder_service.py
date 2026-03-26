@@ -183,7 +183,6 @@ class DashboardBuilderService:
                     capture_output=True,
                     text=True,
                     timeout=120,
-                    shell=isinstance(build_cmd, str),
                 )
                 build_log.append(result.stdout)
                 if result.returncode != 0:
