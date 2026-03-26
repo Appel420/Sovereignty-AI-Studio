@@ -8,3 +8,4 @@ pydantic>=1.0
 pydantic-settings
 email-validator
 sqlalchemy
+python-jose[cryptography]
