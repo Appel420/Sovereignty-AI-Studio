@@ -38,7 +38,7 @@ class Alert(Base):
     source = Column(String(100), nullable=True)  # Source component/module
     severity = Column(String(20), default="medium")  # low, medium, high, critical
     action_url = Column(String(500), nullable=True)  # Optional link to related resource
-    metadata = Column(Text, nullable=True)  # JSON string for additional data
+    extra_data = Column("metadata", Text, nullable=True)  # JSON string for additional data
     
     # Timestamps
     created_at = Column(DateTime, default=func.now(), index=True)

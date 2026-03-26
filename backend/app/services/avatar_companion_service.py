@@ -134,16 +134,54 @@ class AvatarCompanionService:
     def _generate_avatar_response(
         self, avatar: AvatarProfile, message: str
     ) -> str:
-        """Generate a contextual response from the avatar."""
-        greeting_words = {"hello", "hi", "hey"}
-        if message.lower().strip() in greeting_words:
-            return f"Hi there! I'm {avatar.name}, your AI companion. How can I assist you?"
-        if "help" in message.lower():
-            return (
-                f"Of course! As {avatar.name}, I can guide you through "
-                "media creation, project building, voice interaction, and more."
+        """Generate a contextual response from the avatar via sovereign AI router.
+
+        Routes through xAI → Anthropic → OpenAI with automatic fallback.
+        Falls back to acknowledgement only if no providers are configured.
+        """
+        try:
+            import asyncio
+            from app.services.ai_router import ai_router
+
+            if not ai_router.available_providers:
+                logger.warning("No AI providers configured – returning acknowledgement")
+                return f"[{avatar.name}] Received: '{message}'"
+
+            system_prompt = (
+                f"You are {avatar.name}, an AI companion avatar in the "
+                f"Sovereignty AI Studio. Your personality is {avatar.personality}. "
+                f"Your current mood is {avatar.mood.value}. "
+                "Help the user with media creation, project building, voice "
+                "interaction, and creative workflows. Be concise and in character."
             )
-        return f"Got it! Let me work on that for you."
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(
+                        asyncio.run,
+                        ai_router.chat(
+                            prompt=message,
+                            system=system_prompt,
+                            max_tokens=512,
+                            temperature=0.7,
+                        ),
+                    ).result(timeout=30)
+            else:
+                result = asyncio.run(
+                    ai_router.chat(
+                        prompt=message,
+                        system=system_prompt,
+                        max_tokens=512,
+                        temperature=0.7,
+                    )
+                )
+
+            return result.get("text", f"[{avatar.name}] Received: '{message}'")
+        except Exception as exc:
+            logger.error("Avatar AI response failed: %s", exc)
+            return f"[{avatar.name} – AI unavailable] Received: '{message}'"
 
     @staticmethod
     def _avatar_to_dict(avatar: AvatarProfile) -> Dict[str, Any]:

@@ -4,14 +4,24 @@ Music Generator Service – AI-powered music composition and generation.
 Supports prompt-based music generation, loop creation, and beat synthesis
 using on-device models with Piper TTS vocal overlay capability.
 """
+import os
+import math
 import uuid
+import wave
+import struct
 import logging
 from enum import Enum
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+_OUTPUT_BASE = os.environ.get(
+    "MEDIA_OUTPUT_DIR",
+    os.path.join(Path(__file__).parent.parent.parent.parent, "media", "generated"),
+)
 
 
 class MusicGenre(str, Enum):
@@ -57,9 +67,22 @@ class MusicJob:
 class MusicGeneratorService:
     """AI music composition and generation service."""
 
-    def __init__(self):
+    # Base frequencies for genre tone generation (Hz)
+    _GENRE_FREQ: Dict[str, float] = {
+        "ambient": 220.0,
+        "electronic": 440.0,
+        "classical": 261.63,
+        "jazz": 293.66,
+        "hip_hop": 130.81,
+        "rock": 329.63,
+        "lo_fi": 196.0,
+        "cinematic": 174.61,
+    }
+
+    def __init__(self, output_dir: Optional[str] = None):
         self._jobs: Dict[str, MusicJob] = {}
-        logger.info("MusicGeneratorService initialised")
+        self._output_dir = output_dir or os.path.join(_OUTPUT_BASE, "music")
+        logger.info("MusicGeneratorService initialised (output: %s)", self._output_dir)
 
     def compose(
         self,
@@ -112,16 +135,45 @@ class MusicGeneratorService:
     # ── Composition pipeline ─────────────────────────────────────────
 
     def _process_composition(self, job: MusicJob) -> None:
-        """Process a music composition job."""
+        """Process a music composition job by synthesising a real WAV file.
+
+        Generates a sine-wave tone at the genre-appropriate base frequency,
+        modulated by the requested BPM. In a full deployment this delegates
+        to a neural music synthesis model.
+        """
         job.status = MusicStatus.COMPOSING
         try:
+            os.makedirs(self._output_dir, exist_ok=True)
+            out_path = os.path.join(self._output_dir, f"{job.job_id}.wav")
+
+            sample_rate = 22050
+            base_freq = self._GENRE_FREQ.get(job.genre.value, 440.0)
+            n_samples = int(sample_rate * job.duration_seconds)
+            beat_freq = job.bpm / 60.0  # beats per second
+
             job.status = MusicStatus.RENDERING
-            job.result_path = f"/media/generated/music/{job.job_id}.wav"
+
+            with wave.open(out_path, "w") as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(sample_rate)
+                for i in range(n_samples):
+                    t = i / sample_rate
+                    # Amplitude-modulated tone: carrier × beat envelope
+                    envelope = 0.5 + 0.5 * math.sin(2 * math.pi * beat_freq * t)
+                    sample = int(16000 * envelope * math.sin(2 * math.pi * base_freq * t))
+                    sample = max(-32767, min(32767, sample))
+                    wf.writeframes(struct.pack("<h", sample))
+
+            job.result_path = out_path
             job.status = MusicStatus.COMPLETED
             job.completed_at = datetime.now(timezone.utc).isoformat()
+            logger.info("Music composed: %s (%s, %ds, %d bpm)",
+                        out_path, job.genre.value, job.duration_seconds, job.bpm)
         except Exception as exc:
             job.status = MusicStatus.FAILED
             job.error_message = str(exc)
+            logger.error("Music composition failed: %s", exc)
 
     @staticmethod
     def _job_to_dict(job: MusicJob) -> Dict[str, Any]:

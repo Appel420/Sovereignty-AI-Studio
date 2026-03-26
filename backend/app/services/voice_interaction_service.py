@@ -142,19 +142,53 @@ class VoiceInteractionService:
     def _generate_response(
         self, user_text: str, history: List[Dict[str, str]]
     ) -> str:
-        """Generate an AI response to user input.
+        """Generate an AI response via the sovereign AI router.
 
-        In production this delegates to the configured LLM backend.
+        Routes through xAI → Anthropic → OpenAI with automatic fallback.
+        Falls back to echo acknowledgement only if no providers are configured.
         """
-        greetings = {"hello", "hi", "hey", "greetings"}
-        if user_text.lower().strip() in greetings:
-            return "Hello! I'm your AI assistant. How can I help you today?"
-        if "help" in user_text.lower():
-            return (
-                "I can help with media generation, project management, "
-                "voice interaction, and more. What would you like to do?"
+        try:
+            import asyncio
+            from app.services.ai_router import ai_router
+
+            if not ai_router.available_providers:
+                logger.warning("No AI providers configured – returning acknowledgement")
+                return f"[No AI providers configured] Received: '{user_text}'"
+
+            system_prompt = (
+                "You are Ara, the Sovereignty AI Studio voice assistant. "
+                "You help users with media generation, project management, "
+                "voice interaction, code review, and creative workflows. "
+                "Be concise, helpful, and professional."
             )
-        return f"I received your message: '{user_text}'. Processing your request."
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    result = pool.submit(
+                        asyncio.run,
+                        ai_router.chat(
+                            prompt=user_text,
+                            system=system_prompt,
+                            max_tokens=512,
+                            temperature=0.7,
+                        ),
+                    ).result(timeout=30)
+            else:
+                result = asyncio.run(
+                    ai_router.chat(
+                        prompt=user_text,
+                        system=system_prompt,
+                        max_tokens=512,
+                        temperature=0.7,
+                    )
+                )
+
+            return result.get("text", f"Received: '{user_text}'")
+        except Exception as exc:
+            logger.error("AI response generation failed: %s", exc)
+            return f"[AI unavailable] Received: '{user_text}'"
 
     # ── Configuration ────────────────────────────────────────────────
 

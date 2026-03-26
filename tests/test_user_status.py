@@ -1,12 +1,13 @@
 """Tests for the user status (online/offline) feature.
 
+Uses a real in-memory SQLite database – no mocks.
+
 Covers the UserStatus enum, UserStatusUpdate / UserStatusResponse schemas,
 the update_user_status service function, and model field verification.
 """
 import os
 import sys
 import pytest
-from unittest.mock import MagicMock, patch
 from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -102,65 +103,79 @@ class TestUserInDBStatusDefaults:
         assert user.last_seen is None
 
 
-# ── Service tests ────────────────────────────────────────────────────
+# ── Service tests (real in-memory SQLite) ────────────────────────────
 
-from backend.app.services.user_service import update_user_status
-# Re-use the User model already imported via the service module
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.core.database import Base
 from app.models.user import User as UserModel
+from backend.app.services.user_service import update_user_status
+from app.core.security import get_password_hash
+
+
+@pytest.fixture()
+def db_session():
+    """Create a real in-memory SQLite database session for each test."""
+    engine = create_engine("sqlite:///:memory:")
+    # Import ALL models so SQLAlchemy can resolve cross-model relationships
+    import app.models.user        # noqa: F401
+    import app.models.project     # noqa: F401
+    import app.models.generation  # noqa: F401
+    import app.models.alert       # noqa: F401
+    import app.models.media       # noqa: F401
+    import app.models.session     # noqa: F401
+    import app.models.audit_log   # noqa: F401
+    import app.models.plugin      # noqa: F401
+    import app.models.usage       # noqa: F401
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    yield session
+    session.close()
+    engine.dispose()
+
+
+@pytest.fixture()
+def sample_user(db_session):
+    """Insert a real user row into the test database."""
+    user = UserModel(
+        email="alice@example.com",
+        username="alice",
+        full_name="Alice Test",
+        hashed_password=get_password_hash("password123"),
+        is_active=True,
+        status="offline",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
 
 
 class TestUpdateUserStatusService:
-    def _make_mock_user(self, user_id=1, username="alice", status="offline"):
-        user = MagicMock()
-        user.id = user_id
-        user.username = username
-        user.status = status
-        user.last_seen = None
-        return user
-
-    def test_update_to_online(self):
-        mock_user = self._make_mock_user()
-        db = MagicMock()
-
-        with patch(
-            "backend.app.services.user_service.get_user_by_id",
-            return_value=mock_user,
-        ):
-            result = update_user_status(db, 1, UserStatus.online)
+    def test_update_to_online(self, db_session, sample_user):
+        result = update_user_status(db_session, sample_user.id, UserStatus.online)
 
         assert result is not None
-        assert mock_user.status == "online"
-        assert mock_user.last_seen is not None
-        db.commit.assert_called_once()
-        db.refresh.assert_called_once_with(mock_user)
+        assert result.status == "online"
+        assert result.last_seen is not None
 
-    def test_update_to_offline(self):
-        mock_user = self._make_mock_user(status="online")
-        mock_user.last_seen = datetime.now(timezone.utc)
-        db = MagicMock()
+    def test_update_to_offline(self, db_session, sample_user):
+        # First go online
+        update_user_status(db_session, sample_user.id, UserStatus.online)
+        online_last_seen = sample_user.last_seen
 
-        with patch(
-            "backend.app.services.user_service.get_user_by_id",
-            return_value=mock_user,
-        ):
-            result = update_user_status(db, 1, UserStatus.offline)
-
+        # Then go offline
+        result = update_user_status(db_session, sample_user.id, UserStatus.offline)
         assert result is not None
-        assert mock_user.status == "offline"
-        # last_seen should not be updated when going offline
-        assert mock_user.last_seen is not None
+        assert result.status == "offline"
+        # last_seen should NOT be updated when going offline
+        assert result.last_seen == online_last_seen
 
-    def test_user_not_found_returns_none(self):
-        db = MagicMock()
-
-        with patch(
-            "backend.app.services.user_service.get_user_by_id",
-            return_value=None,
-        ):
-            result = update_user_status(db, 999, UserStatus.online)
-
+    def test_user_not_found_returns_none(self, db_session):
+        result = update_user_status(db_session, 999, UserStatus.online)
         assert result is None
-        db.commit.assert_not_called()
 
 
 # ── Model field tests ────────────────────────────────────────────────
