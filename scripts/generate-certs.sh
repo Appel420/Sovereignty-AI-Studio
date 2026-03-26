@@ -6,7 +6,7 @@
 set -euo pipefail
 
 CERT_DIR="${1:-./certs}"
-DAYS=365
+DAYS="${TLS_DAYS:-365}"
 CN="${TLS_CN:-localhost}"
 
 mkdir -p "$CERT_DIR"
