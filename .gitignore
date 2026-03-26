@@ -83,6 +83,12 @@ coverage.xml
 # Archives
 archives/*.zip
 
+# TLS certificates (never commit private keys)
+certs/
+*.pem
+*.key
+*.crt
+
 # Temporary files
 *.tmp
 *.bak

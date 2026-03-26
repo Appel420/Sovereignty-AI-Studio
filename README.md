@@ -253,7 +253,17 @@ PORT_UNIFIED=9000                  # Unified server port
 PORT_BRIDGE=9898                   # Bridge server port
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging
+
+# Optional: HTTPS/TLS (see scripts/generate-certs.sh)
+TLS_CERT=./certs/cert.pem         # Path to TLS certificate
+TLS_KEY=./certs/key.pem           # Path to TLS private key
 ```
+
+**HTTPS Support:**
+- Run `./scripts/generate-certs.sh` to generate self-signed certs for local dev
+- Set `TLS_CERT` and `TLS_KEY` in `.env` to enable HTTPS on node-bridge and unified server
+- In production (Docker), nginx terminates TLS on port 443 and proxies to the internal services
+- Without certs, all services default to HTTP (no changes required for local development)
 
 **Security Notes:**
 - Never commit API keys to version control
