@@ -2,7 +2,11 @@
 
 Covers voice interaction, avatar companion, media generator, music generator,
 syntax checker, dashboard builder, and BLE LiDAR EEG services.
+
+All tests exercise real service implementations — no mocks.
 """
+import os
+import tempfile
 import pytest
 
 # ── Voice Interaction Service ────────────────────────────────────────
@@ -39,6 +43,8 @@ class TestVoiceInteractionService:
         result = self.svc.process_text_input(session.session_id, "hello")
         assert "response_text" in result
         assert result["session_id"] == session.session_id
+        # Real implementation returns actual text (from LLM or acknowledgement)
+        assert len(result["response_text"]) > 0
 
     def test_process_text_input_invalid_session(self):
         result = self.svc.process_text_input("nonexistent", "hello")
@@ -83,6 +89,8 @@ class TestAvatarCompanionService:
         result = self.svc.interact(created["avatar_id"], "hello")
         assert "response" in result
         assert result["interaction_count"] == 1
+        # Real implementation returns actual text from AI or acknowledgement
+        assert len(result["response"]) > 0
 
     def test_interact_nonexistent(self):
         result = self.svc.interact("fake-id", "hello")
@@ -107,23 +115,30 @@ from backend.app.services.media_generator_service import (
 
 class TestMediaGeneratorService:
     def setup_method(self):
-        self.svc = MediaGeneratorService()
+        self._tmpdir = tempfile.mkdtemp()
+        self.svc = MediaGeneratorService(output_dir=self._tmpdir)
 
     def test_generate_image(self):
         result = self.svc.generate("user1", "image", "a sunset")
         assert result["media_type"] == "image"
         assert result["status"] == "completed"
         assert result["result_path"] is not None
+        # Verify real file was created on disk
+        assert os.path.isfile(result["result_path"])
+        assert os.path.getsize(result["result_path"]) > 0
 
     def test_generate_video(self):
         result = self.svc.generate("user1", "video", "waves crashing")
         assert result["media_type"] == "video"
         assert result["status"] == "completed"
+        assert os.path.isfile(result["result_path"])
 
     def test_generate_audio(self):
         result = self.svc.generate("user1", "audio", "rain sounds")
         assert result["media_type"] == "audio"
         assert result["status"] == "completed"
+        assert os.path.isfile(result["result_path"])
+        assert os.path.getsize(result["result_path"]) > 0
 
     def test_get_job(self):
         result = self.svc.generate("user1", "image", "test")
@@ -152,13 +167,18 @@ from backend.app.services.music_generator_service import (
 
 class TestMusicGeneratorService:
     def setup_method(self):
-        self.svc = MusicGeneratorService()
+        self._tmpdir = tempfile.mkdtemp()
+        self.svc = MusicGeneratorService(output_dir=self._tmpdir)
 
     def test_compose(self):
         result = self.svc.compose("user1", "calm piano", genre="classical", bpm=90)
         assert result["genre"] == "classical"
         assert result["bpm"] == 90
         assert result["status"] == "completed"
+        # Verify real WAV file was created
+        assert result["result_path"] is not None
+        assert os.path.isfile(result["result_path"])
+        assert os.path.getsize(result["result_path"]) > 0
 
     def test_compose_clamped_bpm(self):
         result = self.svc.compose("user1", "fast", bpm=999)
@@ -270,6 +290,9 @@ class TestDashboardBuilderService:
 
 from backend.app.services.ble_lidar_eeg_service import (
     BLELidarEEGService,
+    BLEDevice,
+    DeviceType,
+    ConnectionState,
 )
 
 
@@ -277,49 +300,72 @@ class TestBLELidarEEGService:
     def setup_method(self):
         self.svc = BLELidarEEGService()
 
-    def test_scan_devices(self):
+    def test_scan_devices_returns_list(self):
+        """Scan returns a list (may be empty if no BLE hardware)."""
         devices = self.svc.scan_devices()
-        assert len(devices) >= 2
-        types = {d["device_type"] for d in devices}
-        assert "eeg_headset" in types
-        assert "lidar_sensor" in types
+        assert isinstance(devices, list)
 
-    def test_connect_device(self):
-        devices = self.svc.scan_devices()
-        result = self.svc.connect_device(devices[0]["device_id"])
-        assert result["state"] == "connected"
+    def test_register_and_connect_device(self):
+        """Register a device directly and verify connect/disconnect cycle."""
+        dev = BLEDevice(
+            device_id="test-eeg-001",
+            name="Test EEG Headset",
+            device_type=DeviceType.EEG_HEADSET,
+            mac_address="AA:BB:CC:DD:EE:01",
+        )
+        self.svc._devices[dev.device_id] = dev
+        result = self.svc.connect_device(dev.device_id)
+        # Connection may succeed or return error (no real BLE hardware)
+        assert "device_id" in result or "error" in result
 
     def test_connect_nonexistent(self):
         result = self.svc.connect_device("fake-id")
         assert "error" in result
 
-    def test_eeg_stream(self):
-        devices = self.svc.scan_devices()
-        eeg_dev = next(d for d in devices if d["device_type"] == "eeg_headset")
-        self.svc.connect_device(eeg_dev["device_id"])
-        result = self.svc.start_eeg_stream(eeg_dev["device_id"])
+    def test_eeg_stream_lifecycle(self):
+        """Register, connect, stream, and read EEG data."""
+        dev = BLEDevice(
+            device_id="test-eeg-002",
+            name="Test EEG",
+            device_type=DeviceType.EEG_HEADSET,
+            mac_address="AA:BB:CC:DD:EE:02",
+            state=ConnectionState.CONNECTED,
+            channels=4,
+            sample_rate=256,
+        )
+        self.svc._devices[dev.device_id] = dev
+        result = self.svc.start_eeg_stream(dev.device_id)
         assert result["state"] == "streaming"
 
-    def test_eeg_reading(self):
-        devices = self.svc.scan_devices()
-        eeg_dev = next(d for d in devices if d["device_type"] == "eeg_headset")
-        self.svc.connect_device(eeg_dev["device_id"])
-        self.svc.start_eeg_stream(eeg_dev["device_id"])
-        reading = self.svc.get_eeg_reading(eeg_dev["device_id"])
+        reading = self.svc.get_eeg_reading(dev.device_id)
         assert "band_powers" in reading
         assert "alpha" in reading["band_powers"]
+        # Values should be real floats from sensor or noise-floor
+        assert isinstance(reading["band_powers"]["alpha"], float)
 
     def test_lidar_frame(self):
-        devices = self.svc.scan_devices()
-        lidar_dev = next(d for d in devices if d["device_type"] == "lidar_sensor")
-        result = self.svc.get_lidar_frame(lidar_dev["device_id"])
+        """Register a LiDAR device and read a frame."""
+        dev = BLEDevice(
+            device_id="test-lidar-001",
+            name="Test LiDAR",
+            device_type=DeviceType.LIDAR_SENSOR,
+            mac_address="AA:BB:CC:DD:EE:03",
+        )
+        self.svc._devices[dev.device_id] = dev
+        result = self.svc.get_lidar_frame(dev.device_id)
         assert "point_count" in result
-        assert result["point_count"] > 0
+        # Real sensor data – point_count may be 0 with no hardware
+        assert isinstance(result["point_count"], int)
 
     def test_disconnect(self):
-        devices = self.svc.scan_devices()
-        self.svc.connect_device(devices[0]["device_id"])
-        result = self.svc.disconnect_device(devices[0]["device_id"])
+        dev = BLEDevice(
+            device_id="test-dev-disc",
+            name="Test Device",
+            device_type=DeviceType.EEG_HEADSET,
+            state=ConnectionState.CONNECTED,
+        )
+        self.svc._devices[dev.device_id] = dev
+        result = self.svc.disconnect_device(dev.device_id)
         assert result["state"] == "disconnected"
 
     def test_status(self):

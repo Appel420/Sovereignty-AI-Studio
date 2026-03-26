@@ -4,3 +4,9 @@ pytest==8.3.3
 pytest-asyncio==0.23.8
 httpx==0.25.2
 pytest-cov==4.1.0
+pydantic>=1.0
+pydantic-settings
+email-validator
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]

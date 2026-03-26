@@ -20,7 +20,7 @@ class AlertService:
             source=alert.source,
             severity=alert.severity,
             action_url=alert.action_url,
-            metadata=alert.metadata,
+            extra_data=alert.metadata,
         )
         db.add(db_alert)
         db.commit()
