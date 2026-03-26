@@ -83,6 +83,12 @@ coverage.xml
 # Archives
 archives/*.zip
 
+# TLS certificates (never commit private keys)
+certs/
+*.pem
+*.key
+*.crt
+
 # Temporary files
 *.tmp
 *.bak
@@ -90,3 +96,6 @@ archives/*.zip
 .DS_Store
 *.swp
 *.swo
+
+# Generated media output
+media/generated/

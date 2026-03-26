@@ -684,7 +684,7 @@ export function useRealFocus(opts: UseFocusOptions = {}): {
         ...f,
         connected: false,
         mode: "error",
-        error: "SSE connection lost. Is eeg_streaming.py running on :5000?",
+        error: `SSE connection lost. Is eeg_streaming.py running on ${new URL(sseUrl).host}?`,
       }));
     };
   }, [sseUrl, onNudge]);

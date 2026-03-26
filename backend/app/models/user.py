@@ -17,6 +17,10 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     bio = Column(Text, nullable=True)
 
+    # Presence / online status
+    status = Column(String, default="offline")  # online, offline
+    last_seen = Column(DateTime, nullable=True)
+
     # Subscription/Plan info
     subscription_plan = Column(String, default="free")  # free, pro, enterprise
     subscription_expires_at = Column(DateTime, nullable=True)

@@ -4,8 +4,11 @@ Dashboard Project Builder AI – project management, game contractor, and build 
 Provides AI-driven project scaffolding, task management, contractor assignment,
 and build status tracking for the Sovereignty AI Studio dashboard.
 """
+import os
 import uuid
+import shutil
 import logging
+import subprocess
 from enum import Enum
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
@@ -160,21 +163,104 @@ class DashboardBuilderService:
     # ── Build pipeline ───────────────────────────────────────────────
 
     def trigger_build(self, project_id: str) -> Dict[str, Any]:
-        """Trigger a build/deploy pipeline for the project."""
+        """Trigger a real build/deploy pipeline for the project.
+
+        Executes the project's build commands via subprocess. Falls back
+        to a syntax validation check when no build toolchain is detected.
+        """
         project = self._projects.get(project_id)
         if not project:
             return {"error": "Project not found"}
 
         project.build_status = BuildStatus.BUILDING
-        # Simulate build pipeline
-        project.build_status = BuildStatus.TESTING
-        project.build_status = BuildStatus.SUCCESS
+        build_log: List[str] = []
+        try:
+            # Determine build command based on project type
+            build_cmd = self._resolve_build_command(project)
+            if build_cmd:
+                result = subprocess.run(
+                    build_cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=120,
+                )
+                build_log.append(result.stdout)
+                if result.returncode != 0:
+                    build_log.append(result.stderr)
+                    project.build_status = BuildStatus.FAILED
+                    return {
+                        "project_id": project.project_id,
+                        "build_status": project.build_status.value,
+                        "message": f"Build failed for '{project.name}'",
+                        "log": "\n".join(build_log),
+                    }
 
-        return {
-            "project_id": project.project_id,
-            "build_status": project.build_status.value,
-            "message": f"Build completed successfully for '{project.name}'",
+            # Testing phase – validate Python syntax in core directories
+            project.build_status = BuildStatus.TESTING
+            core_dirs = ["backend", "agents", "event_bus"]
+            existing_dirs = [d for d in core_dirs if os.path.isdir(d)]
+            if existing_dirs:
+                test_result = subprocess.run(
+                    ["python", "-m", "compileall", "-q"] + existing_dirs,
+                    capture_output=True, text=True, timeout=60,
+                )
+            else:
+                test_result = subprocess.run(
+                    ["python", "-c", "print('no core dirs to validate')"],
+                    capture_output=True, text=True, timeout=10,
+                )
+            build_log.append(test_result.stdout)
+            if test_result.returncode != 0:
+                build_log.append(test_result.stderr)
+                project.build_status = BuildStatus.FAILED
+                return {
+                    "project_id": project.project_id,
+                    "build_status": project.build_status.value,
+                    "message": f"Tests failed for '{project.name}'",
+                    "log": "\n".join(build_log),
+                }
+
+            project.build_status = BuildStatus.SUCCESS
+            return {
+                "project_id": project.project_id,
+                "build_status": project.build_status.value,
+                "message": f"Build completed successfully for '{project.name}'",
+                "log": "\n".join(build_log),
+            }
+        except subprocess.TimeoutExpired:
+            project.build_status = BuildStatus.FAILED
+            return {
+                "project_id": project.project_id,
+                "build_status": project.build_status.value,
+                "message": f"Build timed out for '{project.name}'",
+            }
+        except Exception as exc:
+            project.build_status = BuildStatus.FAILED
+            logger.error("Build pipeline error: %s", exc)
+            return {
+                "project_id": project.project_id,
+                "build_status": project.build_status.value,
+                "message": str(exc),
+            }
+
+    @staticmethod
+    def _resolve_build_command(project: "DashboardProject") -> Optional[List[str]]:
+        """Determine the appropriate build command for a project type."""
+        cmd_map = {
+            ProjectType.WEB_APP: None,  # uses compileall validation
+            ProjectType.API: None,
+            ProjectType.GAME: None,
+            ProjectType.AI_MODEL: None,
+            ProjectType.MOBILE_APP: None,
+            ProjectType.MEDIA: None,
         }
+        # Check for package.json → npm build
+        if os.path.isfile("package.json") and shutil.which("npm"):
+            return ["npm", "run", "build", "--if-present"]
+        # Check for Makefile → make
+        if os.path.isfile("Makefile") and shutil.which("make"):
+            return ["make"]
+        return cmd_map.get(project.project_type)
 
     def get_status(self) -> Dict[str, Any]:
         return {
