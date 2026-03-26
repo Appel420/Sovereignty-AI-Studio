@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from typing import Optional
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import UserCreate, UserUpdate, UserStatus
 from app.core.security import get_password_hash, verify_password
 from datetime import datetime
 
@@ -200,3 +200,27 @@ def reset_monthly_generations(db: Session, user_id: int) -> None:
         db_user.monthly_generations = 0
         db_user.last_generation_reset = datetime.utcnow()
         db.commit()
+
+
+def update_user_status(
+    db: Session, user_id: int, new_status: UserStatus
+) -> Optional[User]:
+    """Update a user's online/offline status.
+
+    Args:
+        db (Session): SQLAlchemy database session
+        user_id (int): The ID of the user to update
+        new_status (UserStatus): The new status value (online or offline)
+
+    Returns:
+        Optional[User]: Updated user object if successful, None if user not found
+    """
+    db_user = get_user_by_id(db, user_id)
+    if not db_user:
+        return None
+
+    db_user.status = new_status.value
+    db_user.last_seen = datetime.utcnow()
+    db.commit()
+    db.refresh(db_user)
+    return db_user

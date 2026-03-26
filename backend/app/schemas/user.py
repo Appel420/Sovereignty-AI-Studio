@@ -1,6 +1,12 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from enum import Enum
+
+
+class UserStatus(str, Enum):
+    online = "online"
+    offline = "offline"
 
 
 class UserBase(BaseModel):
@@ -21,10 +27,26 @@ class UserUpdate(BaseModel):
     avatar_url: Optional[str] = None
 
 
+class UserStatusUpdate(BaseModel):
+    status: UserStatus
+
+
+class UserStatusResponse(BaseModel):
+    user_id: int
+    username: str
+    status: str
+    last_seen: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 class UserInDB(UserBase):
     id: int
     is_active: bool
     is_verified: bool
+    status: str = "offline"
+    last_seen: Optional[datetime] = None
     subscription_plan: str
     subscription_expires_at: Optional[datetime]
     total_generations: int
