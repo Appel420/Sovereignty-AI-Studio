@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Grok Sovereign — Full Dashboard</title>
+<title>Grok Sovereign - Full Dashboard</title>
 <style>
   :root {
     --bg: #0f172a; --txt: #e0f2fe; --card: #1e293b;
@@ -75,7 +75,7 @@ async function runShip() {
   const ts = new Date().toISOString();
   const event = `${ts}|${head}|${intent}`;
   const hwSeal = await (async () => {
-    // fake hardware seal — in real: YUVA-9V pulse + Argon2
+    // fake hardware seal - in real: YUVA-9V pulse + Argon2
     return await new Promise(r => setTimeout(() => r("hw-" + Math.random().toString(36).slice(2)), 200));
   })();
 
@@ -87,7 +87,7 @@ async function runShip() {
 }
 
 async function runArgon(data) {
-  // fake Argon2 — real: call `argon2 data -id -t2 -m19`
+  // fake Argon2 - real: call `argon2 data -id -t2 -m19`
   await new Promise(r => setTimeout(r, 1500));
   return "argon-" + Math.random().toString(36).slice(2).slice(-10);
 }
@@ -148,14 +148,50 @@ function saveNote() {
   const sub = document.getElementById("note-subject").value;
   const body = document.getElementById("note-body").value;
   if (!sub || !body) return alert("Fill both.");
-  notes.push({sub, body, time: new Date().to ISOString()}); localStorage.setItem(“notes”, JSON.stringify(notes)); renderNotes(); alert(“Note saved.”); document.getElementById(“note-subject”).value = “”; document.getElementById(“note-body”).value = “”; }
-function renderNotes() {const notesDiv = document.getElementById(‘notes’); notesDiv.innerHTML = ‘’;
-if (notes.length === 0) { notesDiv.innerHTML = ‘<em>(nothing yet)</em>’; return; }
-notes.forEach((n, i) => { const line = document.createElement(‘div’); line.className = ‘note-entry’; line.style.marginBottom = ‘8px’; line.innerHTML = <strong>${escapeHtml(n.sub)}</strong>
- <small style="color:#94a3b8">${n.time}</small>
- ${escapeHtml(n.body)}; notesDiv.appendChild(line); });
-function escapeHtml(text) { return text.replace(/[&<>”’]/g, c => ({ ‘&’:’&’, ‘<’:’<’, ‘>’:’>’, ‘”’:’"’, “’”:’'’ }) ); }
-// load on start renderNotes();
-// cleanup old junk window.addEventListener(‘beforeunload’, () => { localStorage.setItem(‘notes’, JSON.stringify(notes)); });
-// optional — tiny reset window.reset = () => { if (confirm(‘Erase notes, seals, role?’)) { localStorage.clear(); notes = [ ]; renderNotes(); document.getElementById(‘chain-log’).innerHTML = ‘Cleared.’; location.reload(); } };
-logChat(‘Ready. Ship, study, note — all in one breath.’, ‘bot’); </script>
+  notes.push({ sub, body, time: new Date().toISOString() });
+  localStorage.setItem("notes", JSON.stringify(notes));
+  renderNotes();
+  alert("Note saved.");
+  document.getElementById("note-subject").value = "";
+  document.getElementById("note-body").value = "";
+}
+function renderNotes() {
+  const notesDiv = document.getElementById("notes");
+  notesDiv.innerHTML = "";
+  if (notes.length === 0) {
+    notesDiv.innerHTML = "<em>(nothing yet)</em>";
+    return;
+  }
+  notes.forEach((n) => {
+    const line = document.createElement("div");
+    line.className = "note-entry";
+    line.style.marginBottom = "8px";
+    line.innerHTML = `
+      <strong>${escapeHtml(n.sub)}</strong>
+      <small style="color:#94a3b8">${n.time}</small>
+      <div>${escapeHtml(n.body)}</div>
+    `;
+    notesDiv.appendChild(line);
+  });
+}
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+// load on start
+renderNotes();
+// cleanup old junk
+window.addEventListener("beforeunload", () => {
+  localStorage.setItem("notes", JSON.stringify(notes));
+});
+// optional - tiny reset
+window.reset = () => {
+  if (confirm("Erase notes, seals, role?")) {
+    localStorage.clear();
+    notes = [];
+    renderNotes();
+    document.getElementById("chain-log").innerHTML = "Cleared.";
+    location.reload();
+  }
+};
+logChat("Ready. Ship, study, note - all in one breath.", "bot");
+</script>
