@@ -21,7 +21,7 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: -apple-system, BlinkMacSystemFont, ‘Segoe UI’, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
 body {
@@ -81,11 +81,11 @@ transition: all 0.3s;
 }
 
 .consent-checkbox:hover {
-border-color: var(–primary);
+border-color: var(--primary);
 }
 
 .consent-checkbox.checked {
-border-color: var(–success);
+border-color: var(--success);
 background: rgba(16, 185, 129, 0.1);
 }
 
@@ -106,22 +106,22 @@ font-size: 1rem;
 }
 
 .btn-primary {
-background: var(–primary);
+background: var(--primary);
 color: white;
 }
 
 .btn-success {
-background: var(–success);
+background: var(--success);
 color: white;
 }
 
 .btn-danger {
-background: var(–danger);
+background: var(--danger);
 color: white;
 }
 
 .btn-warning {
-background: var(–warning);
+background: var(--warning);
 color: white;
 }
 
@@ -215,7 +215,7 @@ background: rgba(8, 145, 178, 0.1);
 }
 
 .nav-item.active {
-background: var(–primary);
+background: var(--primary);
 color: white;
 }
 
@@ -303,7 +303,7 @@ flex-direction: row-reverse;
 width: 40px;
 height: 40px;
 border-radius: 50%;
-background: var(–primary);
+background: var(--primary);
 display: flex;
 align-items: center;
 justify-content: center;
@@ -321,7 +321,7 @@ box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
 .chat-message.user .message-content {
-background: var(–primary);
+background: var(--primary);
 color: white;
 }
 
@@ -343,7 +343,7 @@ outline: none;
 }
 
 .chat-input:focus {
-border-color: var(–primary);
+border-color: var(--primary);
 }
 
 /* Drawing Canvas */
@@ -376,13 +376,13 @@ font-size: 1.2rem;
 }
 
 .tool-btn:hover {
-border-color: var(–primary);
+border-color: var(--primary);
 }
 
 .tool-btn.active {
-background: var(–primary);
+background: var(--primary);
 color: white;
-border-color: var(–primary);
+border-color: var(--primary);
 }
 
 .drawing-canvas {
@@ -464,7 +464,7 @@ z-index: 1000;
 width: 60px;
 height: 60px;
 border-radius: 50%;
-background: var(–danger);
+background: var(--danger);
 border: none;
 color: white;
 font-size: 1.5rem;
@@ -478,7 +478,7 @@ transform: scale(1.1);
 }
 
 .voice-btn.active {
-background: var(–success);
+background: var(--success);
 animation: pulse 1s infinite;
 }
 
@@ -547,25 +547,25 @@ gap: 12px;
 
 .alert-success {
 background: #f0fdf4;
-border-left: 4px solid var(–success);
+border-left: 4px solid var(--success);
 color: #065f46;
 }
 
 .alert-warning {
 background: #fffbeb;
-border-left: 4px solid var(–warning);
+border-left: 4px solid var(--warning);
 color: #92400e;
 }
 
 .alert-danger {
 background: #fef2f2;
-border-left: 4px solid var(–danger);
+border-left: 4px solid var(--danger);
 color: #991b1b;
 }
 
 .alert-info {
 background: #eff6ff;
-border-left: 4px solid var(–info);
+border-left: 4px solid var(--info);
 color: #1e40af;
 }
 
@@ -588,14 +588,14 @@ transition: all 0.3s;
 .peer-card:hover {
 transform: translateY(-5px);
 box-shadow: 0 8px 20px rgba(0,0,0,0.1);
-border-color: var(–primary);
+border-color: var(--primary);
 }
 
 .peer-status {
 width: 12px;
 height: 12px;
 border-radius: 50%;
-background: var(–success);
+background: var(--success);
 display: inline-block;
 margin-right: 8px;
 animation: pulse 2s infinite;
@@ -610,7 +610,7 @@ margin: 15px 0;
 display: block;
 margin-bottom: 8px;
 font-weight: 600;
-color: var(–dark);
+color: var(--dark);
 }
 
 .form-input,
@@ -628,7 +628,7 @@ transition: all 0.3s;
 .form-select:focus,
 .form-textarea:focus {
 outline: none;
-border-color: var(–primary);
+border-color: var(--primary);
 box-shadow: 0 0 0 3px rgba(8, 145, 178, 0.1);
 }
 
@@ -673,12 +673,12 @@ transition: all 0.3s;
 }
 
 .image-upload-area:hover {
-border-color: var(–primary);
+border-color: var(--primary);
 background: rgba(8, 145, 178, 0.05);
 }
 
 .image-upload-area.dragging {
-border-color: var(–success);
+border-color: var(--success);
 background: rgba(16, 185, 129, 0.1);
 }
 
@@ -718,7 +718,7 @@ grid-template-columns: 1fr;
 /* Loading Spinner */
 .spinner {
 border: 4px solid #f3f4f6;
-border-top: 4px solid var(–primary);
+border-top: 4px solid var(--primary);
 border-radius: 50%;
 width: 40px;
 height: 40px;
@@ -1205,7 +1205,7 @@ transform: rotate(360deg);
         <code style="background: #f3f4f6; padding: 10px; display: block; border-radius: 5px; margin-top: 10px;">
 ```
 
-const hash = await crypto.subtle.digest(‘SHA-256’, new TextEncoder().encode(apiKey + salt));
+const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(apiKey + salt));
 </code>
 </div>
 </div>
