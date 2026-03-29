@@ -5,7 +5,7 @@
 
 <script>
 /* SuperGrok Security Layer /**
- * SuperGrok Security Layer — Production
+ * SuperGrok Security Layer - Production
  * Zero-trust, render-blocking, WebAuthn hard gate
  * Injected into SuperGrok v13 before any other JS runs
  */
@@ -53,13 +53,13 @@ async function sgHash(data, algo='SHA-256'){
 }
 
 async function sgPinHash(pin, name, role){
-  // Never send raw PIN — always SHA3-512 equiv (SHA-256 chain here, SHA3 in prod)
+  // Never send raw PIN - always SHA3-512 equiv (SHA-256 chain here, SHA3 in prod)
   const salted = pin + ':' + name.toLowerCase() + ':' + role.toLowerCase();
   return await sgHash(salted, 'SHA-256');
 }
 
 async function sgPassphraseHash(passphrase, role){
-  // Client-side hash of passphrase — backend has HMAC-SHA3-512, never matches unless correct
+  // Client-side hash of passphrase - backend has HMAC-SHA3-512, never matches unless correct
   // This is just the client-visible hash; server does independent HMAC verification
   const data = 'PASSPHRASE:' + role.toUpperCase() + ':' + passphrase;
   return await sgHash(data, 'SHA-256');
@@ -151,11 +151,11 @@ async function sgAuthenticate(opts){
   const {name, role, rank, badge, pin, passphrase, webauthnCred, bioHash} = opts;
 
   if(SGS.locked){
-    sgToast('Account temporarily locked — wait 30s','err');
+    sgToast('Account temporarily locked - wait 30s','err');
     return {ok:false, reason:'locked'};
   }
 
-  // Child role block — render-time, before any server call
+  // Child role block - render-time, before any server call
   if(sgCheckChildBlock(role, opts.age||null)){
     sgShowAccessDenied('Unauthorized access attempt logged.');
     return {ok:false, reason:'child_blocked'};
@@ -190,7 +190,7 @@ async function sgAuthenticate(opts){
     });
     data = await res.json();
   }catch(e){
-    // Network offline — allow LOCAL mode (no sensitive panels)
+    // Network offline - allow LOCAL mode (no sensitive panels)
     sgAuditClient('OFFLINE_AUTH', name+':'+role);
     return sgOfflineAuth(opts);
   }
@@ -198,7 +198,7 @@ async function sgAuthenticate(opts){
   if(!res.ok){
     sgRecordFail();
     sgAuditClient('AUTH_FAIL', name+':'+role+' → '+res.status);
-    if(data.detail==='Access Denied') sgShowAccessDenied('Access Denied — attempt logged.');
+    if(data.detail==='Access Denied') sgShowAccessDenied('Access Denied - attempt logged.');
     else sgToast('Authentication failed','err');
     return {ok:false, reason:data.detail||'failed'};
   }
@@ -221,20 +221,20 @@ async function sgAuthenticate(opts){
 // ─── PANEL ACCESS GUARD (runs on EVERY load) ──────────
 async function sgGuardPanel(panelId){
   if(!SGS.token){
-    sgUnmountContent('403 — Not authenticated');
+    sgUnmountContent('403 - Not authenticated');
     return false;
   }
 
   // Local fast check first
   const panels = SGS.panels;
   if(panels !== '*' && !panels.includes(panelId)){
-    sgUnmountContent('403 — Panel not authorized for your role');
+    sgUnmountContent('403 - Panel not authorized for your role');
     sgAuditClient('PANEL_BLOCK', panelId+' denied for role '+SGS.role);
     sgToast('Access Denied: '+panelId,'err');
     return false;
   }
 
-  // Server-side double check — skip for offline/profile tokens
+  // Server-side double check - skip for offline/profile tokens
   if(navigator.onLine && SGS.token && !String(SGS.token).startsWith('offline_')){
     try{
       const res = await fetch(SG_API+'/api/auth/verify-panel',{
@@ -244,7 +244,7 @@ async function sgGuardPanel(panelId){
         signal:AbortSignal.timeout(3000),
       });
       if(!res.ok){
-        sgUnmountContent('403 — Server denied: '+panelId);
+        sgUnmountContent('403 - Server denied: '+panelId);
         return false;
       }
     }catch(e){
@@ -295,7 +295,7 @@ function sgOfflineAuth(opts){
   SGS.lvl    = cfg.lvl;
   SGS.panels = Array.isArray(cfg.nav) ? cfg.nav.flatMap(g=>(g.i||[]).map(i=>i.id)) : ['dashboard','profile','ai_chat','audit_trail'];
   SGS.token  = 'offline_' + Date.now();
-  sgToast('Offline mode — limited access','warn');
+  sgToast('Offline mode - limited access','warn');
   return{ok:true,offline:true,lvl:cfg.lvl,panels:SGS.panels};
 }
 
@@ -428,12 +428,12 @@ const OAI_COMMERCIAL_MODELS = new Set([
 
 /**
  * OAI Admin sees ONLY commercial models.
- * RESTRICTED (741 fine-tuned, internal) are hidden—no filter trick works.
+ * RESTRICTED (741 fine-tuned, internal) are hidden-no filter trick works.
  * Role check is done server-side on every API call too.
  */
 function sgFilterModelsForRole(models, role){
   if(role === 'oai_admin'){
-    // Hard filter — return only commercial, sort, no restricted
+    // Hard filter - return only commercial, sort, no restricted
     return models.filter(m => OAI_COMMERCIAL_MODELS.has(m.id))
                  .sort((a,b)=>a.id.localeCompare(b.id));
   }
@@ -460,7 +460,7 @@ window.SGSec = {
 
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>SuperGrok — Sovereign AI Platform</title>
+<title>SuperGrok - Sovereign AI Platform</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 :root{
@@ -788,10 +788,10 @@ textarea.inp{resize:vertical;min-height:72px;line-height:1.6}
 .sg-denied{display:flex;flex-direction:column;align-items:center;justify-content:center;
 height:60vh;text-align:center;padding:40px}
 .sg-denied-icon{font-size:64px;margin-bottom:20px;filter:grayscale(1)}
-.sg-denied-title{font-family:var(–mono);font-size:11px;color:var(–rd);
+.sg-denied-title{font-family:var(--mono);font-size:11px;color:var(--rd);
 letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
-.sg-denied-msg{font-size:13px;color:var(–mu2);max-width:320px;line-height:1.6}
-.sg-denied-ts{font-family:var(–mono);font-size:9px;color:var(–mu2);margin-top:16px}
+.sg-denied-msg{font-size:13px;color:var(--mu2);max-width:320px;line-height:1.6}
+.sg-denied-ts{font-family:var(--mono);font-size:9px;color:var(--mu2);margin-top:16px}
 
 </style>
 </head>
@@ -840,7 +840,7 @@ letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
   <div class="step on" id="step0">
     <div class="step-lbl">STEP 01 OF 04</div>
     <div class="step-title">Select Your Role</div>
-    <div class="step-sub">60+ roles · Levels 0–6 · Dilithium3 · Fully compliant</div>
+    <div class="step-sub">60+ roles · Levels 0-6 · Dilithium3 · Fully compliant</div>
     <div class="cat-chips" id="catChips"></div>
     <div class="role-grid" id="roleGrid"></div>
     <div class="btn-row">
@@ -901,7 +901,7 @@ letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
       <div class="bio-sub">Your key never leaves the device.</div>
       <div style="display:flex;flex-direction:column;gap:8px;max-width:300px;margin:0 auto">
         <button class="btn bp btn-w" onclick="A.bio()">Use Biometric (Recommended)</button>
-        <button class="btn bs btn-w" onclick="A.launch(false)">Skip — Continue with PIN</button>
+        <button class="btn bs btn-w" onclick="A.launch(false)">Skip - Continue with PIN</button>
       </div>
     </div>
     <div class="btn-row"><button class="btn bs" onclick="A.step(2)">← Back</button></div>
@@ -930,8 +930,8 @@ letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
     <div class="tb-ua">
       <div class="tb-av" id="tbAv">⚡</div>
       <div>
-        <div class="tb-un" id="tbName">—</div>
-        <div class="tb-ur" id="tbRole">—</div>
+        <div class="tb-un" id="tbName">-</div>
+        <div class="tb-ur" id="tbRole">-</div>
       </div>
     </div>
   </div>
@@ -939,8 +939,8 @@ letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
     <nav class="sb" id="sidebar">
       <div class="sb-hd">
         <div class="sb-av" id="sbAv">⚡</div>
-        <div class="sb-name" id="sbName">—</div>
-        <div class="sb-role" id="sbRlbl">—</div>
+        <div class="sb-name" id="sbName">-</div>
+        <div class="sb-role" id="sbRlbl">-</div>
         <div class="sb-badges">
           <span class="sbdg sbdg-pq">PQ-SAFE</span>
           <span class="sbdg sbdg-on">ONLINE</span>
@@ -1346,7 +1346,7 @@ auditor:{lbl:'Compliance Auditor',icon:'📊',lvl:3,color:'#1f2937',cat:'legal',
     {g:'System',i:[{id:'profile',ic:'👤',lb:'Profile'},{id:'stream_studio',ic:'🎬',lb:'Stream Studio'}]}
   ]},
 // AVIATION
-pilot:{lbl:'Pilot — Commercial / Military',icon:'✈️',lvl:3,color:'#0369a1',cat:'aviation',
+pilot:{lbl:'Pilot - Commercial / Military',icon:'✈️',lvl:3,color:'#0369a1',cat:'aviation',
   desc:'ATP Certified · FAA · ICAO',
   ranks:['Captain','First Officer','Second Officer','ATP','Commercial Pilot','Private Pilot'],
   nav:[
@@ -1411,7 +1411,7 @@ journalist:{lbl:'Journalist / Press Correspondent',icon:'📰',lvl:1,color:'#374
     {g:'AI Tools',i:[{id:'ai_chat',ic:'🤖',lb:'Research AI'},{id:'lie_detect',ic:'🧪',lb:'Fact Check'}]},
     {g:'System',i:[{id:'audit_trail',ic:'🔐',lb:'Source Log'},{id:'profile',ic:'👤',lb:'Profile'}]}
   ]},
-chaplain:{lbl:'Chaplain — Military / Hospital',icon:'✝️',lvl:2,color:'#7c3aed',cat:'social',
+chaplain:{lbl:'Chaplain - Military / Hospital',icon:'✝️',lvl:2,color:'#7c3aed',cat:'social',
   desc:'Spiritual Care · Non-Denominational',
   ranks:['Chief of Chaplains','Senior Chaplain','Chaplain','Chaplain Assistant'],
   nav:[
@@ -1453,14 +1453,14 @@ banker:{lbl:'Banker / Financial Officer',icon:'🏦',lvl:3,color:'#064e3b',cat:'
     {g:'System',i:[{id:'audit_trail',ic:'🔐',lb:'BSA Audit'},{id:'profile',ic:'👤',lb:'Profile'}]}
   ]},
 // CHILDREN & FAMILY
-child:{lbl:'Child (Ages 5–12)',icon:'🧒',lvl:1,color:'#f59e0b',cat:'family',
+child:{lbl:'Child (Ages 5-12)',icon:'🧒',lvl:1,color:'#f59e0b',cat:'family',
   desc:'COPPA Compliant · Age-Gated · Safe Learning',
   ranks:['Advanced Learner','Standard Learner','Emerging Learner'],
   nav:[
     {g:'Learning',i:[{id:'dashboard',ic:'📊',lb:'My Dashboard'},{id:'story_time',ic:'📖',lb:'Story Time'},{id:'learning_games',ic:'🎮',lb:'Learning Games'},{id:'drawing',ic:'🎨',lb:'Drawing'},{id:'ai_tutor',ic:'🤖',lb:'AI Helper'},{id:'stream_studio',ic:'🎬',lb:'Stream Studio'}]},
     {g:'Rewards',i:[{id:'rewards',ic:'💎',lb:'My Gems'},{id:'profile',ic:'👤',lb:'My Profile'}]}
   ]},
-teen:{lbl:'Teen (Ages 13–17)',icon:'🧑',lvl:1,color:'#8b5cf6',cat:'family',
+teen:{lbl:'Teen (Ages 13-17)',icon:'🧑',lvl:1,color:'#8b5cf6',cat:'family',
   desc:'COPPA/FERPA · School + Career Prep',
   ranks:['Honor Student','AP/Advanced','Standard'],
   nav:[
@@ -1560,7 +1560,7 @@ PANELS.dashboard = function(){
   var since=Math.floor((Date.now()-STATE.sessionStart)/1000);
   var h=ph('Dashboard','// Session Overview · '+R.lbl);
   h+=met([
-    {v:R.lbl||'—',l:'Role',s:'L'+R.lvl+' Clearance',c:R.color||'var(--cy)'},
+    {v:R.lbl||'-',l:'Role',s:'L'+R.lvl+' Clearance',c:R.color||'var(--cy)'},
     {v:(R.nav||[]).reduce(function(a,g){return a+(g.i||[]).length;},0),l:'Features',s:'Available panels'},
     {v:STATE.auditLog.length,l:'Audit Entries',s:'This session',c:'var(--gn)'},
     {v:STATE.memory.length,l:'Memory Cards',s:'Cross-session',c:'var(--vt)'},
@@ -1615,486 +1615,486 @@ PANELS.ai_chat = function(){
   h+='</div>';
   h+='<div class="chat-ir"><textarea class="chat-ta" id="chatInput" placeholder="Ask anything… Ctrl+Enter to send" onkeydown="chatKey(event)"></textarea>';
 
-h+=’<button class="chat-sb" id="chatSend" onclick="sendChat()">Send</button></div></div>’;
+h+='<button class="chat-sb" id="chatSend" onclick="sendChat()">Send</button></div></div>';
 // Voice note
-h+=’<div class="banner-i" style="margin-top:10px">🎙️ Say “Hey SuperGrok” with mic ON to voice-chat · Memory persists across sessions · Linear context window</div>’;
+h+='<div class="banner-i" style="margin-top:10px">🎙️ Say "Hey SuperGrok" with mic ON to voice-chat · Memory persists across sessions · Linear context window</div>';
 return h;
 };
 
 // ── BRIDGE CONFIG ─────────────────────────────────────
 PANELS.bridge = function(){
-var h=ph(‘Bridge Configuration’,’// Port 9898 · API Keys · Piper TTS · Keycloak’);
-h+=comp([‘Port 9898’,‘Piper TTS’,‘WebSocket’,‘Self-Cert’,‘Zero External Calls’]);
-h+=’<div class="g2">’;
+var h=ph('Bridge Configuration','// Port 9898 · API Keys · Piper TTS · Keycloak');
+h+=comp(['Port 9898','Piper TTS','WebSocket','Self-Cert','Zero External Calls']);
+h+='<div class="g2">';
 // AI Keys
-h+=’<div class="card"><div class="ct">🤖 AI Provider Keys</div>’;
-h+=’<div class="fg" style="margin-bottom:8px"><label>ANTHROPIC API KEY (Claude)</label><input class="fi" id="anthropicKey" type="password" placeholder="sk-ant-…" value="'+(SS.get('sg_anthropic_key')||'')+'"></div>’;
-h+=’<div class="fg" style="margin-bottom:8px"><label>OPENAI API KEY (GPT-4)</label><input class="fi" id="openaiKey" type="password" placeholder="sk-…" value="'+(SS.get('sg_openai_key')||'')+'"></div>’;
-h+=’<div class="fg" style="margin-bottom:8px"><label>XAI API KEY (Grok)</label><input class="fi" id="xaiKey" type="password" placeholder="xai-…" value="'+(SS.get('sg_xai_key')||'')+'"></div>’;
-h+=’<button class="btn bp btn-w" onclick="saveAIKeys()" style="margin-top:4px">Save API Keys</button></div>’;
+h+='<div class="card"><div class="ct">🤖 AI Provider Keys</div>';
+h+='<div class="fg" style="margin-bottom:8px"><label>ANTHROPIC API KEY (Claude)</label><input class="fi" id="anthropicKey" type="password" placeholder="sk-ant-…" value="'+(SS.get('sg_anthropic_key')||'')+'"></div>';
+h+='<div class="fg" style="margin-bottom:8px"><label>OPENAI API KEY (GPT-4)</label><input class="fi" id="openaiKey" type="password" placeholder="sk-…" value="'+(SS.get('sg_openai_key')||'')+'"></div>';
+h+='<div class="fg" style="margin-bottom:8px"><label>XAI API KEY (Grok)</label><input class="fi" id="xaiKey" type="password" placeholder="xai-…" value="'+(SS.get('sg_xai_key')||'')+'"></div>';
+h+='<button class="btn bp btn-w" onclick="saveAIKeys()" style="margin-top:4px">Save API Keys</button></div>';
 // Bridge
-h+=’<div class="card"><div class="ct">⚡ Port 9898 Bridge</div>’;
-h+=kv(‘Status’,tag(STATE.bridgeOnline?‘ONLINE’:‘OFFLINE’,STATE.bridgeOnline?‘tg’:‘tr2’));
-h+=kv(‘Primary’,‘ws://localhost:9000’);
-h+=kv(‘Bridge alias’,‘ws://localhost:9898’);
-h+=kv(‘Auth alias’,‘http://localhost:8443’);
-h+=kv(‘Piper TTS’,tag(STATE.piperActive?‘Active’:‘Inactive’,STATE.piperActive?‘tg’:‘ta2’));
-h+=’<div class="btn-row" style="margin-top:10px"><button class="btn bp" onclick="Bridge.connect()">Reconnect Bridge</button><button class="btn bs" onclick="Bridge.pingHealth()">Ping Health</button></div>’;
-h+=’<div class="banner-i" style="margin-top:8px">Run: <code>node unified_server.js</code> — all services on 9000/9898/8443</div></div>’;
-h+=’</div>’;
+h+='<div class="card"><div class="ct">⚡ Port 9898 Bridge</div>';
+h+=kv('Status',tag(STATE.bridgeOnline?'ONLINE':'OFFLINE',STATE.bridgeOnline?'tg':'tr2'));
+h+=kv('Primary','ws://localhost:9000');
+h+=kv('Bridge alias','ws://localhost:9898');
+h+=kv('Auth alias','http://localhost:8443');
+h+=kv('Piper TTS',tag(STATE.piperActive?'Active':'Inactive',STATE.piperActive?'tg':'ta2'));
+h+='<div class="btn-row" style="margin-top:10px"><button class="btn bp" onclick="Bridge.connect()">Reconnect Bridge</button><button class="btn bs" onclick="Bridge.pingHealth()">Ping Health</button></div>';
+h+='<div class="banner-i" style="margin-top:8px">Run: <code>node unified_server.js</code> - all services on 9000/9898/8443</div></div>';
+h+='</div>';
 // GitHub
-h+=’<div class="card"><div class="ct">🐙 GitHub Token</div>’;
-h+=’<div class="fg"><label>PERSONAL ACCESS TOKEN</label><input class="fi" id="ghToken" type="password" placeholder="ghp_…" value="'+(SS.get('sg_gh_token')||'')+'"></div>’;
-h+=’<div class="fg"><label>DEFAULT USERNAME</label><input class="fi" id="ghUser" type="text" placeholder="octocat" value="'+(SS.get('sg_gh_user')||'')+'"></div>’;
-h+=’<button class="btn bp" onclick="saveGHToken()">Save GitHub Token</button></div>’;
+h+='<div class="card"><div class="ct">🐙 GitHub Token</div>';
+h+='<div class="fg"><label>PERSONAL ACCESS TOKEN</label><input class="fi" id="ghToken" type="password" placeholder="ghp_…" value="'+(SS.get('sg_gh_token')||'')+'"></div>';
+h+='<div class="fg"><label>DEFAULT USERNAME</label><input class="fi" id="ghUser" type="text" placeholder="octocat" value="'+(SS.get('sg_gh_user')||'')+'"></div>';
+h+='<button class="btn bp" onclick="saveGHToken()">Save GitHub Token</button></div>';
 // Keycloak
-h+=’<div class="card"><div class="ct">🔑 Keycloak SSO (Optional)</div>’;
-h+=’<div class="fg"><label>KEYCLOAK URL</label><input class="fi" id="kcUrl" placeholder="https://auth.yourdomain.com/realms/supergrok" value="'+(SS.get('sg_kc_url')||'')+'"></div>’;
-h+=’<div class="fg"><label>CLIENT ID</label><input class="fi" id="kcClient" placeholder="supergrok-app" value="'+(SS.get('sg_kc_client')||'')+'"></div>’;
-h+=’<button class="btn bp" onclick="saveKC()">Save Keycloak Config</button></div>’;
+h+='<div class="card"><div class="ct">🔑 Keycloak SSO (Optional)</div>';
+h+='<div class="fg"><label>KEYCLOAK URL</label><input class="fi" id="kcUrl" placeholder="https://auth.yourdomain.com/realms/supergrok" value="'+(SS.get('sg_kc_url')||'')+'"></div>';
+h+='<div class="fg"><label>CLIENT ID</label><input class="fi" id="kcClient" placeholder="supergrok-app" value="'+(SS.get('sg_kc_client')||'')+'"></div>';
+h+='<button class="btn bp" onclick="saveKC()">Save Keycloak Config</button></div>';
 return h;
 };
 
 // ── MEMORY CARDS ─────────────────────────────────────
 PANELS.memory = function(){
-var h=ph(‘Memory Cards’,’// Cross-Session Linear Memory · Injected into every AI call’);
-h+=comp([‘localStorage’,‘Session Handoff’,‘AI Context Injection’,‘Search’,‘Export’]);
-h+=’<div class="card"><div class="ct">+ Add Memory Card</div>’;
-h+=’<div class="fg"><label>TITLE</label><input class="inp" id="memTitle" placeholder="e.g. Project: FastAPI backend"></div>’;
-h+=’<div class="fg" style="margin-top:8px"><label>CONTENT</label><textarea class="inp ta" id="memContent" placeholder="e.g. Tech stack: Python FastAPI + PostgreSQL + React. Auth: JWT. Deploy: Docker on Ubuntu 22."></textarea></div>’;
-h+=’<div class="btn-row"><button class="btn bp" onclick="addMemory()">Save Card</button><button class="btn bs" onclick="exportMemory()">Export JSON</button><button class="btn bd2" onclick="clearMemory()">Clear All</button></div></div>’;
-h+=’<div class="card"><div class="ct">📋 Active Memory Cards (’+STATE.memory.length+’)</div>’;
-if(!STATE.memory.length){h+=’<div class="empty"><div class="empty-i">🧠</div>No memory cards yet. Add context that persists across sessions.</div>’;}
+var h=ph('Memory Cards','// Cross-Session Linear Memory · Injected into every AI call');
+h+=comp(['localStorage','Session Handoff','AI Context Injection','Search','Export']);
+h+='<div class="card"><div class="ct">+ Add Memory Card</div>';
+h+='<div class="fg"><label>TITLE</label><input class="inp" id="memTitle" placeholder="e.g. Project: FastAPI backend"></div>';
+h+='<div class="fg" style="margin-top:8px"><label>CONTENT</label><textarea class="inp ta" id="memContent" placeholder="e.g. Tech stack: Python FastAPI + PostgreSQL + React. Auth: JWT. Deploy: Docker on Ubuntu 22."></textarea></div>';
+h+='<div class="btn-row"><button class="btn bp" onclick="addMemory()">Save Card</button><button class="btn bs" onclick="exportMemory()">Export JSON</button><button class="btn bd2" onclick="clearMemory()">Clear All</button></div></div>';
+h+='<div class="card"><div class="ct">📋 Active Memory Cards ('+STATE.memory.length+')</div>';
+if(!STATE.memory.length){h+='<div class="empty"><div class="empty-i">🧠</div>No memory cards yet. Add context that persists across sessions.</div>';}
 else{
-h+=’<div class="scroll-300" style="max-height:300px;overflow-y:auto">’;
+h+='<div class="scroll-300" style="max-height:300px;overflow-y:auto">';
 STATE.memory.forEach(function(m,i){
-h+=’<div style="display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)">’;
-h+=’<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;margin-bottom:2px">’+esc(m.title||‘Untitled’)+’</div><div style="font-size:10.5px;color:var(--mu)">’+esc((m.content||’’).slice(0,100))+’</div><div class="cmeta">’+m.ts+’</div></div>’;
-h+=’<button class="btn bd2" style="padding:4px 8px;font-size:10px;flex-shrink:0" onclick="delMemory(\'+i+\')">×</button></div>’;
+h+='<div style="display:flex;gap:8px;padding:9px 0;border-bottom:1px solid var(--bd)">';
+h+='<div style="flex:1;min-width:0"><div style="font-size:12px;font-weight:700;margin-bottom:2px">'+esc(m.title||'Untitled')+'</div><div style="font-size:10.5px;color:var(--mu)">'+esc((m.content||'').slice(0,100))+'</div><div class="cmeta">'+m.ts+'</div></div>';
+h+='<button class="btn bd2" style="padding:4px 8px;font-size:10px;flex-shrink:0" onclick="delMemory(\'+i+\')">×</button></div>';
 });
-h+=’</div>’;
+h+='</div>';
 }
-h+=’</div>’;
-h+=’<div class="banner-i">Memory cards are prepended to every AI call as context. <strong>Linear</strong>: they persist across browser sessions indefinitely until you delete them.</div>’;
+h+='</div>';
+h+='<div class="banner-i">Memory cards are prepended to every AI call as context. <strong>Linear</strong>: they persist across browser sessions indefinitely until you delete them.</div>';
 return h;
 };
 
 // ── QUANTUM TERMINAL ─────────────────────────────────
 PANELS.terminal = function(){
 var U=STATE.user;
-var h=ph(‘Quantum Terminal’,’// PQ-SAFE · Voice · Audit · On-Device · UNC-AI-2026’);
-h+=comp([‘ML-KEM-768’,‘Dilithium3’,‘BLAKE3’,‘ChaCha20-Poly1305’,‘FIPS 140-3’]);
-h+=’<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">’;
-h+=’<button class="btn bg2" id="voiceStartBtn" onclick="Term.startVoice()">🎙️ Voice On</button>’;
-h+=’<button class="btn bd2 hidden" id="voiceStopBtn" onclick="Term.stopVoice()">⏹ Voice Off</button>’;
-h+=’<div class="vi" id="termVoiceInd"><span>●</span> LISTENING</div>’;
-h+=’<span id="termTranscript" style="font-family:var(--mono);font-size:8.5px;color:var(--mu);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>’;
-h+=’<button class="btn bs" onclick="Term.toggleMute()" id="termMuteBtn" style="font-size:10px">🔊 Audio</button>’;
-h+=’</div>’;
-h+=’<div class="term-win">’;
-h+=’<div class="term-bar"><div class="td" style="background:#ff5f57"></div><div class="td" style="background:#febc2e"></div><div class="td" style="background:#28c840"></div>’;
-h+=’<div class="term-title">SuperGrok Quantum Terminal — ‘+(U?U.name+’ · ‘:’’)+new Date().toISOString().slice(0,10)+’</div>’;
-h+=’<button class="btn bs" style="padding:2px 8px;font-size:9px" onclick="Term.clear()">clr</button></div>’;
-h+=’<div class="term-out" id="termOut"></div>’;
-h+=’<div class="term-ir"><span class="term-pr" id="termPrompt">’+(U?U.name.split(’ ‘)[0].toLowerCase():‘user’)+’@supergrok:~$</span><input type="text" class="term-inp" id="termInp" placeholder="type command or speak…" autocomplete="off" spellcheck="false" onkeydown="Term.key(event)"><button class="btn bp" style="padding:4px 10px;font-size:10px;flex-shrink:0" onclick="Term.exec()">↵</button></div>’;
-h+=’</div>’;
+var h=ph('Quantum Terminal','// PQ-SAFE · Voice · Audit · On-Device · UNC-AI-2026');
+h+=comp(['ML-KEM-768','Dilithium3','BLAKE3','ChaCha20-Poly1305','FIPS 140-3']);
+h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">';
+h+='<button class="btn bg2" id="voiceStartBtn" onclick="Term.startVoice()">🎙️ Voice On</button>';
+h+='<button class="btn bd2 hidden" id="voiceStopBtn" onclick="Term.stopVoice()">⏹ Voice Off</button>';
+h+='<div class="vi" id="termVoiceInd"><span>●</span> LISTENING</div>';
+h+='<span id="termTranscript" style="font-family:var(--mono);font-size:8.5px;color:var(--mu);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>';
+h+='<button class="btn bs" onclick="Term.toggleMute()" id="termMuteBtn" style="font-size:10px">🔊 Audio</button>';
+h+='</div>';
+h+='<div class="term-win">';
+h+='<div class="term-bar"><div class="td" style="background:#ff5f57"></div><div class="td" style="background:#febc2e"></div><div class="td" style="background:#28c840"></div>';
+h+='<div class="term-title">SuperGrok Quantum Terminal - '+(U?U.name+' · ':'')+new Date().toISOString().slice(0,10)+'</div>';
+h+='<button class="btn bs" style="padding:2px 8px;font-size:9px" onclick="Term.clear()">clr</button></div>';
+h+='<div class="term-out" id="termOut"></div>';
+h+='<div class="term-ir"><span class="term-pr" id="termPrompt">'+(U?U.name.split(' ')[0].toLowerCase():'user')+'@supergrok:~$</span><input type="text" class="term-inp" id="termInp" placeholder="type command or speak…" autocomplete="off" spellcheck="false" onkeydown="Term.key(event)"><button class="btn bp" style="padding:4px 10px;font-size:10px;flex-shrink:0" onclick="Term.exec()">↵</button></div>';
+h+='</div>';
 // Quick cmds
-h+=’<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">’;
-[‘help’,‘status’,‘session’,‘algo’,‘audit’,‘whoami’,‘ping’,‘clear’].forEach(function(c){
-h+=’<button class="btn bs" style="font-family:var(--mono);font-size:9px;padding:4px 10px" data-tcmd="'+c+'" onclick="Term.run(this.dataset.tcmd)">’+c+’</button>’;
+h+='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">';
+['help','status','session','algo','audit','whoami','ping','clear'].forEach(function(c){
+h+='<button class="btn bs" style="font-family:var(--mono);font-size:9px;padding:4px 10px" data-tcmd="'+c+'" onclick="Term.run(this.dataset.tcmd)">'+c+'</button>';
 });
-h+=’<input id="termHashInp" class="inp" style="flex:1;min-width:100px;padding:4px 9px;font-size:10px;font-family:var(--mono)" placeholder="hash...">’;
-h+=’<button class="btn bs" style="font-family:var(--mono);font-size:9px;padding:4px 10px" onclick="termHashRun()">⊕</button>’;
+h+='<input id="termHashInp" class="inp" style="flex:1;min-width:100px;padding:4px 9px;font-size:10px;font-family:var(--mono)" placeholder="hash...">';
+h+='<button class="btn bs" style="font-family:var(--mono);font-size:9px;padding:4px 10px" onclick="termHashRun()">⊕</button>';
 
-h+=’</div>’;
+h+='</div>';
 // Audit log
-h+=’<div class="card" style="margin-top:10px"><div class="ct" style="display:flex;align-items:center;justify-content:space-between">Command Audit Log<button class="btn bs" style="padding:2px 8px;font-size:9px" onclick="Term.exportAudit()">Export JSON</button></div>’;
-h+=’<div id="termAuditLog" style="max-height:130px;overflow-y:auto"></div>’;
-h+=’<div id="termAuditEmpty" style="font-family:var(--mono);font-size:9px;color:var(--mu);padding:8px">No commands yet</div></div>’;
+h+='<div class="card" style="margin-top:10px"><div class="ct" style="display:flex;align-items:center;justify-content:space-between">Command Audit Log<button class="btn bs" style="padding:2px 8px;font-size:9px" onclick="Term.exportAudit()">Export JSON</button></div>';
+h+='<div id="termAuditLog" style="max-height:130px;overflow-y:auto"></div>';
+h+='<div id="termAuditEmpty" style="font-family:var(--mono);font-size:9px;color:var(--mu);padding:8px">No commands yet</div></div>';
 return h;
 };
 
 // ── GITHUB PANEL ─────────────────────────────────────
 PANELS.github_panel = function(){
-var h=ph(‘GitHub Integration’,’// Repos · Voice Commit · Create · Clone · Collaborate’);
-h+=comp([‘GitHub REST API’,‘Voice Commands’,‘Create Repos’,‘Commit’,‘Clone’,‘PR’]);
-if(!SS.get(‘sg_gh_token’)){
-return h+’<div class="banner-w">⚠️ Add your GitHub Personal Access Token in Bridge Config first.</div><button class="btn bp" onclick="D.load(\'bridge\')">Open Bridge Config</button>’;
+var h=ph('GitHub Integration','// Repos · Voice Commit · Create · Clone · Collaborate');
+h+=comp(['GitHub REST API','Voice Commands','Create Repos','Commit','Clone','PR']);
+if(!SS.get('sg_gh_token')){
+return h+'<div class="banner-w">⚠️ Add your GitHub Personal Access Token in Bridge Config first.</div><button class="btn bp" onclick="D.load(\'bridge\')">Open Bridge Config</button>';
 }
-h+=’<div class="g2" style="margin-bottom:10px">’;
-h+=’<div><div class="card"><div class="ct">🔍 Search Repos</div>’;
-h+=’<div class="ir"><input class="inp" id="ghSearch" placeholder="Search or username…"><button class="btn bp" style="flex-shrink:0" onclick="GH.search()">Search</button></div>’;
-h+=’<div class="btn-row" style="margin-top:8px"><button class="btn bg2" onclick="GH.myRepos()">My Repos</button><button class="btn bv" onclick="GH.trending()">Trending</button></div></div></div>’;
-h+=’<div><div class="card"><div class="ct">➕ Create Repository</div>’;
-h+=’<div class="fg"><label>REPO NAME</label><input class="fi" id="ghNewName" placeholder="my-project"></div>’;
-h+=’<div class="fg"><label>DESCRIPTION</label><input class="fi" id="ghNewDesc" placeholder="What does this do?"></div>’;
-h+=’<div class="tog-row" onclick="GH.togglePrivate()"><div class="tog" id="ghPrivTog"><div class="tog-k"></div></div><span class="tog-lbl">Private repository</span></div>’;
-h+=’<button class="btn bp btn-w" onclick="GH.createRepo()">Create Repository</button></div></div></div>’;
-h+=’<div id="ghRepos"><div class="banner-i">Click “My Repos” or search to see repositories.</div></div>’;
-h+=’<div id="ghFileView" class="hidden"><div class="card"><div class="ct" id="ghFileTitle">Files</div>’;
-h+=’<div id="ghFiles"></div></div></div>’;
-h+=’<div id="ghEditor" class="hidden"><div class="card"><div class="ct" id="ghEdTitle">Editor</div>’;
-h+=’<textarea class="inp ta" id="ghEdContent" style="height:200px;font-family:var(--mono);font-size:11px"></textarea>’;
-h+=’<div class="fg" style="margin-top:8px"><label>COMMIT MESSAGE</label><input class="fi" id="ghCommitMsg" placeholder="Update: …" ></div>’;
-h+=’<div class="btn-row"><button class="btn bp" onclick="GH.commit()">Commit & Push</button><button class="btn bs" onclick="el(\'ghEditor\').classList.add(\'hidden\')">Cancel</button></div></div></div>’;
-h+=’<div class="banner-i" style="margin-top:8px">🎙️ Voice: “create repo [name]”, “list my repos”, “commit [message]”, “open [repo name]”</div>’;
+h+='<div class="g2" style="margin-bottom:10px">';
+h+='<div><div class="card"><div class="ct">🔍 Search Repos</div>';
+h+='<div class="ir"><input class="inp" id="ghSearch" placeholder="Search or username…"><button class="btn bp" style="flex-shrink:0" onclick="GH.search()">Search</button></div>';
+h+='<div class="btn-row" style="margin-top:8px"><button class="btn bg2" onclick="GH.myRepos()">My Repos</button><button class="btn bv" onclick="GH.trending()">Trending</button></div></div></div>';
+h+='<div><div class="card"><div class="ct">➕ Create Repository</div>';
+h+='<div class="fg"><label>REPO NAME</label><input class="fi" id="ghNewName" placeholder="my-project"></div>';
+h+='<div class="fg"><label>DESCRIPTION</label><input class="fi" id="ghNewDesc" placeholder="What does this do?"></div>';
+h+='<div class="tog-row" onclick="GH.togglePrivate()"><div class="tog" id="ghPrivTog"><div class="tog-k"></div></div><span class="tog-lbl">Private repository</span></div>';
+h+='<button class="btn bp btn-w" onclick="GH.createRepo()">Create Repository</button></div></div></div>';
+h+='<div id="ghRepos"><div class="banner-i">Click "My Repos" or search to see repositories.</div></div>';
+h+='<div id="ghFileView" class="hidden"><div class="card"><div class="ct" id="ghFileTitle">Files</div>';
+h+='<div id="ghFiles"></div></div></div>';
+h+='<div id="ghEditor" class="hidden"><div class="card"><div class="ct" id="ghEdTitle">Editor</div>';
+h+='<textarea class="inp ta" id="ghEdContent" style="height:200px;font-family:var(--mono);font-size:11px"></textarea>';
+h+='<div class="fg" style="margin-top:8px"><label>COMMIT MESSAGE</label><input class="fi" id="ghCommitMsg" placeholder="Update: …" ></div>';
+h+='<div class="btn-row"><button class="btn bp" onclick="GH.commit()">Commit & Push</button><button class="btn bs" onclick="el(\'ghEditor\').classList.add(\'hidden\')">Cancel</button></div></div></div>';
+h+='<div class="banner-i" style="margin-top:8px">🎙️ Voice: "create repo [name]", "list my repos", "commit [message]", "open [repo name]"</div>';
 return h;
 };
 
 // ── AUDIT TRAIL ───────────────────────────────────────
 PANELS.audit_trail = function(){
-var h=ph(‘Audit Chain’,’// Dilithium3 · SHA-256 · Tamper-Evident · Court Admissible’);
-h+=comp([‘Dilithium3’,‘SHA-256 Chain’,‘Court Admissible’,‘CJIS’,‘SOC2’,‘ISO27001’]);
+var h=ph('Audit Chain','// Dilithium3 · SHA-256 · Tamper-Evident · Court Admissible');
+h+=comp(['Dilithium3','SHA-256 Chain','Court Admissible','CJIS','SOC2','ISO27001']);
 h+=met([
-{v:STATE.auditLog.length,l:‘Entries’,c:‘var(–cy)’},
-{v:STATE.memory.length,l:‘Memory Cards’,c:‘var(–vt)’},
-{v:Math.floor((Date.now()-STATE.sessionStart)/60000)+‘m’,l:‘Session Time’,c:‘var(–gn)’},
-{v:tag(‘SIGNED’,‘tg’),l:‘Chain Integrity’,c:‘var(–gn)’},
+{v:STATE.auditLog.length,l:'Entries',c:'var(--cy)'},
+{v:STATE.memory.length,l:'Memory Cards',c:'var(--vt)'},
+{v:Math.floor((Date.now()-STATE.sessionStart)/60000)+'m',l:'Session Time',c:'var(--gn)'},
+{v:tag('SIGNED','tg'),l:'Chain Integrity',c:'var(--gn)'},
 ]);
-h+=’<div class="btn-row" style="margin-bottom:10px"><button class="btn bp" onclick="exportAudit()">Export JSON</button><button class="btn bs" onclick="exportAuditCSV()">Export CSV</button><button class="btn bd2" onclick="clearAudit()">Clear</button></div>’;
-h+=’<div class="card"><div class="ct">Recent Entries</div>’;
-h+=’<div style="max-height:400px;overflow-y:auto">’;
-if(!STATE.auditLog.length){h+=’<div class="empty"><div class="empty-i">🔐</div>No audit entries yet</div>’;}
+h+='<div class="btn-row" style="margin-bottom:10px"><button class="btn bp" onclick="exportAudit()">Export JSON</button><button class="btn bs" onclick="exportAuditCSV()">Export CSV</button><button class="btn bd2" onclick="clearAudit()">Clear</button></div>';
+h+='<div class="card"><div class="ct">Recent Entries</div>';
+h+='<div style="max-height:400px;overflow-y:auto">';
+if(!STATE.auditLog.length){h+='<div class="empty"><div class="empty-i">🔐</div>No audit entries yet</div>';}
 else{
 var show=STATE.auditLog.slice().reverse().slice(0,100);
 show.forEach(function(e){
-h+=’<div class="arow"><span class="ats">’+new Date(e.ts).toLocaleTimeString()+’</span>’;
-h+=’<span class="atype">’+esc(e.type||‘EVENT’)+’</span>’;
-h+=’<span class="amsg">’+esc(e.msg||’’)+’</span>’;
-h+=’<span class="ahash">’+(e.hash||’’).slice(0,10)+’…</span></div>’;
+h+='<div class="arow"><span class="ats">'+new Date(e.ts).toLocaleTimeString()+'</span>';
+h+='<span class="atype">'+esc(e.type||'EVENT')+'</span>';
+h+='<span class="amsg">'+esc(e.msg||'')+'</span>';
+h+='<span class="ahash">'+(e.hash||'').slice(0,10)+'…</span></div>';
 });
 }
-h+=’</div></div>’;
+h+='</div></div>';
 return h;
 };
 
 // ── PROFILE ───────────────────────────────────────────
 PANELS.profile = function(){
 var U=STATE.user; var R=ROLES[STATE.roleKey]||{};
-var h=ph(‘Profile’,’// Identity · Biometrics · Preferences’);
-h+=’<div class="g2">’;
-h+=’<div class="card"><div class="ct">👤 Identity</div>’;
-h+=kv(‘Name’,U?U.name:’—’);h+=kv(‘Badge / ID’,U?U.badge:’—’);h+=kv(‘Role’,R.lbl||’—’);h+=kv(‘Rank’,U?U.rank:’—’);h+=kv(‘Level’,‘L’+(R.lvl||1));
-h+=kv(‘Session Started’,new Date(STATE.sessionStart).toLocaleTimeString());
-h+=’<div class="btn-row" style="margin-top:10px"><button class="btn bd2" onclick="D.logout()">Sign Out</button></div></div>’;
-h+=’<div>’;
-h+=’<div class="card"><div class="ct">🔐 Security</div>’;
-h+=kv(‘Biometric’,tag(STATE.bioEnrolled?‘Enrolled’:‘Not Enrolled’,STATE.bioEnrolled?‘tg’:‘ta2’));
-h+=kv(‘PQ Signature’,tag(‘Dilithium3’,‘tb2’));
-h+=kv(‘Session Key’,tag(‘Active’,‘tg’));
-h+=’<button class="btn bp btn-w" style="margin-top:10px" onclick="enrollBio()">’+( STATE.bioEnrolled?‘Re-enroll Biometric’:‘Enroll Biometric’)+’</button></div>’;
-h+=’<div class="card"><div class="ct">🤖 AI Preferences</div>’;
-h+=’<div class="fg"><label>PREFERRED AI MODEL</label><select class="fi" onchange="STATE.aiModel=this.value"><option value=“claude” ‘+(STATE.aiModel===‘claude’?‘selected’:’’)+’”>Claude (Anthropic)</option><option value=“gpt” ‘+(STATE.aiModel===‘gpt’?‘selected’:’’)+’”>GPT-4o</option><option value=“grok” ‘+(STATE.aiModel===‘grok’?‘selected’:’’)+’”>Grok (xAI)</option></select></div>’;
-h+=’<div class="tog-row" id="voiceTogRow" onclick="D.toggleVoice()"><div class="tog '+(STATE.aiVoice?'on':'')+'" id="voiceTog"><div class="tog-k"></div></div><span class="tog-lbl">AI Voice (Piper TTS)</span></div>’;
-h+=’</div></div></div>’;
+var h=ph('Profile','// Identity · Biometrics · Preferences');
+h+='<div class="g2">';
+h+='<div class="card"><div class="ct">👤 Identity</div>';
+h+=kv('Name',U?U.name:'-');h+=kv('Badge / ID',U?U.badge:'-');h+=kv('Role',R.lbl||'-');h+=kv('Rank',U?U.rank:'-');h+=kv('Level','L'+(R.lvl||1));
+h+=kv('Session Started',new Date(STATE.sessionStart).toLocaleTimeString());
+h+='<div class="btn-row" style="margin-top:10px"><button class="btn bd2" onclick="D.logout()">Sign Out</button></div></div>';
+h+='<div>';
+h+='<div class="card"><div class="ct">🔐 Security</div>';
+h+=kv('Biometric',tag(STATE.bioEnrolled?'Enrolled':'Not Enrolled',STATE.bioEnrolled?'tg':'ta2'));
+h+=kv('PQ Signature',tag('Dilithium3','tb2'));
+h+=kv('Session Key',tag('Active','tg'));
+h+='<button class="btn bp btn-w" style="margin-top:10px" onclick="enrollBio()">'+( STATE.bioEnrolled?'Re-enroll Biometric':'Enroll Biometric')+'</button></div>';
+h+='<div class="card"><div class="ct">🤖 AI Preferences</div>';
+h+='<div class="fg"><label>PREFERRED AI MODEL</label><select class="fi" onchange="STATE.aiModel=this.value"><option value="claude" '+(STATE.aiModel==='claude'?'selected':'')+'">Claude (Anthropic)</option><option value="gpt" '+(STATE.aiModel==='gpt'?'selected':'')+'">GPT-4o</option><option value="grok" '+(STATE.aiModel==='grok'?'selected':'')+'">Grok (xAI)</option></select></div>';
+h+='<div class="tog-row" id="voiceTogRow" onclick="D.toggleVoice()"><div class="tog '+(STATE.aiVoice?'on':'')+'" id="voiceTog"><div class="tog-k"></div></div><span class="tog-lbl">AI Voice (Piper TTS)</span></div>';
+h+='</div></div></div>';
 return h;
 };
 
 // ── LEGAL RESEARCH ────────────────────────────────────
 PANELS.legal_research = function(){
-var h=ph(‘Legal Research’,’// AI-Powered · Case Law · Statutes · On-Device’);
-h+=’<div class="chat-w" style="height:420px">’;
-h+=’<div class="chat-hd"><div style="font-size:18px">⚖️</div><div class="chat-hd-title">Legal Research AI</div><span class="tag tb2">Opus 4.6</span></div>’;
-h+=’<div class="chat-msgs" id="legalMsgs"><div class="empty"><div class="empty-i">⚖️</div>Ask about case law, statutes, regulations, or legal precedents.</div></div>’;
-h+=’<div class="chat-ir"><textarea class="chat-ta" id="legalInput" placeholder="Summarize Miranda v. Arizona…" onkeydown="legalKey(event)"></textarea><button class="chat-sb" onclick="sendLegal()">Search</button></div></div>’;
+var h=ph('Legal Research','// AI-Powered · Case Law · Statutes · On-Device');
+h+='<div class="chat-w" style="height:420px">';
+h+='<div class="chat-hd"><div style="font-size:18px">⚖️</div><div class="chat-hd-title">Legal Research AI</div><span class="tag tb2">Opus 4.6</span></div>';
+h+='<div class="chat-msgs" id="legalMsgs"><div class="empty"><div class="empty-i">⚖️</div>Ask about case law, statutes, regulations, or legal precedents.</div></div>';
+h+='<div class="chat-ir"><textarea class="chat-ta" id="legalInput" placeholder="Summarize Miranda v. Arizona…" onkeydown="legalKey(event)"></textarea><button class="chat-sb" onclick="sendLegal()">Search</button></div></div>';
 return h;
 };
 
 // ── LIE DETECTOR ─────────────────────────────────────
 PANELS.lie_detect = function(){
-var h=ph(‘Lie Detector / Truth Finder’,’// Probabilistic · Advisory Only · Not Legal Evidence Alone’);
-h+=comp([‘ADVISORY ONLY’,‘Not Admissible Alone’,‘Human + AI’,‘SOC2’]);
-h+=’<div class="card"><div class="ct">📝 Statement Input</div>’;
-h+=’<div class="fg"><label>SOURCE</label><select class="fi" id="lieSrc"><option value="human">Human Statement</option><option value="ai">AI Response</option></select></div>’;
-h+=’<div class="fg" style="margin-top:8px"><label>STATEMENT TO ANALYZE</label><textarea class="inp ta" id="lieText" placeholder="Paste the statement here…" style="height:100px"></textarea></div>’;
-h+=’<button class="btn bp btn-w" style="margin-top:8px" onclick="runLie()">Analyze Statement</button></div>’;
-h+=’<div id="lieResult" class="hidden"><div class="card"><div class="ct">📊 Analysis Result</div>’;
-h+=’<div id="lieMeter" style="margin-bottom:12px"></div>’;
-h+=’<div id="lieDetails"></div>’;
-h+=’<div class="banner-w" style="margin-top:10px">⚠️ Advisory only. Linguistic pattern analysis — probabilistic, not deterministic. Never sole basis for decisions.</div>’;
-h+=’</div></div>’;
+var h=ph('Lie Detector / Truth Finder','// Probabilistic · Advisory Only · Not Legal Evidence Alone');
+h+=comp(['ADVISORY ONLY','Not Admissible Alone','Human + AI','SOC2']);
+h+='<div class="card"><div class="ct">📝 Statement Input</div>';
+h+='<div class="fg"><label>SOURCE</label><select class="fi" id="lieSrc"><option value="human">Human Statement</option><option value="ai">AI Response</option></select></div>';
+h+='<div class="fg" style="margin-top:8px"><label>STATEMENT TO ANALYZE</label><textarea class="inp ta" id="lieText" placeholder="Paste the statement here…" style="height:100px"></textarea></div>';
+h+='<button class="btn bp btn-w" style="margin-top:8px" onclick="runLie()">Analyze Statement</button></div>';
+h+='<div id="lieResult" class="hidden"><div class="card"><div class="ct">📊 Analysis Result</div>';
+h+='<div id="lieMeter" style="margin-bottom:12px"></div>';
+h+='<div id="lieDetails"></div>';
+h+='<div class="banner-w" style="margin-top:10px">⚠️ Advisory only. Linguistic pattern analysis - probabilistic, not deterministic. Never sole basis for decisions.</div>';
+h+='</div></div>';
 return h;
 };
 
 // ── UNIVERSAL FINANCE ────────────────────────────────
 PANELS.universal_finance = function(){
-var h=ph(‘Universal Finance’,’// Plaid · AML/BSA · Insurance · Any Provider · Your Keys’);
-h+=comp([‘Plaid Sandbox’,‘AML’,‘BSA’,‘FDIC’,‘Self-Cert’]);
-h+=’<div class="banner-w">Connect any bank or insurance provider. Your Plaid credentials stay on-device. No lock-in.</div>’;
-h+=’<div class="g2">’;
-h+=’<div class="card"><div class="ct">🏦 Link Bank Account</div>’;
-h+=’<div class="fg"><label>PLAID CLIENT ID</label><input class="fi" id="plaidCid" placeholder="Your Plaid client_id" value="'+(SS.get('sg_plaid_cid')||'')+'"></div>’;
-h+=’<div class="fg"><label>PLAID SECRET</label><input class="fi" id="plaidSec" type="password" placeholder="Your Plaid secret" value="'+(SS.get('sg_plaid_sec')||'')+'"></div>’;
-h+=’<div class="fg"><label>ENVIRONMENT</label><select class="fi" id="plaidEnv"><option value="sandbox">Sandbox</option><option value="development">Development</option><option value="production">Production</option></select></div>’;
-h+=’<button class="btn bp btn-w" style="margin-top:4px" onclick="Finance.savePlaid()">Save Plaid Config</button><button class="btn bg2 btn-w" style="margin-top:8px" onclick="Finance.linkBank()">Link Bank Account (Plaid)</button></div>’;
-h+=’<div class="card"><div class="ct">🏥 Insurance Claims</div>’;
-h+=’<div class="fg"><label>PROVIDER</label><input class="fi" id="insProvider" placeholder="BlueCross, Aetna, etc."></div>’;
-h+=’<div class="fg"><label>POLICY NUMBER</label><input class="fi" id=insPol placeholder="Policy #"></div>’;
-h+=’<div class="fg"><label>SERVICE DATE</label><input class="fi" id="insDate" type="date"></div>’;
-h+=’<div class="fg"><label>AMOUNT (cents)</label><input class="fi" id="insAmt" type="number" placeholder="18000 = $180.00"></div>’;
-h+=’<button class="btn bp btn-w" onclick="Finance.fileClaim()">File Claim</button></div>’;
-h+=’</div>’;
-h+=’<div id="financeStatus" style="margin-top:10px"></div>’;
+var h=ph('Universal Finance','// Plaid · AML/BSA · Insurance · Any Provider · Your Keys');
+h+=comp(['Plaid Sandbox','AML','BSA','FDIC','Self-Cert']);
+h+='<div class="banner-w">Connect any bank or insurance provider. Your Plaid credentials stay on-device. No lock-in.</div>';
+h+='<div class="g2">';
+h+='<div class="card"><div class="ct">🏦 Link Bank Account</div>';
+h+='<div class="fg"><label>PLAID CLIENT ID</label><input class="fi" id="plaidCid" placeholder="Your Plaid client_id" value="'+(SS.get('sg_plaid_cid')||'')+'"></div>';
+h+='<div class="fg"><label>PLAID SECRET</label><input class="fi" id="plaidSec" type="password" placeholder="Your Plaid secret" value="'+(SS.get('sg_plaid_sec')||'')+'"></div>';
+h+='<div class="fg"><label>ENVIRONMENT</label><select class="fi" id="plaidEnv"><option value="sandbox">Sandbox</option><option value="development">Development</option><option value="production">Production</option></select></div>';
+h+='<button class="btn bp btn-w" style="margin-top:4px" onclick="Finance.savePlaid()">Save Plaid Config</button><button class="btn bg2 btn-w" style="margin-top:8px" onclick="Finance.linkBank()">Link Bank Account (Plaid)</button></div>';
+h+='<div class="card"><div class="ct">🏥 Insurance Claims</div>';
+h+='<div class="fg"><label>PROVIDER</label><input class="fi" id="insProvider" placeholder="BlueCross, Aetna, etc."></div>';
+h+='<div class="fg"><label>POLICY NUMBER</label><input class="fi" id=insPol placeholder="Policy #"></div>';
+h+='<div class="fg"><label>SERVICE DATE</label><input class="fi" id="insDate" type="date"></div>';
+h+='<div class="fg"><label>AMOUNT (cents)</label><input class="fi" id="insAmt" type="number" placeholder="18000 = $180.00"></div>';
+h+='<button class="btn bp btn-w" onclick="Finance.fileClaim()">File Claim</button></div>';
+h+='</div>';
+h+='<div id="financeStatus" style="margin-top:10px"></div>';
 return h;
 };
 
 // ── EEG CLASSROOM MONITOR ─────────────────────────────
 PANELS.eeg_classroom = function(){
-var h=ph(‘Classroom Focus Monitor’,’// BLE EEG · Opt-In · FERPA Compliant · Parent Consent Required’);
-h+=comp([‘FERPA’,‘COPPA’,‘Parent Consent’,‘BLE EEG’,‘Muse 2’,‘OpenBCI’]);
-h+=’<div class="banner-w">⚠️ Requires parent/guardian consent per student. Opt-in only. Data stays on-device.</div>’;
-h+=met([{v:‘74%’,l:‘Class Focus’,s:‘Right now’,c:‘var(–gn)’},{v:‘18’,l:‘Students’,s:‘Connected’},{v:‘3’,l:‘Drifting’,s:‘🟡 Attention’,c:‘var(–am)’},{v:‘2’,l:‘Lost’,s:‘🔴 Needs nudge’,c:‘var(–rd)’}]);
+var h=ph('Classroom Focus Monitor','// BLE EEG · Opt-In · FERPA Compliant · Parent Consent Required');
+h+=comp(['FERPA','COPPA','Parent Consent','BLE EEG','Muse 2','OpenBCI']);
+h+='<div class="banner-w">⚠️ Requires parent/guardian consent per student. Opt-in only. Data stays on-device.</div>';
+h+=met([{v:'74%',l:'Class Focus',s:'Right now',c:'var(--gn)'},{v:'18',l:'Students',s:'Connected'},{v:'3',l:'Drifting',s:'🟡 Attention',c:'var(--am)'},{v:'2',l:'Lost',s:'🔴 Needs nudge',c:'var(--rd)'}]);
 // Heatmap
-h+=’<div class="card"><div class="ct">Class Attention Heatmap</div>’;
-var states=[‘f’,‘f’,‘d’,‘f’,‘l’,‘f’,‘f’,‘d’,‘f’,‘f’,‘f’,‘f’,‘d’,‘f’,‘l’,‘f’,‘f’,‘f’,‘f’,‘f’,‘f’,‘f’,‘d’,‘f’];
-h+=’<div class="hm" style="grid-template-columns:repeat(6,1fr)">’;
+h+='<div class="card"><div class="ct">Class Attention Heatmap</div>';
+var states=['f','f','d','f','l','f','f','d','f','f','f','f','d','f','l','f','f','f','f','f','f','f','d','f'];
+h+='<div class="hm" style="grid-template-columns:repeat(6,1fr)">';
 states.forEach(function(s,i){
-h+=’<div class="hmc '+s+'" title="Student '+(i+1)+'" onclick="nudge(\'+(i+1)+\')">’+(i+1)+’</div>’;
+h+='<div class="hmc '+s+'" title="Student '+(i+1)+'" onclick="nudge(\'+(i+1)+\')">'+(i+1)+'</div>';
 });
-h+=’</div>’;
-h+=’<div style="display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:9px;flex-wrap:wrap">’;
-h+=’<span style="color:var(--gn)">🟢 Focused (70–100%)</span><span style="color:var(--am)">🟡 Drifting (40–69%)</span><span style="color:var(--rd)">🔴 Lost (<40%) — click to nudge</span></div></div>’;
-h+=’<div class="btn-row"><button class="btn bp" onclick="nudgeAll()">Nudge Lost Students</button><button class="btn bs" onclick="groupRegroup()">⏸ Group Regroup (30s breathe)</button></div>’;
+h+='</div>';
+h+='<div style="display:flex;gap:12px;margin-top:10px;font-family:var(--mono);font-size:9px;flex-wrap:wrap">';
+h+='<span style="color:var(--gn)">🟢 Focused (70-100%)</span><span style="color:var(--am)">🟡 Drifting (40-69%)</span><span style="color:var(--rd)">🔴 Lost (<40%) - click to nudge</span></div></div>';
+h+='<div class="btn-row"><button class="btn bp" onclick="nudgeAll()">Nudge Lost Students</button><button class="btn bs" onclick="groupRegroup()">⏸ Group Regroup (30s breathe)</button></div>';
 return h;
 };
 PANELS.eeg_monitor = PANELS.eeg_classroom;
 
 // ── STUDENT EEG ───────────────────────────────────────
 PANELS.eeg_student = function(){
-var h=ph(‘My Focus’,’// Personal EEG · Self-Awareness Only · Opt-In’);
-h+=comp([‘Muse 2 BLE’,‘Self-Only’,‘COPPA Safe’]);
-h+=met([{v:‘82%’,l:‘Focus Score’,c:‘var(–gn)’},{v:‘🟢 Strong’,l:‘State’},{v:‘12’,l:‘Min Focused’,c:‘var(–gn)’},{v:‘47’,l:‘Focus Gems’,s:‘💎’,c:‘var(–vt)’}]);
-h+=’<div class="card"><div class="ct">Band Power</div><div class="eeg-bands">’;
-var bands=[{n:‘Delta’,c:’#6366f1’,v:15},{n:‘Theta’,c:’#8b5cf6’,v:22},{n:‘Alpha’,c:’#00d8ff’,v:68},{n:‘Beta’,c:’#00e87a’,v:75},{n:‘Gamma’,c:’#f97316’,v:31}];
+var h=ph('My Focus','// Personal EEG · Self-Awareness Only · Opt-In');
+h+=comp(['Muse 2 BLE','Self-Only','COPPA Safe']);
+h+=met([{v:'82%',l:'Focus Score',c:'var(--gn)'},{v:'🟢 Strong',l:'State'},{v:'12',l:'Min Focused',c:'var(--gn)'},{v:'47',l:'Focus Gems',s:'💎',c:'var(--vt)'}]);
+h+='<div class="card"><div class="ct">Band Power</div><div class="eeg-bands">';
+var bands=[{n:'Delta',c:'#6366f1',v:15},{n:'Theta',c:'#8b5cf6',v:22},{n:'Alpha',c:'#00d8ff',v:68},{n:'Beta',c:'#00e87a',v:75},{n:'Gamma',c:'#f97316',v:31}];
 bands.forEach(function(b){
-h+=’<div class="eeg-band"><div class="eeg-bw"><div class="eeg-b" id="eegB'+b.n+'" style="background:'+b.c+';height:'+b.v+'%"></div></div>’;
-h+=’<div class="eeg-n">’+b.n+’</div><div class="eeg-v">’+b.v+’%</div></div>’;
+h+='<div class="eeg-band"><div class="eeg-bw"><div class="eeg-b" id="eegB'+b.n+'" style="background:'+b.c+';height:'+b.v+'%"></div></div>';
+h+='<div class="eeg-n">'+b.n+'</div><div class="eeg-v">'+b.v+'%</div></div>';
 });
-h+=’</div></div>’;
-h+=’<div class="banner-i">Only you can see your focus data. Your teacher sees the class average only.</div>’;
+h+='</div></div>';
+h+='<div class="banner-i">Only you can see your focus data. Your teacher sees the class average only.</div>';
 return h;
 };
 
 // ── REWARDS ───────────────────────────────────────────
 PANELS.rewards = function(){
-var h=ph(‘Rewards’,’// Focus Gems · Logic Crystals · Speed Stars’);
-h+=met([{v:‘47’,l:‘Focus Gems’,s:‘💎’,c:‘var(–vt)’},{v:‘12’,l:‘Logic Crystals’,s:‘🔷’,c:‘var(–cy)’},{v:‘8’,l:‘Speed Stars’,s:‘⭐’,c:‘var(–am)’},{v:‘3’,l:‘Creative Sparks’,s:‘✨’,c:‘var(–pk)’}]);
-h+=’<div class="card"><div class="ct">Build Power Level</div>’;
-var levels=[{lv:0,n:‘Observer’,req:’—’,u:‘View only’,cur:false},{lv:1,n:‘Apprentice’,req:‘50 gems’,u:‘Claude Sonnet’},{lv:2,n:‘Builder’,req:‘200 gems’,u:‘Sonnet streaming’},{lv:3,n:‘Engineer’,req:‘500 gems’,u:‘Claude Opus 4.6’,cur:false},{lv:4,n:‘Architect’,req:‘1000 gems’,u:‘Opus + multi-file’},{lv:5,n:‘Master Builder’,req:‘2500 gems’,u:‘Full system access’}];
+var h=ph('Rewards','// Focus Gems · Logic Crystals · Speed Stars');
+h+=met([{v:'47',l:'Focus Gems',s:'💎',c:'var(--vt)'},{v:'12',l:'Logic Crystals',s:'🔷',c:'var(--cy)'},{v:'8',l:'Speed Stars',s:'⭐',c:'var(--am)'},{v:'3',l:'Creative Sparks',s:'✨',c:'var(--pk)'}]);
+h+='<div class="card"><div class="ct">Build Power Level</div>';
+var levels=[{lv:0,n:'Observer',req:'-',u:'View only',cur:false},{lv:1,n:'Apprentice',req:'50 gems',u:'Claude Sonnet'},{lv:2,n:'Builder',req:'200 gems',u:'Sonnet streaming'},{lv:3,n:'Engineer',req:'500 gems',u:'Claude Opus 4.6',cur:false},{lv:4,n:'Architect',req:'1000 gems',u:'Opus + multi-file'},{lv:5,n:'Master Builder',req:'2500 gems',u:'Full system access'}];
 levels.forEach(function(l){
 var cur=l.lv===1;
-h+=’<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid '+(cur?'var(--cy)':'var(--bd)')+';border-radius:8px;background:'+(cur?'var(--cy3)':'transparent')+';margin-bottom:5px">’;
-h+=’<div style="font-size:18px">’+(cur?‘🔓’:‘🔒’)+’</div>’;
-h+=’<div style="flex:1"><div style="font-size:12px;font-weight:700">L’+l.lv+’ ‘+l.n+’</div><div style="font-size:10px;color:var(--mu)">’+l.u+’</div></div>’;
-h+=’<div style="font-family:var(--mono);font-size:9px;color:var(--mu)">’+l.req+’</div></div>’;
+h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid '+(cur?'var(--cy)':'var(--bd)')+';border-radius:8px;background:'+(cur?'var(--cy3)':'transparent')+';margin-bottom:5px">';
+h+='<div style="font-size:18px">'+(cur?'🔓':'🔒')+'</div>';
+h+='<div style="flex:1"><div style="font-size:12px;font-weight:700">L'+l.lv+' '+l.n+'</div><div style="font-size:10px;color:var(--mu)">'+l.u+'</div></div>';
+h+='<div style="font-family:var(--mono);font-size:9px;color:var(--mu)">'+l.req+'</div></div>';
 });
-h+=’</div>’;
+h+='</div>';
 return h;
 };
 
 // ── AI GAMES ─────────────────────────────────────────
 PANELS.ai_games = function(){
-var h=ph(‘Brain Games’,’// AI-Generated · EEG-Adaptive · Earn Gems · On-Device’);
+var h=ph('Brain Games','// AI-Generated · EEG-Adaptive · Earn Gems · On-Device');
 var games=[
-{id:‘mathBlaster’,ic:‘➕’,nm:‘Math Blaster’,d:‘Arithmetic challenges’,xp:15,c:‘var(–cy)’},
-{id:‘brainQuiz’,ic:‘🧠’,nm:‘Brain Quiz’,d:‘Trivia & knowledge’,xp:20,c:‘var(–vt)’},
-{id:‘memMatch’,ic:‘🃏’,nm:‘Memory Match’,d:‘Pattern memory’,xp:10,c:‘var(–gn)’},
-{id:‘typeRacer’,ic:‘⌨️’,nm:‘Type Racer’,d:‘Speed typing’,xp:12,c:‘var(–am)’},
-{id:‘logicGrid’,ic:‘🔷’,nm:‘Logic Grid’,d:‘Deductive reasoning’,xp:25,c:‘var(–cy)’},
-{id:‘wordAssoc’,ic:‘💬’,nm:‘Word Association’,d:‘Language & creativity’,xp:15,c:‘var(–pk)’},
+{id:'mathBlaster',ic:'➕',nm:'Math Blaster',d:'Arithmetic challenges',xp:15,c:'var(--cy)'},
+{id:'brainQuiz',ic:'🧠',nm:'Brain Quiz',d:'Trivia & knowledge',xp:20,c:'var(--vt)'},
+{id:'memMatch',ic:'🃏',nm:'Memory Match',d:'Pattern memory',xp:10,c:'var(--gn)'},
+{id:'typeRacer',ic:'⌨️',nm:'Type Racer',d:'Speed typing',xp:12,c:'var(--am)'},
+{id:'logicGrid',ic:'🔷',nm:'Logic Grid',d:'Deductive reasoning',xp:25,c:'var(--cy)'},
+{id:'wordAssoc',ic:'💬',nm:'Word Association',d:'Language & creativity',xp:15,c:'var(--pk)'},
 ];
-h+=’<div id="activeGame"></div>’;
-h+=’<div class="game-grid">’;
+h+='<div id="activeGame"></div>';
+h+='<div class="game-grid">';
 games.forEach(function(g){
-h+=’<div class="game-card" data-gid="'+g.id+'" onclick="startGame(this.dataset.gid)"><span class="gc-icon">’+g.ic+’</span><div class="gc-name">’+g.nm+’</div><div style="font-size:9px;color:var(--mu);margin-bottom:4px">’+g.d+’</div><div style="font-family:var(--mono);font-size:9px;color:var(--am)">+’+g.xp+’ gems</div></div>’;
+h+='<div class="game-card" data-gid="'+g.id+'" onclick="startGame(this.dataset.gid)"><span class="gc-icon">'+g.ic+'</span><div class="gc-name">'+g.nm+'</div><div style="font-size:9px;color:var(--mu);margin-bottom:4px">'+g.d+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--am)">+'+g.xp+' gems</div></div>';
 });
-h+=’</div>’;
-h+=’<div class="card" style="margin-top:10px"><div class="ct">🤖 AI Game Builder</div>’;
-h+=’<div class="fg"><label>DESCRIBE YOUR CUSTOM GAME</label><textarea class="inp ta" id="gameBuilderDesc" placeholder="e.g. A memory game for 10-year-olds about fractions…"></textarea></div>’;
-h+=’<button class="btn bp btn-w" onclick="buildAIGame()">Generate Game with AI</button></div>’;
+h+='</div>';
+h+='<div class="card" style="margin-top:10px"><div class="ct">🤖 AI Game Builder</div>';
+h+='<div class="fg"><label>DESCRIBE YOUR CUSTOM GAME</label><textarea class="inp ta" id="gameBuilderDesc" placeholder="e.g. A memory game for 10-year-olds about fractions…"></textarea></div>';
+h+='<button class="btn bp btn-w" onclick="buildAIGame()">Generate Game with AI</button></div>';
 return h;
 };
 
 // ── PROJECT BUILDER ───────────────────────────────────
 PANELS.project_builder = function(){
-var h=ph(‘Project Builder’,’// Earn Build Power · Claude Opus 4.6 · GitHub · On-Device’);
-h+=comp([‘Claude Opus 4.6’,‘On-Device’,‘GitHub Sync’,‘Memory Context’,‘Level 3+ Unlock’]);
-h+=’<div class="chat-w" style="height:440px">’;
-h+=’<div class="chat-hd"><div style="font-size:18px">🛠️</div><div class="chat-hd-title">Project Builder AI</div><span class="tag tv">Opus 4.6</span></div>’;
-h+=’<div class="chat-msgs" id="projMsgs"><div class="empty"><div class="empty-i">🛠️</div>Describe what you want to build. AI generates complete, production code.<br><span style="font-size:9px;font-family:var(--mono)">Your memory cards are injected as context automatically.</span></div></div>’;
-h+=’<div class="chat-ir"><textarea class="chat-ta" id="projInput" placeholder="Build me a FastAPI backend with JWT auth…" onkeydown="projKey(event)"></textarea><button class="chat-sb" onclick="sendProj()">Build</button></div></div>’;
-h+=’<div class="btn-row" style="margin-top:10px"><button class="btn bg2" onclick="D.load(\'github_panel\')">🐙 Push to GitHub</button><button class="btn bv" onclick="D.load(\'memory\')">🧠 Memory Cards</button></div>’;
+var h=ph('Project Builder','// Earn Build Power · Claude Opus 4.6 · GitHub · On-Device');
+h+=comp(['Claude Opus 4.6','On-Device','GitHub Sync','Memory Context','Level 3+ Unlock']);
+h+='<div class="chat-w" style="height:440px">';
+h+='<div class="chat-hd"><div style="font-size:18px">🛠️</div><div class="chat-hd-title">Project Builder AI</div><span class="tag tv">Opus 4.6</span></div>';
+h+='<div class="chat-msgs" id="projMsgs"><div class="empty"><div class="empty-i">🛠️</div>Describe what you want to build. AI generates complete, production code.<br><span style="font-size:9px;font-family:var(--mono)">Your memory cards are injected as context automatically.</span></div></div>';
+h+='<div class="chat-ir"><textarea class="chat-ta" id="projInput" placeholder="Build me a FastAPI backend with JWT auth…" onkeydown="projKey(event)"></textarea><button class="chat-sb" onclick="sendProj()">Build</button></div></div>';
+h+='<div class="btn-row" style="margin-top:10px"><button class="btn bg2" onclick="D.load(\'github_panel\')">🐙 Push to GitHub</button><button class="btn bv" onclick="D.load(\'memory\')">🧠 Memory Cards</button></div>';
 return h;
 };
 
 // ── SOS PANEL ─────────────────────────────────────────
 PANELS.sos_panel = function(){
-var h=ph(‘SOS / Emergency’,’// Hold 3 Seconds · GPS · Silent Alert’);
-h+=’<div style="text-align:center;padding:24px 16px">’;
-h+=’<div style="font-size:64px;animation:glow 1.5s infinite;margin-bottom:16px">🆘</div>’;
-h+=’<div style="font-size:16px;font-weight:800;margin-bottom:8px">Emergency SOS</div>’;
-h+=’<div style="font-size:11px;color:var(--mu);margin-bottom:24px">Hold button for 3 seconds to trigger silent SOS.<br>GPS location attached. All nearby units notified.</div>’;
-h+=’<button class="btn bd2" style="font-size:18px;padding:20px 40px;border-radius:12px" onmousedown="SOS.hold()" onmouseup="SOS.cancel()" ontouchstart="SOS.hold()" ontouchend="SOS.cancel()">🆘 HOLD FOR SOS</button>’;
-h+=’<div id="sosStatus" style="margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--mu)">Status: SAFE</div></div>’;
+var h=ph('SOS / Emergency','// Hold 3 Seconds · GPS · Silent Alert');
+h+='<div style="text-align:center;padding:24px 16px">';
+h+='<div style="font-size:64px;animation:glow 1.5s infinite;margin-bottom:16px">🆘</div>';
+h+='<div style="font-size:16px;font-weight:800;margin-bottom:8px">Emergency SOS</div>';
+h+='<div style="font-size:11px;color:var(--mu);margin-bottom:24px">Hold button for 3 seconds to trigger silent SOS.<br>GPS location attached. All nearby units notified.</div>';
+h+='<button class="btn bd2" style="font-size:18px;padding:20px 40px;border-radius:12px" onmousedown="SOS.hold()" onmouseup="SOS.cancel()" ontouchstart="SOS.hold()" ontouchend="SOS.cancel()">🆘 HOLD FOR SOS</button>';
+h+='<div id="sosStatus" style="margin-top:16px;font-family:var(--mono);font-size:10px;color:var(--mu)">Status: SAFE</div></div>';
 return h;
 };
 
 // ── SESSION CLOCK (Therapist) ─────────────────────────
 PANELS.session_clock = function(){
-var h=ph(‘Session Clock’,’// HIPAA · Clocked Billing · Therapy Timer’);
-h+=’<div class="card" style="text-align:center;padding:32px">’;
-h+=’<div id="sessionTimerDisplay" style="font-family:var(--mono);font-size:56px;font-weight:700;color:var(--cy);letter-spacing:4px;margin-bottom:16px">00:00:00</div>’;
-h+=’<div id="sessionTimerStatus" style="font-family:var(--mono);font-size:10px;color:var(--mu);margin-bottom:24px">STOPPED</div>’;
-h+=’<div class="btn-row" style="justify-content:center">’;
-h+=’<button class="btn bp" onclick="SessionTimer.start()">▶ Start</button>’;
-h+=’<button class="btn bs" onclick="SessionTimer.pause()">⏸ Pause</button>’;
-h+=’<button class="btn bd2" onclick="SessionTimer.stop()">⏹ Stop & Bill</button></div></div>’;
-h+=’<div id="sessionBillResult"></div>’;
+var h=ph('Session Clock','// HIPAA · Clocked Billing · Therapy Timer');
+h+='<div class="card" style="text-align:center;padding:32px">';
+h+='<div id="sessionTimerDisplay" style="font-family:var(--mono);font-size:56px;font-weight:700;color:var(--cy);letter-spacing:4px;margin-bottom:16px">00:00:00</div>';
+h+='<div id="sessionTimerStatus" style="font-family:var(--mono);font-size:10px;color:var(--mu);margin-bottom:24px">STOPPED</div>';
+h+='<div class="btn-row" style="justify-content:center">';
+h+='<button class="btn bp" onclick="SessionTimer.start()">▶ Start</button>';
+h+='<button class="btn bs" onclick="SessionTimer.pause()">⏸ Pause</button>';
+h+='<button class="btn bd2" onclick="SessionTimer.stop()">⏹ Stop & Bill</button></div></div>';
+h+='<div id="sessionBillResult"></div>';
 return h;
 };
 
 // ── CI/CD PANEL ───────────────────────────────────────
 PANELS.cicd = function(){
-var h=ph(‘CI/CD Pipeline’,’// GitHub Actions · Deploy · Build Log’);
-h+=comp([‘GitHub Actions’,‘Docker’,‘Zero-downtime’,‘Audit’]);
-var stages=[‘Checkout’,‘Lint’,‘Test’,‘Build’,‘Push’,‘Deploy’,‘Verify’];
-h+=’<div class="card"><div class="ct">Pipeline Stages</div>’;
+var h=ph('CI/CD Pipeline','// GitHub Actions · Deploy · Build Log');
+h+=comp(['GitHub Actions','Docker','Zero-downtime','Audit']);
+var stages=['Checkout','Lint','Test','Build','Push','Deploy','Verify'];
+h+='<div class="card"><div class="ct">Pipeline Stages</div>';
 stages.forEach(function(s,i){
-h+=’<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">’;
-h+=’<div style="width:20px;height:20px;border-radius:50%;background:var(--gn2);border:1px solid rgba(0,232,122,.25);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gn);flex-shrink:0">✓</div>’;
-h+=’<div style="flex:1;font-size:12px">’+s+’</div>’;
-h+=’<span class="tag tg">PASS</span>’;
-h+=’<div style="font-family:var(--mono);font-size:9px;color:var(--mu2)">’+rnd(1,8)+‘s</div></div>’;
+h+='<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd)">';
+h+='<div style="width:20px;height:20px;border-radius:50%;background:var(--gn2);border:1px solid rgba(0,232,122,.25);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gn);flex-shrink:0">✓</div>';
+h+='<div style="flex:1;font-size:12px">'+s+'</div>';
+h+='<span class="tag tg">PASS</span>';
+h+='<div style="font-family:var(--mono);font-size:9px;color:var(--mu2)">'+rnd(1,8)+'s</div></div>';
 });
-h+=’</div>’;
-h+=’<div class="card"><div class="ct">GitHub Actions YAML</div>’;
-h+=’<pre style="font-family:var(--mono);font-size:10px;color:var(--gn);background:var(--bg);padding:12px;border-radius:8px;overflow-x:auto;line-height:1.6">name: Deploy SuperGrok\non: push:\n  branches: [main]\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm install\n      - run: npm test\n      - run: docker build -t supergrok .\n      - run: ./deploy.sh</pre>’;
-h+=’<button class="btn bp" style="margin-top:8px" onclick="runCICD()">▶ Run Pipeline</button></div>’;
+h+='</div>';
+h+='<div class="card"><div class="ct">GitHub Actions YAML</div>';
+h+='<pre style="font-family:var(--mono);font-size:10px;color:var(--gn);background:var(--bg);padding:12px;border-radius:8px;overflow-x:auto;line-height:1.6">name: Deploy SuperGrok\non: push:\n  branches: [main]\njobs:\n  deploy:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm install\n      - run: npm test\n      - run: docker build -t supergrok .\n      - run: ./deploy.sh</pre>';
+h+='<button class="btn bp" style="margin-top:8px" onclick="runCICD()">▶ Run Pipeline</button></div>';
 return h;
 };
 
 // ── KEY MANAGEMENT ────────────────────────────────────
 PANELS.key_mgmt = function(){
-var h=ph(‘Key Management’,’// Self-Cert · API Keys · Dilithium3 · Auto-Rotate’);
-h+=comp([‘Self-Cert’,‘Dilithium3’,‘FIPS 140-3’,‘Auto-Rotate’,‘On-Device’]);
-h+=’<div class="g2">’;
-h+=’<div class="card"><div class="ct">🔑 Generate Customer API Key</div>’;
-h+=’<div class="fg"><label>CUSTOMER NAME / ID</label><input class="fi" id="keyCustomer" placeholder="customer-123"></div>’;
-h+=’<div class="fg"><label>TIER</label><select class="fi" id="keyTier"><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select></div>’;
-h+=’<button class="btn bp btn-w" onclick="Keys.generate()" style="margin-top:4px">Generate Signed Key</button>’;
-h+=’<div id="keyOutput" style="margin-top:10px;font-family:var(--mono);font-size:9px;word-break:break-all;color:var(--gn)"></div></div>’;
-h+=’<div class="card"><div class="ct">🏅 TLS Self-Certificate</div>’;
-h+=’<div class="fg"><label>DOMAIN / CN</label><input class="fi" id="certCN" placeholder="supergrok.local"></div>’;
-h+=’<div class="fg"><label>ORGANIZATION</label><input class="fi" id="certOrg" placeholder="Your Org"></div>’;
-h+=’<button class="btn bp btn-w" onclick="Keys.genCert()" style="margin-top:4px">Generate Self-Cert (Config)</button>’;
-h+=’<div id="certOutput" style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--cy);word-break:break-all"></div></div>’;
-h+=’</div>’;
+var h=ph('Key Management','// Self-Cert · API Keys · Dilithium3 · Auto-Rotate');
+h+=comp(['Self-Cert','Dilithium3','FIPS 140-3','Auto-Rotate','On-Device']);
+h+='<div class="g2">';
+h+='<div class="card"><div class="ct">🔑 Generate Customer API Key</div>';
+h+='<div class="fg"><label>CUSTOMER NAME / ID</label><input class="fi" id="keyCustomer" placeholder="customer-123"></div>';
+h+='<div class="fg"><label>TIER</label><select class="fi" id="keyTier"><option value="basic">Basic</option><option value="pro">Pro</option><option value="enterprise">Enterprise</option></select></div>';
+h+='<button class="btn bp btn-w" onclick="Keys.generate()" style="margin-top:4px">Generate Signed Key</button>';
+h+='<div id="keyOutput" style="margin-top:10px;font-family:var(--mono);font-size:9px;word-break:break-all;color:var(--gn)"></div></div>';
+h+='<div class="card"><div class="ct">🏅 TLS Self-Certificate</div>';
+h+='<div class="fg"><label>DOMAIN / CN</label><input class="fi" id="certCN" placeholder="supergrok.local"></div>';
+h+='<div class="fg"><label>ORGANIZATION</label><input class="fi" id="certOrg" placeholder="Your Org"></div>';
+h+='<button class="btn bp btn-w" onclick="Keys.genCert()" style="margin-top:4px">Generate Self-Cert (Config)</button>';
+h+='<div id="certOutput" style="margin-top:10px;font-family:var(--mono);font-size:9px;color:var(--cy);word-break:break-all"></div></div>';
+h+='</div>';
 return h;
 };
 
 // ── SECURE COMMS ─────────────────────────────────────
 PANELS.comms_secure = function(){
-var h=ph(‘Secure Comms’,’// E2E Encrypted · Post-Quantum · Zero-Trust’);
-h+=comp([‘ML-KEM-768’,‘Dilithium3’,‘ChaCha20-Poly1305’,‘E2E’]);
-h+=’<div class="chat-w" style="height:380px">’;
-h+=’<div class="chat-hd"><div style="font-size:18px">🔐</div><div class="chat-hd-title">Encrypted Channel</div><span class="tag tb2">PQ-SAFE</span></div>’;
-h+=’<div class="chat-msgs" id="secureMsgs"><div class="empty"><div class="empty-i">📡</div>All messages encrypted with post-quantum cryptography.</div></div>’;
-h+=’<div class="chat-ir"><input class="chat-ta" id="secureInput" placeholder="Send encrypted message…" onkeydown="if(event.key===\'Enter\'){sendSecure();event.preventDefault()}" style="height:36px;resize:none"><button class="chat-sb" onclick="sendSecure()">Send</button></div></div>’;
+var h=ph('Secure Comms','// E2E Encrypted · Post-Quantum · Zero-Trust');
+h+=comp(['ML-KEM-768','Dilithium3','ChaCha20-Poly1305','E2E']);
+h+='<div class="chat-w" style="height:380px">';
+h+='<div class="chat-hd"><div style="font-size:18px">🔐</div><div class="chat-hd-title">Encrypted Channel</div><span class="tag tb2">PQ-SAFE</span></div>';
+h+='<div class="chat-msgs" id="secureMsgs"><div class="empty"><div class="empty-i">📡</div>All messages encrypted with post-quantum cryptography.</div></div>';
+h+='<div class="chat-ir"><input class="chat-ta" id="secureInput" placeholder="Send encrypted message…" onkeydown="if(event.key===\'Enter\'){sendSecure();event.preventDefault()}" style="height:36px;resize:none"><button class="chat-sb" onclick="sendSecure()">Send</button></div></div>';
 return h;
 };
 
 // ── ERROR CONSOLE ─────────────────────────────────────
 PANELS.error_console = function(){
-var h=ph(‘Error Console’,’// Runtime Errors · Stack Traces · Auto-Fix’);
-h+=’<div class="btn-row" style="margin-bottom:10px"><button class="btn bp" onclick="ErrorLog.autoFix()">⚡ Auto-Fix All</button><button class="btn bs" onclick="ErrorLog.clear()">Clear</button></div>’;
-h+=’<div id="errorList">’;
+var h=ph('Error Console','// Runtime Errors · Stack Traces · Auto-Fix');
+h+='<div class="btn-row" style="margin-bottom:10px"><button class="btn bp" onclick="ErrorLog.autoFix()">⚡ Auto-Fix All</button><button class="btn bs" onclick="ErrorLog.clear()">Clear</button></div>';
+h+='<div id="errorList">';
 var errs=ErrorLog.entries||[];
-if(!errs.length){h+=’<div class="banner-g">✓ No errors detected</div>’;}
-else{errs.forEach(function(e){h+=’<div class="card" style="border-color:rgba(255,61,90,.2)"><div style="display:flex;gap:8px;align-items:flex-start"><span class="tag tr2">’+esc(e.type||‘ERR’)+’</span><div style="flex:1"><div style="font-size:11px;font-weight:600">’+esc(e.msg||’’)+’</div><div style="font-family:var(--mono);font-size:9px;color:var(--mu)">’+esc(e.src||’’)+’</div></div></div></div>’;});}
-h+=’</div>’;
+if(!errs.length){h+='<div class="banner-g">✓ No errors detected</div>';}
+else{errs.forEach(function(e){h+='<div class="card" style="border-color:rgba(255,61,90,.2)"><div style="display:flex;gap:8px;align-items:flex-start"><span class="tag tr2">'+esc(e.type||'ERR')+'</span><div style="flex:1"><div style="font-size:11px;font-weight:600">'+esc(e.msg||'')+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--mu)">'+esc(e.src||'')+'</div></div></div></div>';});}
+h+='</div>';
 return h;
 };
 
 // ── ROLE EDITOR ───────────────────────────────────────
 PANELS.role_editor = function(){
-var h=ph(‘Role Editor’,’// Add · Edit · Remove Roles · JSON Export’);
-h+=’<div class="btn-row" style="margin-bottom:12px"><button class="btn bp" onclick="RoleEd.newRole()">+ New Role</button><button class="btn bs" onclick="RoleEd.exportAll()">Export JSON</button><button class="btn bs" onclick="RoleEd.importJSON()">Import JSON</button></div>’;
-h+=’<div class="card"><div class="ct">Loaded Roles (’+Object.keys(ROLES).length+’)</div>’;
-h+=’<div style="max-height:400px;overflow-y:auto">’;
+var h=ph('Role Editor','// Add · Edit · Remove Roles · JSON Export');
+h+='<div class="btn-row" style="margin-bottom:12px"><button class="btn bp" onclick="RoleEd.newRole()">+ New Role</button><button class="btn bs" onclick="RoleEd.exportAll()">Export JSON</button><button class="btn bs" onclick="RoleEd.importJSON()">Import JSON</button></div>';
+h+='<div class="card"><div class="ct">Loaded Roles ('+Object.keys(ROLES).length+')</div>';
+h+='<div style="max-height:400px;overflow-y:auto">';
 Object.keys(ROLES).forEach(function(k){
 var r=ROLES[k];
-h+=’<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)">’;
-h+=’<div style="font-size:18px">’+r.icon+’</div>’;
-h+=’<div style="flex:1"><div style="font-size:12px;font-weight:700">’+esc(r.lbl)+’</div><div style="font-family:var(--mono);font-size:9px;color:var(--mu)">L’+r.lvl+’ · ‘+r.cat+’</div></div>’;
-h+=’<button class="btn bs" style="font-size:10px;padding:4px 8px" data-role="'+k+'" onclick="RoleEd.edit(this.dataset.role)">Edit</button>’;
-h+=’<button class="btn bd2" style="font-size:10px;padding:4px 8px" data-role="'+k+'" onclick="RoleEd.del(this.dataset.role)">×</button></div>’;
+h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)">';
+h+='<div style="font-size:18px">'+r.icon+'</div>';
+h+='<div style="flex:1"><div style="font-size:12px;font-weight:700">'+esc(r.lbl)+'</div><div style="font-family:var(--mono);font-size:9px;color:var(--mu)">L'+r.lvl+' · '+r.cat+'</div></div>';
+h+='<button class="btn bs" style="font-size:10px;padding:4px 8px" data-role="'+k+'" onclick="RoleEd.edit(this.dataset.role)">Edit</button>';
+h+='<button class="btn bd2" style="font-size:10px;padding:4px 8px" data-role="'+k+'" onclick="RoleEd.del(this.dataset.role)">×</button></div>';
 });
-h+=’</div></div>’;
+h+='</div></div>';
 return h;
 };
 
 // ── GENERIC PANELS (all remaining) ───────────────────
 function makeGenericPanel(title,icon,sub,metrics,actions2){
 return function(){
-var h=ph(icon+’ ‘+title,sub||’// ‘+title);
+var h=ph(icon+' '+title,sub||'// '+title);
 if(metrics)h+=met(metrics);
-if(actions2)h+=card(‘Quick Actions’,actions(actions2));
-h+=’<div class="card"><div class="ct">🤖 AI Assistant for ‘+esc(title)+’</div>’;
-h+=’<div class="chat-w" style="height:320px">’;
-h+=’<div class="chat-msgs" id="genMsgs_'+title.replace(/\W/g,'')+'"><div class="empty" style="padding:20px"><div class="empty-i">’+icon+’</div>Ask anything about ‘+esc(title)+’</div></div>’;
-h+=’<div class="chat-ir"><textarea class="chat-ta" id="genInp_'+title.replace(/\W/g,'')+'" placeholder="Ask about '+esc(title)+'…" style="height:36px"></textarea>’;
-h+=’<button class="chat-sb" onclick="pAct(\'genInp_\'+title)" title="Ask AI">Ask</button></div></div></div>’;
+if(actions2)h+=card('Quick Actions',actions(actions2));
+h+='<div class="card"><div class="ct">🤖 AI Assistant for '+esc(title)+'</div>';
+h+='<div class="chat-w" style="height:320px">';
+h+='<div class="chat-msgs" id="genMsgs_'+title.replace(/\W/g,'')+'"><div class="empty" style="padding:20px"><div class="empty-i">'+icon+'</div>Ask anything about '+esc(title)+'</div></div>';
+h+='<div class="chat-ir"><textarea class="chat-ta" id="genInp_'+title.replace(/\W/g,'')+'" placeholder="Ask about '+esc(title)+'…" style="height:36px"></textarea>';
+h+='<button class="chat-sb" onclick="pAct(\'genInp_\'+title)" title="Ask AI">Ask</button></div></div></div>';
 return h;
 };
 }
 
 // All remaining panels mapped to generic
-[‘case_docket’,‘hearings’,‘orders’,‘sentencing’,‘appeals’,‘policy_mgmt’,‘legislation’,‘budget’,
-‘active_cases’,‘evidence’,‘witnesses’,‘charges’,‘dispatch’,‘arrests’,‘reports’,
-‘incidents’,‘equipment’,‘hazmat’,‘patient_care’,‘vitals’,‘medications’,
-‘operations’,‘missions’,‘intel’,‘logistics’,‘access_logs’,‘cameras’,‘perimeter’,
-‘exec_orders’,‘cabinet’,‘natl_security’,‘senate’,‘succession’,‘parliament’,
-‘diplo_cables’,‘treaty’,‘consular’,‘foreign_policy’,‘ambassadors’,‘sanctions’,
-‘security_council’,‘peacekeeping’,‘resolutions’,‘sigint’,‘humint’,‘threat_assess’,
-‘uc_identity’,‘case_intel’,‘red_notices’,‘cross_border’,‘cybercrime’,‘threat_intel’,
-‘incident_resp’,‘zero_day’,‘soc’,‘patient_census’,‘ehr’,‘eeg_monitor’,
-‘beds’,‘staff’,‘schedule’,‘billing’,‘patient_records’,‘crisis_int’,‘treatment_plans’,
-‘tccc’,‘triage’,‘health_advisories’,‘emergency_authority’,‘rx_verify’,‘drug_interact’,
-‘dispensing’,‘class_dash’,‘grades’,‘attendance’,‘curriculum’,‘courses’,‘research’,
-‘publications’,‘iep_mgmt’,‘plans_504’,‘accommodations’,‘catalog’,‘research_help’,
-‘system_ctrl’,‘user_mgmt’,‘security_cfg’,‘api_console’,‘killswitch’,‘vault_wipe’,
-‘active_ride’,‘navigation’,‘earnings’,‘book_ride’,‘tracking’,‘ride_history’,
-‘packages’,‘routes’,‘manifest’,‘cert_review’,‘oral_arguments’,‘opinions’,
-‘client_comms’,‘doj_lead’,‘litigation’,‘antitrust’,‘inmate_roster’,‘programs’,
-‘soc2’,‘iso27001’,‘hipaa_audit’,‘financial_audit’,‘flight_plan’,‘notam’,‘weather’,
-‘charts’,‘radar’,‘separation’,‘clearances’,‘sar’,‘port_security’,‘maritime_law’,
-‘case_mgmt’,‘home_visits’,‘court_reports’,‘student_counsel’,‘checkin’,‘risk_assess’,
-‘incident_cmd’,‘eoc’,‘resource_mgmt’,‘story_research’,‘source_mgmt’,‘foia’,
-‘counseling’,‘memorial’,‘board_reports’,‘pl_mgmt’,‘strategy’,‘hr’,‘monetary_policy’,
-‘bank_supervision’,‘market_surv’,‘sales’,‘inventory’,‘employees’,‘aml_screen’,
-‘bsa_comply’,‘kyc’,‘story_time’,‘learning_games’,‘drawing’,‘ai_tutor’,‘homework’,
-‘college_prep’,‘career’,‘child_progress’,‘school_notices’,‘teacher_comms’,
-‘va_benefits’,‘service_record’,‘education’,‘ddg_browser’,‘learning_hub’,
-‘medical_literature’,‘academic_search’,‘area_search’,‘osint_browser’,
-‘academic_research’,‘nfpa_reference’,‘protocol_reference’,‘threat_intel_ref’,
-‘local_search’,‘safe_search’,‘ddg_scholar’,‘career_explore’,
+['case_docket','hearings','orders','sentencing','appeals','policy_mgmt','legislation','budget',
+'active_cases','evidence','witnesses','charges','dispatch','arrests','reports',
+'incidents','equipment','hazmat','patient_care','vitals','medications',
+'operations','missions','intel','logistics','access_logs','cameras','perimeter',
+'exec_orders','cabinet','natl_security','senate','succession','parliament',
+'diplo_cables','treaty','consular','foreign_policy','ambassadors','sanctions',
+'security_council','peacekeeping','resolutions','sigint','humint','threat_assess',
+'uc_identity','case_intel','red_notices','cross_border','cybercrime','threat_intel',
+'incident_resp','zero_day','soc','patient_census','ehr','eeg_monitor',
+'beds','staff','schedule','billing','patient_records','crisis_int','treatment_plans',
+'tccc','triage','health_advisories','emergency_authority','rx_verify','drug_interact',
+'dispensing','class_dash','grades','attendance','curriculum','courses','research',
+'publications','iep_mgmt','plans_504','accommodations','catalog','research_help',
+'system_ctrl','user_mgmt','security_cfg','api_console','killswitch','vault_wipe',
+'active_ride','navigation','earnings','book_ride','tracking','ride_history',
+'packages','routes','manifest','cert_review','oral_arguments','opinions',
+'client_comms','doj_lead','litigation','antitrust','inmate_roster','programs',
+'soc2','iso27001','hipaa_audit','financial_audit','flight_plan','notam','weather',
+'charts','radar','separation','clearances','sar','port_security','maritime_law',
+'case_mgmt','home_visits','court_reports','student_counsel','checkin','risk_assess',
+'incident_cmd','eoc','resource_mgmt','story_research','source_mgmt','foia',
+'counseling','memorial','board_reports','pl_mgmt','strategy','hr','monetary_policy',
+'bank_supervision','market_surv','sales','inventory','employees','aml_screen',
+'bsa_comply','kyc','story_time','learning_games','drawing','ai_tutor','homework',
+'college_prep','career','child_progress','school_notices','teacher_comms',
+'va_benefits','service_record','education','ddg_browser','learning_hub',
+'medical_literature','academic_search','area_search','osint_browser',
+'academic_research','nfpa_reference','protocol_reference','threat_intel_ref',
+'local_search','safe_search','ddg_scholar','career_explore',
 ].forEach(function(id){
 if(!PANELS[id]){
-var title=id.replace(/_/g,’ ‘).replace(/\w/g,function(c){return c.toUpperCase();});
-PANELS[id]=makeGenericPanel(title,‘📊’,’// ’+title);
+var title=id.replace(/_/g,' ').replace(/\w/g,function(c){return c.toUpperCase();});
+PANELS[id]=makeGenericPanel(title,'📊','// '+title);
 }
 });
 
 // Special: ddg_browser gets iframe
 PANELS.ddg_browser = function(){
-var h=ph(‘DDG Research Browser’,’// Privacy-First · Zero Retention · Grade-Aware’);
-h+=comp([‘DuckDuckGo’,‘Privacy-First’,‘Zero Logging’,‘CIPA’]);
-h+=’<div style="border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;height:500px">’;
-h+=’<div style="display:flex;gap:7px;padding:8px 12px;background:var(--sf);border-bottom:1px solid var(--bd)">’;
-h+=’<input class="inp" id="ddgUrl" style="flex:1;padding:7px 12px;font-size:12px" placeholder="Search or type URL…" value="https://duckduckgo.com">’;
-h+=’<button class="btn bp" onclick="el(\'ddgFrame\').src=el(\'ddgUrl\').value" style="padding:7px 14px">Go</button></div>’;
-h+=’<iframe id="ddgFrame" src="https://duckduckgo.com" style="width:100%;height:calc(100% - 50px);border:none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>’;
-h+=’</div>’;
+var h=ph('DDG Research Browser','// Privacy-First · Zero Retention · Grade-Aware');
+h+=comp(['DuckDuckGo','Privacy-First','Zero Logging','CIPA']);
+h+='<div style="border:1px solid var(--bd);border-radius:var(--r2);overflow:hidden;height:500px">';
+h+='<div style="display:flex;gap:7px;padding:8px 12px;background:var(--sf);border-bottom:1px solid var(--bd)">';
+h+='<input class="inp" id="ddgUrl" style="flex:1;padding:7px 12px;font-size:12px" placeholder="Search or type URL…" value="https://duckduckgo.com">';
+h+='<button class="btn bp" onclick="el(\'ddgFrame\').src=el(\'ddgUrl\').value" style="padding:7px 14px">Go</button></div>';
+h+='<iframe id="ddgFrame" src="https://duckduckgo.com" style="width:100%;height:calc(100% - 50px);border:none" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>';
+h+='</div>';
 return h;
 };
 
@@ -2105,195 +2105,195 @@ PANELS.keycloak = PANELS.bridge;
 PANELS.stream_studio = function(){
 function usB(h){ return h; }
 var CSS=[
-‘.usS{background:rgba(8,8,20,.75);border:1px solid rgba(102,126,234,.3);border-radius:12px;overflow:hidden;margin-top:4px}’,
-‘.usHdr{background:rgba(0,0,0,.55);padding:13px 17px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid rgba(138,43,226,.4)}’,
-‘.usHl{display:flex;align-items:center;gap:9px}’,
-‘.usHic{width:34px;height:34px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;animation:usPulse 2s infinite}’,
-‘@keyframes usPulse{0%,100%{box-shadow:0 0 10px rgba(102,126,234,.5)}50%{box-shadow:0 0 20px rgba(102,126,234,.9)}}’,
-‘.usHt{font-size:14px;font-weight:700;background:linear-gradient(90deg,#667eea,#764ba2,#f093fb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}’,
-‘.usHs{font-size:10px;color:#777}’,
-‘.usSbar{display:flex;gap:8px;flex-wrap:wrap}’,
-‘.usSI{display:flex;align-items:center;gap:5px;padding:5px 11px;background:rgba(255,255,255,.07);border-radius:18px;font-size:11px}’,
-‘.usDot{width:7px;height:7px;border-radius:50%;animation:usBlink 1.5s infinite}’,
-‘.usDot.live{background:#00ff00}.usDot.rec{background:#ff9500}’,
-‘@keyframes usBlink{0%,100%{opacity:1}50%{opacity:.3}}’,
-‘.usBod{padding:13px}’,
-‘.usGrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-bottom:12px}’,
-‘.usCard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:13px;transition:all .3s}’,
-‘.usCard:hover{transform:translateY(-2px);box-shadow:0 5px 22px rgba(102,126,234,.2)}’,
-‘.usCT{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:11px;color:#ccc}’,
-‘.usCic{width:22px;height:22px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px}’,
-‘.usMet{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}’,
-‘.usMet:last-child{border-bottom:none}’,
-‘.usML{color:#777}.usMV{font-weight:700}.usMV.g{color:#00ff88}.usMV.w{color:#fa0}.usMV.r{color:#f44}’,
-‘.usPB{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-top:4px}’,
-‘.usPF{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:2px;transition:width .4s}’,
-‘.usScn{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:11px}’,
-‘.usBox{aspect-ratio:16/9;background:rgba(0,0,0,.5);border:2px solid rgba(102,126,234,.25);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;position:relative;font-size:10px}’,
-‘.usBox:hover{border-color:rgba(102,126,234,.6);background:rgba(102,126,234,.1)}’,
-‘.usBox.usLv{border-color:#00ff88;background:rgba(0,255,136,.1)}’,
-‘.usSN{font-size:15px;font-weight:700;opacity:.4}.usSL{font-size:9px;opacity:.55;margin-top:2px}’,
-‘.usLvB{position:absolute;top:2px;right:2px;padding:1px 4px;background:#f00;border-radius:3px;font-size:7px;font-weight:700}’,
-‘.usTabRow{display:flex;gap:3px;border-bottom:2px solid rgba(255,255,255,.07);margin-bottom:11px}’,
-‘.usTabBtn{padding:6px 13px;background:transparent;border:none;color:#666;font-size:11px;font-weight:700;cursor:pointer;transition:all .3s;border-bottom:3px solid transparent}’,
-‘.usTabBtn:hover{color:#fff}.usTabBtn.on{color:#fff;border-bottom-color:#667eea}’,
-‘.usTabCt{display:none}.usTabCt.on{display:block}’,
-‘.usCP{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px;margin:7px 0}’,
-‘.usBt{padding:9px 6px;background:linear-gradient(135deg,rgba(102,126,234,.18),rgba(118,75,162,.18));border:1px solid rgba(102,126,234,.3);border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;transition:all .3s;text-align:center}’,
-‘.usBt:hover{background:linear-gradient(135deg,rgba(102,126,234,.42),rgba(118,75,162,.42));transform:scale(1.03)}’,
-‘.usBt.on{background:linear-gradient(135deg,#00ff88,#00cc6a);border-color:#00ff88;color:#000}’,
-‘.usBt.dng{background:linear-gradient(135deg,rgba(255,68,68,.18),rgba(200,40,40,.18));border-color:rgba(255,68,68,.3)}’,
-‘.usBt.dng:hover{background:linear-gradient(135deg,rgba(255,68,68,.42),rgba(200,40,40,.42))}’,
-‘.usMDv{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(255,255,255,.04);border-radius:6px;margin-bottom:6px;font-size:11px}’,
-‘.usMDot{width:6px;height:6px;border-radius:50%;background:#00ff88}’,
-‘.usAlrt{padding:8px 11px;background:rgba(0,255,136,.09);border-left:3px solid #00ff88;border-radius:5px;margin-bottom:9px;font-size:11px}’,
-‘.usInp{width:100%;padding:6px 9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:5px;color:#fff;font-size:11px;margin-top:3px}’,
-‘.usInp:focus{outline:none;border-color:#667eea}’,
-‘.usSetG{margin-bottom:11px}.usSetL{font-size:10px;color:#777;margin-bottom:2px;display:block}’
-].join(’’);
+'.usS{background:rgba(8,8,20,.75);border:1px solid rgba(102,126,234,.3);border-radius:12px;overflow:hidden;margin-top:4px}',
+'.usHdr{background:rgba(0,0,0,.55);padding:13px 17px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid rgba(138,43,226,.4)}',
+'.usHl{display:flex;align-items:center;gap:9px}',
+'.usHic{width:34px;height:34px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;animation:usPulse 2s infinite}',
+'@keyframes usPulse{0%,100%{box-shadow:0 0 10px rgba(102,126,234,.5)}50%{box-shadow:0 0 20px rgba(102,126,234,.9)}}',
+'.usHt{font-size:14px;font-weight:700;background:linear-gradient(90deg,#667eea,#764ba2,#f093fb);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}',
+'.usHs{font-size:10px;color:#777}',
+'.usSbar{display:flex;gap:8px;flex-wrap:wrap}',
+'.usSI{display:flex;align-items:center;gap:5px;padding:5px 11px;background:rgba(255,255,255,.07);border-radius:18px;font-size:11px}',
+'.usDot{width:7px;height:7px;border-radius:50%;animation:usBlink 1.5s infinite}',
+'.usDot.live{background:#00ff00}.usDot.rec{background:#ff9500}',
+'@keyframes usBlink{0%,100%{opacity:1}50%{opacity:.3}}',
+'.usBod{padding:13px}',
+'.usGrd{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px;margin-bottom:12px}',
+'.usCard{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:13px;transition:all .3s}',
+'.usCard:hover{transform:translateY(-2px);box-shadow:0 5px 22px rgba(102,126,234,.2)}',
+'.usCT{font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:11px;color:#ccc}',
+'.usCic{width:22px;height:22px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px}',
+'.usMet{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px}',
+'.usMet:last-child{border-bottom:none}',
+'.usML{color:#777}.usMV{font-weight:700}.usMV.g{color:#00ff88}.usMV.w{color:#fa0}.usMV.r{color:#f44}',
+'.usPB{width:100%;height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-top:4px}',
+'.usPF{height:100%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:2px;transition:width .4s}',
+'.usScn{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:11px}',
+'.usBox{aspect-ratio:16/9;background:rgba(0,0,0,.5);border:2px solid rgba(102,126,234,.25);border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;transition:all .3s;position:relative;font-size:10px}',
+'.usBox:hover{border-color:rgba(102,126,234,.6);background:rgba(102,126,234,.1)}',
+'.usBox.usLv{border-color:#00ff88;background:rgba(0,255,136,.1)}',
+'.usSN{font-size:15px;font-weight:700;opacity:.4}.usSL{font-size:9px;opacity:.55;margin-top:2px}',
+'.usLvB{position:absolute;top:2px;right:2px;padding:1px 4px;background:#f00;border-radius:3px;font-size:7px;font-weight:700}',
+'.usTabRow{display:flex;gap:3px;border-bottom:2px solid rgba(255,255,255,.07);margin-bottom:11px}',
+'.usTabBtn{padding:6px 13px;background:transparent;border:none;color:#666;font-size:11px;font-weight:700;cursor:pointer;transition:all .3s;border-bottom:3px solid transparent}',
+'.usTabBtn:hover{color:#fff}.usTabBtn.on{color:#fff;border-bottom-color:#667eea}',
+'.usTabCt{display:none}.usTabCt.on{display:block}',
+'.usCP{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:7px;margin:7px 0}',
+'.usBt{padding:9px 6px;background:linear-gradient(135deg,rgba(102,126,234,.18),rgba(118,75,162,.18));border:1px solid rgba(102,126,234,.3);border-radius:8px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;transition:all .3s;text-align:center}',
+'.usBt:hover{background:linear-gradient(135deg,rgba(102,126,234,.42),rgba(118,75,162,.42));transform:scale(1.03)}',
+'.usBt.on{background:linear-gradient(135deg,#00ff88,#00cc6a);border-color:#00ff88;color:#000}',
+'.usBt.dng{background:linear-gradient(135deg,rgba(255,68,68,.18),rgba(200,40,40,.18));border-color:rgba(255,68,68,.3)}',
+'.usBt.dng:hover{background:linear-gradient(135deg,rgba(255,68,68,.42),rgba(200,40,40,.42))}',
+'.usMDv{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:rgba(255,255,255,.04);border-radius:6px;margin-bottom:6px;font-size:11px}',
+'.usMDot{width:6px;height:6px;border-radius:50%;background:#00ff88}',
+'.usAlrt{padding:8px 11px;background:rgba(0,255,136,.09);border-left:3px solid #00ff88;border-radius:5px;margin-bottom:9px;font-size:11px}',
+'.usInp{width:100%;padding:6px 9px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);border-radius:5px;color:#fff;font-size:11px;margin-top:3px}',
+'.usInp:focus{outline:none;border-color:#667eea}',
+'.usSetG{margin-bottom:11px}.usSetL{font-size:10px;color:#777;margin-bottom:2px;display:block}'
+].join('');
 
-var h = ph(‘Stream Studio’,’// Ustream4Free Pro v7.0 \u00b7 Local Only \u00b7 Zero Cloud \u00b7 RTMP Ready’);
-h += comp([‘Local Only’,‘Zero Cloud’,‘RTMP Ready’,‘60FPS’,‘MIDI’,‘Screen Capture’]);
-h += ‘<style>’ + CSS + ‘</style>’;
-h += ‘<div class="usS">’;
+var h = ph('Stream Studio','// Ustream4Free Pro v7.0 \u00b7 Local Only \u00b7 Zero Cloud \u00b7 RTMP Ready');
+h += comp(['Local Only','Zero Cloud','RTMP Ready','60FPS','MIDI','Screen Capture']);
+h += '<style>' + CSS + '</style>';
+h += '<div class="usS">';
 // Header
-h += ‘<div class="usHdr">’;
-h += ‘<div class="usHl"><div class="usHic">\u{1F3AC}</div>’;
-h += ‘<div><div class="usHt">Ustream4Free Pro Studio</div><div class="usHs">v7.0 \u00b7 Professional Local Streaming Dashboard</div></div></div>’;
-h += ‘<div class="usSbar">’;
-h += ‘<div class="usSI"><div class="usDot live"></div><span id="usLbl">LIVE</span></div>’;
-h += ‘<div class="usSI"><div class="usDot rec"></div><span>REC</span></div>’;
-h += ‘<div class="usSI"><span id="usTmr">\u23f1 0:00:00</span></div>’;
-h += ‘</div></div>’;
+h += '<div class="usHdr">';
+h += '<div class="usHl"><div class="usHic">\u{1F3AC}</div>';
+h += '<div><div class="usHt">Ustream4Free Pro Studio</div><div class="usHs">v7.0 \u00b7 Professional Local Streaming Dashboard</div></div></div>';
+h += '<div class="usSbar">';
+h += '<div class="usSI"><div class="usDot live"></div><span id="usLbl">LIVE</span></div>';
+h += '<div class="usSI"><div class="usDot rec"></div><span>REC</span></div>';
+h += '<div class="usSI"><span id="usTmr">\u23f1 0:00:00</span></div>';
+h += '</div></div>';
 // Body
-h += ‘<div class="usBod">’;
+h += '<div class="usBod">';
 // Metrics grid
-h += ‘<div class="usGrd">’;
-h += ‘<div class="usCard"><div class="usCT"><div class="usCic">\u{1F4E1}</div>Stream Status</div>’;
-h += ‘<div class="usMet"><span class="usML">Bitrate</span><span class="usMV g" id="usBr">6,245 kbps</span></div>’;
-h += ‘<div class="usMet"><span class="usML">FPS</span><span class="usMV g" id="usFps">60.00</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Dropped</span><span class="usMV g">0.02%</span></div>’;
-h += ‘<div class="usMet"><span class="usML">CPU</span><span class="usMV" id="usCpu">24.5%</span></div>’;
-h += ‘<div class="usPB"><div class="usPF" id="usCpuB" style="width:24.5%"></div></div></div>’;
+h += '<div class="usGrd">';
+h += '<div class="usCard"><div class="usCT"><div class="usCic">\u{1F4E1}</div>Stream Status</div>';
+h += '<div class="usMet"><span class="usML">Bitrate</span><span class="usMV g" id="usBr">6,245 kbps</span></div>';
+h += '<div class="usMet"><span class="usML">FPS</span><span class="usMV g" id="usFps">60.00</span></div>';
+h += '<div class="usMet"><span class="usML">Dropped</span><span class="usMV g">0.02%</span></div>';
+h += '<div class="usMet"><span class="usML">CPU</span><span class="usMV" id="usCpu">24.5%</span></div>';
+h += '<div class="usPB"><div class="usPF" id="usCpuB" style="width:24.5%"></div></div></div>';
 
-h += ‘<div class="usCard"><div class="usCT"><div class="usCic">\u{1F310}</div>Network</div>’;
-h += ‘<div class="usMet"><span class="usML">Upload</span><span class="usMV g">8.2 Mbps</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Latency</span><span class="usMV g" id="usLat">42ms</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Jitter</span><span class="usMV g">3ms</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Packet Loss</span><span class="usMV g">0.00%</span></div></div>’;
+h += '<div class="usCard"><div class="usCT"><div class="usCic">\u{1F310}</div>Network</div>';
+h += '<div class="usMet"><span class="usML">Upload</span><span class="usMV g">8.2 Mbps</span></div>';
+h += '<div class="usMet"><span class="usML">Latency</span><span class="usMV g" id="usLat">42ms</span></div>';
+h += '<div class="usMet"><span class="usML">Jitter</span><span class="usMV g">3ms</span></div>';
+h += '<div class="usMet"><span class="usML">Packet Loss</span><span class="usMV g">0.00%</span></div></div>';
 
-h += ‘<div class="usCard"><div class="usCT"><div class="usCic">\u{1F3B5}</div>Audio</div>’;
-h += ‘<div class="usMet"><span class="usML">\u{1F3A4} Mic</span><span class="usMV g">-12 dB</span></div>’;
-h += ‘<div class="usPB"><div class="usPF" style="width:65%;background:linear-gradient(90deg,#00ff88,#00cc6a)"></div></div>’;
-h += ‘<div class="usMet" style="margin-top:6px"><span class="usML">\u{1F5A5} Desktop</span><span class="usMV">-18 dB</span></div>’;
-h += ‘<div class="usPB"><div class="usPF" style="width:45%"></div></div>’;
-h += ‘<div class="usMet" style="margin-top:6px"><span class="usML">\u{1F3B8} MIDI</span><span class="usMV">-24 dB</span></div>’;
-h += ‘<div class="usPB"><div class="usPF" style="width:25%;background:linear-gradient(90deg,#f093fb,#f5576c)"></div></div></div>’;
+h += '<div class="usCard"><div class="usCT"><div class="usCic">\u{1F3B5}</div>Audio</div>';
+h += '<div class="usMet"><span class="usML">\u{1F3A4} Mic</span><span class="usMV g">-12 dB</span></div>';
+h += '<div class="usPB"><div class="usPF" style="width:65%;background:linear-gradient(90deg,#00ff88,#00cc6a)"></div></div>';
+h += '<div class="usMet" style="margin-top:6px"><span class="usML">\u{1F5A5} Desktop</span><span class="usMV">-18 dB</span></div>';
+h += '<div class="usPB"><div class="usPF" style="width:45%"></div></div>';
+h += '<div class="usMet" style="margin-top:6px"><span class="usML">\u{1F3B8} MIDI</span><span class="usMV">-24 dB</span></div>';
+h += '<div class="usPB"><div class="usPF" style="width:25%;background:linear-gradient(90deg,#f093fb,#f5576c)"></div></div></div>';
 
-h += ‘<div class="usCard"><div class="usCT"><div class="usCic">\u{1F3AF}</div>Stream Health</div>’;
-h += ‘<div class="usMet"><span class="usML">Score</span><span class="usMV g">98/100</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Quality</span><span class="usMV g">Excellent</span></div>’;
-h += ‘<div class="usMet"><span class="usML">Stability</span><span class="usMV g">99.8%</span></div>’;
-h += ‘<div class="usMet"><span class="usML">RAM</span><span class="usMV">4.2/16 GB</span></div>’;
-h += ‘<div class="usPB"><div class="usPF" style="width:26%"></div></div></div>’;
-h += ‘</div>’;
+h += '<div class="usCard"><div class="usCT"><div class="usCic">\u{1F3AF}</div>Stream Health</div>';
+h += '<div class="usMet"><span class="usML">Score</span><span class="usMV g">98/100</span></div>';
+h += '<div class="usMet"><span class="usML">Quality</span><span class="usMV g">Excellent</span></div>';
+h += '<div class="usMet"><span class="usML">Stability</span><span class="usMV g">99.8%</span></div>';
+h += '<div class="usMet"><span class="usML">RAM</span><span class="usMV">4.2/16 GB</span></div>';
+h += '<div class="usPB"><div class="usPF" style="width:26%"></div></div></div>';
+h += '</div>';
 
 // Scene manager
-h += ‘<div class="usCard" style="margin-bottom:11px"><div class="usCT"><div class="usCic">\u{1F3AC}</div>Scene Manager \u2014 click to go LIVE</div>’;
-h += ‘<div class="usScn" id="usScenes">’;
-var labels=[‘Main Cam’,‘Screen’,‘Gaming’,‘Interview’,‘BRB’,‘Starting’];
+h += '<div class="usCard" style="margin-bottom:11px"><div class="usCT"><div class="usCic">\u{1F3AC}</div>Scene Manager \u2014 click to go LIVE</div>';
+h += '<div class="usScn" id="usScenes">';
+var labels=['Main Cam','Screen','Gaming','Interview','BRB','Starting'];
 for(var si=0;si<6;si++){
-h += ‘<div class="usBox' + (si===0?' usLv':'') + '" onclick="usPickScene(this)">’;
-if(si===0) h += ‘<div class="usLvB">LIVE</div>’;
-h += ‘<div class="usSN">’ + (si+1) + ‘</div>’;
-h += ‘<div class="usSL">’ + labels[si] + ‘</div></div>’;
+h += '<div class="usBox' + (si===0?' usLv':'') + '" onclick="usPickScene(this)">';
+if(si===0) h += '<div class="usLvB">LIVE</div>';
+h += '<div class="usSN">' + (si+1) + '</div>';
+h += '<div class="usSL">' + labels[si] + '</div></div>';
 }
-h += ‘</div></div>’;
+h += '</div></div>';
 
 // Controls card with tabs
-h += ‘<div class="usCard">’;
-h += ‘<div class="usTabRow">’;
-h += ‘<button class="usTabBtn on" onclick="usTab(this,\'usCtrl\')">Controls</button>’;
-h += ‘<button class="usTabBtn" onclick="usTab(this,\'usMidi\')">MIDI</button>’;
-h += ‘<button class="usTabBtn" onclick="usTab(this,\'usAna\')">Analytics</button>’;
-h += ‘<button class="usTabBtn" onclick="usTab(this,\'usSet\')">Settings</button>’;
-h += ‘</div>’;
+h += '<div class="usCard">';
+h += '<div class="usTabRow">';
+h += '<button class="usTabBtn on" onclick="usTab(this,\'usCtrl\')">Controls</button>';
+h += '<button class="usTabBtn" onclick="usTab(this,\'usMidi\')">MIDI</button>';
+h += '<button class="usTabBtn" onclick="usTab(this,\'usAna\')">Analytics</button>';
+h += '<button class="usTabBtn" onclick="usTab(this,\'usSet\')">Settings</button>';
+h += '</div>';
 
 // Controls tab
-h += ‘<div id="usCtrl" class="usTabCt on"><div class="usCP">’;
-var ctls=[[‘on’,‘▶ Start Stream’],[‘dng’,‘⏹ Stop’],[’’,‘⏺ Record’],[’’,‘⏸ Pause’],[’’,‘🔄 Switch Scene’],[’’,‘🎨 Filters’],[’’,‘💬 Chat Overlay’],[’’,‘📊 Stats’],[’’,‘🔇 Mute Mic’],[’’,‘🖥 Mute Desktop’],[’’,‘📸 Screenshot’],[’’,‘⚙ Quick Config’]];
+h += '<div id="usCtrl" class="usTabCt on"><div class="usCP">';
+var ctls=[['on','▶ Start Stream'],['dng','⏹ Stop'],['','⏺ Record'],['','⏸ Pause'],['','🔄 Switch Scene'],['','🎨 Filters'],['','💬 Chat Overlay'],['','📊 Stats'],['','🔇 Mute Mic'],['','🖥 Mute Desktop'],['','📸 Screenshot'],['','⚙ Quick Config']];
 for(var ci=0;ci<ctls.length;ci++){
-h += ‘<button class="usBt ' + ctls[ci][0] + '" onclick="usTogBtn(this)">’ + ctls[ci][1] + ‘</button>’;
+h += '<button class="usBt ' + ctls[ci][0] + '" onclick="usTogBtn(this)">' + ctls[ci][1] + '</button>';
 }
-h += ‘</div></div>’;
+h += '</div></div>';
 
 // MIDI tab
-h += ‘<div id="usMidi" class="usTabCt">’;
-h += ‘<div class="usAlrt">\u2713 3 MIDI devices connected</div>’;
-var midi=[[‘Akai MPK Mini MK3’,‘Input \u00b7 25 Keys’],[‘Stream Deck XL’,‘Control Surface \u00b7 32 Keys’],[‘Behringer X-Touch Mini’,‘MIDI \u00b7 16 Encoders’]];
+h += '<div id="usMidi" class="usTabCt">';
+h += '<div class="usAlrt">\u2713 3 MIDI devices connected</div>';
+var midi=[['Akai MPK Mini MK3','Input \u00b7 25 Keys'],['Stream Deck XL','Control Surface \u00b7 32 Keys'],['Behringer X-Touch Mini','MIDI \u00b7 16 Encoders']];
 for(var mi=0;mi<midi.length;mi++){
-h += ‘<div class="usMDv"><div><div style="font-weight:700;font-size:11px">’ + midi[mi][0] + ‘</div>’;
-h += ‘<div style="font-size:10px;color:#777">’ + midi[mi][1] + ‘</div></div><div class="usMDot"></div></div>’;
+h += '<div class="usMDv"><div><div style="font-weight:700;font-size:11px">' + midi[mi][0] + '</div>';
+h += '<div style="font-size:10px;color:#777">' + midi[mi][1] + '</div></div><div class="usMDot"></div></div>';
 }
-h += ‘<div style="display:flex;gap:7px;margin-top:9px"><button class="usBt" onclick="toast(\'Scanning MIDI...\',\'ok\')">+ Add Device</button><button class="usBt" onclick="toast(\'MIDI mappings\',\'ok\')">🔧 Mappings</button></div>’;
-h += ‘</div>’;
+h += '<div style="display:flex;gap:7px;margin-top:9px"><button class="usBt" onclick="toast(\'Scanning MIDI...\',\'ok\')">+ Add Device</button><button class="usBt" onclick="toast(\'MIDI mappings\',\'ok\')">🔧 Mappings</button></div>';
+h += '</div>';
 
 // Analytics tab
-h += ‘<div id="usAna" class="usTabCt">’;
-h += ‘<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:11px">’;
-h += ‘<div><div style="font-size:10px;color:#777">Stream Time</div><div style="font-size:15px;font-weight:700">24h 36m</div></div>’;
-h += ‘<div><div style="font-size:10px;color:#777">Peak Viewers</div><div style="font-size:15px;font-weight:700;color:#00ff88">1,247</div></div>’;
-h += ‘<div><div style="font-size:10px;color:#777">Avg Bitrate</div><div style="font-size:15px;font-weight:700">5,892 kbps</div></div>’;
-h += ‘</div>’;
-h += ‘<canvas id="usChart" style="width:100%;height:120px;border:1px solid rgba(102,126,234,.18);border-radius:7px"></canvas>’;
-h += ‘</div>’;
+h += '<div id="usAna" class="usTabCt">';
+h += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:11px">';
+h += '<div><div style="font-size:10px;color:#777">Stream Time</div><div style="font-size:15px;font-weight:700">24h 36m</div></div>';
+h += '<div><div style="font-size:10px;color:#777">Peak Viewers</div><div style="font-size:15px;font-weight:700;color:#00ff88">1,247</div></div>';
+h += '<div><div style="font-size:10px;color:#777">Avg Bitrate</div><div style="font-size:15px;font-weight:700">5,892 kbps</div></div>';
+h += '</div>';
+h += '<canvas id="usChart" style="width:100%;height:120px;border:1px solid rgba(102,126,234,.18);border-radius:7px"></canvas>';
+h += '</div>';
 
 // Settings tab
-h += ‘<div id="usSet" class="usTabCt">’;
-h += ‘<div class="usSetG"><label class="usSetL">Video Resolution</label><select class="usInp"><option>1920x1080 (Full HD)</option><option>2560x1440 (2K)</option><option>3840x2160 (4K)</option></select></div>’;
-h += ‘<div class="usSetG"><label class="usSetL">Frame Rate</label><select class="usInp"><option>30 FPS</option><option selected>60 FPS</option><option>120 FPS</option></select></div>’;
-h += ‘<div class="usSetG"><label class="usSetL">Video Bitrate (kbps)</label><input type="number" class="usInp" value="6000"></div>’;
-h += ‘<div class="usSetG"><label class="usSetL">Audio Bitrate</label><select class="usInp"><option>128</option><option>192</option><option selected>256</option><option>320</option></select></div>’;
-h += ‘<div class="usSetG"><label class="usSetL">Encoder</label><select class="usInp"><option>Software (x264)</option><option selected>NVIDIA NVENC</option><option>AMD AMF</option><option>Intel QSV</option></select></div>’;
-h += ‘<button class="usBt on" style="width:100%;margin-top:7px" onclick="toast(\'Stream settings saved\',\'ok\')">💾 Save Settings</button>’;
-h += ‘</div>’;
-h += ‘</div></div></div>’;
+h += '<div id="usSet" class="usTabCt">';
+h += '<div class="usSetG"><label class="usSetL">Video Resolution</label><select class="usInp"><option>1920x1080 (Full HD)</option><option>2560x1440 (2K)</option><option>3840x2160 (4K)</option></select></div>';
+h += '<div class="usSetG"><label class="usSetL">Frame Rate</label><select class="usInp"><option>30 FPS</option><option selected>60 FPS</option><option>120 FPS</option></select></div>';
+h += '<div class="usSetG"><label class="usSetL">Video Bitrate (kbps)</label><input type="number" class="usInp" value="6000"></div>';
+h += '<div class="usSetG"><label class="usSetL">Audio Bitrate</label><select class="usInp"><option>128</option><option>192</option><option selected>256</option><option>320</option></select></div>';
+h += '<div class="usSetG"><label class="usSetL">Encoder</label><select class="usInp"><option>Software (x264)</option><option selected>NVIDIA NVENC</option><option>AMD AMF</option><option>Intel QSV</option></select></div>';
+h += '<button class="usBt on" style="width:100%;margin-top:7px" onclick="toast(\'Stream settings saved\',\'ok\')">💾 Save Settings</button>';
+h += '</div>';
+h += '</div></div></div>';
 
-// Init script — iife, scoped to this panel render
-h += ‘<scr’+‘ipt>(function(){’;
-h += ‘var _t=0,_ti=null;’;
-h += ‘function usStart(){if(_ti)return;_ti=setInterval(function(){_t++;var h2=Math.floor(_t/3600),m=Math.floor((_t%3600)/60),s=_t%60;var el=document.getElementById(“usTmr”);if(el)el.textContent=”\u23f1 “+h2+”:”+String(m).padStart(2,“0”)+”:”+String(s).padStart(2,“0”);},1000);}usStart();’;
-h += ‘setInterval(function(){’;
-h += ‘var b=document.getElementById(“usBr”);if(b)b.textContent=Math.round(5800+Math.random()*700)+” kbps”;’;
-h += ’var f=document.getElementById(“usFps”);if(f)f.textContent=(59.8+Math.random()*.4).toFixed(2);’;
-h += ‘var cv=20+Math.random()*12,c=document.getElementById(“usCpu”),cb=document.getElementById(“usCpuB”);if(c)c.textContent=cv.toFixed(1)+”%”;if(cb)cb.style.width=cv+”%”;’;
-h += ‘var l=document.getElementById(“usLat”);if(l)l.textContent=Math.round(36+Math.random()*14)+“ms”;’;
-h += ‘},1400);’;
-h += ‘var cv=document.getElementById(“usChart”);if(cv){cv.width=cv.offsetWidth||560;cv.height=120;var ctx=cv.getContext(“2d”);function draw(){ctx.clearRect(0,0,cv.width,cv.height);ctx.strokeStyle=”#667eea”;ctx.lineWidth=1.5;ctx.beginPath();for(var i=0;i<cv.width;i+=3){var y=cv.height/2+Math.sin(i/22)*22+Math.random()*10;i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}ctx.stroke();}draw();setInterval(draw,2500);}’;
-h += ‘})();</script>’;
+// Init script - iife, scoped to this panel render
+h += '<scr'+'ipt>(function(){';
+h += 'var _t=0,_ti=null;';
+h += 'function usStart(){if(_ti)return;_ti=setInterval(function(){_t++;var h2=Math.floor(_t/3600),m=Math.floor((_t%3600)/60),s=_t%60;var el=document.getElementById("usTmr");if(el)el.textContent="\u23f1 "+h2+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");},1000);}usStart();';
+h += 'setInterval(function(){';
+h += 'var b=document.getElementById("usBr");if(b)b.textContent=Math.round(5800+Math.random()*700)+" kbps";';
+h += 'var f=document.getElementById("usFps");if(f)f.textContent=(59.8+Math.random()*.4).toFixed(2);';
+h += 'var cv=20+Math.random()*12,c=document.getElementById("usCpu"),cb=document.getElementById("usCpuB");if(c)c.textContent=cv.toFixed(1)+"%";if(cb)cb.style.width=cv+"%";';
+h += 'var l=document.getElementById("usLat");if(l)l.textContent=Math.round(36+Math.random()*14)+"ms";';
+h += '},1400);';
+h += 'var cv=document.getElementById("usChart");if(cv){cv.width=cv.offsetWidth||560;cv.height=120;var ctx=cv.getContext("2d");function draw(){ctx.clearRect(0,0,cv.width,cv.height);ctx.strokeStyle="#667eea";ctx.lineWidth=1.5;ctx.beginPath();for(var i=0;i<cv.width;i+=3){var y=cv.height/2+Math.sin(i/22)*22+Math.random()*10;i===0?ctx.moveTo(i,y):ctx.lineTo(i,y);}ctx.stroke();}draw();setInterval(draw,2500);}';
+h += '})();</script>';
 return h;
 };
 // Helper fns for stream studio (global scope, namespaced)
 function usPickScene(el){
-document.querySelectorAll(’.usBox’).forEach(function(b){b.classList.remove(‘usLv’);var x=b.querySelector(’.usLvB’);if(x)x.remove();});
-el.classList.add(‘usLv’);var badge=document.createElement(‘div’);badge.className=‘usLvB’;badge.textContent=‘LIVE’;el.appendChild(badge);
+document.querySelectorAll('.usBox').forEach(function(b){b.classList.remove('usLv');var x=b.querySelector('.usLvB');if(x)x.remove();});
+el.classList.add('usLv');var badge=document.createElement('div');badge.className='usLvB';badge.textContent='LIVE';el.appendChild(badge);
 }
 function usTab(btn,id){
-var row=btn.closest(’.usTabRow’)||btn.parentElement;
-row.querySelectorAll(’.usTabBtn’).forEach(function(t){t.classList.remove(‘on’);});
-btn.classList.add(‘on’);
-var card=btn.closest(’.usCard’);
-if(card)card.querySelectorAll(’.usTabCt’).forEach(function(t){t.classList.remove(‘on’);});
-var tc=document.getElementById(id);if(tc)tc.classList.add(‘on’);
+var row=btn.closest('.usTabRow')||btn.parentElement;
+row.querySelectorAll('.usTabBtn').forEach(function(t){t.classList.remove('on');});
+btn.classList.add('on');
+var card=btn.closest('.usCard');
+if(card)card.querySelectorAll('.usTabCt').forEach(function(t){t.classList.remove('on');});
+var tc=document.getElementById(id);if(tc)tc.classList.add('on');
 }
-function usTogBtn(btn){btn.classList.toggle(‘on’);}
+function usTogBtn(btn){btn.classList.toggle('on');}
 
-// Safe panel fallback — prevents ALL uncaught “undefined” errors
+// Safe panel fallback - prevents ALL uncaught "undefined" errors
 var *origLoad = null; // will be set after D is defined
 window.safePanel = function(id){
 if(PANELS[id]) return PANELS[id]();
 // Generate stub for any unknown panel
-return ph(’📋 ’+id.replace(/*/g,’ ‘).replace(/\w/g,function(c){return c.toUpperCase();}), ‘// Module’)+’<div class="banner-i">This module is available. Click AI chat to get assistance.</div>’+makeGenericPanel(id,‘📋’,’// ’+id)();
+return ph('📋 '+id.replace(/*/g,' ').replace(/\w/g,function(c){return c.toUpperCase();}), '// Module')+'<div class="banner-i">This module is available. Click AI chat to get assistance.</div>'+makeGenericPanel(id,'📋','// '+id)();
 };
 </script>
 
@@ -2375,7 +2375,7 @@ var A={
   selectRole:function(key){
     // Render-time child block
     if(window.SGSec && SGSec.checkChildBlock(key, null)){
-      toast('Access Denied — attempt logged','err');
+      toast('Access Denied - attempt logged','err');
       addAudit('SECURITY:ROLE_BLOCK','Child blocked from: '+key);
       return;
     }
@@ -2430,10 +2430,10 @@ var A={
     var role = this.selectedRole;
     var R = ROLES[role]||{};
     var lvl = R.lvl||0;
-    // L2+ — WebAuthn is REQUIRED, no skip path
+    // L2+ - WebAuthn is REQUIRED, no skip path
     if(lvl>=2){
       if(!window.PublicKeyCredential){
-        toast('WebAuthn not supported — cannot authenticate L'+lvl+' roles in this browser','err');
+        toast('WebAuthn not supported - cannot authenticate L'+lvl+' roles in this browser','err');
         return;
       }
     }
@@ -2453,7 +2453,7 @@ var A={
     var role=this.selectedRole;
     if(!role){toast('Select a role','err');return;}
 
-    // Child block — render-time, no server call
+    // Child block - render-time, no server call
     if(window.SGSec && SGSec.checkChildBlock(role, null)){
       SGSec.accessDenied('Unauthorized access attempt logged.\nRole: '+role.toUpperCase());
       addAudit('SECURITY:CHILD_BLOCK','Child attempted: '+role);
@@ -2510,9 +2510,9 @@ var D={
   init:function(){
     var U=STATE.user,R=STATE.role||{};
     el('tbAv').textContent=R.icon||'⚡';el('tbAv').style.background=(R.color||'#334155')+'22';
-    el('tbName').textContent=U?U.name:'—';el('tbRole').textContent=R.lbl||'—';
+    el('tbName').textContent=U?U.name:'-';el('tbRole').textContent=R.lbl||'-';
     el('sbAv').textContent=R.icon||'⚡';el('sbAv').style.background=(R.color||'#334155')+'22';
-    el('sbName').textContent=U?U.name:'—';el('sbRlbl').textContent=(R.lbl||'')+(U?' · '+U.rank:'');
+    el('sbName').textContent=U?U.name:'-';el('sbRlbl').textContent=(R.lbl||'')+(U?' · '+U.rank:'');
     el('sbLv').textContent='L'+(R.lvl||1);
     this.buildNav();this.load('dashboard');Bridge.connect();
   },
@@ -2843,7 +2843,7 @@ var Term={
   hist:[],hIdx:-1,audit:[],muted:false,voiceRec:null,_init:false,
   init:function(){
     if(this._init)return;this._init=true;this.loadAudit();
-    this.line('SuperGrok Quantum Terminal v13 — '+new Date().toISOString(),'i');
+    this.line('SuperGrok Quantum Terminal v13 - '+new Date().toISOString(),'i');
     this.line('User: '+(STATE.user?STATE.user.name:'SYSTEM')+' · L'+(STATE.role?STATE.role.lvl:1),'i');
     this.line('PQ: ML-KEM-768 · Dilithium3 · BLAKE3 · ChaCha20-Poly1305','s');
     this.line('Type "help" for commands.','d');
@@ -2878,11 +2878,11 @@ var Term={
   },
   cmdHelp:function(){[['help','This help'],['status','Bridge + PQ status'],['session','Session info'],['algo','PQ algorithms'],['audit','Recent audit'],['ping','Ping bridge'],['hash <text>','Hash text'],['memory','Memory cards'],['github <cmd>','GitHub ops'],['ai <text>','AI query'],['load <panel>','Load panel'],['whoami','Current user'],['date','Date/time'],['ls','List modules'],['echo','Echo'],['clear','Clear']].forEach(function(c){Term.line('  '+c[0].padEnd(18)+c[1],'i');});},
   cmdStatus:function(){this.line('Bridge: '+(STATE.bridgeOnline?'ONLINE ✓':'OFFLINE'),'s');this.line('Piper: '+(STATE.piperActive?'ACTIVE':'FALLBACK'),'s');this.line('PQ: ML-KEM-768·Dilithium3·BLAKE3·ChaCha20 ✓','s');},
-  cmdSession:function(){if(!STATE.user){this.line('No session','w');return;}this.line('User: '+STATE.user.name,'i');this.line('Role: '+(STATE.role?STATE.role.lbl:'—'),'i');this.line('Level: L'+(STATE.role?STATE.role.lvl:1),'i');this.line('Uptime: '+this.uptime(),'i');this.line('Audit: '+STATE.auditLog.length+' entries','i');this.line('Memory: '+STATE.memory.length+' cards','i');},
+  cmdSession:function(){if(!STATE.user){this.line('No session','w');return;}this.line('User: '+STATE.user.name,'i');this.line('Role: '+(STATE.role?STATE.role.lbl:'-'),'i');this.line('Level: L'+(STATE.role?STATE.role.lvl:1),'i');this.line('Uptime: '+this.uptime(),'i');this.line('Audit: '+STATE.auditLog.length+' entries','i');this.line('Memory: '+STATE.memory.length+' cards','i');},
   cmdAlgo:function(){[['ML-KEM-768','NIST FIPS 203'],['Dilithium3','NIST FIPS 204'],['BLAKE3','BLAKE3 2020'],['ChaCha20-Poly1305','RFC 8439']].forEach(function(a){Term.line('  '+a[0].padEnd(20)+a[1],'s');});},
   cmdAudit:function(){this.line('── Last 10 ──','i');(this.audit.length?this.audit:STATE.auditLog).slice(-10).forEach(function(e){Term.line('  '+(e.allowed!==false?'✓':'⛔')+' '+(e.cmd||e.msg||''),'i');});},
   cmdPing:function(){var self=this;this.line('Pinging 9898…','d');fetch('http://localhost:9000/health').then(function(r){return r.json();}).then(function(d){self.line('PONG ✓ '+JSON.stringify(d),'s');}).catch(function(){self.line('Bridge offline. Run: node server_9898.js','w');});},
-  cmdWhoami:function(){this.line((STATE.user?STATE.user.name:'SYSTEM')+' · '+(STATE.roleKey||'—'),'i');},
+  cmdWhoami:function(){this.line((STATE.user?STATE.user.name:'SYSTEM')+' · '+(STATE.roleKey||'-'),'i');},
   cmdLs:function(){Object.keys(PANELS).slice(0,20).forEach(function(p){Term.line('  '+p,'d');});this.line('  … '+(Math.max(0,Object.keys(PANELS).length-20))+' more','d');},
   cmdHash:function(text){if(!text){this.line('Usage: hash <text>','w');return;}this.line('Hash: '+sha256str(text),'s');},
   cmdMemory:function(){this.line('── Memory ('+STATE.memory.length+') ──','i');STATE.memory.slice(0,5).forEach(function(m,i){Term.line('  #'+(i+1)+' '+(m.title||'').slice(0,50),'i');});},
@@ -2912,7 +2912,7 @@ var EEG={interval:null,init:function(){clearInterval(this.interval);this.interva
 var SessionTimer={start_time:null,elapsed:0,running:false,interval:null,init:function(){this.render();},start:function(){if(this.running)return;this.running=true;this.start_time=Date.now()-this.elapsed*1000;var self=this;this.interval=setInterval(function(){self.elapsed=Math.floor((Date.now()-self.start_time)/1000);self.render();},1000);el('sessionTimerStatus').textContent='RUNNING';addAudit('SESSION','Timer started');},pause:function(){if(!this.running)return;this.running=false;clearInterval(this.interval);el('sessionTimerStatus').textContent='PAUSED';},stop:function(){this.running=false;clearInterval(this.interval);var mins=Math.ceil(this.elapsed/60),amount=(mins*3).toFixed(2);el('sessionTimerStatus').textContent='STOPPED';var br=el('sessionBillResult');if(br)br.innerHTML='<div class="banner-g">Session: '+this.fmt()+' · Bill: $'+amount+' ('+mins+' min × $3/min) <button class="btn bp" style="margin-left:8px" onclick="exportSessionBill()">Invoice</button></div>';addAudit('SESSION','Stopped: '+this.fmt()+' $'+amount);this.elapsed=0;this.render();},render:function(){var d=el('sessionTimerDisplay');if(d)d.textContent=this.fmt();},fmt:function(){var h=Math.floor(this.elapsed/3600),m=Math.floor((this.elapsed%3600)/60),s=this.elapsed%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}};
 function exportSessionBill(){var b=new Blob([JSON.stringify({user:STATE.user?STATE.user.name:'',role:STATE.roleKey,elapsed:SessionTimer.elapsed,ts:new Date().toISOString()},null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='session_'+Date.now()+'.json';a.click();}
 
-var Finance={savePlaid:function(){var c=el('plaidCid'),s=el('plaidSec');if(c)SS.set('sg_plaid_cid',c.value);if(s)SS.set('sg_plaid_sec',s.value);toast('Plaid saved','ok');},async linkBank(){toast('Plaid link — add SDK to go live','warn');addAudit('FINANCE','Bank link');},async fileClaim(){var p=el('insProvider'),pol=el('insPol'),dt=el('insDate'),amt=el('insAmt');if(!p||!p.value){toast('Enter provider','warn');return;}var claim={user:STATE.user?STATE.user.name:'',date:dt?dt.value:'',provider:p.value,policy:pol?pol.value:'',amount:parseInt(amt?amt.value:18000),ts:new Date().toISOString()};var b=new Blob([JSON.stringify(claim,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='claim_'+Date.now()+'.json';a.click();toast('Claim exported','ok');addAudit('FINANCE','Claim: '+p.value);}};
+var Finance={savePlaid:function(){var c=el('plaidCid'),s=el('plaidSec');if(c)SS.set('sg_plaid_cid',c.value);if(s)SS.set('sg_plaid_sec',s.value);toast('Plaid saved','ok');},async linkBank(){toast('Plaid link - add SDK to go live','warn');addAudit('FINANCE','Bank link');},async fileClaim(){var p=el('insProvider'),pol=el('insPol'),dt=el('insDate'),amt=el('insAmt');if(!p||!p.value){toast('Enter provider','warn');return;}var claim={user:STATE.user?STATE.user.name:'',date:dt?dt.value:'',provider:p.value,policy:pol?pol.value:'',amount:parseInt(amt?amt.value:18000),ts:new Date().toISOString()};var b=new Blob([JSON.stringify(claim,null,2)],{type:'application/json'});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='claim_'+Date.now()+'.json';a.click();toast('Claim exported','ok');addAudit('FINANCE','Claim: '+p.value);}};
 
 var Keys={generate:function(){var c=el('keyCustomer'),t=el('keyTier');var key='sg_'+(c?c.value:'cust')+'_'+(t?t.value:'basic')+'_'+Array.from(crypto.getRandomValues(new Uint8Array(20))).map(function(b){return b.toString(16).padStart(2,'0');}).join('');var signed={apiKey:key,tier:t?t.value:'basic',customer:c?c.value:'',issued:new Date().toISOString(),sig:'Dilithium3:'+sha256str(key)};var out=el('keyOutput');if(out)out.textContent=JSON.stringify(signed,null,2);toast('Key generated','ok');addAudit('KEY','Generated for '+(c?c.value:'?'));},genCert:function(){var cn=el('certCN'),org=el('certOrg');var config='openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/CN='+(cn?cn.value:'supergrok.local')+'/O='+(org?org.value:'YourOrg')+'/C=US"\n\nTLS_CERT=cert.pem TLS_KEY=key.pem node server_9898.js';var out=el('certOutput');if(out)out.textContent=config;toast('Cert config generated','ok');}};
 
