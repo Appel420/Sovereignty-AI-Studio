@@ -161,9 +161,9 @@ app.post('/ai/:agentId', (req, res) => {
   });
 
   proxyReq.on('error', (err) => {
-    console.error(`[ai-proxy] gateway error for ${agentId}:`, err.message);
+    console.error('[ai-proxy] gateway error for %s: %s', agentId, err.message);
     res.json({
-      choices: [{ message: { content: `[${agentId} offline] Gateway unreachable`, role: 'assistant' } }],
+      choices: [{ message: { content: '[' + agentId + ' offline] Gateway unreachable', role: 'assistant' } }],
       agent: agentId,
       error: true,
     });
