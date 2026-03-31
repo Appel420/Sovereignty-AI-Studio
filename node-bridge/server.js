@@ -105,7 +105,11 @@ app.use('/api/forecast', (req, res) => proxyRequest(WEATHER_URL, req, res));
 
 // POST /ai/:agentId — AI agent bridge (called by SGHv119.html orchestrator)
 app.post('/ai/:agentId', (req, res) => {
-  const agentId = req.params.agentId;
+  // Sanitize agent ID to alphanumeric, underscore, hyphen only
+  const agentId = (req.params.agentId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  if (!agentId) {
+    return res.status(400).json({ error: 'Invalid agent ID' });
+  }
   const body = req.body || {};
   const payload = JSON.stringify({
     prompt: (body.messages && body.messages.length)
