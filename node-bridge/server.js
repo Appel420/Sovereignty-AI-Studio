@@ -9,6 +9,12 @@
  *   ALL  /api/v1/*                – proxy to FastAPI  (BACKEND_URL)
  *   ALL  /api/weather*            – proxy to Quart    (WEATHER_URL)
  *   ALL  /api/forecast*           – proxy to Quart    (WEATHER_URL)
+ *   POST /ai/:agentId             – AI agent bridge   (GATEWAY_URL)
+ *   ALL  /api/chat                – proxy to Gateway   (GATEWAY_URL)
+ *   ALL  /api/voice               – proxy to Gateway   (GATEWAY_URL)
+ *   ALL  /api/plugins/*           – proxy to Gateway   (GATEWAY_URL)
+ *   ALL  /api/judge/*             – proxy to Gateway   (GATEWAY_URL)
+ *   GET  /api/agents/status       – aggregated ecosystem health
  *   POST /api/bridge/notify       – push real-time alert to WebSocket clients
  *   GET  /api/bridge/status       – aggregated backend service health
  *   WS   /ws/alerts               – WebSocket for live alerts
@@ -26,6 +32,7 @@ const { WebSocketServer } = require('ws');
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9898', 10);
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 
@@ -52,7 +59,7 @@ app.get('/health', (_req, res) => {
     status: 'healthy',
     service: 'node-bridge',
     uptime: process.uptime(),
-    backends: { api: BACKEND_URL, weather: WEATHER_URL },
+    backends: { api: BACKEND_URL, weather: WEATHER_URL, gateway: GATEWAY_URL },
     timestamp: new Date().toISOString(),
   });
 });
@@ -91,6 +98,130 @@ app.use('/api/v1', (req, res) => proxyRequest(BACKEND_URL, req, res));
 // Proxy /api/weather* and /api/forecast* → Quart
 app.use('/api/weather', (req, res) => proxyRequest(WEATHER_URL, req, res));
 app.use('/api/forecast', (req, res) => proxyRequest(WEATHER_URL, req, res));
+
+// ---------------------------------------------------------------------------
+// Agent / Gateway proxy — routes agent traffic to the multi-agent gateway
+// ---------------------------------------------------------------------------
+
+// POST /ai/:agentId — AI agent bridge (called by SGHv119.html orchestrator)
+app.post('/ai/:agentId', (req, res) => {
+  // Sanitize agent ID to alphanumeric, underscore, hyphen only
+  const agentId = (req.params.agentId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+  if (!agentId) {
+    return res.status(400).json({ error: 'Invalid agent ID' });
+  }
+  const body = req.body || {};
+  const payload = JSON.stringify({
+    prompt: (body.messages && body.messages.length)
+      ? body.messages[body.messages.length - 1].content
+      : '',
+    system: (body.messages && body.messages.length > 1)
+      ? body.messages[0].content
+      : undefined,
+    task_type: body.task_type || 'general',
+    model: body.model,
+    max_tokens: body.max_tokens || 1024,
+  });
+
+  const url = new URL('/api/chat', GATEWAY_URL);
+  const options = {
+    hostname: url.hostname,
+    port: url.port,
+    path: url.pathname,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-SG-Agent': agentId,
+      'Content-Length': Buffer.byteLength(payload),
+    },
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    let data = '';
+    proxyRes.on('data', (chunk) => { data += chunk; });
+    proxyRes.on('end', () => {
+      try {
+        const result = JSON.parse(data);
+        // Wrap in OpenAI-compatible format for SGHv119.html bridge() function
+        res.json({
+          choices: [{
+            message: { content: result.result || result.error || data, role: 'assistant' },
+          }],
+          agent: agentId,
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        res.json({
+          choices: [{ message: { content: data || 'No response', role: 'assistant' } }],
+          agent: agentId,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('[ai-proxy] gateway error for %s: %s', agentId, err.message);
+    res.json({
+      choices: [{ message: { content: '[' + agentId + ' offline] Gateway unreachable', role: 'assistant' } }],
+      agent: agentId,
+      error: true,
+    });
+  });
+
+  proxyReq.write(payload);
+  proxyReq.end();
+});
+
+// Proxy /api/chat → Gateway
+app.use('/api/chat', (req, res) => proxyRequest(GATEWAY_URL, req, res));
+
+// Proxy /api/voice → Gateway
+app.use('/api/voice', (req, res) => proxyRequest(GATEWAY_URL, req, res));
+
+// Proxy /api/plugins/* → Gateway
+app.use('/api/plugins', (req, res) => proxyRequest(GATEWAY_URL, req, res));
+
+// Proxy /api/judge/* → Gateway
+app.use('/api/judge', (req, res) => proxyRequest(GATEWAY_URL, req, res));
+
+// GET /api/agents/status — aggregated ecosystem agent health
+app.get('/api/agents/status', async (_req, res) => {
+  const agents = {
+    gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
+    backend: { url: BACKEND_URL, status: 'offline', port: 8000 },
+    weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
+  };
+
+  const checkAgent = (key) =>
+    new Promise((resolve) => {
+      const target = new URL('/health', agents[key].url);
+      const req = http.request(target, { method: 'GET', timeout: 3000 }, (r) => {
+        let data = '';
+        r.on('data', (chunk) => { data += chunk; });
+        r.on('end', () => {
+          if (r.statusCode && r.statusCode < 500) {
+            agents[key].status = 'online';
+            try { agents[key].detail = JSON.parse(data); } catch { /* skip */ }
+          }
+          resolve();
+        });
+      });
+      req.setTimeout(3000, () => { req.destroy(); resolve(); });
+      req.on('error', () => resolve());
+      req.end();
+    });
+
+  await Promise.all(Object.keys(agents).map(checkAgent));
+
+  const onlineCount = Object.values(agents).filter((a) => a.status === 'online').length;
+  res.json({
+    ecosystem: onlineCount === Object.keys(agents).length ? 'healthy' : onlineCount > 0 ? 'degraded' : 'offline',
+    agents,
+    bridge: { status: 'online', uptime: process.uptime(), websocket_clients: clients.size },
+    timestamp: new Date().toISOString(),
+  });
+});
 
 // ---------------------------------------------------------------------------
 // WebSocket — real-time alert channel
@@ -132,7 +263,7 @@ function broadcast(data) {
 
 // GET /api/bridge/status — aggregated service connectivity
 app.get('/api/bridge/status', async (_req, res) => {
-  const services = { api: 'offline', weather: 'offline' };
+  const services = { api: 'offline', weather: 'offline', gateway: 'offline' };
 
   const checkService = (url, key) =>
     new Promise((resolve) => {
@@ -150,6 +281,7 @@ app.get('/api/bridge/status', async (_req, res) => {
   await Promise.all([
     checkService(BACKEND_URL, 'api'),
     checkService(WEATHER_URL, 'weather'),
+    checkService(GATEWAY_URL, 'gateway'),
   ]);
 
   res.json({
@@ -190,6 +322,11 @@ if (require.main === module) {
     console.log(`[node-bridge] proxy /api/v1/*      → ${BACKEND_URL}`);
     console.log(`[node-bridge] proxy /api/weather/*  → ${WEATHER_URL}`);
     console.log(`[node-bridge] proxy /api/forecast/* → ${WEATHER_URL}`);
+    console.log(`[node-bridge] proxy /ai/*           → ${GATEWAY_URL}`);
+    console.log(`[node-bridge] proxy /api/chat       → ${GATEWAY_URL}`);
+    console.log(`[node-bridge] proxy /api/voice      → ${GATEWAY_URL}`);
+    console.log(`[node-bridge] proxy /api/plugins/*  → ${GATEWAY_URL}`);
+    console.log(`[node-bridge] proxy /api/judge/*    → ${GATEWAY_URL}`);
   });
 }
 
