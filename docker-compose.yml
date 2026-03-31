@@ -7,12 +7,7 @@ version: '3.9'
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
-    # codex/resolve-conflicts
-  # ── PostgreSQL ─────────────────────────────────────────────────────────────
-=======
-
   # ── PostgreSQL ────────────────────────────────────────────────────────────
-    main
   db:
     image: postgres:16
     restart: unless-stopped
@@ -31,23 +26,13 @@ services:
       timeout: 5s
       retries: 5
 
- codex/resolve-conflicts
   # ── Redis ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    expose:
-      - "6379"
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
-=======
-  # ── Redis ─────────────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     expose:
       - "6379"
-   main
     volumes:
       - redis_data:/data
     healthcheck:
@@ -57,11 +42,7 @@ services:
       retries: 5
       start_period: 5s
 
-    codex/resolve-conflicts
   # ── Python Backend (FastAPI) ───────────────────────────────────────────────
-=======
-  # ── Python Backend (FastAPI) ──────────────────────────────────────────────
-    main
   backend:
     build: ./backend
     restart: unless-stopped
@@ -84,7 +65,6 @@ services:
       - ./logs:/app/logs
     depends_on:
       db:
-   codex/resolve-conflicts
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -96,19 +76,6 @@ services:
       start_period: 20s
 
   # ── Node.js Sovereign Bridge (only external port: 9898) ────────────────────
-=======
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  # ── Node.js Sovereign Bridge (only external port: 9898) ───────────────────
-    main
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
@@ -118,16 +85,7 @@ services:
       NODE_BRIDGE_PORT: "9898"
       BACKEND_URL: http://backend:8000
       WEATHER_URL: http://backend:8001
-    codex/resolve-conflicts
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
-    depends_on:
-      backend:
-        condition: service_started
-
-  # ── Nginx Reverse Proxy (optional TLS) ─────────────────────────────────────
-  nginx:
-    image: nginx:alpine
-=======
+      GATEWAY_URL: http://gateway:9000
       SOVEREIGN_API_URL: http://backend:8000/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
@@ -144,7 +102,6 @@ services:
   # ── Keycloak (self-hosted SSO) ────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.5
-   main
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -157,13 +114,6 @@ services:
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
     command: start-dev
     depends_on:
- codex/resolve-conflicts
-      - node-bridge
-
-volumes:
-  db_data:
-  redis_data:
-=======
       db:
         condition: service_healthy
     profiles:
@@ -287,4 +237,3 @@ volumes:
     driver: local
   redis_data:
     driver: local
- main

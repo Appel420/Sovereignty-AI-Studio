@@ -7,6 +7,7 @@ set -e
 BRIDGE_PORT="${NODE_BRIDGE_PORT:-9898}"
 WEATHER_PORT="${WEATHER_PORT:-8001}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
+GATEWAY_PORT="${GATEWAY_PORT:-9000}"
 
 STARTED=""
 SKIPPED=""
@@ -42,6 +43,7 @@ cleanup() {
   echo "[stop] shutting down..."
   [ -n "$REDIS_PID" ]   && kill "$REDIS_PID"   2>/dev/null
   [ -n "$WEATHER_PID" ] && kill "$WEATHER_PID" 2>/dev/null
+  [ -n "$GATEWAY_PID" ] && kill "$GATEWAY_PID" 2>/dev/null
   [ -n "$BRIDGE_PID" ]  && kill "$BRIDGE_PID"  2>/dev/null
   exit 0
 }
@@ -74,12 +76,26 @@ else
   SKIPPED="${SKIPPED} weather(:$WEATHER_PORT)"
 fi
 
+# --- Multi-agent gateway ---
+if wait_for_port_free "$GATEWAY_PORT"; then
+  echo "[start] multi-agent gateway on port $GATEWAY_PORT"
+  PYTHONPATH=.:./backend GATEWAY_PORT="$GATEWAY_PORT" \
+    python3 gateway/main.py &
+  GATEWAY_PID=$!
+  sleep 2
+  STARTED="${STARTED} gateway"
+else
+  echo "[skip] gateway not started (port $GATEWAY_PORT busy)"
+  SKIPPED="${SKIPPED} gateway(:$GATEWAY_PORT)"
+fi
+
 # --- Node.js bridge ---
 if wait_for_port_free "$BRIDGE_PORT"; then
   echo "[start] node-bridge on port $BRIDGE_PORT"
   cd node-bridge
   WEATHER_URL="http://localhost:$WEATHER_PORT" \
   BACKEND_URL="http://localhost:$BACKEND_PORT" \
+  GATEWAY_URL="http://localhost:$GATEWAY_PORT" \
   NODE_BRIDGE_PORT="$BRIDGE_PORT" \
     node server.js &
   BRIDGE_PID=$!
@@ -102,7 +118,9 @@ else
   echo "=== All services running ==="
 fi
 echo "  Bridge:   http://localhost:$BRIDGE_PORT/health"
+echo "  Gateway:  http://localhost:$GATEWAY_PORT/health"
 echo "  Weather:  http://localhost:$WEATHER_PORT/api/weather?city=London"
+echo "  Agents:   http://localhost:$BRIDGE_PORT/api/agents/status"
 echo "  WS:       ws://localhost:$BRIDGE_PORT/ws/alerts"
 echo ""
 echo "Press Ctrl+C to stop all services."

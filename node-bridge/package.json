@@ -7,11 +7,16 @@
     "start": "node server.js",
     "test": "node --test test/bridge.test.js"
   },
-  "keywords": ["bridge", "api", "websocket", "ish"],
+  "keywords": [
+    "bridge",
+    "api",
+    "websocket",
+    "ish"
+  ],
   "license": "MIT",
   "dependencies": {
     "express": "^4.21.0",
-    "ws": "^8.18.0"
+    "ws": "^8.20.0"
   },
   "engines": {
     "node": ">=20.0.0"
