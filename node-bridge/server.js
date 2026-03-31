@@ -67,17 +67,22 @@ app.get('/health', (_req, res) => {
 // ---------------------------------------------------------------------------
 // Lightweight reverse proxy (no extra dependency)
 // ---------------------------------------------------------------------------
+function requestClientFor(url) {
+  return url.protocol === 'https:' ? https : http;
+}
+
 function proxyRequest(targetBase, req, res) {
   const url = new URL(req.originalUrl, targetBase);
+  const client = requestClientFor(url);
   const options = {
     hostname: url.hostname,
-    port: url.port,
+    port: url.port || (url.protocol === 'https:' ? 443 : 80),
     path: url.pathname + url.search,
     method: req.method,
     headers: { ...req.headers, host: url.host },
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const proxyReq = client.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   });
@@ -136,7 +141,8 @@ app.post('/ai/:agentId', (req, res) => {
     },
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const client = requestClientFor(url);
+  const proxyReq = client.request(options, (proxyRes) => {
     let data = '';
     proxyRes.on('data', (chunk) => { data += chunk; });
     proxyRes.on('end', () => {
@@ -196,7 +202,8 @@ app.get('/api/agents/status', async (_req, res) => {
   const checkAgent = (key) =>
     new Promise((resolve) => {
       const target = new URL('/health', agents[key].url);
-      const req = http.request(target, { method: 'GET', timeout: 3000 }, (r) => {
+      const client = requestClientFor(target);
+      const req = client.request(target, { method: 'GET', timeout: 3000 }, (r) => {
         let data = '';
         r.on('data', (chunk) => { data += chunk; });
         r.on('end', () => {
@@ -268,7 +275,8 @@ app.get('/api/bridge/status', async (_req, res) => {
   const checkService = (url, key) =>
     new Promise((resolve) => {
       const target = new URL('/health', url);
-      const req = http.request(target, { method: 'GET' }, (r) => {
+      const client = requestClientFor(target);
+      const req = client.request(target, { method: 'GET' }, (r) => {
         if (r.statusCode && r.statusCode < 500) services[key] = 'online';
         r.resume();
         resolve();
