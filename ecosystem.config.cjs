@@ -58,13 +58,15 @@ module.exports = {
     },
 
     // ── SuperGrok TTS + Agent Bridge (port 9898 alt) ──────────────────────
+    // NOTE: server-9898 conflicts with node-bridge on port 9898.
+    // Only enable ONE of them. Use node-bridge for production (proxies to
+    // gateway). Use server-9898 only for standalone TTS/agent development.
     {
       name: 'server-9898',
       script: 'server_9898.js',
       env: {
         PORT: 9898,
       },
-      // Disabled by default — enable if using server_9898.js instead of node-bridge
       autorestart: false,
       watch: false,
     },
