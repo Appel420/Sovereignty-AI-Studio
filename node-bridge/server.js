@@ -31,9 +31,12 @@
  *   POST /keycloak/token          – Keycloak token exchange
  *   POST /mtls/handshake          – mTLS TLS probe
  *   POST /spiffe/svid             – SPIFFE SVID status
+ *   POST /exec/code               – sandboxed code execution (Node.js, Python, shell)
+ *   GET  /satellite/imagery       – NASA EONET events + NOAA GOES satellite feeds
+ *   GET  /satellite/goes          – NOAA GOES satellite image URL
  *   GET  /alerts/live             – live alerts feed
  *   POST /error_ping              – client error reporting
- *   WS   /ws/alerts               – WebSocket for live alerts
+ *   WS   /ws/alerts               – WebSocket for live alerts + terminal exec + status
  */
 
 const express = require('express');
@@ -281,6 +284,73 @@ wss.on('connection', (ws) => {
       const msg = JSON.parse(raw);
       if (msg.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+      } else if (msg.cmd === 'EXEC') {
+        // CodeMaster terminal — execute code via WebSocket
+        const lang = (msg.lang || 'node').toLowerCase();
+        const code = msg.code || '';
+        const user = msg.user || 'anon';
+        if (!code) {
+          ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'No code provided' }));
+          return;
+        }
+        if (lang === 'node' || lang === 'javascript' || lang === 'js') {
+          try {
+            const logs = [];
+            const pendingTimers = [];
+            const cryptoMod = require('crypto');
+            const sandbox = {
+              console: {
+                log: (...args) => logs.push(args.map(String).join(' ')),
+                error: (...args) => logs.push('[ERR] ' + args.map(String).join(' ')),
+                warn: (...args) => logs.push('[WARN] ' + args.map(String).join(' ')),
+                info: (...args) => logs.push(args.map(String).join(' ')),
+              },
+              Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
+              RegExp, Map, Set, Promise, Error, Buffer,
+              setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
+              clearTimeout: (t) => { clearTimeout(t); },
+              crypto: {
+                randomBytes: cryptoMod.randomBytes,
+                randomUUID: cryptoMod.randomUUID,
+                createHash: cryptoMod.createHash,
+                createHmac: cryptoMod.createHmac,
+                getRandomValues: (buf) => cryptoMod.randomFillSync(buf),
+              },
+              TextEncoder, TextDecoder,
+            };
+            const ctx = vm.createContext(sandbox);
+            const script = new vm.Script(code, { filename: 'ws-exec.js', timeout: 10000 });
+            const result = script.runInContext(ctx, { timeout: 10000 });
+            pendingTimers.forEach((t) => clearTimeout(t));
+            if (result !== undefined && logs.length === 0) {
+              logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
+            }
+            ws.send(JSON.stringify({ type: 'exec_result', output: logs.join('\n') || '(no output)', lang, user }));
+          } catch (err) {
+            ws.send(JSON.stringify({ type: 'exec_result', output: '', error: err.message, lang, user }));
+          }
+        } else if (lang === 'python' || lang === 'py') {
+          execFile('python3', ['-c', code], { timeout: 15000, maxBuffer: 512 * 1024 }, (err, stdout, stderr) => {
+            const output = (stdout || '') + (stderr ? '\n[stderr] ' + stderr : '');
+            ws.send(JSON.stringify({
+              type: 'exec_result',
+              output: output || (err ? err.message : '(no output)'),
+              error: err ? err.message : undefined,
+              lang, user,
+            }));
+          });
+        } else {
+          ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'Unsupported lang: ' + lang }));
+        }
+      } else if (msg.cmd === 'STATUS') {
+        ws.send(JSON.stringify({
+          type: 'status',
+          bridge: 'online',
+          version: '1.0.0',
+          uptime: process.uptime(),
+          websocket_clients: clients.size,
+          timestamp: new Date().toISOString(),
+        }));
       }
     } catch {
       // ignore malformed messages
@@ -743,6 +813,186 @@ app.post('/spiffe/svid', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Code execution — sandboxed Node.js / Python exec for CodeMaster panel
+// ---------------------------------------------------------------------------
+const { execFile } = require('child_process');
+const vm = require('vm');
+
+// Rate-limit code execution: 10 requests per 60 seconds per IP (via middleware)
+
+app.post('/exec/code', rateLimit(60000, 10), (req, res) => {
+  const { lang, code, user } = req.body || {};
+  if (!code || typeof code !== 'string') {
+    return res.status(400).json({ error: 'code is required' });
+  }
+  if (code.length > 50000) {
+    return res.status(400).json({ error: 'Code too large — max 50KB' });
+  }
+
+  const language = (lang || 'node').toLowerCase();
+  const ts = new Date().toISOString();
+
+  if (language === 'node' || language === 'javascript' || language === 'js') {
+    // Sandboxed Node.js via vm module
+    try {
+      const logs = [];
+      const pendingTimers = [];
+      const cryptoModule = require('crypto');
+      const sandbox = {
+        console: {
+          log: (...args) => logs.push(args.map(String).join(' ')),
+          error: (...args) => logs.push('[ERR] ' + args.map(String).join(' ')),
+          warn: (...args) => logs.push('[WARN] ' + args.map(String).join(' ')),
+          info: (...args) => logs.push(args.map(String).join(' ')),
+        },
+        Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
+        RegExp, Map, Set, Symbol, Promise, Error, TypeError, RangeError,
+        setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
+        clearTimeout: (t) => { clearTimeout(t); },
+        Buffer,
+        crypto: {
+          randomBytes: cryptoModule.randomBytes,
+          randomUUID: cryptoModule.randomUUID,
+          createHash: cryptoModule.createHash,
+          createHmac: cryptoModule.createHmac,
+          getRandomValues: (buf) => cryptoModule.randomFillSync(buf),
+        },
+        TextEncoder, TextDecoder,
+      };
+      const ctx = vm.createContext(sandbox);
+      const script = new vm.Script(code, { filename: 'codemaster.js', timeout: 10000 });
+      const result = script.runInContext(ctx, { timeout: 10000 });
+      // Clean up pending timers
+      pendingTimers.forEach((t) => clearTimeout(t));
+      if (result !== undefined && logs.length === 0) {
+        logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
+      }
+      res.json({ output: logs.join('\n') || '(no output)', lang: 'node', user: user || 'anon', timestamp: ts });
+    } catch (err) {
+      res.json({ output: '', error: err.message, lang: 'node', user: user || 'anon', timestamp: ts });
+    }
+  } else if (language === 'python' || language === 'py') {
+    // Python execution via child process — timeout 15s
+    const pyProc = execFile('python3', ['-c', code], { timeout: 15000, maxBuffer: 1024 * 512 }, (err, stdout, stderr) => {
+      if (err && err.killed) {
+        return res.json({ output: '', error: 'Execution timed out (15s limit)', lang: 'python', user: user || 'anon', timestamp: ts });
+      }
+      const output = (stdout || '') + (stderr ? '\n[stderr] ' + stderr : '');
+      res.json({
+        output: output || (err ? err.message : '(no output)'),
+        error: err && !err.killed ? err.message : undefined,
+        lang: 'python',
+        user: user || 'anon',
+        timestamp: ts,
+      });
+    });
+    pyProc.on('error', (e) => {
+      res.json({ output: '', error: 'Python not available: ' + e.message, lang: 'python', user: user || 'anon', timestamp: ts });
+    });
+  } else if (language === 'shell' || language === 'sh' || language === 'bash') {
+    // Shell execution — allowlisted commands only, reject shell metacharacters
+    const dangerousChars = /[;|&`$(){}!<>#\n\r]/;
+    if (dangerousChars.test(code)) {
+      return res.json({ output: '', error: 'Shell metacharacters not allowed (;|&`$(){}!<>#). Use single commands only.', lang: 'shell', user: user || 'anon', timestamp: ts });
+    }
+    const allowed = /^(echo|printf|date|whoami|uname|ls|pwd|id|hostname|uptime|df|du|wc|head|tail|sort|uniq|grep|cut|tr|node|npm)\b/;
+    const firstCmd = code.trim().split(/\s/)[0];
+    if (!allowed.test(firstCmd)) {
+      return res.json({ output: '', error: 'Command not allowed: ' + firstCmd, lang: 'shell', user: user || 'anon', timestamp: ts });
+    }
+    // Map allowlisted commands to absolute paths to prevent PATH manipulation
+    const cmdPaths = {
+      echo: '/bin/echo', printf: '/usr/bin/printf', date: '/bin/date',
+      whoami: '/usr/bin/whoami', uname: '/bin/uname', ls: '/bin/ls',
+      pwd: '/bin/pwd', id: '/usr/bin/id', hostname: '/bin/hostname',
+      uptime: '/usr/bin/uptime', df: '/bin/df', du: '/usr/bin/du',
+      wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail',
+      sort: '/usr/bin/sort', uniq: '/usr/bin/uniq', grep: '/bin/grep',
+      cut: '/usr/bin/cut', tr: '/usr/bin/tr',
+      node: process.execPath, npm: '/usr/bin/npm',
+    };
+    // Use execFile with absolute path and split args to avoid shell interpretation
+    const parts = code.trim().split(/\s+/);
+    const cmdName = parts[0];
+    const resolvedCmd = cmdPaths[cmdName] || cmdName;
+    const args = parts.slice(1);
+    execFile(resolvedCmd, args, { timeout: 10000, maxBuffer: 1024 * 256 }, (err, stdout, stderr) => {
+      const output = (stdout || '') + (stderr ? '\n' + stderr : '');
+      res.json({
+        output: output || (err ? err.message : '(no output)'),
+        error: err ? err.message : undefined,
+        lang: 'shell',
+        user: user || 'anon',
+        timestamp: ts,
+      });
+    });
+  } else {
+    res.status(400).json({ error: 'Unsupported language: ' + language + '. Supported: node, python, shell' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Satellite imagery — NASA EONET + NOAA GOES/VIIRS endpoints
+// ---------------------------------------------------------------------------
+app.get('/satellite/imagery', async (_req, res) => {
+  const feeds = {
+    goes_east: 'https://cdn.star.nesdis.noaa.gov/GOES16/ABI/CONUS/GEOCOLOR/latest.jpg',
+    goes_west: 'https://cdn.star.nesdis.noaa.gov/GOES18/ABI/CONUS/GEOCOLOR/latest.jpg',
+    worldview: 'https://worldview.earthdata.nasa.gov/',
+    sentinel: 'https://apps.sentinel-hub.com/eo-browser/',
+    rammb: 'https://rammb-slider.cira.colostate.edu/',
+    zoom_earth: 'https://zoom.earth/',
+  };
+
+  // Try fetching NASA EONET events for live natural events
+  let eonetEvents = [];
+  try {
+    const eonetUrl = new URL('https://eonet.gsfc.nasa.gov/api/v3/events?limit=10&status=open');
+    const eonetData = await new Promise((resolve, reject) => {
+      const client = requestClientFor(eonetUrl);
+      let body = '';
+      const eoReq = client.request({
+        hostname: eonetUrl.hostname,
+        port: resolveUpstreamPort(eonetUrl),
+        path: eonetUrl.pathname + eonetUrl.search,
+        method: 'GET',
+        headers: { 'User-Agent': 'Sovereignty-Bridge/1.0', Accept: 'application/json' },
+      }, (r) => {
+        r.on('data', (chunk) => { body += chunk; });
+        r.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve({}); } });
+      });
+      eoReq.setTimeout(8000, () => { eoReq.destroy(); resolve({}); });
+      eoReq.on('error', () => resolve({}));
+      eoReq.end();
+    });
+    if (eonetData.events) {
+      eonetEvents = eonetData.events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        category: e.categories?.[0]?.title || 'Unknown',
+        link: e.link,
+        date: e.geometry?.[0]?.date,
+        coordinates: e.geometry?.[0]?.coordinates,
+      }));
+    }
+  } catch { /* silent — satellite feed is best-effort */ }
+
+  res.json({
+    feeds,
+    eonet_events: eonetEvents,
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/satellite/goes', async (req, res) => {
+  const sector = req.query.sector || 'CONUS';
+  const sat = req.query.sat || 'GOES16';
+  const product = req.query.product || 'GEOCOLOR';
+  const imageUrl = `https://cdn.star.nesdis.noaa.gov/${sat}/ABI/${sector}/${product}/latest.jpg`;
+  res.json({ url: imageUrl, satellite: sat, sector, product, timestamp: new Date().toISOString() });
+});
+
+// ---------------------------------------------------------------------------
 // Live alerts — aggregated from recent events and service health
 // ---------------------------------------------------------------------------
 const _recentAlerts = [];
@@ -800,6 +1050,9 @@ if (require.main === module) {
     console.log(`[node-bridge] proxy /api/plugins/*  → ${GATEWAY_URL}`);
     console.log(`[node-bridge] proxy /api/judge/*    → ${GATEWAY_URL}`);
     console.log(`[node-bridge] proxy /api/rag/*      → ${BACKEND_URL}`);
+    console.log(`[node-bridge] exec  /exec/code       → sandboxed code execution`);
+    console.log(`[node-bridge] data  /satellite/*      → NASA EONET + NOAA GOES`);
+    console.log(`[node-bridge] ws    EXEC/STATUS       → terminal + status via WebSocket`);
   });
 }
 

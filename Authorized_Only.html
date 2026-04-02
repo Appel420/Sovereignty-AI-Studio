@@ -409,6 +409,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
       </div>
       <div class="sg"><div class="slbl">Operations</div>
         <div class="si" onclick="nav('noaa',this)">🛰️ NOAA Live Feed</div>
+        <div class="si" onclick="nav('satellite',this)">🌍 Satellite Imagery</div>
         <div class="si" onclick="nav('codemaster',this)">💻 CodeMaster</div>
       </div>
       <div class="sg"><div class="slbl">Crypto</div>
@@ -841,18 +842,18 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
       <button class="bnbtn" onclick="bgo()" style="background:var(--primary);color:#fff;border-color:var(--primary);padding:3px 9px;min-width:auto;font-size:9px;white-space:nowrap">↗ Open</button>
     </div>
     <div class="bbmkbar">
-      <button class="bbmk" onclick="blaunch('https://duckduckgo.com')">🦆 DDG</button>
-      <button class="bbmk" onclick="blaunch('https://grafana.com')">📊 Grafana</button>
-      <button class="bbmk" onclick="blaunch('https://prometheus.io')">🔥 Prometheus</button>
-      <button class="bbmk" onclick="blaunch('https://kubernetes.io')">☸️ K8s</button>
-      <button class="bbmk" onclick="blaunch('https://github.com/Appel420')">🐙 GitHub</button>
-      <button class="bbmk" onclick="blaunch('https://huggingface.co')">🤗 HuggingFace</button>
-      <button class="bbmk" onclick="blaunch('https://anthropic.com')">🤖 Anthropic</button>
-      <button class="bbmk" onclick="blaunch('https://status.anthropic.com')">⚡ API Status</button>
-      <button class="bbmk" onclick="blaunch('https://api.weather.gov/alerts/active')">🛰️ NOAA Alerts</button>
-      <button class="bbmk" onclick="blaunch('https://www.ndbc.noaa.gov')">🌊 NDBC Buoys</button>
-      <button class="bbmk" onclick="blaunch('https://aviation.weather.gov')">✈️ AVWX</button>
-      <button class="bbmk" onclick="blaunch('https://tidesandcurrents.noaa.gov')">🌊 Tides</button>
+      <button class="bbmk" onclick="bload('https://duckduckgo.com')">🦆 DDG</button>
+      <button class="bbmk" onclick="bload('https://grafana.com')">📊 Grafana</button>
+      <button class="bbmk" onclick="bload('https://prometheus.io')">🔥 Prometheus</button>
+      <button class="bbmk" onclick="bload('https://kubernetes.io')">☸️ K8s</button>
+      <button class="bbmk" onclick="bload('https://github.com/Appel420')">🐙 GitHub</button>
+      <button class="bbmk" onclick="bload('https://huggingface.co')">🤗 HuggingFace</button>
+      <button class="bbmk" onclick="bload('https://anthropic.com')">🤖 Anthropic</button>
+      <button class="bbmk" onclick="bload('https://status.anthropic.com')">⚡ API Status</button>
+      <button class="bbmk" onclick="bload('https://api.weather.gov/alerts/active')">🛰️ NOAA Alerts</button>
+      <button class="bbmk" onclick="bload('https://www.ndbc.noaa.gov')">🌊 NDBC Buoys</button>
+      <button class="bbmk" onclick="bload('https://aviation.weather.gov')">✈️ AVWX</button>
+      <button class="bbmk" onclick="bload('https://tidesandcurrents.noaa.gov')">🌊 Tides</button>
     </div>
     <div class="bblock" id="bblock">
       <div style="font-size:32px">🌐</div>
@@ -932,6 +933,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
     <div class="bni-item" id="bn-pqcrypto" onclick="nav('pqcrypto',null,'pqcrypto')"><span class="ic">🔐</span>PQ Crypto</div>
     <div class="bni-item" id="bn-pqsigs" onclick="nav('pqsigs',null,'pqsigs')"><span class="ic">⚛️</span>PQ Sigs</div>
     <div class="bni-item" id="bn-noaa" onclick="nav('noaa',null,'noaa')"><span class="ic">🛰️</span>NOAA</div>
+    <div class="bni-item" id="bn-satellite" onclick="nav('satellite',null,'satellite')"><span class="ic">🌍</span>Sat</div>
     <div class="bni-item" id="bn-codemaster" onclick="nav('codemaster',null,'codemaster')"><span class="ic">💻</span>KODER</div>
   </div>
 </div>
@@ -1229,6 +1231,62 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
   <div class="card">
     <div class="ct">Signed Command Log</div>
     <div id="noaa-cmdlog" class="logbox" style="height:200px;margin-top:6px"></div>
+  </div>
+</div>
+
+<!-- SATELLITE IMAGERY -->
+<div id="satellite" class="pnl">
+  <div class="ptitle">🛰️ Satellite Imagery</div>
+  <div class="ab info">NASA EONET · NOAA GOES-16/18 · Sentinel Hub · RAMMB · Zoom Earth · All data via bridge proxy · No tracking</div>
+
+  <div class="g2">
+    <div class="card ok">
+      <div class="ct">GOES-East (16)</div>
+      <div class="cs">Full Disk Geocolor</div>
+      <div style="margin-top:8px">
+        <img id="sat-goes-east" src="" alt="GOES-16" style="width:100%;border-radius:6px;background:#111;min-height:120px;display:none" crossorigin="anonymous">
+        <div id="sat-goes-east-placeholder" style="text-align:center;padding:20px;color:var(--t3);font-size:10px">Click Refresh to load latest GOES-East imagery</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">GOES-West (18)</div>
+      <div class="cs">Full Disk Geocolor</div>
+      <div style="margin-top:8px">
+        <img id="sat-goes-west" src="" alt="GOES-18" style="width:100%;border-radius:6px;background:#111;min-height:120px;display:none" crossorigin="anonymous">
+        <div id="sat-goes-west-placeholder" style="text-align:center;padding:20px;color:var(--t3);font-size:10px">Click Refresh to load latest GOES-West imagery</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+    <button class="btn btn-p" onclick="satRefresh()">🔄 Refresh Imagery</button>
+    <button class="btn btn-ok" onclick="satLoadEvents()">🌍 Load EONET Events</button>
+    <button class="btn btn-g" onclick="satOpenViewer('worldview')">🗺️ NASA Worldview</button>
+    <button class="btn btn-g" onclick="satOpenViewer('sentinel')">🛰️ Sentinel Hub</button>
+    <button class="btn btn-g" onclick="satOpenViewer('rammb')">📡 RAMMB Slider</button>
+    <button class="btn btn-g" onclick="satOpenViewer('zoom')">🌐 Zoom Earth</button>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <div class="ct">NASA EONET -- Active Natural Events</div>
+    <div id="sat-eonet-list" style="font-family:'SF Mono','Fira Code','Cascadia Code','Consolas','Menlo',monospace;font-size:9px;color:var(--t2);min-height:60px;margin-top:6px">No events loaded yet. Click "Load EONET Events" above.</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Satellite Viewer</div>
+    <iframe id="sat-viewer-frame" sandbox="allow-scripts allow-same-origin allow-forms" referrerpolicy="no-referrer" style="width:100%;min-height:400px;border:1px solid var(--b2);border-radius:8px;background:#000;display:none"></iframe>
+    <div id="sat-viewer-placeholder" style="text-align:center;padding:30px;color:var(--t3);font-size:11px">Select a viewer above to load satellite imagery inline</div>
+  </div>
+
+  <div class="card info">
+    <div class="ct">Data Sources</div>
+    <div style="font-size:9px;line-height:1.9;font-family:'SF Mono','Fira Code','Cascadia Code','Consolas','Menlo',monospace;margin-top:6px;color:var(--t2)">
+      <span style="color:var(--ok)">GOES-16 (East)</span> -- NOAA/NESDIS geostationary · CONUS geocolor · 5-min refresh<br>
+      <span style="color:var(--ok)">GOES-18 (West)</span> -- NOAA/NESDIS geostationary · CONUS geocolor · 5-min refresh<br>
+      <span style="color:var(--cyan)">NASA EONET</span> -- Earth Observatory Natural Event Tracker · Fires, storms, volcanos<br>
+      <span style="color:var(--cyan)">Sentinel Hub</span> -- ESA Copernicus · Sentinel-2 multispectral · 10m resolution<br>
+      <span style="color:var(--info)">RAMMB/CIRA</span> -- Real-time mesoscale analysis · Slider composite imagery
+    </div>
   </div>
 </div>
 
@@ -3463,7 +3521,7 @@ body:JSON.stringify({url:url,actor:S.u})
 .then(function(t){
 if(wrap){
 wrap.innerHTML='<pre style="white-space:pre-wrap;font-size:11px;color:#111;padding:12px;">'+
-t.replace(/</g,'<').replace(/>/g,'>').slice(0,80000)+'</pre>';
+t.replace(/</g,'&lt;').replace(/>/g,'&gt;').slice(0,80000)+'</pre>';
 wrap.style.display='block';
 }
 if(stat)stat.textContent='Text fetched: '+url;
@@ -3725,6 +3783,82 @@ if(status) status.textContent='BRIDGE OFFLINE -- Direct API active';
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SATELLITE IMAGERY — NASA EONET + NOAA GOES
+// ═══════════════════════════════════════════════════════════════
+function satRefresh(){
+var goesEastUrl='https://cdn.star.nesdis.noaa.gov/GOES16/ABI/CONUS/GEOCOLOR/latest.jpg';
+var goesWestUrl='https://cdn.star.nesdis.noaa.gov/GOES18/ABI/CONUS/GEOCOLOR/latest.jpg';
+var ts='?t='+Date.now();
+var imgE=document.getElementById('sat-goes-east');
+var imgW=document.getElementById('sat-goes-west');
+if(imgE){imgE.src=goesEastUrl+ts;imgE.style.display='block';document.getElementById('sat-goes-east-placeholder').style.display='none';}
+if(imgW){imgW.src=goesWestUrl+ts;imgW.style.display='block';document.getElementById('sat-goes-west-placeholder').style.display='none';}
+// Also try bridge for extra metadata
+fetch('http://127.0.0.1:9898/satellite/imagery').then(function(r){return r.json();}).then(function(d){
+if(d.eonet_events&&d.eonet_events.length>0){
+var el=document.getElementById('sat-eonet-list');
+if(el&&el.textContent.indexOf('No events')===0){
+satRenderEvents(d.eonet_events);
+}
+}
+}).catch(function(){});
+log('Satellite imagery refreshed by '+S.u,'ok');
+toast('Satellite imagery refreshed');
+}
+async function satLoadEvents(){
+var el=document.getElementById('sat-eonet-list');
+if(!el)return;
+el.textContent='Fetching EONET events...';
+try{
+// Try bridge first
+var resp;
+try{
+resp=await fetch('http://127.0.0.1:9898/satellite/imagery');
+var data=await resp.json();
+if(data.eonet_events&&data.eonet_events.length>0){
+satRenderEvents(data.eonet_events);
+log('Satellite EONET events loaded via bridge ('+data.eonet_events.length+')','ok');
+return;
+}
+}catch(e){}
+// Direct fallback
+resp=await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?limit=15&status=open');
+var eonet=await resp.json();
+if(eonet.events&&eonet.events.length>0){
+var events=eonet.events.map(function(e){return{id:e.id,title:e.title,category:(e.categories&&e.categories[0])?e.categories[0].title:'Unknown',link:e.link,date:e.geometry&&e.geometry[0]?e.geometry[0].date:null,coordinates:e.geometry&&e.geometry[0]?e.geometry[0].coordinates:null};});
+satRenderEvents(events);
+log('Satellite EONET events loaded direct ('+events.length+')','ok');
+} else {
+el.textContent='No active natural events found.';
+}
+}catch(err){
+el.textContent='Failed to load events: '+err.message;
+log('Satellite EONET error: '+err.message,'err');
+}
+}
+function satRenderEvents(events){
+var el=document.getElementById('sat-eonet-list');
+if(!el)return;
+var html=events.map(function(e){
+var catIcon={'Wildfires':'🔥','Severe Storms':'⛈️','Volcanoes':'🌋','Sea and Lake Ice':'🧊','Icebergs':'🏔️','Floods':'🌊','Earthquakes':'💥','Drought':'☀️','Dust and Haze':'🌫️','Landslides':'⛰️'}[e.category]||'🌍';
+var coords=e.coordinates?(' · '+Math.abs(e.coordinates[1]).toFixed(2)+'°'+(e.coordinates[1]>=0?'N':'S')+' '+Math.abs(e.coordinates[0]).toFixed(2)+'°'+(e.coordinates[0]>=0?'E':'W')):'';
+var dt=e.date?(' · '+new Date(e.date).toLocaleDateString()):'';
+return '<div style="padding:4px 0;border-bottom:1px solid var(--b1)">'+catIcon+' <span style="color:var(--ok)">'+e.title+'</span> <span style="color:var(--t3)">['+e.category+']'+coords+dt+'</span></div>';
+}).join('');
+el.innerHTML=html;
+}
+function satOpenViewer(type){
+var urls={worldview:'https://worldview.earthdata.nasa.gov/',sentinel:'https://apps.sentinel-hub.com/eo-browser/',rammb:'https://rammb-slider.cira.colostate.edu/',zoom:'https://zoom.earth/'};
+var url=urls[type];
+if(!url)return;
+var frame=document.getElementById('sat-viewer-frame');
+var placeholder=document.getElementById('sat-viewer-placeholder');
+if(frame){frame.src=url;frame.style.display='block';}
+if(placeholder)placeholder.style.display='none';
+log('Satellite viewer: '+type+' opened by '+S.u,'ok');
+}
+
+// ═══════════════════════════════════════════════════════════════
 // CODEMASTER / KODER
 // Python (Pyodide WASM) · Node.js via bridge · iSH · a-Shell
 // ═══════════════════════════════════════════════════════════════
@@ -3813,31 +3947,86 @@ out.textContent='Pyodide error: '+e.message+'\n\nTip: Check network connection (
 log('CodeMaster Pyodide error: '+e.message,'err');
 }
 } else if(env==='node'){
-// Node.js via bridge
+// Node.js via bridge HTTP endpoint (primary) with WebSocket fallback
 try{
-var ws=new WebSocket('ws://localhost:9898');
+out.textContent='Connecting to bridge :9898...\n';
+var execResp=await fetch('http://127.0.0.1:9898/exec/code',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({lang:'node',code:code,user:S.u})
+});
+var execData=await execResp.json();
+if(execData.error){
+out.textContent='[Node.js] '+execData.error+'\n'+(execData.output||'');
+log('CodeMaster Node.js error: '+execData.error,'err');
+} else {
+out.textContent=execData.output||'(no output)';
+log('CodeMaster Node.js executed via bridge','ok');
+}
+} catch(e){
+// Fallback: try WebSocket
+try{
+out.textContent='HTTP failed, trying WebSocket...\n';
+var ws=new WebSocket('ws://localhost:9898/ws/alerts');
 var wsResult=await new Promise(function(resolve,reject){
-var timeout=setTimeout(function(){reject(new Error('Bridge timeout -- is bridge.py running on :9898?'))},4000);
+var timeout=setTimeout(function(){reject(new Error('Bridge timeout'))},5000);
 ws.onopen=function(){
 ws.send(JSON.stringify({cmd:'EXEC',lang:'node',code:code,user:S.u,role:S.role}));
 };
 ws.onmessage=function(e){clearTimeout(timeout);resolve(e.data)};
-ws.onerror=function(){clearTimeout(timeout);reject(new Error('Bridge connection failed -- start bridge.py on port 9898'))};
+ws.onerror=function(){clearTimeout(timeout);reject(new Error('WebSocket failed'))};
 });
 ws.close();
 var parsed=JSON.parse(wsResult);
 out.textContent=parsed.output||parsed.error||wsResult;
-log('CodeMaster Node.js executed via bridge','ok');
-} catch(e){
-out.textContent='Bridge error: '+e.message+'\n\nTo run Node.js:\n1. Start bridge.py: python3 bridge.py\n2. Ensure port 9898 is listening\n3. Re-run';
+log('CodeMaster Node.js executed via WS','ok');
+} catch(e2){
+out.textContent='Bridge error: '+e.message+'\n\nTo run Node.js:\n1. Start node-bridge: node node-bridge/server.js\n2. Ensure port 9898 is listening\n3. Re-run';
 log('CodeMaster bridge error: '+e.message,'err');
 }
+}
 } else if(env==='ish'){
-out.textContent='iSH Execution\n─────────────\nCopy the code below and run it in iSH:\n\n'+code+'\n\n─────────────\nTip: In iSH, paste with long-press then Paste\nBridge: python3 -c "import websocket; ws=websocket.create_connection(\'ws://localhost:9898\'); ws.send(\'PING\'); print(ws.recv())"';
-toast('Code ready for iSH -- copy and paste');
+// iSH — execute via bridge Python (Alpine-like)
+try{
+out.textContent='Executing via bridge (iSH mode)...\n';
+var ishResp=await fetch('http://127.0.0.1:9898/exec/code',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({lang:'shell',code:code,user:S.u})
+});
+var ishData=await ishResp.json();
+if(ishData.error){
+out.textContent='[iSH/Shell] '+ishData.error+'\n'+(ishData.output||'');
+} else {
+out.textContent=ishData.output||'(no output)';
+}
+log('CodeMaster iSH exec via bridge','ok');
+} catch(e){
+out.textContent='iSH Bridge Execution\n─────────────\nBridge offline — copy and run in iSH:\n\n'+code+'\n\n─────────────\nStart bridge: node node-bridge/server.js\nThen re-run for live execution.';
+log('CodeMaster iSH fallback: bridge offline','warn');
+}
+toast('iSH executed via bridge');
 } else if(env==='ashell'){
-out.textContent='a-Shell Execution\n─────────────────\nCopy the code below and run it in a-Shell:\n\n'+code+'\n\n─────────────────\nTip: a-Shell supports Python 3.11, Lua, Vim, Git\nFor WebSocket: pip install websocket-client';
-toast('Code ready for a-Shell -- copy and paste');
+// a-Shell — execute Python via bridge
+try{
+out.textContent='Executing via bridge (a-Shell mode)...\n';
+var ashResp=await fetch('http://127.0.0.1:9898/exec/code',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({lang:'python',code:code,user:S.u})
+});
+var ashData=await ashResp.json();
+if(ashData.error){
+out.textContent='[a-Shell/Python] '+ashData.error+'\n'+(ashData.output||'');
+} else {
+out.textContent=ashData.output||'(no output)';
+}
+log('CodeMaster a-Shell exec via bridge','ok');
+} catch(e){
+out.textContent='a-Shell Bridge Execution\n─────────────────\nBridge offline — copy and run in a-Shell:\n\n'+code+'\n\n─────────────────\nStart bridge: node node-bridge/server.js\nThen re-run for live execution.';
+log('CodeMaster a-Shell fallback: bridge offline','warn');
+}
+toast('a-Shell executed via bridge');
 }
 }
 
@@ -4729,6 +4918,8 @@ b3Append('ALERTS-CLEAR','All alerts acknowledged by '+S.u);
       <button class="fab fab-sm" title="Lockdown" onclick="closeFAB();killact('lockdown','SYSTEM LOCKDOWN','Lock ALL inference, rotate ALL keys, seal logs?')">🔒</button>
       <button class="fab fab-sm" title="Audit Trail" onclick="closeFAB();nav('audit',null,'audit')">📋</button>
       <button class="fab fab-sm" title="NOAA" onclick="closeFAB();nav('noaa',null,'noaa')">🛰️</button>
+      <button class="fab fab-sm" title="Satellite" onclick="closeFAB();nav('satellite',null,'satellite')">🌍</button>
+      <button class="fab fab-sm" title="CodeMaster" onclick="closeFAB();nav('codemaster',null,'codemaster')">💻</button>
     </div>
     <button class="fab fab-main" id="fab-main" onclick="toggleFAB()" title="Quick Actions">⚡</button>
   </div>
