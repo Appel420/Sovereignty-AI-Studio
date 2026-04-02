@@ -523,17 +523,27 @@ app.post('/test/poison', (req, res) => {
 
 // ---------------------------------------------------------------------------
 // URL proxy — allows dashboard to fetch external URLs through bridge (CORS bypass)
+// Private/internal IPs are blocked to prevent SSRF attacks.
 // ---------------------------------------------------------------------------
+function _isPrivateHost(hostname) {
+  // Block private/internal IPs to prevent SSRF
+  if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.|169\.254\.|::1|fc|fd|fe80)/i.test(hostname)) return true;
+  if (hostname === 'localhost' || hostname === '[::1]') return true;
+  return false;
+}
+
 app.post('/proxy/fetch', (req, res) => {
   const { url: targetUrl } = req.body || {};
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'url is required' });
   }
-  // Only allow http/https
   let parsed;
-  try { parsed = new URL(targetUrl); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/fetch] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
+  }
+  if (_isPrivateHost(parsed.hostname)) {
+    return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
   const client = parsed.protocol === 'https:' ? https : http;
@@ -544,7 +554,7 @@ app.post('/proxy/fetch', (req, res) => {
       res.json({ status: proxyRes.statusCode, headers: proxyRes.headers, body });
     });
   });
-  proxyReq.on('error', (err) => res.status(502).json({ error: err.message }));
+  proxyReq.on('error', (err) => { console.error('[proxy/fetch] error:', err.message); res.status(502).json({ error: err.message }); });
   proxyReq.on('timeout', () => { proxyReq.destroy(); res.status(504).json({ error: 'Upstream timeout' }); });
 });
 
@@ -554,9 +564,12 @@ app.post('/proxy/text', (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/text] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
+  }
+  if (_isPrivateHost(parsed.hostname)) {
+    return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
   const client = parsed.protocol === 'https:' ? https : http;
@@ -565,7 +578,7 @@ app.post('/proxy/text', (req, res) => {
     proxyRes.on('data', (chunk) => { body += chunk; });
     proxyRes.on('end', () => res.json({ text: body, status: proxyRes.statusCode }));
   });
-  proxyReq.on('error', (err) => res.status(502).json({ error: err.message }));
+  proxyReq.on('error', (err) => { console.error('[proxy/text] error:', err.message); res.status(502).json({ error: err.message }); });
   proxyReq.on('timeout', () => { proxyReq.destroy(); res.status(504).json({ error: 'Upstream timeout' }); });
 });
 
@@ -575,9 +588,12 @@ app.post('/proxy', (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
+  }
+  if (_isPrivateHost(parsed.hostname)) {
+    return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
   const client = parsed.protocol === 'https:' ? https : http;
@@ -591,7 +607,7 @@ app.post('/proxy', (req, res) => {
     proxyRes.on('data', (chunk) => { body += chunk; });
     proxyRes.on('end', () => res.json({ status: proxyRes.statusCode, headers: proxyRes.headers, body }));
   });
-  proxyReq.on('error', (err) => res.status(502).json({ error: err.message }));
+  proxyReq.on('error', (err) => { console.error('[proxy] error:', err.message); res.status(502).json({ error: err.message }); });
   proxyReq.on('timeout', () => { proxyReq.destroy(); res.status(504).json({ error: 'Upstream timeout' }); });
   if (reqBody) proxyReq.write(typeof reqBody === 'string' ? reqBody : JSON.stringify(reqBody));
   proxyReq.end();
@@ -626,6 +642,9 @@ app.post('/mtls/handshake', (req, res) => {
   const port = parseInt(portStr, 10) || 443;
   const startTime = Date.now();
 
+  // rejectUnauthorized: false is intentional — this is a diagnostic probe endpoint
+  // that inspects TLS handshake details (cipher, protocol, cert) for visualization.
+  // Rejecting self-signed certs would prevent probing internal/dev servers.
   const socket = tls.connect({ host: hostname, port, rejectUnauthorized: false, timeout: 5000 }, () => {
     const rtt = Date.now() - startTime;
     const protocol = socket.getProtocol();
