@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import os
 import secrets
 import struct
 from dataclasses import dataclass, field
@@ -176,7 +175,7 @@ def seal(key: bytes, plaintext: bytes, aad: bytes = b"") -> bytes:
 
     Returns ``nonce || ciphertext || tag`` (12 + len + 16 bytes).
     """
-    nonce = os.urandom(NONCE_LEN)
+    nonce = secrets.token_bytes(NONCE_LEN)
     aead = ChaCha20Poly1305(key)
     ct = aead.encrypt(nonce, plaintext, aad)
     return nonce + ct
