@@ -474,9 +474,30 @@ app.post('/threats/feed', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Directory scan — scans bridge working directory
+// Simple rate limiter (in-memory, per-IP)
 // ---------------------------------------------------------------------------
-app.post('/scan/directory', (req, res) => {
+const _rateLimitMap = new Map();
+function rateLimit(windowMs, maxRequests) {
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    let entry = _rateLimitMap.get(ip);
+    if (!entry || now - entry.start > windowMs) {
+      entry = { start: now, count: 0 };
+      _rateLimitMap.set(ip, entry);
+    }
+    entry.count++;
+    if (entry.count > maxRequests) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    next();
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Directory scan — scans bridge working directory (rate-limited)
+// ---------------------------------------------------------------------------
+app.post('/scan/directory', rateLimit(60000, 10), (req, res) => {
   const { actor } = req.body || {};
   const path = require('path');
   const scanDir = path.resolve(__dirname);
@@ -485,7 +506,7 @@ app.post('/scan/directory', (req, res) => {
   try {
     const entries = fs.readdirSync(scanDir, { withFileTypes: true, recursive: false });
     fileCount = entries.length;
-  } catch { /* ignore */ }
+  } catch (e) { console.error('[scan/directory] error:', e.message); }
 
   res.json({
     files: fileCount,
@@ -532,7 +553,7 @@ function _isPrivateHost(hostname) {
   return false;
 }
 
-app.post('/proxy/fetch', (req, res) => {
+app.post('/proxy/fetch', rateLimit(60000, 30), (req, res) => {
   const { url: targetUrl } = req.body || {};
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'url is required' });
@@ -546,8 +567,10 @@ app.post('/proxy/fetch', (req, res) => {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
+  // Use the validated/parsed URL to prevent manipulation
+  const validatedUrl = parsed.href;
   const client = parsed.protocol === 'https:' ? https : http;
-  const proxyReq = client.get(targetUrl, { timeout: 10000, headers: { 'User-Agent': 'Sovereignty-Bridge/1.0' } }, (proxyRes) => {
+  const proxyReq = client.get(validatedUrl, { timeout: 10000, headers: { 'User-Agent': 'Sovereignty-Bridge/1.0' } }, (proxyRes) => {
     let body = '';
     proxyRes.on('data', (chunk) => { body += chunk; });
     proxyRes.on('end', () => {
@@ -558,7 +581,7 @@ app.post('/proxy/fetch', (req, res) => {
   proxyReq.on('timeout', () => { proxyReq.destroy(); res.status(504).json({ error: 'Upstream timeout' }); });
 });
 
-app.post('/proxy/text', (req, res) => {
+app.post('/proxy/text', rateLimit(60000, 30), (req, res) => {
   const { url: targetUrl } = req.body || {};
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'url is required' });
@@ -572,8 +595,9 @@ app.post('/proxy/text', (req, res) => {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
+  const validatedUrl = parsed.href;
   const client = parsed.protocol === 'https:' ? https : http;
-  const proxyReq = client.get(targetUrl, { timeout: 10000, headers: { 'User-Agent': 'Sovereignty-Bridge/1.0' } }, (proxyRes) => {
+  const proxyReq = client.get(validatedUrl, { timeout: 10000, headers: { 'User-Agent': 'Sovereignty-Bridge/1.0' } }, (proxyRes) => {
     let body = '';
     proxyRes.on('data', (chunk) => { body += chunk; });
     proxyRes.on('end', () => res.json({ text: body, status: proxyRes.statusCode }));
@@ -582,7 +606,7 @@ app.post('/proxy/text', (req, res) => {
   proxyReq.on('timeout', () => { proxyReq.destroy(); res.status(504).json({ error: 'Upstream timeout' }); });
 });
 
-app.post('/proxy', (req, res) => {
+app.post('/proxy', rateLimit(60000, 30), (req, res) => {
   const { url: targetUrl, method: reqMethod, headers: reqHeaders, body: reqBody } = req.body || {};
   if (!targetUrl || typeof targetUrl !== 'string') {
     return res.status(400).json({ error: 'url is required' });
@@ -596,13 +620,14 @@ app.post('/proxy', (req, res) => {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
 
+  const validatedUrl = parsed.href;
   const client = parsed.protocol === 'https:' ? https : http;
   const options = {
     method: (reqMethod || 'GET').toUpperCase(),
     timeout: 10000,
     headers: { 'User-Agent': 'Sovereignty-Bridge/1.0', ...(reqHeaders || {}) },
   };
-  const proxyReq = client.request(targetUrl, options, (proxyRes) => {
+  const proxyReq = client.request(validatedUrl, options, (proxyRes) => {
     let body = '';
     proxyRes.on('data', (chunk) => { body += chunk; });
     proxyRes.on('end', () => res.json({ status: proxyRes.statusCode, headers: proxyRes.headers, body }));
