@@ -35,6 +35,7 @@ const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
+const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
 
 const app = express();
 app.use(express.json());
@@ -67,17 +68,26 @@ app.get('/health', (_req, res) => {
 // ---------------------------------------------------------------------------
 // Lightweight reverse proxy (no extra dependency)
 // ---------------------------------------------------------------------------
+function requestClientFor(url) {
+  return url.protocol === 'https:' ? https : http;
+}
+
+function resolveUpstreamPort(url) {
+  return url.port || UPSTREAM_DEFAULT_PORT;
+}
+
 function proxyRequest(targetBase, req, res) {
   const url = new URL(req.originalUrl, targetBase);
+  const client = requestClientFor(url);
   const options = {
     hostname: url.hostname,
-    port: url.port,
+    port: resolveUpstreamPort(url),
     path: url.pathname + url.search,
     method: req.method,
     headers: { ...req.headers, host: url.host },
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const proxyReq = client.request(options, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, proxyRes.headers);
     proxyRes.pipe(res, { end: true });
   });
@@ -126,7 +136,7 @@ app.post('/ai/:agentId', (req, res) => {
   const url = new URL('/api/chat', GATEWAY_URL);
   const options = {
     hostname: url.hostname,
-    port: url.port,
+    port: resolveUpstreamPort(url),
     path: url.pathname,
     method: 'POST',
     headers: {
@@ -136,7 +146,8 @@ app.post('/ai/:agentId', (req, res) => {
     },
   };
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const client = requestClientFor(url);
+  const proxyReq = client.request(options, (proxyRes) => {
     let data = '';
     proxyRes.on('data', (chunk) => { data += chunk; });
     proxyRes.on('end', () => {
@@ -196,7 +207,14 @@ app.get('/api/agents/status', async (_req, res) => {
   const checkAgent = (key) =>
     new Promise((resolve) => {
       const target = new URL('/health', agents[key].url);
-      const req = http.request(target, { method: 'GET', timeout: 3000 }, (r) => {
+      const client = requestClientFor(target);
+      const req = client.request({
+        hostname: target.hostname,
+        port: resolveUpstreamPort(target),
+        path: target.pathname + target.search,
+        method: 'GET',
+        timeout: 3000,
+      }, (r) => {
         let data = '';
         r.on('data', (chunk) => { data += chunk; });
         r.on('end', () => {
@@ -268,7 +286,13 @@ app.get('/api/bridge/status', async (_req, res) => {
   const checkService = (url, key) =>
     new Promise((resolve) => {
       const target = new URL('/health', url);
-      const req = http.request(target, { method: 'GET' }, (r) => {
+      const client = requestClientFor(target);
+      const req = client.request({
+        hostname: target.hostname,
+        port: resolveUpstreamPort(target),
+        path: target.pathname + target.search,
+        method: 'GET',
+      }, (r) => {
         if (r.statusCode && r.statusCode < 500) services[key] = 'online';
         r.resume();
         resolve();
