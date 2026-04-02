@@ -12,9 +12,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
     id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
     email           TEXT        UNIQUE NOT NULL,
-    username        TEXT        UNIQUE NOT NULL,
+    username        TEXT        UNIQUE,                    -- nullable for SSO/migration compat
     full_name       TEXT,
-    hashed_password TEXT        NOT NULL,
+    hashed_password TEXT,                                  -- NULL if SSO-only login
     is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
     is_verified     BOOLEAN     NOT NULL DEFAULT FALSE,
     avatar_url      TEXT,
