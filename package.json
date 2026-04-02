@@ -9,6 +9,6 @@
     "shell":   "ALLOW_SHELL=1 node unified_server.js",
     "check":   "node --check unified_server.js && echo OK"
   },
-  "engines": { "node": ">=20.0.0" },
+  "engines": { "node": ">=25.0.0" },
   "dependencies": { "ws": "^8.18.0" }
 }
