@@ -10,14 +10,29 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ──────────────────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS users (
-    id          UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    email       TEXT        UNIQUE NOT NULL,
-    password_hash TEXT,                          -- bcrypt hash; NULL if SSO-only
-    display_name TEXT,
-    role        TEXT        NOT NULL DEFAULT 'member',
-    active      BOOLEAN     NOT NULL DEFAULT TRUE,
+    id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    email           TEXT        UNIQUE NOT NULL,
+    username        TEXT        UNIQUE,                    -- nullable for SSO/migration compat
+    full_name       TEXT,
+    hashed_password TEXT,                                  -- NULL if SSO-only login
+    is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
+    is_verified     BOOLEAN     NOT NULL DEFAULT FALSE,
+    avatar_url      TEXT,
+    bio             TEXT,
+    -- Presence / online status
+    status          TEXT        NOT NULL DEFAULT 'offline',
+    last_seen       TIMESTAMP,
+    -- Subscription/Plan info
+    subscription_plan        TEXT  NOT NULL DEFAULT 'free',
+    subscription_expires_at  TIMESTAMP,
+    -- Usage tracking
+    total_generations        INT   NOT NULL DEFAULT 0,
+    monthly_generations      INT   NOT NULL DEFAULT 0,
+    last_generation_reset    TIMESTAMP DEFAULT NOW(),
+    -- Timestamps
     created_at  TIMESTAMP   NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMP   NOT NULL DEFAULT NOW()
+    updated_at  TIMESTAMP   NOT NULL DEFAULT NOW(),
+    last_login  TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS organizations (
