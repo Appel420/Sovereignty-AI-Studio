@@ -1,4 +1,4 @@
-Used to build and compile for AI Setup Instructions
+# Used to build and compile for AI Setup Instructions
 
 \t1.\tInstall Requirements:
 pip install quart pyjwt pyttsx3 moviepy h11 celery redis blake3 argon2-cffi cryptography pqcrypto
