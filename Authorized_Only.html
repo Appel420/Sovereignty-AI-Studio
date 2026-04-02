@@ -3841,7 +3841,7 @@ var el=document.getElementById('sat-eonet-list');
 if(!el)return;
 var html=events.map(function(e){
 var catIcon={'Wildfires':'🔥','Severe Storms':'⛈️','Volcanoes':'🌋','Sea and Lake Ice':'🧊','Icebergs':'🏔️','Floods':'🌊','Earthquakes':'💥','Drought':'☀️','Dust and Haze':'🌫️','Landslides':'⛰️'}[e.category]||'🌍';
-var coords=e.coordinates?(' · '+e.coordinates[1].toFixed(2)+'°N '+e.coordinates[0].toFixed(2)+'°E'):'';
+var coords=e.coordinates?(' · '+Math.abs(e.coordinates[1]).toFixed(2)+'°'+(e.coordinates[1]>=0?'N':'S')+' '+Math.abs(e.coordinates[0]).toFixed(2)+'°'+(e.coordinates[0]>=0?'E':'W')):'';
 var dt=e.date?(' · '+new Date(e.date).toLocaleDateString()):'';
 return '<div style="padding:4px 0;border-bottom:1px solid var(--b1)">'+catIcon+' <span style="color:var(--ok)">'+e.title+'</span> <span style="color:var(--t3)">['+e.category+']'+coords+dt+'</span></div>';
 }).join('');

@@ -296,6 +296,8 @@ wss.on('connection', (ws) => {
         if (lang === 'node' || lang === 'javascript' || lang === 'js') {
           try {
             const logs = [];
+            const pendingTimers = [];
+            const cryptoMod = require('crypto');
             const sandbox = {
               console: {
                 log: (...args) => logs.push(args.map(String).join(' ')),
@@ -305,12 +307,21 @@ wss.on('connection', (ws) => {
               },
               Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
               RegExp, Map, Set, Promise, Error, Buffer,
-              crypto: require('crypto'),
+              setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
+              clearTimeout: (t) => { clearTimeout(t); },
+              crypto: {
+                randomBytes: cryptoMod.randomBytes,
+                randomUUID: cryptoMod.randomUUID,
+                createHash: cryptoMod.createHash,
+                createHmac: cryptoMod.createHmac,
+                getRandomValues: (buf) => cryptoMod.randomFillSync(buf),
+              },
               TextEncoder, TextDecoder,
             };
             const ctx = vm.createContext(sandbox);
             const script = new vm.Script(code, { filename: 'ws-exec.js', timeout: 10000 });
             const result = script.runInContext(ctx, { timeout: 10000 });
+            pendingTimers.forEach((t) => clearTimeout(t));
             if (result !== undefined && logs.length === 0) {
               logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
             }
@@ -807,15 +818,9 @@ app.post('/spiffe/svid', (req, res) => {
 const { execFile } = require('child_process');
 const vm = require('vm');
 
-// Rate-limit code execution: 10 requests per 60 seconds per IP
-const _execLimiter = _rateLimiter(10, 60000);
+// Rate-limit code execution: 10 requests per 60 seconds per IP (via middleware)
 
-app.post('/exec/code', (req, res) => {
-  const ip = req.ip || req.socket.remoteAddress;
-  if (!_execLimiter(ip)) {
-    return res.status(429).json({ error: 'Rate limit exceeded — max 10 exec/min' });
-  }
-
+app.post('/exec/code', rateLimit(60000, 10), (req, res) => {
   const { lang, code, user } = req.body || {};
   if (!code || typeof code !== 'string') {
     return res.status(400).json({ error: 'code is required' });
@@ -831,6 +836,8 @@ app.post('/exec/code', (req, res) => {
     // Sandboxed Node.js via vm module
     try {
       const logs = [];
+      const pendingTimers = [];
+      const cryptoModule = require('crypto');
       const sandbox = {
         console: {
           log: (...args) => logs.push(args.map(String).join(' ')),
@@ -840,15 +847,23 @@ app.post('/exec/code', (req, res) => {
         },
         Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
         RegExp, Map, Set, Symbol, Promise, Error, TypeError, RangeError,
-        setTimeout: (fn, ms) => setTimeout(fn, Math.min(ms || 0, 5000)),
-        clearTimeout,
+        setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
+        clearTimeout: (t) => { clearTimeout(t); },
         Buffer,
-        crypto: require('crypto'),
+        crypto: {
+          randomBytes: cryptoModule.randomBytes,
+          randomUUID: cryptoModule.randomUUID,
+          createHash: cryptoModule.createHash,
+          createHmac: cryptoModule.createHmac,
+          getRandomValues: (buf) => cryptoModule.randomFillSync(buf),
+        },
         TextEncoder, TextDecoder,
       };
       const ctx = vm.createContext(sandbox);
       const script = new vm.Script(code, { filename: 'codemaster.js', timeout: 10000 });
       const result = script.runInContext(ctx, { timeout: 10000 });
+      // Clean up pending timers
+      pendingTimers.forEach((t) => clearTimeout(t));
       if (result !== undefined && logs.length === 0) {
         logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
       }
@@ -875,13 +890,21 @@ app.post('/exec/code', (req, res) => {
       res.json({ output: '', error: 'Python not available: ' + e.message, lang: 'python', user: user || 'anon', timestamp: ts });
     });
   } else if (language === 'shell' || language === 'sh' || language === 'bash') {
-    // Shell execution — limited to safe commands
-    const allowed = /^(echo|printf|date|whoami|uname|cat|ls|pwd|env|id|hostname|uptime|df|du|wc|head|tail|sort|uniq|grep|awk|sed|cut|tr|python3|node|npm)\b/;
+    // Shell execution — allowlisted commands only, reject shell metacharacters
+    const dangerousChars = /[;|&`$(){}!<>#\n\r]/;
+    if (dangerousChars.test(code)) {
+      return res.json({ output: '', error: 'Shell metacharacters not allowed (;|&`$(){}!<>#). Use single commands only.', lang: 'shell', user: user || 'anon', timestamp: ts });
+    }
+    const allowed = /^(echo|printf|date|whoami|uname|ls|pwd|id|hostname|uptime|df|du|wc|head|tail|sort|uniq|grep|cut|tr|node|npm)\b/;
     const firstCmd = code.trim().split(/\s/)[0];
     if (!allowed.test(firstCmd)) {
       return res.json({ output: '', error: 'Command not allowed: ' + firstCmd, lang: 'shell', user: user || 'anon', timestamp: ts });
     }
-    execFile('/bin/sh', ['-c', code], { timeout: 10000, maxBuffer: 1024 * 256 }, (err, stdout, stderr) => {
+    // Use execFile with split args to avoid shell interpretation
+    const parts = code.trim().split(/\s+/);
+    const cmd = parts[0];
+    const args = parts.slice(1);
+    execFile(cmd, args, { timeout: 10000, maxBuffer: 1024 * 256 }, (err, stdout, stderr) => {
       const output = (stdout || '') + (stderr ? '\n' + stderr : '');
       res.json({
         output: output || (err ? err.message : '(no output)'),
