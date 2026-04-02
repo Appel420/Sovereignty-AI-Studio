@@ -1,19 +1,33 @@
-// codex/resolve-conflicts
 # Sovereignty AI Studio ⚔️
-
-> **Zero third-party vendor lock-in. No OpenAI. No Anthropic. No Google. No Meta. No Vercel.**  
-> All AI inference is local and stays on your infrastructure.
-=======
-# Sovereignty AI Studio
-main
 
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
- codex/resolve-conflicts
-## Architecture (single external port)
+> **Zero third-party vendor lock-in. No OpenAI. No Anthropic. No Google. No Meta. No Vercel.**
+> All AI inference is local and stays on your infrastructure.
 
+**Private Sovereign AI Research and Development Platform**
+**Core Model:** Super Grok Heavy 4.2 (xAI) – Locked, Sealed, Sovereign
+**Authority:** Derek Appel
+**Last Updated:** April 2, 2026
 
+---
+
+## Overview
+
+Sovereignty AI Studio is a fully private, self-contained research and production environment for advanced sovereign artificial intelligence systems.
+
+The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All components are designed for complete operational independence, end-to-end encryption, and tamper-resistant execution.
+
+No external services, third-party models, or internet connectivity are required for core operation.
+
+*From Hello to Goodbye — Sovereignty AI Studio is a sovereign platform for the people.*
+
+---
+
+## Architecture (Single External Port)
+
+```
 Port 9898 (ONLY external port)
      │
      ▼
@@ -25,45 +39,9 @@ backend (FastAPI on 8000, internal)
  ┌───┴───────────────┐
  ▼                   ▼
 PostgreSQL (5432)   Redis (6379)
-
+```
 
 All host traffic enters through **port 9898**. Backend, database, and Redis remain on the internal Docker network.
-
----
-=======
-**Private Sovereign AI Research and Development Platform**  
-**Core Model:** Super Grok Heavy 4.2  
-(xAI) – Locked, Sealed, Sovereign  
-**Authority:** Derek Appel  
-**Last Updated:** March 2, 2026
-
-## Overview
-
-Sovereignty AI Studio is a fully private, self-contained research and production environment for advanced sovereign artificial intelligence systems.
-
-The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All components are designed for complete operational independence, end-to-end encryption, and tamper-resistant execution.
- main
-
-No external services, third-party models, or internet connectivity are required for core operation.
-
-// codex/resolve-conflicts
-bash
-# 1. Copy environment config
-cp .env.example .env
-# Edit .env — set JWT_SECRET, database passwords, model paths
-=======
-## Prerequisites
-  main
-
-- Python 3.12.x (CI target; 3.10+ should work)
-- Node.js >= 20.0.0 for the bridge and unified servers
-- Docker + Docker Compose for containerized workflows
-
- codex/resolve-conflicts
-# 3. Check health
-curl http://localhost:9898/health
-
-**Services started**
 
 | Service | Port | Notes |
 |---------|------|-------|
@@ -72,11 +50,33 @@ curl http://localhost:9898/health
 | PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
 | Redis 7 | internal | Cache + session store |
 
+---
+
+## Prerequisites
+
+- Python 3.12.x (CI target; 3.10+ should work)
+- Node.js >= 20.0.0 for the bridge and unified servers
+- Docker + Docker Compose for containerized workflows
+
+## Quick Start
+
+```bash
+# 1. Copy environment config
+cp .env.example .env
+# Edit .env — set JWT_SECRET, database passwords, model paths
+
+# 2. Start the stack
+docker compose up -d
+
+# 3. Check health
+curl http://localhost:9898/health
+```
+
 For production with TLS and static assets, enable the bundled Nginx reverse proxy:
 
-bash
+```bash
 docker compose --profile production up -d
-
+```
 
 ---
 
@@ -90,8 +90,14 @@ docker compose --profile production up -d
 | `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
 | `backend/app/api/v1` | FastAPI endpoints (auth, orgs, media, voice, telemetry, etc.) |
 | `frontend/src/views` | React views, including organization management |
+| `ios/` | iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging |
+| `ai_core/` | Core AI modules (lie detector, defense module, Ara core) |
+| `apps/dashboards/` | Dashboard applications including post-quantum and EEG dashboards |
+| `crypto/` | Cryptography modules |
 | `docs/` | Hardware and research documentation |
 | `docker-compose.yml` | Self-hosted stack (Postgres, Redis, Backend, Bridge, Nginx) |
+| `eeg_streaming.py` | Real-time EEG signal acquisition, band power analysis, and SSE broadcasting |
+| `Backend_API_AUTH.py` | Post-quantum authentication router (Dilithium2 + TOTP) |
 
 ---
 
@@ -107,11 +113,9 @@ See [docs/sovereignty_one.md](docs/sovereignty_one.md) for full technical docume
 
 ---
 
-*From Hello to Goodbye — Sovereignty AI Studio is a sovereign platform for the people.*
-=======
 ## Project Structure
 
-
+```
 Sovereignty-AI-Studio/
 ├── .devcontainer/                 # Dev Container configuration
 │   ├── devcontainer.json
@@ -128,36 +132,32 @@ Sovereignty-AI-Studio/
 │   ├── ai_core/                   # Siri-Replace / Ara Core
 │   └── native/                    # Native Code (C++, Swift, Rust)
 ├── backend/                       # FastAPI backend (surfaced via bridge on port 9898)
-│   ├── app/                       # Application code
+│   ├── app/
+│   │   ├── api/v1/                # REST & WebSocket API endpoints
+│   │   ├── core/                  # Database, security, WebSocket hub
+│   │   ├── models/                # SQLAlchemy ORM models
+│   │   ├── schemas/               # Pydantic schemas
+│   │   └── services/              # Business logic (alerts, TTS, users)
 │   ├── alembic/                   # Database migrations
+│   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/                      # React TypeScript frontend
 │   └── src/
+│       ├── Frontend_src_Auth.jsx  # Post-quantum auth login component
+│       ├── xai_in_cert_Chain.html # xAI certificate chain viewer
+│       ├── components/            # Alert center, layout components
+│       ├── hooks/                 # WebSocket and alert hooks
+│       ├── pages/                 # Dashboard, generator pages
+│       └── services/              # API client services
 ├── apps/
-│   ├── dashboards/      # Dashboard Applications
+│   ├── dashboards/                # Dashboard Applications
 │   │   ├── Tools_Post_Quantum_Dashboard.html
 │   │   ├── Real_Validator.html
 │   │   └── SuperGrok-Heavy4-2-Validator.html
-│   └── web/             # Web Applications
+│   └── web/                       # Web Applications
 │       ├── Server.js
 │       └── Deploy.html
-├── backend/             # FastAPI Backend
-│   ├── app/
-│   │   ├── api/v1/      # REST & WebSocket API endpoints
-│   │   ├── core/        # Database, security, WebSocket hub
-│   │   ├── models/      # SQLAlchemy ORM models
-│   │   ├── schemas/     # Pydantic schemas
-│   │   └── services/    # Business logic (alerts, TTS, users)
-│   └── requirements.txt
-├── frontend/            # React TypeScript Frontend
-│   └── src/
-│       ├── Frontend_src_Auth.jsx    # Post-quantum auth login component
-│       ├── xai_in_cert_Chain.html   # xAI certificate chain viewer
-│       ├── components/  # Alert center, layout components
-│       ├── hooks/       # WebSocket and alert hooks
-│       ├── pages/       # Dashboard, generator pages
-│       └── services/    # API client services
-├── ios/                 # iOS Swift Package (SovereigntyGuard)
+├── ios/                           # iOS Swift Package (SovereigntyGuard)
 │   └── Sources/SovereigntyGuard/
 │       ├── ContentView.swift
 │       ├── SovereigntyAPIClient.swift
@@ -165,83 +165,31 @@ Sovereignty-AI-Studio/
 │       ├── DebuggerDetection.swift
 │       ├── FamilyGuardCore.swift
 │       └── VoiceCommandIntegrity.swift
-├── node-bridge/         # Node.js Bridge (frontend ↔ Python backends)
+├── node-bridge/                   # Node.js Bridge (frontend ↔ Python backends)
 │   ├── server.js
 │   ├── package.json
 │   └── test/bridge.test.js
-├── ai_core/             # Core AI modules
+├── ai_core/                       # Core AI modules
 │   ├── AI_Core.py
 │   ├── Siri_Replace_Ara-Core.py
 │   ├── ai_defense_module.py
 │   ├── lie_detector.py
 │   └── second_squad_agent.py
 ├── resources/
-│   ├── assets/          # Binary & Font Assets
-│   │   ├── ESP42.bin
-│   │   ├── Knucklesandwich.txt.TTF
-│   │   └── Sovereignty_python-keycloak-master.zip
-│   ├── configs/         # Configuration Files
-│   │   ├── Armor.yaml
-│   │   ├── Breathe.json
-│   │   ├── Pip-mic.xml
-│   │   ├── Cargo.toml
-│   │   └── environment.yml
-│   └── data/            # Data Files & Documentation
-│       ├── AI Reading Accuracy
-│       ├── AI-LLM-Model-Choosing
-│       ├── AI_Error_Handling
-│       ├── AI_Eyes_Medical
-│       ├── AI_Reading_Rules
-│       ├── Ai-self-code-With-TamperLock
-│       ├── Airplane_blueprint.py
-│       ├── Animals-Ai-Humans-Resonance_bridge
-│       ├── Animals-Ai-Humans.txt
-│       ├── Bulletproof-AI-Code-Fix
-│       ├── HIPAA.txt
-│       ├── MidasV2.0
-│       ├── Ship
-│       ├── Sovereignty_Truth_Wire
-│       ├── UNC-AI-2026
-│       ├── Scar-tamper.txt
-│       ├── Scary_Truth.py
-│       └── SuperGrok-Heavy-4-2.py
-├── scripts/             # Build & Deployment Scripts
-│   └── deploy.sh
-├── crypto/              # Cryptography Modules
+│   ├── assets/                    # Binary & Font Assets
+│   ├── configs/                   # Configuration Files
+│   └── data/                      # Data Files & Documentation
+├── scripts/                       # Build & Deployment Scripts
+├── crypto/                        # Cryptography Modules
 │   └── Vault_crypto.js
-├── docs/                # Documentation
-├── .devcontainer/       # Dev container configuration
-├── .github/             # GitHub Actions and templates
-├── Backend_API_AUTH.py  # Post-quantum backend auth router (Dilithium2 + TOTP)
-├── eeg_streaming.py     # Real-time EEG signal streaming & analysis
-├── Harvard_Sentences.txt # Standard TTS evaluation sentences
-├── weather_dashboard.py # Quart weather dashboard entry point
+├── docs/                          # Documentation
+├── Backend_API_AUTH.py            # Post-quantum backend auth router (Dilithium2 + TOTP)
+├── eeg_streaming.py               # Real-time EEG signal streaming & analysis
+├── weather_dashboard.py           # Quart weather dashboard entry point
 ├── LICENSE.MD
 ├── SECURITY.md
 └── README.md
-
-
-## Key Components
-
-- **src/agents/**: AI Agent Modules for various tasks including lie detection and EEG analysis
-- **src/core/**: Core system files for the AI platform
-- **src/security/**: Security and protection modules including live alerts and tamper detection
-- **src/models/**: Machine learning models and quantum layers
-- **src/utils/**: Utility functions and tools
-- **apps/dashboards/**: Dashboard applications including post-quantum and EEG dashboards
-- **apps/web/**: Web applications
-- **ai_core/**: Core AI modules (lie detector, defense module, Ara core)
-- **resources/**: Assets, configurations, and data files
-- **scripts/**: Build and deployment scripts
-- **crypto/**: Cryptography modules
-- **backend/**: FastAPI backend surfaced through port 9898 with WebSocket support, REST API (12 endpoint groups), Piper TTS integration
-- **frontend/**: React TypeScript frontend with real-time alert notifications and post-quantum auth UI
-- **ios/**: iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging
-- **node-bridge/**: Node.js bridge connecting frontend, Python backends, and iSH/Code Pad
-- **eeg_streaming.py**: Real-time EEG signal acquisition, band power analysis, and SSE broadcasting
-- **Backend_API_AUTH.py**: Post-quantum authentication router using Dilithium2 signatures and TOTP
-- **Harvard_Sentences.txt**: Standard phonetically balanced sentences for TTS voice evaluation
-- **Piper TTS**: Piper text-to-speech integration for audio alerts (see [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md))
+```
 
 ## AI Agent Integration
 
@@ -258,7 +206,7 @@ The platform integrates with four major AI providers through a WebSocket-based r
 
 ### Agent Connection Architecture
 
-
+```
 ┌─────────────────────────────────────────────────────────┐
 │           Multi-Agent Connection System                  │
 ├─────────────────────────────────────────────────────────┤
@@ -285,13 +233,14 @@ The platform integrates with four major AI providers through a WebSocket-based r
 │  Real-time responses with audit logging                  │
 │                                                           │
 └─────────────────────────────────────────────────────────┘
+```
 
 
 ### Agent Request Protocol
 
 Connect to any agent via WebSocket using the following message format:
 
-javascript
+```javascript
 // Send agent request
 {
   type: 'agent_request',
@@ -311,6 +260,7 @@ javascript
   },
   ts: 1234567890
 }
+```
 
 
 **Key Features:**
@@ -324,7 +274,7 @@ javascript
 
 Create a `.env` file in the project root with your API keys:
 
-bash
+```bash
 # AI Agent API Keys
 ANTHROPIC_API_KEY=sk-ant-...      # Required for Claude
 OPENAI_API_KEY=sk-...              # Required for GPT
@@ -343,6 +293,7 @@ VERBOSE=1                          # Enable verbose logging
 # Optional: HTTPS/TLS (see scripts/generate-certs.sh)
 TLS_CERT=./certs/cert.pem         # Path to TLS certificate
 TLS_KEY=./certs/key.pem           # Path to TLS private key
+```
 
 
 **HTTPS Support:**
@@ -365,12 +316,13 @@ The repository includes two agent bridge servers:
 
 Primary WebSocket bridge for agent routing:
 
-bash
+```bash
 # Install dependencies (Node 20+)
 npm install
 
 # Start the server
 node server_9898.js
+```
 
 
 **Endpoints:**
@@ -383,12 +335,13 @@ node server_9898.js
 
 Comprehensive server with additional features:
 
-bash
+```bash
 # Install dependencies (Node 20+)
 npm install
 
 # Start the server
 node unified_server.js
+```
 
 
 **Additional Features:**
@@ -408,13 +361,13 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
    - Copy Client ID and Client Secret to `.env`
 
 2. **Authenticate**
-   bash
+   ```bash
    # Start unified server
    node unified_server.js
 
    # Navigate to auth endpoint
    curl http://localhost:9898/api/gh/login
-   
+   ```
 
 3. **Use Copilot Features**
    - Code suggestions in your IDE
@@ -425,7 +378,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
 
 Test your agent setup with the included test suite:
 
-bash
+```bash
 # Test agent routing
 node --test test/server9898-agent-routing.test.js
 
@@ -434,11 +387,12 @@ node --test test/server9898.test.js
 
 # Run both Node bridge tests together
 node --test test/server9898-agent-routing.test.js test/server9898.test.js
+```
 
 
 **Example Test:**
 
-javascript
+```javascript
 // Test Claude agent connection
 const ws = new WebSocket('ws://localhost:9898');
 
@@ -458,7 +412,7 @@ ws.on('message', (data) => {
   console.log('Agent:', response.agent);
   console.log('Response:', response.payload.text);
 });
-
+```
 
 ### Agent Usage Best Practices
 
@@ -486,7 +440,7 @@ ws.on('message', (data) => {
 
 #### Frontend Integration (React/TypeScript)
 
-typescript
+```typescript
 import { useEffect, useState } from 'react';
 
 function AgentChat() {
@@ -524,11 +478,12 @@ function AgentChat() {
     </div>
   );
 }
+```
 
 
 #### iOS Integration (Swift)
 
-swift
+```swift
 import Foundation
 
 class AgentClient {
@@ -572,11 +527,12 @@ class AgentClient {
         }
     }
 }
+```
 
 
 #### Python Integration
 
-python
+```python
 import asyncio
 import websockets
 import json
@@ -606,6 +562,7 @@ async def ask_agent(agent: str, prompt: str):
 
 # Example usage
 asyncio.run(ask_agent("claude", "What is the meaning of life?"))
+```
 
 
 ### Maintaining a Clean Environment
@@ -692,7 +649,7 @@ Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
 
 ### Backend Setup
 
-bash
+```bash
 # Install Python dependencies
 pip install -r requirements.txt
 pip install -r backend/requirements.txt
@@ -706,11 +663,12 @@ python scripts/test_alerts.py
 # Run the backend server
 cd backend
 PYTHONPATH=.:./backend uvicorn app.main:app --reload
+```
 
 
 ### Frontend Setup
 
-bash
+```bash
 # Install Node dependencies
 cd frontend
 npm install
@@ -721,21 +679,23 @@ echo "REACT_APP_WS_URL=ws://localhost:9898" >> .env
 
 # Run the development server
 npm start
+```
 
 
 ### Docker Deployment
 
-bash
+```bash
 # Build and deploy with Docker Compose
 make build
 make deploy
+```
 
 
 ### Piper TTS Setup (Optional)
 
 For audio alert notifications:
 
-bash
+```bash
 # Build Piper
 cd piper-tts
 make
@@ -746,6 +706,7 @@ tar -xzf voice-en-us-libritts-high.tar.gz
 
 # Set environment variable
 export PIPER_MODEL_PATH=./voice-en-us-libritts-high.onnx
+```
 
 
 See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
@@ -754,7 +715,7 @@ See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
 ### Creating Alerts via API
 
-bash
+```bash
 # Create a security alert
 curl -X POST "http://localhost:9898/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
@@ -777,24 +738,26 @@ curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
     "message": "Critical system failure detected",
     "severity": "critical"
   }'
+```
 
 
 ### WebSocket Connection
 
 The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
 
-javascript
+```javascript
 const ws = new WebSocket('ws://localhost:9898/api/v1/alerts/ws/USER_ID');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
   console.log('Received alert:', message);
 };
+```
 
 
 ## Testing
 
- bash
+```bash
 # Run backend tests
 make test
 
@@ -803,6 +766,7 @@ make lint
 
 # Clean up
 make clean
+```
 
 
 ## Execution and Chain Validation
@@ -824,4 +788,3 @@ Execution is controlled via the `./Ship` script, which performs:
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
 
 Copyright (C) 2026 Appel420
- main

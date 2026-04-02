@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # Security
     secret_key: str
-    algorithm: str = "Blake3"
+    algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
     # AI Services
