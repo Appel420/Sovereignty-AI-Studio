@@ -317,6 +317,11 @@ app.get('/api/bridge/status', async (_req, res) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// RAG proxy — ratchet-encrypted vector-store operations
+// ---------------------------------------------------------------------------
+app.all('/api/rag/*', (req, res) => proxyRequest(BACKEND_URL, req, res));
+
 // POST /api/bridge/notify — Python backends can push alerts here
 app.post('/api/bridge/notify', (req, res) => {
   const { type, title, message, severity } = req.body;
@@ -351,6 +356,7 @@ if (require.main === module) {
     console.log(`[node-bridge] proxy /api/voice      → ${GATEWAY_URL}`);
     console.log(`[node-bridge] proxy /api/plugins/*  → ${GATEWAY_URL}`);
     console.log(`[node-bridge] proxy /api/judge/*    → ${GATEWAY_URL}`);
+    console.log(`[node-bridge] proxy /api/rag/*      → ${BACKEND_URL}`);
   });
 }
 
