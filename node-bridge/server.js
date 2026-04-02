@@ -900,11 +900,23 @@ app.post('/exec/code', rateLimit(60000, 10), (req, res) => {
     if (!allowed.test(firstCmd)) {
       return res.json({ output: '', error: 'Command not allowed: ' + firstCmd, lang: 'shell', user: user || 'anon', timestamp: ts });
     }
-    // Use execFile with split args to avoid shell interpretation
+    // Map allowlisted commands to absolute paths to prevent PATH manipulation
+    const cmdPaths = {
+      echo: '/bin/echo', printf: '/usr/bin/printf', date: '/bin/date',
+      whoami: '/usr/bin/whoami', uname: '/bin/uname', ls: '/bin/ls',
+      pwd: '/bin/pwd', id: '/usr/bin/id', hostname: '/bin/hostname',
+      uptime: '/usr/bin/uptime', df: '/bin/df', du: '/usr/bin/du',
+      wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail',
+      sort: '/usr/bin/sort', uniq: '/usr/bin/uniq', grep: '/bin/grep',
+      cut: '/usr/bin/cut', tr: '/usr/bin/tr',
+      node: process.execPath, npm: '/usr/bin/npm',
+    };
+    // Use execFile with absolute path and split args to avoid shell interpretation
     const parts = code.trim().split(/\s+/);
-    const cmd = parts[0];
+    const cmdName = parts[0];
+    const resolvedCmd = cmdPaths[cmdName] || cmdName;
     const args = parts.slice(1);
-    execFile(cmd, args, { timeout: 10000, maxBuffer: 1024 * 256 }, (err, stdout, stderr) => {
+    execFile(resolvedCmd, args, { timeout: 10000, maxBuffer: 1024 * 256 }, (err, stdout, stderr) => {
       const output = (stdout || '') + (stderr ? '\n' + stderr : '');
       res.json({
         output: output || (err ? err.message : '(no output)'),
