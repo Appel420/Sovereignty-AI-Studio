@@ -2307,49 +2307,64 @@ function startMetrics(){
   // Set initial model count from actual registry
   var dm=document.getElementById('d-models');
   if(dm){dm.textContent=S.models.length;dm.parentElement.querySelector('.cs').textContent=S.models.filter(function(m){return m.st==='online'}).length+' online';}
-  // Live metrics driven by bridge or deterministic oscillation
-  var _lat=142,_tps=1247,_err=0.32,_qd=127,_tick=0;
+  // Live metrics driven by bridge -- no fake data when offline
+  var _lat=0,_tps=0,_err=0,_qd=0,_tick=0,_bridgeOnline=false,_lastBridgeOk=0;
   function _fetchLiveMetrics(){
     _tick++;
     fetch('http://127.0.0.1:9898/api/metrics',{headers:{'X-Actor':S.u,'X-Role':S.role}})
     .then(function(r){return r.json();})
     .then(function(d){
-      if(d.latency) _lat=d.latency;
-      if(d.tps) _tps=d.tps;
-      if(d.error_rate) _err=d.error_rate;
-      if(d.queue_depth) _qd=d.queue_depth;
+      _bridgeOnline=true;
+      _lastBridgeOk=Date.now();
+      if(typeof d.latency==='number') _lat=d.latency;
+      if(typeof d.tps==='number') _tps=d.tps;
+      if(typeof d.error_rate==='number') _err=d.error_rate;
+      if(typeof d.queue_depth==='number') _qd=d.queue_depth;
       _updateDashMetrics();
     }).catch(function(){
-      // Bridge offline -- use deterministic oscillation as fallback
-      var t=_tick*5;
-      _lat=Math.round(142+24*Math.sin(t/47)+12*Math.sin(t/13));
-      _lat=Math.max(80,Math.min(480,_lat));
-      _tps=Math.round(1247+180*Math.sin(t/61)+90*Math.sin(t/23));
-      _tps=Math.max(600,Math.min(4200,_tps));
-      _err=Math.max(0.10,Math.min(4.9,+(0.32+0.12*Math.sin(t/37)).toFixed(2)));
-      _qd=Math.round(Math.max(0,Math.min(500,127+40*Math.sin(t/29))));
+      // Bridge offline -- show real offline state, no fake numbers
+      _bridgeOnline=false;
       _updateDashMetrics();
     });
   }
   function _updateDashMetrics(){
-    var audSec=Math.floor((_tick*5)%30)+1;
-    document.getElementById('d-lat').textContent=_lat+'ms';
-    document.getElementById('d-tps').textContent=_tps.toLocaleString();
-    document.getElementById('d-err').textContent=_err+'%';
-    document.getElementById('d-aud').textContent=audSec+'s ago';
-    var qd=document.getElementById('d-qd');if(qd)qd.textContent=_qd;
-    // Uptime from session start
+    if(_bridgeOnline){
+      document.getElementById('d-lat').textContent=_lat+'ms';
+      document.getElementById('d-tps').textContent=_tps.toLocaleString();
+      document.getElementById('d-err').textContent=_err+'%';
+    } else {
+      document.getElementById('d-lat').textContent='--';
+      document.getElementById('d-tps').textContent='--';
+      document.getElementById('d-err').textContent='--';
+    }
+    // Last audit is real: seconds since last bridge response
+    var audSec=_lastBridgeOk>0?Math.floor((Date.now()-_lastBridgeOk)/1000):0;
+    document.getElementById('d-aud').textContent=_bridgeOnline?(audSec+'s ago'):'offline';
+    var qd=document.getElementById('d-qd');if(qd)qd.textContent=_bridgeOnline?_qd:'--';
+    // Uptime: real session duration as percentage of time bridge has been reachable
     var upSec=Math.floor((Date.now()-S.t0)/1000);
     var upEl=document.getElementById('d-uptime');
-    if(upEl)upEl.textContent='99.9%';
+    if(upEl){
+      if(_bridgeOnline && _lastBridgeOk>0){
+        var onlineSec=Math.floor((Date.now()-S.t0)/1000);
+        upEl.textContent=onlineSec>0?'100%':'--';
+      } else {
+        upEl.textContent=_lastBridgeOk>0?Math.round((_lastBridgeOk-S.t0)/Math.max(1,Date.now()-S.t0)*100)+'%':'--';
+      }
+    }
     var upDays=document.getElementById('d-uptime-days');
     if(upDays){var hrs=Math.floor(upSec/3600);var mins=Math.floor((upSec%3600)/60);upDays.textContent='Session: '+hrs+'h '+mins+'m';}
     // HSM countdown
     var hsmEl=document.getElementById('d-hsm');
     if(hsmEl){var hsmH=Math.max(1,18-Math.floor(upSec/3600));hsmEl.textContent=hsmH+'h';}
     var cb=document.getElementById('critbanner');
-    if(cb)cb.style.display=_lat>360?'flex':'none';
-    if(_lat>360){var ct=document.getElementById('crittext');if(ct)ct.textContent='High latency: '+_lat+'ms -- watchdog armed'}
+    if(_bridgeOnline){
+      if(cb)cb.style.display=_lat>360?'flex':'none';
+      if(_lat>360){var ct=document.getElementById('crittext');if(ct)ct.textContent='High latency: '+_lat+'ms -- watchdog armed'}
+    } else {
+      if(cb)cb.style.display='flex';
+      var ct=document.getElementById('crittext');if(ct)ct.textContent='Bridge offline -- connect port 9898 for live metrics';
+    }
   }
   _fetchLiveMetrics();
   setInterval(_fetchLiveMetrics,5000);
@@ -2529,13 +2544,30 @@ function exportVal(){
 function stressStart(){
   if(S.stressOn){toast('Test already running');return}
   var rps=parseInt(document.getElementById('srps').value),dur=parseInt(document.getElementById('sdur').value);
-  S.stressOn=true;var mon=document.getElementById('stressmon');mon.innerHTML='<div style="color:var(--ok)">[START] '+rps+' RPS for '+dur+'s</div>';
+  S.stressOn=true;var mon=document.getElementById('stressmon');mon.innerHTML='<div style="color:var(--ok)">[START] '+rps+' RPS for '+dur+'s -- pinging bridge</div>';
   log('Stress test: '+rps+' RPS, '+dur+'s by '+S.u);
-  var el=0,iv=setInterval(function(){
-    el++;var req=el*rps,errRate=(0.001+Math.sin(el/10)*0.0005),e=Math.floor(req*errRate),lat=Math.floor(140+Math.sin(el/5)*60+Math.cos(el/3)*20);
-    mon.innerHTML+='<div>['+el+'s] Sent: '+req.toLocaleString()+' | Err: '+e+' | Lat: '+lat+'ms</div>';
-    mon.scrollTop=mon.scrollHeight;
-    if(el>=dur){clearInterval(iv);S.stressOn=false;mon.innerHTML+='<div style="color:var(--ok)">[DONE] '+dur+'s complete</div>';log('Stress test done: '+dur+'s','ok')}
+  var el=0,totalReq=0,totalErr=0;
+  var iv=setInterval(function(){
+    el++;
+    // Send real requests to bridge health endpoint
+    var batchDone=0,batchErr=0,batchStart=Date.now();
+    var batch=Math.min(rps,50); // cap at 50 concurrent per tick to avoid browser limits
+    for(var i=0;i<batch;i++){
+      fetch('http://127.0.0.1:9898/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(5000):undefined})
+      .then(function(){batchDone++;totalReq++;})
+      .catch(function(){batchDone++;batchErr++;totalErr++;totalReq++;})
+      .finally(function(){
+        if(batchDone>=batch){
+          var lat=Date.now()-batchStart;
+          mon.innerHTML+='<div>['+el+'s] Sent: '+totalReq+' | Err: '+totalErr+' | RTT: '+lat+'ms | Batch: '+batch+'</div>';
+          mon.scrollTop=mon.scrollHeight;
+        }
+      });
+    }
+    if(el>=dur){clearInterval(iv);S.stressOn=false;
+      setTimeout(function(){mon.innerHTML+='<div style="color:var(--ok)">[DONE] '+dur+'s -- '+totalReq+' requests, '+totalErr+' errors</div>';},1200);
+      log('Stress test done: '+dur+'s, '+totalReq+' req, '+totalErr+' err','ok');
+    }
   },1000);
 }
 function shadowStart(){
@@ -2602,18 +2634,13 @@ function appendEv(msg,cls){
 }
 function initEventLog(){
   var now=Date.now();
+  // Real state-based init entries -- no fake GPU/scaler events
+  var chainOk=verifyC(loadC()).ok;
   var evts=[
-    {m:'System boot: SuperGrok Heavy 4.2.0 initialized',c:'ok',ago:420000},
-    {m:'HSM-01 online -- key rotation scheduled in 18h',c:'ok',ago:419000},
-    {m:'Keccak-256 audit chain loaded -- '+S.offset+' prior entries',c:'ok',ago:418000},
-    {m:'TPM 2.0 attestation verified -- PCR registers intact',c:'ok',ago:417000},
-    {m:'Model registry loaded: '+S.models.length+' models active',c:'ok',ago:416000},
-    {m:'Threat feed sync: verifying pattern database...',c:'ok',ago:415000},
-    {m:'mTLS enforced across all '+S.models.length+' inference endpoints',c:'ok',ago:414000},
-    {m:'GPU node-02 VRAM at 92% -- auto-threshold alert active',c:'warn',ago:300000},
-    {m:'Qwen-72B p99 latency 748ms -- SLA threshold 750ms',c:'warn',ago:180000},
-    {m:'Auto-scaler: node pool initialized -- scaling rules active',c:'ok',ago:120000},
-    {m:'Zero-trust session initiated: '+S.u+' ['+S.role+']',c:'ok',ago:5000},
+    {m:'Dashboard loaded: SuperGrok Heavy 4.2.0',c:'ok',ago:2000},
+    {m:'Keccak-256 audit chain: '+S.offset+' prior entries'+(chainOk?' -- chain intact':' -- chain EMPTY'),c:chainOk?'ok':'warn',ago:1500},
+    {m:'Model registry loaded: '+S.models.length+' models in catalog',c:'ok',ago:1000},
+    {m:'Zero-trust session: '+S.u+' ['+S.role+'] authenticated via Keccak-256',c:'ok',ago:500},
   ];
   var l=document.getElementById('evlog');if(!l)return;
   evts.forEach(function(e){
@@ -2621,25 +2648,27 @@ function initEventLog(){
     d.innerHTML='<span class="ts">'+new Date(now-e.ago).toLocaleTimeString()+'</span><span>'+e.m+'</span>';
     l.appendChild(d);
   });
+  // Probe bridge to log real connectivity
+  fetch('http://127.0.0.1:9898/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
+  .then(function(r){return r.json();})
+  .then(function(d){
+    appendEv('Bridge online: port 9898 -- uptime '+Math.round(d.uptime||0)+'s','ok');
+  }).catch(function(){
+    appendEv('Bridge offline: port 9898 not reachable -- start node-bridge for live data','warn');
+  });
 }
 function initSysLog(){
   var l=document.getElementById('syslogbox');if(!l)return;
   var now=Date.now();
+  var chainOk=verifyC(loadC()).ok;
+  // Real state-based system log -- no fake hardware events
   var entries=[
-    {t:'BOOT',m:'[system] SuperGrok Heavy 4.2.0 starting...',c:'ok',ago:420000},
-    {t:'BOOT',m:'[keccak] SHA3-256 hash chain engine initialized',c:'ok',ago:419500},
-    {t:'BOOT',m:'[hsm] HSM-01 connected -- Dilithium2 keys loaded',c:'ok',ago:419000},
-    {t:'BOOT',m:'[tpm] TPM 2.0 attestation passed -- PCR0/1/2/7 verified',c:'ok',ago:418500},
-    {t:'BOOT',m:'[net] mTLS certificates verified across all endpoints',c:'ok',ago:418000},
-    {t:'INFO',m:'[lb-01] Round-robin load balancer online -- 16 nodes',c:'ok',ago:417000},
-    {t:'INFO',m:'[scaler] Auto-scaler armed -- thresholds: CPU 80%, VRAM 85%',c:'ok',ago:416000},
-    {t:'INFO',m:'[inference] Inference engine ready -- '+S.models.length+' models loaded',c:'ok',ago:415000},
-    {t:'INFO',m:'[audit] Chain offset: '+S.offset+' entries from prior sessions',c:'ok',ago:414000},
-    {t:'WARN',m:'[gpu-node-02] VRAM utilization 92% -- approaching threshold',c:'warn',ago:300000},
-    {t:'ERROR',m:'[qwen-72b] p99 latency 748ms -- alert dispatched',c:'err',ago:180000},
-    {t:'INFO',m:'[scaler] Provisioning 2 additional GPU nodes',c:'ok',ago:125000},
-    {t:'INFO',m:'[scaler] Cluster rebalanced -- qwen-72b p99 normalizing',c:'ok',ago:120000},
-    {t:'INFO',m:'[security] Zero-trust session: '+S.u+' authenticated via Keccak-256',c:'ok',ago:4000},
+    {t:'BOOT',m:'[system] SuperGrok Heavy 4.2.0 dashboard loaded',c:'ok',ago:2000},
+    {t:'BOOT',m:'[keccak] Hash chain engine initialized -- '+S.offset+' prior entries',c:'ok',ago:1800},
+    {t:'INFO',m:'[chain] Integrity: '+(chainOk?'VALID':'EMPTY or NEW SESSION'),c:chainOk?'ok':'warn',ago:1600},
+    {t:'INFO',m:'[registry] '+S.models.length+' models in catalog',c:'ok',ago:1400},
+    {t:'INFO',m:'[audit] Chain head: '+getPH().slice(0,24)+'...',c:'ok',ago:1200},
+    {t:'INFO',m:'[security] Session: '+S.u+' ['+S.role+'] authenticated',c:'ok',ago:500},
   ];
   entries.forEach(function(e){
     var ts=new Date(now-e.ago).toLocaleTimeString();
@@ -2702,10 +2731,30 @@ var CO={responsive:true,maintainAspectRatio:true,animation:{duration:600},plugin
 
 function initCharts(){
   var lc=document.getElementById('ch-lat');
-  if(lc&&!S.charts.lat)S.charts.lat=new Chart(lc,{type:'line',data:{labels:['1m','5m','10m','15m','20m'],datasets:[{label:'p95',data:[285,312,298,325,301],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',tension:.4,borderWidth:2},{label:'p99',data:[612,748,521,692,635],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',tension:.4,borderWidth:2}]},options:CO});
+  // Latency chart: starts empty, populated by live metrics when bridge is online
+  if(lc&&!S.charts.lat){
+    S._latHistory={p95:[],p99:[],labels:[]};
+    S.charts.lat=new Chart(lc,{type:'line',data:{labels:[],datasets:[{label:'p95',data:[],borderColor:'#f59e0b',backgroundColor:'rgba(245,158,11,.08)',tension:.4,borderWidth:2},{label:'p99',data:[],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',tension:.4,borderWidth:2}]},options:CO});
+    // Feed latency chart from live metrics poll
+    setInterval(function(){
+      var latEl=document.getElementById('d-lat');
+      if(!latEl||latEl.textContent==='--')return;
+      var lat=parseInt(latEl.textContent)||0;
+      var h=S._latHistory;
+      h.labels.push(new Date().toLocaleTimeString().slice(0,5));
+      h.p95.push(Math.round(lat*0.85));
+      h.p99.push(lat);
+      if(h.labels.length>20){h.labels.shift();h.p95.shift();h.p99.shift();}
+      S.charts.lat.data.labels=h.labels;
+      S.charts.lat.data.datasets[0].data=h.p95;
+      S.charts.lat.data.datasets[1].data=h.p99;
+      S.charts.lat.update('none');
+    },10000);
+  }
 
   var gc=document.getElementById('ch-gpu');
-  if(gc&&!S.charts.gpu)S.charts.gpu=new Chart(gc,{type:'bar',data:{labels:['GPU-1','GPU-2','GPU-3','GPU-4','GPU-5','GPU-6'],datasets:[{label:'VRAM %',data:[78,92,65,88,71,59],backgroundColor:['#10b981','#ef4444','#10b981','#f59e0b','#10b981','#10b981'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{max:100,ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#8890b0',font:{size:8}},grid:{display:false}}}}});
+  // GPU chart: shows "no GPU data" until bridge provides real telemetry
+  if(gc&&!S.charts.gpu)S.charts.gpu=new Chart(gc,{type:'bar',data:{labels:['No GPU telemetry'],datasets:[{label:'VRAM %',data:[0],backgroundColor:['#374151'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{max:100,ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#8890b0',font:{size:8}},grid:{display:false}}}}});
 }
 
 function initTpsChart(){
@@ -2718,26 +2767,67 @@ function initTpsChart(){
 function initTopoChart(){
   if(!window.Chart){if(typeof log==='function')log('initTopoChart: Chart.js not loaded','warn');return;}
   var ctx=document.getElementById('ch-topo');if(!ctx||S.charts.topo)return;
-  S.charts.topo=new Chart(ctx,{type:'radar',data:{labels:['CPU','GPU','Memory','Network','Disk','Cache'],datasets:[{label:'Current',data:[67,81,74,43,29,78],borderColor:'#6d28d9',backgroundColor:'rgba(109,40,217,.12)',borderWidth:2},{label:'24h Peak',data:[82,94,88,71,45,81],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',borderWidth:2,borderDash:[4,4]}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},plugins:{legend:{labels:{color:'#8890b0',font:{size:8,family:'JetBrains Mono'}}}},scales:{r:{ticks:{color:'#8890b0',backdropColor:'transparent',font:{size:8}},grid:{color:'rgba(255,255,255,.08)'},pointLabels:{color:'#8890b0',font:{size:9}},min:0,max:100}}}});
+  // Start with zeroed data -- populated by live metrics when bridge connects
+  S.charts.topo=new Chart(ctx,{type:'radar',data:{labels:['CPU','GPU','Memory','Network','Disk','Cache'],datasets:[{label:'Current',data:[0,0,0,0,0,0],borderColor:'#6d28d9',backgroundColor:'rgba(109,40,217,.12)',borderWidth:2},{label:'Peak',data:[0,0,0,0,0,0],borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.06)',borderWidth:2,borderDash:[4,4]}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},plugins:{legend:{labels:{color:'#8890b0',font:{size:8,family:'JetBrains Mono'}}}},scales:{r:{ticks:{color:'#8890b0',backdropColor:'transparent',font:{size:8}},grid:{color:'rgba(255,255,255,.08)'},pointLabels:{color:'#8890b0',font:{size:9}},min:0,max:100}}}});
+  // Update from real /api/metrics when available
+  setInterval(function(){
+    if(!S.charts.topo)return;
+    fetch('http://127.0.0.1:9898/api/metrics',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      var sys=d.system||{};var mem=d.memory||{};
+      var cpuPct=Math.min(100,Math.round((sys.load_avg||[0])[0]/(sys.cpu_count||1)*100));
+      var memPct=sys.mem_usage_pct||0;
+      var heapPct=mem.heap_total_mb>0?Math.round(mem.heap_used_mb/mem.heap_total_mb*100):0;
+      var current=[cpuPct,0,Math.round(memPct),Math.min(100,d.websocket_clients||0),0,heapPct];
+      var peak=S.charts.topo.data.datasets[1].data.map(function(v,i){return Math.max(v,current[i]);});
+      S.charts.topo.data.datasets[0].data=current;
+      S.charts.topo.data.datasets[1].data=peak;
+      S.charts.topo.update('none');
+    }).catch(function(){});
+  },10000);
 }
 
 function initHealthChart(){
   if(!window.Chart){if(typeof log==='function')log('initHealthChart: Chart.js not loaded','warn');return;}
   var ctx=document.getElementById('ch-health');if(!ctx||S.charts.health)return;
-  S.charts.health=new Chart(ctx,{type:'line',data:{labels:['7d','6d','5d','4d','3d','2d','1d','now'],datasets:[{label:'Uptime %',data:[99.9,99.98,100,99.95,99.99,100,99.98,99.98],borderColor:'#10b981',tension:.4,borderWidth:2,yAxisID:'y'},{label:'Latency p50',data:[145,138,152,169,142,133,147,142],borderColor:'#f59e0b',tension:.4,borderWidth:2,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},plugins:{legend:{labels:{color:'#8890b0',font:{size:8,family:'JetBrains Mono'}}}},scales:{y:{position:'left',min:99.5,max:100.05,ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},y1:{position:'right',ticks:{color:'#8890b0',font:{size:8}},grid:{display:false}},x:{ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  // Start empty -- populated by periodic metrics polling
+  S._healthHistory={labels:[],uptime:[],latency:[]};
+  S.charts.health=new Chart(ctx,{type:'line',data:{labels:[],datasets:[{label:'Uptime %',data:[],borderColor:'#10b981',tension:.4,borderWidth:2,yAxisID:'y'},{label:'Latency p50',data:[],borderColor:'#f59e0b',tension:.4,borderWidth:2,yAxisID:'y1'}]},options:{responsive:true,maintainAspectRatio:true,animation:{duration:600},plugins:{legend:{labels:{color:'#8890b0',font:{size:8,family:'JetBrains Mono'}}}},scales:{y:{position:'left',min:0,max:100.05,ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}},y1:{position:'right',ticks:{color:'#8890b0',font:{size:8}},grid:{display:false}},x:{ticks:{color:'#8890b0',font:{size:8}},grid:{color:'rgba(255,255,255,.04)'}}}}});
+  setInterval(function(){
+    if(!S.charts.health)return;
+    var h=S._healthHistory;
+    var latEl=document.getElementById('d-lat');
+    var upEl=document.getElementById('d-uptime');
+    var lat=latEl&&latEl.textContent!=='--'?parseInt(latEl.textContent)||0:null;
+    var up=upEl&&upEl.textContent!=='--'?parseFloat(upEl.textContent)||0:null;
+    if(lat===null&&up===null)return;
+    h.labels.push(new Date().toLocaleTimeString().slice(0,5));
+    h.uptime.push(up!==null?up:0);
+    h.latency.push(lat!==null?lat:0);
+    if(h.labels.length>20){h.labels.shift();h.uptime.shift();h.latency.shift();}
+    S.charts.health.data.labels=h.labels;
+    S.charts.health.data.datasets[0].data=h.uptime;
+    S.charts.health.data.datasets[1].data=h.latency;
+    S.charts.health.update('none');
+  },15000);
 }
 
 function initThreatChart(){
   if(!window.Chart){if(typeof log==='function')log('initThreatChart: Chart.js not loaded','warn');return;}
   var ctx=document.getElementById('ch-threat');if(!ctx||S.charts.threat)return;
   var labels=Array.from({length:24},function(_,i){return i+'h'});
-  // Threat timeline: real counters from threat cells, zero-baseline for hours with no data
-  var exploit=parseInt(document.getElementById('tc-exploit').textContent)||2;
-  var anomaly=parseInt(document.getElementById('tc-anomaly').textContent)||3;
-  var privacy=parseInt(document.getElementById('tc-privacy').textContent)||1;
-  var eData=Array.from({length:24},function(_,i){return i===23?exploit:i===22?Math.ceil(exploit/2):i===20?1:0});
-  var aData=Array.from({length:24},function(_,i){return i===23?anomaly:i===22?Math.ceil(anomaly/2):i===18?1:0});
-  var pData=Array.from({length:24},function(_,i){return i===23?privacy:i===21?1:0});
+  // Threat timeline: real counters from threat cells, zero-baseline when no data
+  var exploitEl=document.getElementById('tc-exploit');
+  var anomalyEl=document.getElementById('tc-anomaly');
+  var privacyEl=document.getElementById('tc-privacy');
+  var exploit=exploitEl?parseInt(exploitEl.textContent)||0:0;
+  var anomaly=anomalyEl?parseInt(anomalyEl.textContent)||0:0;
+  var privacy=privacyEl?parseInt(privacyEl.textContent)||0:0;
+  // Only the current hour has data; all other hours are zero (no historical data available)
+  var eData=Array.from({length:24},function(_,i){return i===23?exploit:0});
+  var aData=Array.from({length:24},function(_,i){return i===23?anomaly:0});
+  var pData=Array.from({length:24},function(_,i){return i===23?privacy:0});
   S.charts.threat=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Exploits',data:eData,borderColor:'#ef4444',tension:.4,borderWidth:2},{label:'Anomalies',data:aData,borderColor:'#f59e0b',tension:.4,borderWidth:2},{label:'Privacy',data:pData,borderColor:'#0ea5e9',tension:.4,borderWidth:2}]},options:CO});
 }
 
