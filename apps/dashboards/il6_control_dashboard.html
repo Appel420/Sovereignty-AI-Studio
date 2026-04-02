@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IL6 Zero Trust Control Mesh</title>
+  <meta name="theme-color" content="#020617" />
+  <style>
+    :root {
+      --bg: #0a0f1c;
+      --panel: #020617;
+      --border: #1e293b;
+      --text: #dbeafe;
+      --accent: #2563eb;
+      --ok: #065f46;
+      --warn: #7c2d12;
+      --info: #1e3a8a;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    h1 { font-size: 16px; margin: 0; letter-spacing: .4px; }
+    h2 { font-size: 18px; margin-top: 0; }
+
+    .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid transparent;
+    }
+    .fips { background: #052e2b; border-color: #065f46; }
+    .audit { background: #172554; border-color: #1e3a8a; }
+    .rbac { background: #431407; border-color: #7c2d12; }
+
+    nav {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: #1e293b;
+      border: 1px solid #334155;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button:hover { background: #334155; }
+
+    main {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 16px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .panel {
+      display: none;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .panel.active { display: block; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .log {
+      background: #00070f;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
+      height: 220px;
+      overflow: auto;
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      background: #00070f;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+    }
+
+    #mtlsModal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      z-index: 20;
+      padding: 24px;
+    }
+
+    #mtlsSheet {
+      background: #020617;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 16px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>IL6 ZERO TRUST CONTROL</h1>
+    <div class="badges">
+      <span class="badge fips">FIPS Mode: Visual</span>
+      <span class="badge fips">TLS Envelope</span>
+      <span class="badge audit">BLAKE3 Ledger</span>
+      <span class="badge rbac">RBAC Hooked</span>
+    </div>
+  </header>
+
+  <nav>
+    <button data-panel="control">Control</button>
+    <button data-panel="rbac">RBAC</button>
+    <button data-panel="audit">Audit</button>
+    <button data-panel="configs">Configs</button>
+    <button id="mtlsBtn">mTLS Visualizer</button>
+  </nav>
+
+  <main>
+    <section id="control" class="panel active">
+      <h2>Service Control</h2>
+      <p>Zero-trust wrapped call path targeting bridge-backed APIs on port 9898.</p>
+      <div class="row">
+        <button id="secureCallBtn">Secure Call: /api/bridge/status</button>
+        <button id="initCryptoBtn">Initialize ML-DSA + BLAKE3</button>
+        <button id="installPwaBtn">Install PWA Artifacts</button>
+      </div>
+      <div class="log" id="controlLog"></div>
+    </section>
+
+    <section id="rbac" class="panel">
+      <h2>RBAC Management</h2>
+      <div class="row">
+        <button data-role="SUPERADMIN">Set SUPERADMIN</button>
+        <button data-role="ADMIN">Set ADMIN</button>
+        <button data-role="OPERATOR">Set OPERATOR</button>
+      </div>
+      <div class="log" id="rbacLog"></div>
+    </section>
+
+    <section id="audit" class="panel">
+      <h2>Audit Ledger</h2>
+      <div class="row">
+        <button id="verifyLedgerBtn">Verify Chain</button>
+        <button id="exportLedgerBtn">Export Chain</button>
+      </div>
+      <div class="log" id="auditLog"></div>
+    </section>
+
+    <section id="configs" class="panel">
+      <h2>IL6 Deployment Config Seeds</h2>
+      <div class="grid">
+        <div>
+          <h3>Keycloak Realm</h3>
+          <textarea id="keycloakCfg" readonly></textarea>
+        </div>
+        <div>
+          <h3>SPIRE Server</h3>
+          <textarea id="spireServerCfg" readonly></textarea>
+        </div>
+        <div>
+          <h3>SPIRE Agent</h3>
+          <textarea id="spireAgentCfg" readonly></textarea>
+        </div>
+        <div>
+          <h3>Ansible Air-Gapped Core</h3>
+          <textarea id="ansibleCfg" readonly></textarea>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="mtlsModal">
+    <div id="mtlsSheet">
+      <h2>mTLS Handshake</h2>
+      <div class="log" id="mtlsLog"></div>
+      <div class="row"><button id="closeMtlSBtn">Close</button></div>
+    </div>
+  </div>
+
+  <script type="module">
+    const IL6 = {
+      baseUrl: window.location.origin,
+      tokenEndpoint: '/api/v1/auth/token',
+      certBoundHeader: 'X-Client-Cert-Bound',
+      spiffeHeader: 'X-SPIFFE-ID',
+      signatureHeader: 'X-MLDSA-Signature',
+      auditHeader: 'X-Audit-Hash',
+      apiStatusPath: '/api/bridge/status',
+      mldsaModulePath: './mldsa_wasm.js',
+      blake3ModulePath: './blake3_wasm.js',
+    };
+
+    const state = {
+      role: 'OPERATOR',
+      ledger: [],
+      mldsa: null,
+      blake3: null,
+      blake3HashFn: null,
+    };
+
+    function log(id, msg) {
+      const target = document.getElementById(id);
+      target.textContent += `[${new Date().toISOString()}] ${msg}\n`;
+      target.scrollTop = target.scrollHeight;
+    }
+
+    async function initMLDSA() {
+      if (state.mldsa) return;
+      const module = await import(IL6.mldsaModulePath);
+      state.mldsa = module;
+      log('controlLog', 'ML-DSA WASM module loaded.');
+    }
+
+    async function initBLAKE3() {
+      if (state.blake3HashFn) return;
+      const module = await import(IL6.blake3ModulePath);
+      if (module.default) await module.default();
+      state.blake3 = module;
+      state.blake3HashFn = module.hash;
+      log('controlLog', 'BLAKE3 WASM module loaded.');
+    }
+
+    function toHex(bytes) {
+      return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function auditAppend(entry) {
+      await initBLAKE3();
+      const prevHash = state.ledger.length ? state.ledger[state.ledger.length - 1].hash : '';
+      const payload = new TextEncoder().encode(`${prevHash}${JSON.stringify(entry)}`);
+      const digest = state.blake3HashFn(payload);
+      const block = { ...entry, prev: prevHash, hash: toHex(digest) };
+      state.ledger.push(block);
+      log('auditLog', `block=${state.ledger.length} hash=${block.hash}`);
+      return block;
+    }
+
+    async function verifyLedger() {
+      await initBLAKE3();
+      for (let i = 0; i < state.ledger.length; i += 1) {
+        const current = state.ledger[i];
+        const prev = i === 0 ? '' : state.ledger[i - 1].hash;
+        const entry = { ...current };
+        delete entry.prev;
+        delete entry.hash;
+        const payload = new TextEncoder().encode(`${prev}${JSON.stringify(entry)}`);
+        const digest = toHex(state.blake3HashFn(payload));
+        if (current.prev !== prev || current.hash !== digest) {
+          log('auditLog', `Ledger verification FAILED at block ${i + 1}.`);
+          return false;
+        }
+      }
+      log('auditLog', `Ledger verification OK (${state.ledger.length} blocks).`);
+      return true;
+    }
+
+    async function getToken() {
+      // Backend integration hook: should return mTLS certificate-bound access token.
+      const provided = window.__IL6_TOKEN__;
+      if (provided) return provided;
+
+      try {
+        const res = await fetch(IL6.tokenEndpoint, { method: 'POST', credentials: 'include' });
+        if (res.ok) {
+          const data = await res.json();
+          return data.access_token || '';
+        }
+      } catch (_err) {
+        // Air-gapped fallback: intentionally silent.
+      }
+      return '';
+    }
+
+    async function getSPIFFE() {
+      return window.__SPIFFE_ID__ || 'spiffe://il6.cluster/ns/default/sa/frontend';
+    }
+
+    async function signPayload(payload) {
+      await initMLDSA();
+      if (typeof state.mldsa.sign === 'function') {
+        return state.mldsa.sign(payload);
+      }
+      throw new Error('ML-DSA module missing `sign` export.');
+    }
+
+    async function secureRequest(path) {
+      const token = await getToken();
+      const spiffe = await getSPIFFE();
+      const envelope = {
+        path,
+        role: state.role,
+        timestamp: Date.now(),
+        enclaveMode: window.__AIR_GAPPED__ ? 'air-gapped' : 'connected',
+      };
+
+      const serialized = JSON.stringify(envelope);
+      const signature = await signPayload(serialized);
+      const auditBlock = await auditAppend({ type: 'request', ...envelope });
+
+      const response = await fetch(`${IL6.baseUrl}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: token ? `Bearer ${token}` : '',
+          [IL6.spiffeHeader]: spiffe,
+          [IL6.signatureHeader]: typeof signature === 'string' ? signature : JSON.stringify(signature),
+          [IL6.auditHeader]: auditBlock.hash,
+          [IL6.certBoundHeader]: 'true',
+          'Content-Type': 'application/json',
+        },
+        body: serialized,
+      });
+
+      log('controlLog', `Secure request -> ${path}, status=${response.status}`);
+      return response;
+    }
+
+    async function simulateMTLS() {
+      const modal = document.getElementById('mtlsModal');
+      const out = document.getElementById('mtlsLog');
+      modal.style.display = 'block';
+      out.textContent = '';
+      const steps = [
+        'ClientHello',
+        'ServerHello',
+        'Certificate + CertRequest',
+        'Client Certificate Verify',
+        'Key Schedule + Finished',
+        'mTLS Session Established',
+      ];
+      for (const step of steps) {
+        out.textContent += `${step}\n`;
+        await new Promise((resolve) => setTimeout(resolve, 350));
+      }
+    }
+
+    async function installSingleFilePwaArtifacts() {
+      const swScript = `
+        self.addEventListener('install', (event) => {
+          event.waitUntil(caches.open('il6-control-v1').then((cache) => cache.addAll(['./'])));
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', (event) => {
+          event.waitUntil(self.clients.claim());
+        });
+        self.addEventListener('fetch', (event) => {
+          event.respondWith(caches.match(event.request).then((r) => r || fetch(event.request)));
+        });
+      `;
+
+      if ('serviceWorker' in navigator) {
+        const blob = new Blob([swScript], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        await navigator.serviceWorker.register(swUrl);
+        log('controlLog', 'Inline service worker registered.');
+      }
+
+      const manifest = {
+        name: 'IL6 Zero Trust Control Mesh',
+        short_name: 'IL6 Control',
+        start_url: './',
+        display: 'standalone',
+        background_color: '#0a0f1c',
+        theme_color: '#020617',
+      };
+      const manifestBlob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+      const manifestUrl = URL.createObjectURL(manifestBlob);
+      let link = document.querySelector('link[rel="manifest"]');
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'manifest';
+        document.head.appendChild(link);
+      }
+      link.href = manifestUrl;
+      log('controlLog', 'Inline manifest installed.');
+    }
+
+    function setConfigs() {
+      document.getElementById('keycloakCfg').value = JSON.stringify({
+        realm: 'il6-secure',
+        enabled: true,
+        sslRequired: 'all',
+        accessTokenLifespan: 300,
+        ssoSessionIdleTimeout: 900,
+        roles: { realm: [{ name: 'SUPERADMIN' }, { name: 'ADMIN' }, { name: 'OPERATOR' }] },
+        clients: [{
+          clientId: 'frontend',
+          publicClient: false,
+          protocol: 'openid-connect',
+          attributes: { 'tls.client.certificate.bound.access.tokens': 'true' },
+        }],
+      }, null, 2);
+
+      document.getElementById('spireServerCfg').value = `server {
+  bind_address = "0.0.0.0"
+  bind_port = "8081"
+  trust_domain = "il6.cluster"
+}
+plugins {
+  DataStore "sql" {
+    plugin_data {
+      database_type = "sqlite3"
+      connection_string = "/var/lib/spire/data.db"
+    }
+  }
+}`;
+
+      document.getElementById('spireAgentCfg').value = `agent {
+  trust_domain = "il6.cluster"
+  server_address = "spire-server"
+  server_port = "8081"
+}
+plugins {
+  WorkloadAttestor "k8s" {
+    plugin_data {}
+  }
+}`;
+
+      document.getElementById('ansibleCfg').value = `- hosts: il6_nodes
+  become: yes
+  tasks:
+    - name: Install k8s
+      shell: kubeadm init
+    - name: Deploy SPIRE
+      shell: kubectl apply -f spire.yaml
+    - name: Deploy Keycloak
+      shell: kubectl apply -f keycloak.yaml
+    - name: Deploy control UI
+      copy:
+        src: dashboard.html
+        dest: /var/www/html/index.html`;
+    }
+
+    document.querySelectorAll('nav button[data-panel]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const panelId = button.dataset.panel;
+        document.querySelectorAll('.panel').forEach((p) => p.classList.remove('active'));
+        document.getElementById(panelId).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('#rbac button[data-role]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        state.role = button.dataset.role;
+        await auditAppend({ type: 'role_change', role: state.role, timestamp: Date.now() });
+        log('rbacLog', `Role changed -> ${state.role}`);
+      });
+    });
+
+    document.getElementById('secureCallBtn').addEventListener('click', async () => {
+      try {
+        await secureRequest(IL6.apiStatusPath);
+      } catch (err) {
+        log('controlLog', `Secure request failed: ${err.message}`);
+      }
+    });
+
+    document.getElementById('verifyLedgerBtn').addEventListener('click', verifyLedger);
+    document.getElementById('exportLedgerBtn').addEventListener('click', () => {
+      const blob = new Blob([JSON.stringify(state.ledger, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-ledger-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.getElementById('initCryptoBtn').addEventListener('click', async () => {
+      try {
+        await Promise.all([initMLDSA(), initBLAKE3()]);
+      } catch (err) {
+        log('controlLog', `Crypto init error: ${err.message}`);
+      }
+    });
+    document.getElementById('installPwaBtn').addEventListener('click', installSingleFilePwaArtifacts);
+    document.getElementById('mtlsBtn').addEventListener('click', simulateMTLS);
+    document.getElementById('closeMtlSBtn').addEventListener('click', () => {
+      document.getElementById('mtlsModal').style.display = 'none';
+    });
+
+    setConfigs();
+    log('controlLog', 'Dashboard initialized. Port policy: external ingress via 9898.');
+  </script>
+</body>
+</html>

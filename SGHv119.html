@@ -5706,6 +5706,7 @@ window.sg_show        = show;
 function afterPanel(id){
   setTimeout(function(){
     if(id==='agents'&&window.SGOrchestrator&&window.SGOrchestrator.renderOrchPanel)window.SGOrchestrator.renderOrchPanel();
+    if(id==='ecosystem'&&window.ecoRefresh) window.ecoRefresh();
     if(id==="fortress"||id==="cloudenforcer"){
       setTimeout(function(){
         /* Fortress panel wiring */
@@ -23687,6 +23688,164 @@ html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t4);text-
 return html;
 };
 
+/* ── Ecosystem Control Panel ── */
+PANELS.ecosystem = function(){
+var html = hdr('🌐 Ecosystem Control','Monitor and control all agents, services, and the self-sustaining ecosystem from one panel');
+
+/* Status loading placeholder */
+html += '<div id="eco-status" style="font-family:var(--mono);font-size:10px;color:var(--t2);padding:10px">⏳ Fetching ecosystem status...</div>';
+
+/* Agent system cards */
+html += '<div class="card" style="border-color:var(--acid)22">';
+html += '<div style="font-family:var(--mono);font-size:10px;color:var(--cy);margin-bottom:10px;letter-spacing:1px">🏗 MULTI-AGENT SYSTEM</div>';
+html += '<div id="eco-agents" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">';
+var agentDefs = [
+  {id:'judge',icon:'⚖️',name:'Judge Agent',port:9001,role:'Resource Lock Manager'},
+  {id:'ai_router',icon:'🧠',name:'AI Router',port:8001,role:'Multi-Provider Routing'},
+  {id:'plugin',icon:'🔌',name:'Plugin Agent',port:8002,role:'Dynamic Plugin Exec'},
+  {id:'platform',icon:'📡',name:'Platform Agent',port:8003,role:'Streaming Integration'},
+  {id:'voice',icon:'🎙️',name:'Voice Assist',port:8004,role:'Accessibility Voice'},
+  {id:'gateway',icon:'🚪',name:'Gateway',port:9000,role:'Orchestrator'},
+  {id:'backend',icon:'⚙️',name:'Backend API',port:8000,role:'FastAPI Core'},
+  {id:'bridge',icon:'🌉',name:'Node Bridge',port:9898,role:'External Gateway'}
+];
+agentDefs.forEach(function(a){
+  html += '<div id="eco-card-'+a.id+'" style="background:var(--bg2);border:1px solid var(--wire);border-radius:10px;padding:12px;text-align:center">';
+  html += '<div style="font-size:28px;margin-bottom:4px">'+a.icon+'</div>';
+  html += '<div style="font-family:var(--syne);font-size:11px;font-weight:800;color:var(--t0)">'+a.name+'</div>';
+  html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t3);margin:2px 0">:'+a.port+' | '+a.role+'</div>';
+  html += '<div id="eco-dot-'+a.id+'" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--t4);margin-top:4px" title="unknown"></div>';
+  html += '<span id="eco-lbl-'+a.id+'" style="font-family:var(--mono);font-size:8px;color:var(--t4);margin-left:4px">...</span>';
+  html += '</div>';
+});
+html += '</div></div>';
+
+/* Service health grid */
+html += '<div class="card">';
+html += '<div style="font-family:var(--mono);font-size:10px;color:var(--gn);margin-bottom:8px;letter-spacing:1px">💚 SERVICE HEALTH</div>';
+html += '<div id="eco-health" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-family:var(--mono);font-size:10px">';
+html += '<div>Bridge: <span id="eco-h-bridge" style="color:var(--t4)">...</span></div>';
+html += '<div>WebSocket Clients: <span id="eco-h-ws" style="color:var(--t4)">...</span></div>';
+html += '<div>Uptime: <span id="eco-h-uptime" style="color:var(--t4)">...</span></div>';
+html += '<div>Ecosystem: <span id="eco-h-eco" style="color:var(--t4)">...</span></div>';
+html += '</div></div>';
+
+/* Controls */
+html += '<div class="card">';
+html += '<div style="font-family:var(--mono);font-size:10px;color:var(--am);margin-bottom:8px;letter-spacing:1px">🎮 CONTROLS</div>';
+html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
+html += '<button class="btn-p" style="font-size:9px" onclick="ecoRefresh()">🔄 Refresh Status</button>';
+html += '<button class="btn-s" style="font-size:9px" onclick="ecoPingAll()">📶 Ping All</button>';
+html += '<button class="btn-s" style="font-size:9px" onclick="ecoJudgeLog()">📋 Judge Audit Log</button>';
+html += '<button class="btn-s" style="font-size:9px" onclick="ecoSendTest()">🧪 Test Agent Chat</button>';
+html += '</div>';
+html += '<div id="eco-log" style="margin-top:10px;background:var(--bg1);border:1px solid var(--wire);border-radius:6px;padding:8px;max-height:180px;overflow-y:auto;font-family:var(--mono);font-size:9px;color:var(--t2)">Ecosystem log ready.</div>';
+html += '</div>';
+
+/* Docker / PM2 info */
+html += '<div class="card">';
+html += '<div style="font-family:var(--mono);font-size:10px;color:var(--vt);margin-bottom:8px;letter-spacing:1px">🐳 DEPLOYMENT</div>';
+html += '<div style="font-family:var(--mono);font-size:9px;color:var(--t2);line-height:1.6">';
+html += 'Docker: <code>docker compose up -d</code><br>';
+html += 'PM2: <code>pm2 start ecosystem.config.cjs</code><br>';
+html += 'Manual: <code>bash start-all.sh</code><br>';
+html += 'Bridge only: <code>node node-bridge/server.js</code>';
+html += '</div></div>';
+
+return html;
+};
+
+/* ── Ecosystem helper functions ── */
+window.ecoRefresh = function(){
+var log = gi('eco-log');
+if(log) log.innerHTML += '<div style="color:var(--cy)">['+tnow()+'] Refreshing ecosystem status...</div>';
+fetch('http://127.0.0.1:9898/api/agents/status').then(function(r){return r.json();}).then(function(d){
+  var statusEl = gi('eco-status');
+  if(statusEl){
+    var col = d.ecosystem==='healthy'?'var(--gn)':d.ecosystem==='degraded'?'var(--am)':'var(--rd)';
+    statusEl.innerHTML = '<span style="color:'+col+';font-weight:800">● '+d.ecosystem.toUpperCase()+'</span> <span style="color:var(--t3)">| '+d.timestamp+'</span>';
+  }
+  /* Update agent dots */
+  if(d.agents){
+    Object.keys(d.agents).forEach(function(k){
+      var dot = gi('eco-dot-'+k);
+      var lbl = gi('eco-lbl-'+k);
+      if(dot){
+        dot.style.background = d.agents[k].status==='online'?'#00ffc8':'#ff3d6e';
+        dot.title = d.agents[k].status;
+      }
+      if(lbl){
+        lbl.textContent = d.agents[k].status;
+        lbl.style.color = d.agents[k].status==='online'?'#00ffc8':'#ff3d6e';
+      }
+    });
+  }
+  /* Bridge is always online if we got a response */
+  var bdot = gi('eco-dot-bridge');
+  var blbl = gi('eco-lbl-bridge');
+  if(bdot){ bdot.style.background='#00ffc8'; bdot.title='online'; }
+  if(blbl){ blbl.textContent='online'; blbl.style.color='#00ffc8'; }
+  /* Health section */
+  if(d.bridge){
+    var hb = gi('eco-h-bridge'); if(hb){ hb.textContent=d.bridge.status; hb.style.color='#00ffc8'; }
+    var hw = gi('eco-h-ws'); if(hw){ hw.textContent=String(d.bridge.websocket_clients); hw.style.color='var(--cy)'; }
+    var hu = gi('eco-h-uptime'); if(hu){ hu.textContent=Math.floor(d.bridge.uptime)+'s'; hu.style.color='var(--t1)'; }
+  }
+  var he = gi('eco-h-eco'); if(he){ he.textContent=d.ecosystem; he.style.color=col; }
+  if(log) log.innerHTML += '<div style="color:var(--gn)">['+tnow()+'] Status: '+d.ecosystem+'</div>';
+  if(log) log.scrollTop = log.scrollHeight;
+}).catch(function(e){
+  var statusEl = gi('eco-status');
+  if(statusEl) statusEl.innerHTML = '<span style="color:var(--rd)">● BRIDGE OFFLINE</span> <span style="color:var(--t4)">Start bridge: node node-bridge/server.js</span>';
+  if(log){ log.innerHTML += '<div style="color:var(--rd)">['+tnow()+'] Bridge unreachable: '+e.message+'</div>'; log.scrollTop = log.scrollHeight; }
+});
+};
+
+window.ecoPingAll = function(){
+var log = gi('eco-log');
+if(log) log.innerHTML += '<div style="color:var(--cy)">['+tnow()+'] Pinging all services...</div>';
+fetch('http://127.0.0.1:9898/api/bridge/status').then(function(r){return r.json();}).then(function(d){
+  var lines = Object.keys(d.services).map(function(k){ return k+': '+d.services[k]; });
+  if(log){ log.innerHTML += '<div style="color:var(--gn)">['+tnow()+'] '+lines.join(' | ')+'</div>'; log.scrollTop = log.scrollHeight; }
+}).catch(function(e){
+  if(log){ log.innerHTML += '<div style="color:var(--rd)">['+tnow()+'] Ping failed: '+e.message+'</div>'; log.scrollTop = log.scrollHeight; }
+});
+};
+
+window.ecoJudgeLog = function(){
+var log = gi('eco-log');
+if(log) log.innerHTML += '<div style="color:var(--cy)">['+tnow()+'] Fetching judge audit log...</div>';
+fetch('http://127.0.0.1:9898/api/judge/log').then(function(r){return r.json();}).then(function(d){
+  var entries = d.log || d;
+  if(Array.isArray(entries)){
+    entries.slice(-10).forEach(function(e){
+      if(log) log.innerHTML += '<div style="color:var(--mu)">[JUDGE] '+JSON.stringify(e).slice(0,120)+'</div>';
+    });
+  } else {
+    if(log) log.innerHTML += '<div style="color:var(--mu)">[JUDGE] '+JSON.stringify(d).slice(0,200)+'</div>';
+  }
+  if(log) log.scrollTop = log.scrollHeight;
+}).catch(function(e){
+  if(log){ log.innerHTML += '<div style="color:var(--rd)">['+tnow()+'] Judge log unavailable: '+e.message+'</div>'; log.scrollTop = log.scrollHeight; }
+});
+};
+
+window.ecoSendTest = function(){
+var log = gi('eco-log');
+if(log) log.innerHTML += '<div style="color:var(--cy)">['+tnow()+'] Sending test chat to gateway...</div>';
+fetch('http://127.0.0.1:9898/api/chat',{
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({prompt:'echo test',task_type:'general'})
+}).then(function(r){return r.json();}).then(function(d){
+  if(log){ log.innerHTML += '<div style="color:var(--gn)">['+tnow()+'] Response: '+JSON.stringify(d).slice(0,200)+'</div>'; log.scrollTop = log.scrollHeight; }
+}).catch(function(e){
+  if(log){ log.innerHTML += '<div style="color:var(--rd)">['+tnow()+'] Test failed: '+e.message+'</div>'; log.scrollTop = log.scrollHeight; }
+});
+};
+
+if(typeof PANEL_MAP !== 'undefined') PANEL_MAP.ecosystem = function(){ return PANELS.ecosystem(); };
+
 window.PANELS = PANELS; /* sync after agents panel */
 window._agHistory = window._agHistory || [];
 
@@ -25218,6 +25377,7 @@ localStorage.setItem('sg_browser_history',JSON.stringify(h));
     <button onclick="loadPanel('diag')" style="background:#00ffc811;border:1px solid #00ffc833;color:#00ffc8;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">🔬 Diag</button>
     <button onclick="loadPanel('selffix')" style="background:#00ffc811;border:1px solid #00ffc833;color:#00ffc8;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">🔧 Fixer</button>
     <button onclick="loadPanel('agents')" style="background:#7c4dff22;border:1px solid #7c4dff44;color:#7c4dff;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">🤖 Agents</button>
+    <button onclick="loadPanel('ecosystem')" style="background:#00d4ff22;border:1px solid #00d4ff44;color:#00d4ff;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">🌐 Ecosystem</button>
     <button onclick="loadPanel('settings')" style="background:#b8ff0011;border:1px solid #b8ff0033;color:#b8ff00;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">⚙️ Settings</button>
     <button onclick="localStorage.clear();sessionStorage.clear();location.reload()" style="background:#ff3d6e11;border:1px solid #ff3d6e44;color:#ff3d6e;border-radius:5px;padding:3px 8px;cursor:pointer;font-size:8px">☢️ Reset</button>
   </div>

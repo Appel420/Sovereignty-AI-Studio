@@ -16,7 +16,6 @@ on:
     types: [published]
 
 env:
-  REGISTRY: ghcr.io/${{ github.repository_owner }}/sovereignty-ai-studio
   PYTHONPATH: .:./backend
 
 jobs:
@@ -104,6 +103,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Compute lowercase image name
+        shell: bash
+        run: |
+          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Build Multi-Arch Image
         uses: docker/build-push-action@v5
         with:
@@ -111,8 +115,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ${{ env.REGISTRY }}:latest
-            ${{ env.REGISTRY }}:${{ github.sha }}
+            ${{ env.REGISTRY_LC }}:latest
+            ${{ env.REGISTRY_LC }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -125,7 +129,7 @@ jobs:
             --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY }}:${{ github.sha }}
+            ${{ env.REGISTRY_LC }}:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: 1
 
@@ -144,10 +148,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Compute lowercase image name
+        shell: bash
+        run: |
+          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
       - name: Generate SBOM (CycloneDX)
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.REGISTRY }}:${{ github.sha }}
+          image: ${{ env.REGISTRY_LC }}:${{ github.sha }}
           format: cyclonedx-json
           artifact-name: sbom-sovereignty-ai.json
 
@@ -160,7 +169,7 @@ jobs:
             --predicate sbom-sovereignty-ai.json \
             --type cyclonedx \
             --yes \
-            ${{ env.REGISTRY }}:${{ github.sha }}
+            ${{ env.REGISTRY_LC }}:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: 1
         continue-on-error: true
