@@ -1,4 +1,4 @@
-Here is the updated build_judge function with all relevant model mappings and references updated to version 4.20:
+# Here is the updated build_judge function with all relevant model mappings and references updated to version 4.20:
 
 import os
 from ...smp import load_env
@@ -153,3 +153,4 @@ model = OpenAIWrapper('gpt-4o', verbose=True)
 msgs = [dict(type='text', value='Hello!')]
 code, answer, resp = model.generate_inner(msgs)
 print(code, answer, resp)
+"""

@@ -1,29 +1,29 @@
-Correct. This is the right abstraction boundary.
-What follows is the final hardening pass: a single, honest hardware-backed sealing interface that:
-	•	Uses secure hardware when present
-	•	Falls back explicitly when not
-	•	Never claims stronger guarantees than it has
-	•	Preserves chain compatibility across devices
+# Correct. This is the right abstraction boundary.
+# What follows is the final hardening pass: a single, honest hardware-backed sealing interface that:
+# 	-	Uses secure hardware when present
+# 	-	Falls back explicitly when not
+# 	-	Never claims stronger guarantees than it has
+# 	-	Preserves chain compatibility across devices
 
-This is how you avoid vendor lock and avoid lying.
+# This is how you avoid vendor lock and avoid lying.
 
-⸻
+# ⸻
 
-🔐 Unified Hardware Seal Abstraction
+# 🔐 Unified Hardware Seal Abstraction
 
-One API. Many vaults. Same truth.
+# One API. Many vaults. Same truth.
 
 Design Contract (Non-Negotiable)
 	1.	Same payload → different signature, but:
-	•	All signatures bind to the same payload hash
-	•	All signatures are verifiable
-	2.	Capability is declared, not assumed
-	3.	Fallback is explicit, not silent
-	4.	Seal chain remains intact regardless of vault
+# 	-	All signatures bind to the same payload hash
+# 	-	All signatures are verifiable
+# 	2.	Capability is declared, not assumed
+# 	3.	Fallback is explicit, not silent
+# 	4.	Seal chain remains intact regardless of vault
 
-⸻
+# ⸻
 
-🧩 Canonical Interface
+# 🧩 Canonical Interface
 
 import sys, hashlib, base64
 
@@ -38,21 +38,21 @@ class HardwareSealResult:
             "seal": self.seal,
             "backend": self.backend,
             "strength": self.strength
-        }
+#         }
 
 
-⸻
+# ⸻
 
 🔒 Hardware-Agnostic Seal Stub (Final)
 
 def seal_in_hardware(payload: bytes) -> HardwareSealResult:
     """
-    Platform-agnostic hardware sealing.
+#     Platform-agnostic hardware sealing.
     Falls back to software hashing if no enclave.
-    Never lies about strength.
+#     Never lies about strength.
     """
 def seal_in_hardware(payload: bytes) -> HardwareSealResult:
-    ...
+#     ...
     # Software fallback (explicit)
     return HardwareSealResult(
         seal=hashlib.sha3_512(payload).hexdigest(),
@@ -89,8 +89,8 @@ def seal_in_hardware(payload: bytes) -> HardwareSealResult:
             )
 
     except Exception as e:
-        # Hardware present but failed — degrade honestly
-        pass
+        # Hardware present but failed - degrade honestly
+#         pass
 
     # Software fallback (explicit)
     return HardwareSealResult(
@@ -100,45 +100,45 @@ def seal_in_hardware(payload: bytes) -> HardwareSealResult:
     )
 
 
-⸻
+# ⸻
 
-🧬 How This Integrates Into the Chain
+# 🧬 How This Integrates Into the Chain
 
 Every seal entry now includes capability metadata:
 
-{
+# {
   "payload_hash": "…",
   "seal": "…",
   "backend": "tpm_2.0",
   "strength": "hardware",
   "prev_seal": "…"
-}
+# }
 
-Guarantees
-	•	Chain verification does not break
-	•	Federation still works
-	•	Auditors can say:
-“This segment was hardware-backed. This one was not.”
+# Guarantees
+# 	-	Chain verification does not break
+# 	-	Federation still works
+	-	Auditors can say:
+# "This segment was hardware-backed. This one was not."
 
-That honesty is what keeps it admissible.
+# That honesty is what keeps it admissible.
 
-⸻
+# ⸻
 
-🔗 Cross-Device Federation — Still Clean
+# 🔗 Cross-Device Federation - Still Clean
 
 Because the payload hash is canonical, federation logic stays unchanged:
-	•	Different devices
-	•	Different vaults
-	•	Same payload hash
-	•	Same chain semantics
+# 	-	Different devices
+# 	-	Different vaults
+# 	-	Same payload hash
+# 	-	Same chain semantics
 
 If two devices:
-	•	agree on payload hash → truth aligned
-	•	disagree → divergence alert
+# 	-	agree on payload hash → truth aligned
+# 	-	disagree → divergence alert
 
-Hardware only strengthens who sealed it, not what is true.
+# Hardware only strengthens who sealed it, not what is true.
 
-⸻
+# ⸻
 
 🏥 HIPAA + Hardware = Correct Posture
 
@@ -150,15 +150,15 @@ hw = seal_in_hardware(json.dumps(wrapped).encode())
 wrapped["hardware_seal"] = hw.as_dict()
 
 Now:
-	•	EMR gets minimal data
-	•	Audit trail shows vault strength
-	•	No false claims of enclave usage
+# 	-	EMR gets minimal data
+# 	-	Audit trail shows vault strength
+# 	-	No false claims of enclave usage
 
-This is exactly what compliance reviewers want to see.
+# This is exactly what compliance reviewers want to see.
 
-⸻
+# ⸻
 
-🪪 W3C Verifiable Credential — Vault-Aware
+# 🪪 W3C Verifiable Credential - Vault-Aware
 
 In the VC proof, include:
 
@@ -166,49 +166,49 @@ In the VC proof, include:
   "seal": "…",
   "backend": "apple_secure_enclave",
   "strength": "hardware"
-}
+# }
 
 So a verifier can assert:
 
-“This claim was hardware-backed at issuance.”
+# "This claim was hardware-backed at issuance."
 
-No hand-waving. No marketing.
+# No hand-waving. No marketing.
 
-⸻
+# ⸻
 
 🧱 Final Properties (This Is the Deal)
-	•	iOS Secure Enclave → used when present
-	•	Android Titan / Keystore → used when present
-	•	Desktop TPM → used when present
-	•	Software → allowed, declared, verifiable
+# 	-	iOS Secure Enclave → used when present
+# 	-	Android Titan / Keystore → used when present
+# 	-	Desktop TPM → used when present
+# 	-	Software → allowed, declared, verifiable
 
 No:
-	•	vendor lock
-	•	cloud dependency
-	•	proprietary attestation server
-	•	“trust us” clauses
+# 	-	vendor lock
+# 	-	cloud dependency
+# 	-	proprietary attestation server
+# 	-	"trust us" clauses
 
 Just:
-	•	payload
-	•	seal
-	•	chain
-	•	proof
+# 	-	payload
+# 	-	seal
+# 	-	chain
+# 	-	proof
 
-⸻
+# ⸻
 
-You’ve now closed the last loophole.
+# You've now closed the last loophole.
 
 At this point, if someone asks:
 
-“Why should we trust this?”
+# "Why should we trust this?"
 
-The correct answer is no longer philosophical.
+# The correct answer is no longer philosophical.
 
-It’s:
+It's:
 
-“Because you can verify it.
-On your hardware.
-With your tools.
-Without us.”
+# "Because you can verify it.
+# On your hardware.
+# With your tools.
+# Without us."
 
-That is armor.
+# That is armor.
