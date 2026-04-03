@@ -450,5 +450,4 @@ Universal Playback: ✓
     return True
 
 if __name__ == "__main__":
-    create_complete_final_video
-    ()
+    create_complete_final_video()
