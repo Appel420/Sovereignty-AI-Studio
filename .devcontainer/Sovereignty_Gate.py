@@ -1,3 +1,4 @@
+"""
 # Used to build and compile for AI Setup Instructions
 
 \t1.\tInstall Requirements:
@@ -7,14 +8,17 @@ pip install quart pyjwt pyttsx3 moviepy h11 celery redis blake3 argon2-cffi cryp
 redis-server
 celery -A tasks worker --loglevel=info
 
+"""
+"""
 \t1.\tFeatures in This Version:
 \t\u2022\tHardware HSM integration for secure key storage and retrieval (placeholder API calls for PKCS#11 or vendor SDKs).
 \t\u2022\tFull task progress tracking with SSE events updated in real time.
 \t\u2022\tAutomatic Dilithium key pair rotation and signed key distribution for clients.
+"""
 
----
+# ---
 
-app.py (Enhanced with HSM, Progress SSE, and Key Rotation)
+# app.py (Enhanced with HSM, Progress SSE, and Key Rotation)
 import os, json, asyncio, datetime, logging
 from quart import Quart, request, jsonify
 import jwt
@@ -160,11 +164,11 @@ async def background_agent():
 async def startup():
     asyncio.create_task(background_agent())
 
----
+# ---
 
-Key Features
-\t1.\tHardware HSM Integration (Placeholder): Simulated PKCS#11 calls with hsm_store_key and hsm_get_key.
-\t2.\tFull Task Progress Tracking: SSE updates every 5s with real task progress from Celery.
-\t3.\tDilithium3 Key Rotation: Automatic rotation every 2h with signed public key distribution to clients.
-\t4.\tSigned API Responses: All responses are signed with the current Dilithium3 key.
-\t5.\tPer-task SSE Channels: Clients subscribe to task_<task_id> for filtered updates.
+# Key Features
+# \t1.\tHardware HSM Integration (Placeholder): Simulated PKCS#11 calls with hsm_store_key and hsm_get_key.
+# \t2.\tFull Task Progress Tracking: SSE updates every 5s with real task progress from Celery.
+# \t3.\tDilithium3 Key Rotation: Automatic rotation every 2h with signed public key distribution to clients.
+# \t4.\tSigned API Responses: All responses are signed with the current Dilithium3 key.
+# \t5.\tPer-task SSE Channels: Clients subscribe to task_<task_id> for filtered updates.

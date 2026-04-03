@@ -1,4 +1,3 @@
-cd /home/claude && python3 << 'EOF'
 #!/usr/bin/env python3
 """
 SOVEREIGNTY ONE - COMPLETE FINAL VIDEO
@@ -451,12 +450,4 @@ Universal Playback: ✓
     return True
 
 if __name__ == "__main__":
-    create_complete_final_video
-    ()
-EOF
-
-python3
-try:
-    
-finally:
-    
+    create_complete_final_video()

@@ -1,3 +1,4 @@
+SUB_AGENT_CONFIG = """
 agents:
   - id: reviewer
     role: Tech Lead
@@ -13,4 +14,4 @@ agents:
 workflow:
   type: sequential
   steps:
-    - agent: reviewer
+    - agent: reviewer"""

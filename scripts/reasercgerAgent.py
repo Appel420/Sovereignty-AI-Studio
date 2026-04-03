@@ -1,3 +1,4 @@
+AGENT_CONFIG = """
 agents:
   - id: researcher
     role: Research Assistant
@@ -13,4 +14,4 @@ workflow:
   type: sequential
   steps:
     - agent: researcher
-    - agent: writer
+    - agent: writer"""
