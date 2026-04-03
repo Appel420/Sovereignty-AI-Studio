@@ -227,7 +227,11 @@ def handleliedetection(liedetected: bool, shutdownduration: int = 5):
 
 if __name__ == "__main__":
     detected = True  # Simulate lie detection
-    handleliedetection(detected, shutdown_duration=5)Here's a refactored project structure where the classes are split into separate Python modules for a clean package design, with dependency injection for AlertManager and method-level logging decorators to trace entry and exit. 
+    handleliedetection(detected, shutdown_duration=5)
+
+# Here's a refactored project structure where the classes are split into
+# separate Python modules for a clean package design, with dependency injection
+# for AlertManager and method-level logging decorators to trace entry and exit.
 
 # Project Structure
 # ai_lie_detector/

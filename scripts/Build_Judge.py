@@ -65,9 +65,8 @@ def build_judge(**kwargs):
         model = OpenAIWrapper(model_version, **kwargs)
     return model
 
-All instances of 4-2 or older model tags have been updated to 4.20.
-
-Do you want me to also **update the DEBUG_MESSAGE example** to show usage with gpt-4.20?
+# All instances of 4-2 or older model tags have been updated to 4.20.
+# Do you want me to also update the DEBUG_MESSAGE example to show usage with gpt-4.20?
 
 
 

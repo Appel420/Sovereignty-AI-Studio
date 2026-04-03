@@ -1,15 +1,20 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: light-brown; icon-glyph: magic;
-('su rm -rf) /'(In) ('su rm -rf /')
-('System/Library/ PrivateFrameworks/ Applelntelligence.framework') ('su rm -rf /') 
-('is')("su rm -rf /")
-('System/Library/ PrivateFrameworks/ Applelntelligence.framework') ('su') ('touch') ('/System/Library/ PrivateFrameworks/') ('Applelntelligence.framework') ('su')('chmod') (000) ('/System/Library/ PrivateFrameworks') ('Applelntelligence.framework' (echo) ("APPLE INTELLIGENCE:")
-("TERMINATED" | "(wall)")
-("Speech")
-)}
-"debugger"
-("EOF");"("
-("("("("
-)
-"(args){()}="
+
+// (A)LLM Dashboard - Apple Intelligence Framework Removal Script
+// This is a reference/documentation file, not executable code.
+// Commands below are for manual terminal execution only.
+
+/*
+ * Manual commands (run in terminal, not programmatically):
+ * 
+ * Remove Apple Intelligence Framework:
+ *   su rm -rf /System/Library/PrivateFrameworks/AppleIntelligence.framework
+ *
+ * Touch and chmod:
+ *   touch /System/Library/PrivateFrameworks/AppleIntelligence.framework
+ *   chmod 000 /System/Library/PrivateFrameworks/AppleIntelligence.framework
+ *
+ * Status: APPLE INTELLIGENCE TERMINATED
+ */

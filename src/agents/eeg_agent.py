@@ -41,9 +41,9 @@ net.eval()
 
 # Preprocess – notch + bandpass + normalize
 def clean_eeg(sig):
-    b, a = butter(4, NOTCH / FS, ‘stop’)
+    b, a = butter(4, NOTCH / FS, 'stop')
     sig = filtfilt(b, a, sig, axis=0)
-    b, a = butter(4, [BANDS[0] / FS, BANDS[1] / FS], ‘band’)
+    b, a = butter(4, [BANDS[0] / FS, BANDS[1] / FS], 'band')
     sig = filtfilt(b, a, sig, axis=0)
     return (sig - sig.mean(0)) / (sig.std(0) + 1e-8)
 
