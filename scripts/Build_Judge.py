@@ -1,4 +1,4 @@
-Here is the updated build_judge function with all relevant model mappings and references updated to version 4.20:
+# Here is the updated build_judge function with all relevant model mappings and references updated to version 4.20:
 
 import os
 from ...smp import load_env
@@ -65,9 +65,8 @@ def build_judge(**kwargs):
         model = OpenAIWrapper(model_version, **kwargs)
     return model
 
-All instances of 4-2 or older model tags have been updated to 4.20.
-
-Do you want me to also **update the DEBUG_MESSAGE example** to show usage with gpt-4.20?
+# All instances of 4-2 or older model tags have been updated to 4.20.
+# Do you want me to also update the DEBUG_MESSAGE example to show usage with gpt-4.20?
 
 
 
@@ -153,3 +152,4 @@ model = OpenAIWrapper('gpt-4o', verbose=True)
 msgs = [dict(type='text', value='Hello!')]
 code, answer, resp = model.generate_inner(msgs)
 print(code, answer, resp)
+"""
