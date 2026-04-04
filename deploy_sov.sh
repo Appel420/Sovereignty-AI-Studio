@@ -292,3 +292,145 @@ crse_monitor() {
 crse_monitor &
 
 echo "🎉 Deployment complete. CRSE monitor running in background."
+
+#!/bin/bash
+# ----------------------
+# Sovereignty AI Studio - Full Offline Deploy + Smart CRSE Monitor
+# ----------------------
+
+set -euo pipefail
+echo "🚀 Starting Sovereignty AI Studio deployment..."
+
+# ----------------------
+# Load environment
+# ----------------------
+if [[ ! -f .env ]]; then
+  echo ".env file missing! Aborting."
+  exit 1
+fi
+export $(grep -v '^#' .env | xargs)
+
+# ----------------------
+# Model fallback
+# ----------------------
+if [[ ! -f "${SOVEREIGN_MODEL_PATH:-./models/sovereign.gguf}" ]]; then
+  echo "⚠ Model missing, fallback to GPT-4o-mini local model..."
+  export SOVEREIGN_MODEL_PATH=./models/GPT-4o-mini
+fi
+
+# ----------------------
+# Stop existing containers
+# ----------------------
+echo "🛑 Stopping existing containers..."
+docker-compose down || true
+
+# ----------------------
+# Build services offline
+# ----------------------
+echo "🏗 Building Docker services..."
+docker-compose build
+
+# ----------------------
+# Start stack
+# ----------------------
+echo "▶ Starting Docker stack..."
+docker-compose up -d
+
+# ----------------------
+# Wait for node-bridge
+# ----------------------
+echo "⏳ Waiting for node-bridge on port 9898..."
+until curl -sSf http://localhost:9898/health > /dev/null; do
+  echo "Waiting..."
+  sleep 5
+done
+echo "✅ Node-bridge healthy."
+
+# ----------------------
+# Healthcheck critical services
+# ----------------------
+services=("backend" "db" "redis")
+for svc in "${services[@]}"; do
+  status=$(docker inspect --format='{{.State.Health.Status}}' "$svc" || echo "unhealthy")
+  if [[ "$status" != "healthy" ]]; then
+    echo "❌ $svc unhealthy, rolling back..."
+    docker-compose down
+    exit 1
+  fi
+done
+echo "✅ All critical services healthy."
+
+# ----------------------
+# Start Smart CRSE Monitor Loop (background)
+# ----------------------
+echo "🛡 Starting Smart CRSE monitor..."
+audit_file="./audit.jsonl"
+mkdir -p "$(dirname "$audit_file")"
+max_log_size=$((10*1024*1024))  # 10 MB max
+
+crse_monitor() {
+  chunk_limit=50  # max proposals in memory
+  declare -a proposal_chunks
+
+  agent_ports=( "9001" "8001" "8002" "8003" "8004" ) # judge, ai_router, plugin, platform, voice
+  agent_names=( "judge" "ai_router" "plugin" "platform" "voice" )
+
+  while true; do
+    # ----------------------
+    # Poll agents for proposals
+    # ----------------------
+    for i in "${!agent_ports[@]}"; do
+      port="${agent_ports[$i]}"
+      name="${agent_names[$i]}"
+      raw=$(curl -s "http://localhost:$port/proposals" || echo "[]")
+
+      # Sanitize: remove control chars & truncate
+      clean=$(echo "$raw" | tr -d '\r\n' | cut -c1-2000)
+      proposal_chunks+=("$name: $clean")
+
+      # Rotate memory chunks
+      if [[ ${#proposal_chunks[@]} -gt $chunk_limit ]]; then
+        proposal_chunks=("${proposal_chunks[@]: -$chunk_limit}")
+      fi
+
+      # Append sanitized chunk to audit log
+      echo "$(date -Is) $name $(printf '%s\n' "$clean")" >> "$audit_file"
+    done
+
+    # ----------------------
+    # Soft alerts: detect suspicious content
+    # ----------------------
+    for p in "${proposal_chunks[@]}"; do
+      if echo "$p" | grep -iqE "FAIL|ERROR|SECURITY_ALERT"; then
+        echo "⚠ Soft alert: suspicious proposal detected: $p"
+        # Optional: trigger notifications instead of rollback
+      fi
+    done
+
+    # ----------------------
+    # Hard rollback on critical failure
+    # ----------------------
+    last_chunk="${proposal_chunks[-1]:-}"
+    if echo "$last_chunk" | grep -iq "CRITICAL_FAIL"; then
+      echo "❌ Critical failure detected — rolling back..."
+      docker-compose down
+      exit 1
+    fi
+
+    # ----------------------
+    # Manage audit log size (rotate if >10MB)
+    # ----------------------
+    if [[ -f "$audit_file" && $(stat -c%s "$audit_file") -gt $max_log_size ]]; then
+      mv "$audit_file" "$audit_file.$(date +%s).bak"
+      touch "$audit_file"
+      echo "📝 Audit log rotated."
+    fi
+
+    sleep 60
+  done
+}
+
+# Run CRSE monitor in background
+crse_monitor &
+
+echo "🎉 Deployment complete. Smart CRSE monitor running in background."
