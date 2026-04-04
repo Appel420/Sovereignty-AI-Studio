@@ -257,3 +257,30 @@ services:
     env_file: .env
     ports:
       - "3000:3000"
+  # ── CRSE Monitor Service ────────────────────────────────────────────────
+  crse_monitor:
+    build:
+      context: ./agents/crse_monitor
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./audit:/app/audit    # persistent audit logs
+      - ./models:/app/models  # access to models for fallback checks
+    environment:
+      - SOVEREIGN_MODEL_PATH=${SOVEREIGN_MODEL_PATH:-/app/models/sovereign.gguf}
+      - LOCAL_MODEL_PATH=${LOCAL_MODEL_PATH:-/app/models/GPT-4o-mini}
+      - MONITOR_INTERVAL=60
+      - CHUNK_LIMIT=50
+      - MAX_LOG_SIZE=10485760
+    depends_on:
+      - backend
+      - judge_agent
+      - redis
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf http://localhost:9900/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    ports:
+      - "9900:9900"  # Optional: internal health endpoint
