@@ -184,3 +184,111 @@ for svc in "${services[@]}"; do
 done
 
 echo "🎉 Deployment complete. All systems healthy."
+#!/bin/bash
+# ----------------------
+# Sovereignty AI Studio - Full Offline Deploy + CRSE Monitor
+# ----------------------
+
+set -euo pipefail
+echo "🚀 Starting Sovereignty AI Studio deployment..."
+
+# ----------------------
+# Load environment
+# ----------------------
+if [[ ! -f .env ]]; then
+  echo ".env file missing! Aborting."
+  exit 1
+fi
+export $(grep -v '^#' .env | xargs)
+
+# ----------------------
+# Model fallback
+# ----------------------
+if [[ ! -f "${SOVEREIGN_MODEL_PATH:-./models/sovereign.gguf}" ]]; then
+  echo "⚠ Model missing, fallback to GPT-4o-mini local model..."
+  export SOVEREIGN_MODEL_PATH=./models/GPT-4o-mini
+fi
+
+# ----------------------
+# Stop existing containers
+# ----------------------
+echo "🛑 Stopping existing containers..."
+docker-compose down || true
+
+# ----------------------
+# Build services offline
+# ----------------------
+echo "🏗 Building Docker services..."
+docker-compose build
+
+# ----------------------
+# Start stack
+# ----------------------
+echo "▶ Starting Docker stack..."
+docker-compose up -d
+
+# ----------------------
+# Wait for node-bridge
+# ----------------------
+echo "⏳ Waiting for node-bridge on port 9898..."
+until curl -sSf http://localhost:9898/health > /dev/null; do
+  echo "Waiting..."
+  sleep 5
+done
+echo "✅ Node-bridge healthy."
+
+# ----------------------
+# Healthcheck critical services
+# ----------------------
+services=("backend" "db" "redis")
+for svc in "${services[@]}"; do
+  status=$(docker inspect --format='{{.State.Health.Status}}' "$svc" || echo "unhealthy")
+  if [[ "$status" != "healthy" ]]; then
+    echo "❌ $svc unhealthy, rolling back..."
+    docker-compose down
+    exit 1
+  fi
+done
+echo "✅ All critical services healthy."
+
+# ----------------------
+# Start CRSE monitor loop (background)
+# ----------------------
+echo "🛡 Starting CRSE monitor..."
+audit_file="./audit.jsonl"
+mkdir -p "$(dirname "$audit_file")"
+
+crse_monitor() {
+  chunk_limit=50  # max proposals to keep in memory
+  declare -a proposal_chunks
+
+  while true; do
+    # Fetch proposals from Redis (or local agent output)
+    raw=$(docker exec redis redis-cli LRANGE crse_proposals 0 -1 || echo "[]")
+    # Sanitize: remove control characters and truncate long proposals
+    clean=$(echo "$raw" | tr -d '\r\n' | cut -c1-2000)
+
+    # Rotate chunks
+    proposal_chunks+=("$clean")
+    if [[ ${#proposal_chunks[@]} -gt $chunk_limit ]]; then
+      proposal_chunks=("${proposal_chunks[@]: -$chunk_limit}")
+    fi
+
+    # Append sanitized chunk to audit log
+    echo "$(date -Is) $(printf '%s\n' "${proposal_chunks[-1]}")" >> "$audit_file"
+
+    # Optional: trigger rollback if failure detected (stub logic)
+    if echo "${proposal_chunks[-1]}" | grep -iq "FAIL"; then
+      echo "⚠ CRSE failure detected — rolling back..."
+      docker-compose down
+      exit 1
+    fi
+
+    sleep 60
+  done
+}
+
+# Run CRSE monitor in background
+crse_monitor &
+
+echo "🎉 Deployment complete. CRSE monitor running in background."
