@@ -128,3 +128,59 @@ docker exec saas_crse curl -fsS http://localhost:9899 || echo "❌ CRSE Mesh WS 
 # -----------------------------
 echo "📜 Tailing logs (Ctrl+C to exit)..."
 docker compose logs -f --tail=50 backend node-bridge cognitive-agent evolution-simulator evolution-monitor
+
+
+#!/bin/bash
+# ----------------------
+# Sovereignty AI Studio - Full Offline Deploy
+# ----------------------
+
+set -euo pipefail
+echo "🚀 Starting Sovereignty AI Studio deployment..."
+
+# Load .env
+if [[ ! -f .env ]]; then
+  echo ".env file missing! Aborting."
+  exit 1
+fi
+export $(grep -v '^#' .env | xargs)
+
+# Ensure model exists, fallback to local llama.cpp if missing
+if [[ ! -f "${SOVEREIGN_MODEL_PATH:-./models/sovereign.gguf}" ]]; then
+  echo "⚠ Model not found, falling back to GPT-4o-mini local model..."
+  export SOVEREIGN_MODEL_PATH=./models/GPT-4o-mini
+fi
+
+# Stop existing containers
+echo "🛑 Stopping existing containers..."
+docker-compose down
+
+# Build all services offline
+echo "🏗 Building Docker services locally..."
+docker-compose build
+
+# Start services
+echo "▶ Starting Docker stack..."
+docker-compose up -d
+
+# Wait for node-bridge healthcheck
+echo "⏳ Waiting for node-bridge to be healthy..."
+until curl -sSf http://localhost:9898/health > /dev/null; do
+  echo "Waiting for node-bridge..."
+  sleep 5
+done
+
+echo "✅ Node-bridge healthy on port 9898."
+
+# Optional: check other critical services
+services=("backend" "db" "redis")
+for svc in "${services[@]}"; do
+  echo "Checking $svc..."
+  docker inspect --format='{{.State.Health.Status}}' "${svc}" | grep -q "healthy" || {
+    echo "❌ $svc not healthy, rolling back..."
+    docker-compose down
+    exit 1
+  }
+done
+
+echo "🎉 Deployment complete. All systems healthy."
