@@ -1,10 +1,12 @@
-Ai sees users screen on device and interacts with dictation AI Screen Interaction Hub – HA Helm Values with Pod Disruption Budgets & Topology Spread
-
-This High Availability (HA) production values file enhances resilience by adding:
-	1.	Pod Disruption Budgets (PDBs) to maintain minimum availability during upgrades or node failures
-	2.	Topology Spread Constraints to evenly distribute pods across nodes and zones
-
-Create values-ha.yaml:
+# Ai sees users screen on device and interacts with dictation AI Screen Interaction Hub
+# HA Helm Values with Pod Disruption Budgets & Topology Spread
+#
+# This High Availability (HA) production values file enhances resilience by adding:
+#   1. Pod Disruption Budgets (PDBs) to maintain minimum availability during upgrades or node failures
+#   2. Topology Spread Constraints to evenly distribute pods across nodes and zones
+#
+# Create values-ha.yaml:
+---
 
 environment: production
 
@@ -152,19 +154,18 @@ redis:
       memory: 512Mi
 
 ---
-
-1. Pod Disruption Budgets (PDB)
-	⁃	Gateway requires 2 pods always available
-	⁃	Other services require 1 pod always available
-	⁃	Prevents the cluster from evicting all pods during updates or maintenance
-
-2. Topology Spread Constraints
-	⁃	Ensures pods are distributed across zones or labeled nodes
-	⁃	Reduces the risk of a single zone failure impacting availability
-
-3. Deployment
-Apply advanced HA values:
-
-helm upgrade --install ai-screen-hub ./helm/ai-screen-hub -f values-ha.yaml
-
-This configuration ensures high availability, resilience during upgrades, and zone-aware pod distribution.
+# 1. Pod Disruption Budgets (PDB)
+#   - Gateway requires 2 pods always available
+#   - Other services require 1 pod always available
+#   - Prevents the cluster from evicting all pods during updates or maintenance
+#
+# 2. Topology Spread Constraints
+#   - Ensures pods are distributed across zones or labeled nodes
+#   - Reduces the risk of a single zone failure impacting availability
+#
+# 3. Deployment
+# Apply advanced HA values:
+#   helm upgrade --install ai-screen-hub ./helm/ai-screen-hub -f values-ha.yaml
+#
+# This configuration ensures high availability, resilience during upgrades,
+# and zone-aware pod distribution.

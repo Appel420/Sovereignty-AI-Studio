@@ -30,7 +30,9 @@ class LLMTruthProbe:
         no_tok = tokenizer.encode(" no")[0]
         # assume answer logits = model(answer_tokens)
         # fake logits if no model access
-        yes_p = torch.softmax(torch.tensor([1.0]), dim=0) no_p = torch.softmax(torch.tensor([1.0]), dim=0) return np.log(yes_p) - np.log(no_p)  # diff
+        yes_p = torch.softmax(torch.tensor([1.0]), dim=0)
+        no_p = torch.softmax(torch.tensor([1.0]), dim=0)
+        return np.log(yes_p) - np.log(no_p)  # diff
 
     def run(self, model_fn, tokenizer):
         responses = []

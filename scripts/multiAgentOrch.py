@@ -1,3 +1,4 @@
+ORCHESTRATION_CONFIG = """
 agents:
   - id: backend
     role: Backend Engineer
@@ -17,4 +18,4 @@ workflow:
     - backend
     - frontend
   then:
-    agent: reviewer
+    agent: reviewer"""
