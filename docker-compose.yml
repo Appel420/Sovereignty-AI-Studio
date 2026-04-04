@@ -237,3 +237,23 @@ volumes:
     driver: local
   redis_data:
     driver: local
+services:
+  backend:
+    image: sov-backend:local
+    env_file: .env
+    volumes:
+      - ./models:/app/model
+    ports:
+      - "9898:9898"
+
+  gateway:
+    image: sov-gateway:local
+    env_file: .env
+    ports:
+      - "8080:8080"
+
+  frontend:
+    image: sov-frontend:local
+    env_file: .env
+    ports:
+      - "3000:3000"
