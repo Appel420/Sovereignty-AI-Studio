@@ -1,0 +1,49 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY crse_monitor.py .
+
+RUN pip install --no-cache-dir requests
+
+CMD ["python", "crse_monitor.py"]
+
+import os, time, json, requests
+
+audit_file = "/app/audit/audit.jsonl"
+os.makedirs(os.path.dirname(audit_file), exist_ok=True)
+
+interval = int(os.environ.get("MONITOR_INTERVAL", 60))
+chunk_limit = int(os.environ.get("CHUNK_LIMIT", 50))
+max_log_size = int(os.environ.get("MAX_LOG_SIZE", 10*1024*1024))
+
+proposal_chunks = []
+
+agent_ports = {
+    "judge": 9001,
+    "ai_router": 8001,
+    "plugin": 8002,
+    "platform": 8003,
+    "voice": 8004
+}
+
+while True:
+    for name, port in agent_ports.items():
+        try:
+            r = requests.get(f"http://{name}:{port}/proposals", timeout=5)
+            raw = r.text[:2000].replace("\n","")  # sanitize
+        except:
+            raw = "[]"
+        proposal_chunks.append(f"{name}: {raw}")
+        if len(proposal_chunks) > chunk_limit:
+            proposal_chunks = proposal_chunks[-chunk_limit:]
+        with open(audit_file, "a") as f:
+            f.write(json.dumps({"time": time.time(), "agent": name, "proposal": raw})+"\n")
+    # simple critical fail check
+    if any("CRITICAL_FAIL" in p for p in proposal_chunks):
+        exit(1)
+    # rotate log if too big
+    if os.path.exists(audit_file) and os.path.getsize(audit_file) > max_log_size:
+        os.rename(audit_file, f"{audit_file}.{int(time.time())}.bak")
+        open(audit_file, "w").close()
+    time.sleep(interval)
