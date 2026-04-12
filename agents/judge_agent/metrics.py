@@ -5,7 +5,7 @@ Exposes three counters:
 - ``tasks_rejected_total``
 - ``tasks_released_total``
 
-A lightweight HTTP server is started on ``JUDGE_METRICS_PORT`` (default 8000)
+A lightweight HTTP server is started on ``JUDGE_METRICS_PORT`` (default 9898)
 so Prometheus can scrape the ``/metrics`` endpoint.
 """
 
