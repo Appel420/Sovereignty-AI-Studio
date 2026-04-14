@@ -13,4 +13,4 @@ RUN mkdir -p /app/logs && chmod 700 /app/logs
 ENV PYTHONUNBUFFERED=1
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["python3", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "9898"]
+CMD ["python3", "-m", "uvicorn", "backend.app.main:app", "--host", "127.0.0.1", "--port", "9898"]
