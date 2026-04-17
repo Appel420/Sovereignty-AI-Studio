@@ -2,7 +2,7 @@ version: '3.9'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sovereignty AI Studio — Self-Hosted Docker Stack
-# All external traffic enters through port 9898 (node-bridge).
+# All external traffic enters through port 9899 (node-bridge).
 # Backend, database, and Redis stay on the internal Docker network.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ services:
     build: ./backend
     restart: unless-stopped
     expose:
-      - "8000"
+      - "9898"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
       REDIS_URL: redis://redis:6379/0
@@ -55,7 +55,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       SOVEREIGN_MODEL_PATH: ${SOVEREIGN_MODEL_PATH:-/models/sovereign.gguf}
       SOVEREIGN_ONNX_PATH: ${SOVEREIGN_ONNX_PATH:-/models/sovereign.onnx}
-      SOVEREIGN_API_URL: http://node-bridge:9898/api/ai
+      SOVEREIGN_API_URL: http://node-bridge:9899/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
       LOG_DIR: /app/logs
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -75,25 +75,25 @@ services:
       retries: 5
       start_period: 20s
 
-  # ── Node.js Sovereign Bridge (only external port: 9898) ────────────────────
+  # ── Node.js Sovereign Bridge (only external port: 9899) ────────────────────
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
     ports:
-      - "9898:9898"
+      - "9899:9899"
     environment:
-      NODE_BRIDGE_PORT: "9898"
-      BACKEND_URL: http://backend:8000
+      NODE_BRIDGE_PORT: "9899"
+      BACKEND_URL: http://backend:9899
       WEATHER_URL: http://backend:8001
-      GATEWAY_URL: http://gateway:9000
-      SOVEREIGN_API_URL: http://backend:8000/api/ai
+      GATEWAY_URL: http://gateway:9899
+      SOVEREIGN_API_URL: http://backend:9899/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9898/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9899/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -104,7 +104,7 @@ services:
     image: quay.io/keycloak/keycloak:24.0.5
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8080:8443"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
@@ -189,14 +189,14 @@ services:
       dockerfile: agents/voice_assist_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "8004"
+      - "9898"
     environment:
       - REDIS_URL=redis://redis:6379
     depends_on:
       - judge_agent
       - redis
 
-  # ── Python multi-agent gateway (internal port 9000) ───────────────────────
+  # ── Python multi-agent gateway (internal port 9898) ───────────────────────
   # External traffic still enters through node-bridge on port 9898.
   gateway:
     build:
@@ -204,9 +204,9 @@ services:
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
     expose:
-      - "9000"
+      - "9898"
     environment:
-      - GATEWAY_PORT=9000
+      - GATEWAY_PORT=9898
       - REDIS_URL=redis://redis:6379
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
