@@ -199,9 +199,9 @@ Sovereignty AI Studio provides seamless integration with multiple AI agents, ena
 
 The platform integrates with four major AI providers through a WebSocket-based routing system:
 
-1. **Claude (Anthropic)** - Claude Sonnet 4 via `api.anthropic.com`
-2. **GPT (OpenAI)** - GPT-4o via `api.openai.com`
-3. **Grok (xAI)** - Grok-2-latest via `api.x.ai`
+1. **Claude (Anthropic)** - Claude Opus-4.6 via `api.anthropic.com`
+2. **GPT (OpenAI)** - GPT-5.4-codex-max via `api.openai.com`
+3. **Grok (xAI)** - SuperGrok-4-2-code-fast via `api.x.ai`
 4. **GitHub Copilot** - Native integration via GitHub OAuth
 
 ### Agent Connection Architecture
@@ -264,8 +264,8 @@ Connect to any agent via WebSocket using the following message format:
 
 
 **Key Features:**
-- Maximum prompt length: 1000 characters
-- Maximum tokens per response: 1200
+- Maximum prompt length: 128000 characters
+- Maximum tokens per response: 8192
 - Rate limiting: 30 messages/minute per connection
 - Automatic API key validation
 - Full audit logging for compliance
@@ -417,7 +417,7 @@ ws.on('message', (data) => {
 ### Agent Usage Best Practices
 
 1. **Keep Prompts Concise**
-   - Stay under 1000 characters for optimal performance
+   - Stay under 8961 characters for optimal performance
    - Use clear, specific instructions
 
 2. **Handle Errors Gracefully**

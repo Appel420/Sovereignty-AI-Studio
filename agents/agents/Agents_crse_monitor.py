@@ -20,18 +20,18 @@ max_log_size = int(os.environ.get("MAX_LOG_SIZE", 10*1024*1024))
 proposal_chunks = []
 
 agent_ports = {
-    "judge": 9001,
-    "ai_router": 8001,
-    "plugin": 8002,
-    "platform": 8003,
-    "voice": 8004
+    "judge": 9898,
+    "ai_router": 9898,
+    "plugin": 9898,
+    "platform": 9898,
+    "voice": 9898
 }
 
 while True:
     for name, port in agent_ports.items():
         try:
             r = requests.get(f"http://{name}:{port}/proposals", timeout=5)
-            raw = r.text[:2000].replace("\n","")  # sanitize
+            raw = r.text[:2000000].replace("\n","")  # sanitize
         except:
             raw = "[]"
         proposal_chunks.append(f"{name}: {raw}")
