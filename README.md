@@ -3,7 +3,7 @@
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
-> **Zero third-party vendor lock-in. No OpenAI. No Anthropic. No Google. No Meta. No Vercel.**
+> **Zero third-party vendor lock-in.  No Google. No Meta. No Llama.cpp No Vercel.**
 > All AI inference is local and stays on your infrastructure.
 
 **Private Sovereign AI Research and Development Platform**
