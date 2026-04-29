@@ -3,7 +3,7 @@
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
-> **Zero third-party vendor lock-in. No OpenAI. No Anthropic. No Google. No Meta. No Vercel.**
+> **Zero third-party vendor lock-in.  No Google. No Meta. No Llama.cpp No Vercel.**
 > All AI inference is local and stays on your infrastructure.
 
 **Private Sovereign AI Research and Development Platform**
@@ -28,7 +28,7 @@ No external services, third-party models, or internet connectivity are required 
 ## Architecture (Single External Port)
 
 ```
-Port 9898 (ONLY external port)
+Port 9899 (ONLY external port)
      │
      ▼
 node-bridge (WebSocket + HTTP gateway)
@@ -41,11 +41,11 @@ backend (FastAPI on 8000, internal)
 PostgreSQL (5432)   Redis (6379)
 ```
 
-All host traffic enters through **port 9898**. Backend, database, and Redis remain on the internal Docker network.
+All host traffic enters through **port 9899,9897,9898 **. Backend, database, and Redis remain on the internal Docker network.
 
 | Service | Port | Notes |
 |---------|------|-------|
-| node-bridge (gateway) | 9898 | Only external port |
+| node-bridge (gateway) | 9899 | Only external port |
 | backend (FastAPI) | internal | Routed via node-bridge |
 | PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
 | Redis 7 | internal | Cache + session store |
@@ -69,7 +69,7 @@ cp .env.example .env
 docker compose up -d
 
 # 3. Check health
-curl http://localhost:9898/health
+curl http://localhost:9899/health
 ```
 
 For production with TLS and static assets, enable the bundled Nginx reverse proxy:
@@ -85,7 +85,7 @@ docker compose --profile production up -d
 | Path | Purpose |
 | --- | --- |
 | `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
-| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge (port 9898) |
+| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge (port 9899) |
 | `bridge.py` | Python WebSocket bridge server |
 | `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
 | `backend/app/api/v1` | FastAPI endpoints (auth, orgs, media, voice, telemetry, etc.) |
@@ -217,8 +217,8 @@ The platform integrates with four major AI providers through a WebSocket-based r
 │  └─ iSH/Code Pad                                         │
 │           ↓                                               │
 │  ┌────────────────────────────────────┐                 │
-│  │  WebSocket Bridge (Port 9898)      │                 │
-│  │  server_9898.js / unified_server   │                 │
+│  │  WebSocket Bridge (Port 9899)      │                 │
+│  │  server_9899.js / unified_server   │                 │
 │  └────────────────────────────────────┘                 │
 │           ↓                                               │
 │  ┌─────────────────────────────────────────────────┐    │
@@ -286,7 +286,7 @@ GH_CLIENT_SECRET=your_github_client_secret
 
 # Optional: Server Configuration
 PORT_UNIFIED=9000                  # Unified server port
-PORT_BRIDGE=9898                   # Bridge server port
+PORT_BRIDGE=9899                   # Bridge server port
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging
 
@@ -312,7 +312,7 @@ TLS_KEY=./certs/key.pem           # Path to TLS private key
 
 The repository includes two agent bridge servers:
 
-#### 1. Standalone Bridge Server (server_9898.js)
+#### 1. Standalone Bridge Server (server_9899.js)
 
 Primary WebSocket bridge for agent routing:
 
@@ -321,12 +321,12 @@ Primary WebSocket bridge for agent routing:
 npm install
 
 # Start the server
-node server_9898.js
+node server_9899.js
 ```
 
 
 **Endpoints:**
-- `ws://localhost:9898` - WebSocket agent routing
+- `ws://localhost:9899` - WebSocket agent routing
 - `GET /health` - Health check
 - `GET /api/audit` - Audit log viewer
 - `POST /api/execute-command` - Command execution (requires auth)
@@ -357,7 +357,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
 
 1. **Configure GitHub OAuth App**
    - Go to GitHub Settings → Developer Settings → OAuth Apps
-   - Create a new OAuth App with callback URL: `http://localhost:9898/api/gh/callback`
+   - Create a new OAuth App with callback URL: `http://localhost:9899/api/gh/callback`
    - Copy Client ID and Client Secret to `.env`
 
 2. **Authenticate**
@@ -366,7 +366,7 @@ GitHub Copilot is integrated via the GitHub OAuth workflow:
    node unified_server.js
 
    # Navigate to auth endpoint
-   curl http://localhost:9898/api/gh/login
+   curl http://localhost:9899/api/gh/login
    ```
 
 3. **Use Copilot Features**
@@ -380,13 +380,13 @@ Test your agent setup with the included test suite:
 
 ```bash
 # Test agent routing
-node --test test/server9898-agent-routing.test.js
+node --test test/server9899-agent-routing.test.js
 
 # Test server endpoints
 node --test test/server9898.test.js
 
 # Run both Node bridge tests together
-node --test test/server9898-agent-routing.test.js test/server9898.test.js
+node --test test/server9899-agent-routing.test.js test/server9898.test.js
 ```
 
 
@@ -394,7 +394,7 @@ node --test test/server9898-agent-routing.test.js test/server9898.test.js
 
 ```javascript
 // Test Claude agent connection
-const ws = new WebSocket('ws://localhost:9898');
+const ws = new WebSocket('ws://localhost:9899');
 
 ws.on('open', () => {
   ws.send(JSON.stringify({
@@ -448,7 +448,7 @@ function AgentChat() {
   const [response, setResponse] = useState('');
 
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:9898');
+    const socket = new WebSocket('ws://localhost:9899');
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -490,7 +490,7 @@ class AgentClient {
     private var webSocket: URLSessionWebSocketTask?
 
     func connect() {
-        let url = URL(string: "ws://localhost:9898")!
+        let url = URL(string: "ws://localhost:9899")!
         webSocket = URLSession.shared.webSocketTask(with: url)
         webSocket?.resume()
         receiveMessage()
@@ -538,7 +538,7 @@ import websockets
 import json
 
 async def ask_agent(agent: str, prompt: str):
-    uri = "ws://localhost:9898"
+    uri = "ws://localhost:9899"
 
     async with websockets.connect(uri) as ws:
         # Send request
@@ -674,8 +674,8 @@ cd frontend
 npm install
 
 # Set environment variables
-echo "REACT_APP_API_URL=http://localhost:9898/api/v1" > .env
-echo "REACT_APP_WS_URL=ws://localhost:9898" >> .env
+echo "REACT_APP_API_URL=http://localhost:9899/api/v1" > .env
+echo "REACT_APP_WS_URL=ws://localhost:9899" >> .env
 
 # Run the development server
 npm start
@@ -717,7 +717,7 @@ See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
 ```bash
 # Create a security alert
-curl -X POST "http://localhost:9898/api/v1/alerts/" \
+curl -X POST "http://localhost:9899/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -729,7 +729,7 @@ curl -X POST "http://localhost:9898/api/v1/alerts/" \
   }'
 
 # Create an alert with audio notification
-curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
+curl -X POST "http://localhost:9899/api/v1/alerts/?speak=true" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -746,7 +746,7 @@ curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
 The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:9898/api/v1/alerts/ws/USER_ID');
+const ws = new WebSocket('ws://localhost:9899/api/v1/alerts/ws/USER_ID');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);
