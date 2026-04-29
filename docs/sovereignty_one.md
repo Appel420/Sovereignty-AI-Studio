@@ -41,7 +41,7 @@ Every component is self-hosted, sovereign, and designed to run on infrastructure
 ### Key Principle
 **All AI inference is local.** No request ever reaches an external SaaS provider.
 The sovereign bridge tries providers in order: `local_gguf → local_onnx → sovereign_api`
-and never falls back to Anthropic, OpenAI, Google, or any third party.
+and never falls back to Meta, Google, or any third party.
 
 ---
 
@@ -162,14 +162,9 @@ Sovereignty is not a destination — it is a trajectory.
 
 ## Local Inference Setup
 
-### GGUF Models (Recommended)
-Set `SOVEREIGN_MODEL_PATH` to any GGUF-format model:
-```bash
-SOVEREIGN_MODEL_PATH=/models/llama-3-8b.gguf
-SOVEREIGN_PROVIDER_ORDER=local_gguf,sovereign_api
-```
-Requires: `pip install llama-cpp-python`
 
+```
+Requires: `pip install openAi
 ### ONNX Models
 `ONNXProvider` in `ai_core/providers/local_inference.py` provides a base class.
 Because ONNX models have model-specific input/output tensor names, you must subclass it:
@@ -190,6 +185,6 @@ Register your subclass in `ai_core/sovereign_bridge.py` by extending `_load_prov
 ### Sovereign API
 Point to any self-hosted LLM API that accepts OpenAI-compatible chat completions:
 ```bash
-SOVEREIGN_API_URL=http://my-llm-server:8080/v1
+SOVEREIGN_API_URL=http://my-llm-server:9898/v1
 SOVEREIGN_API_JWT=your-jwt-token
 ```
