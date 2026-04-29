@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════
-// SUPERGROK PIPER TTS + BRIDGE SERVER — Port 9898
+// SUPERGROK PIPER TTS + BRIDGE SERVER — Port 9899
 // Production · Zero Cloud · Zero Telemetry · HIPAA Safe
 // Piper TTS (offline) · DuckDuckGo Proxy · Audit Chain · MFA Tokens
 // ═══════════════════════════════════════════════════════════════════
@@ -15,12 +15,12 @@ const os    = require('os');
 
 // ─── Config ─────────────────────────────────────────────────────────
 const CFG = {
-  port:       9898,
+  port:       9899,
   piperBin:   process.env.PIPER_BIN   || './piper',
   piperModel: process.env.PIPER_MODEL || './en_US-lessac-medium.onnx',
   piperCfg:   process.env.PIPER_CFG   || './en_US-lessac-medium.onnx.json',
   tmpDir:     os.tmpdir(),
-  auditLog:   './audit_9898.jsonl',
+  auditLog:   './audit_9899.jsonl',
   maxTextLen: 1000,
   allowedOrigins: ['http://localhost', 'file://'],
   // DDG proxy targets (no Google, no Meta)
@@ -215,7 +215,7 @@ function loadKCSession(wsId) {
 // ─── WebSocket Server ─────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': 'text/plain', 'X-Content-Type-Options': 'nosniff' });
-  res.end('SuperGrok Bridge 9898 — OK');
+  res.end('SuperGrok Bridge 9899 — OK');
 });
 
 const wss = new WebSocket.Server({ server });
