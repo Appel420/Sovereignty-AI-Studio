@@ -154,7 +154,7 @@ def _prepare_remote(remote_url: str, branch: str) -> tuple[Path, str]:
 
 
 def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry_run: bool = False) -> dict:
-    since = datetime.now(timezone.utc) - timedelta(days=days)
+    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
     remote_dir, branch_ref = _prepare_remote(remote_url, branch)
     state = _load_state()
 
@@ -201,7 +201,7 @@ def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry
                 {
                     "remote_url": remote_url,
                     "branch": branch,
-                    "last_sync_utc": datetime.now(timezone.utc).isoformat(),
+                    "last_sync_utc": datetime.now(tz=timezone.utc).isoformat(),
                     "window_days": days,
                 }
             )
