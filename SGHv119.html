@@ -3929,7 +3929,7 @@ function auditEntry(action,detail){
 /* ── Tamperproof SEAL ── */
 var _seal=null;
 async function computeSeal(){
-  var src=(window.SG_AGENT?SG_AGENT.toString().slice(0,1500):'init')+Object.keys(CFG).sort().join(',');
+  var src=(window.SG_AGENT?window.SG_AGENT.toString().slice(0,1500):'init')+Object.keys(CFG).sort().join(',');
   var h=await crypto.subtle.digest('SHA-512',new TextEncoder().encode('SEAL_v2:'+src));
   return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }

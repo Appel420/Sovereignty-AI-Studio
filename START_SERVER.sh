@@ -18,4 +18,4 @@ echo "Piper model: $PIPER_MODEL"
 echo "Network: localhost only — nothing leaves device without user permission"
 echo ""
 
-python bridge.py port 9897
+SG_PORT=9897 python bridge.py
