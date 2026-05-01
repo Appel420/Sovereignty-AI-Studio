@@ -9556,7 +9556,7 @@ var SuperAdmin = {
       }
     });
     ErrorLog.entries = [];
-    toast(fixed.length ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
+    toast(fixed.length > 0 ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
     loadPanel('errorconsole');
   }
 };
@@ -10702,7 +10702,7 @@ var SuperAdmin = {
       }
     });
     ErrorLog.entries = [];
-    toast(fixed.length ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
+    toast(fixed.length > 0 ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
     loadPanel('errorconsole');
   }
 };
