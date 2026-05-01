@@ -24,6 +24,7 @@ SECRET_PATTERNS = (
     re.compile(r"(?i)(api[_-]?key\s*[=:]\s*)([\"']?)[A-Za-z0-9_\-]{12,}\2"),
     re.compile(r"(?i)(token\s*[=:]\s*)([\"']?)[A-Za-z0-9_\-]{12,}\2"),
     re.compile(r"(?i)(secret\s*[=:]\s*)([\"']?)[^\s\"']{8,}\2"),
+    re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"),
 )
 
 
@@ -55,7 +56,10 @@ def _safe_rel_path(rel_path: str) -> Path:
 def _sanitize_text(text: str) -> str:
     sanitized = text
     for pattern in SECRET_PATTERNS:
-        sanitized = pattern.sub(r"\1***REDACTED***", sanitized)
+        if pattern.groups:
+            sanitized = pattern.sub(r"\1***REDACTED***", sanitized)
+        else:
+            sanitized = pattern.sub("***REDACTED***", sanitized)
     return sanitized
 
 
@@ -142,7 +146,7 @@ def _save_state(state: dict) -> None:
 
 
 def _prepare_remote(remote_url: str, branch: str) -> tuple[Path, str]:
-    tmp_dir = Path(tempfile.mkdtemp(prefix="sg-heavy-sync-", dir="/tmp"))
+    tmp_dir = Path(tempfile.mkdtemp(prefix="sg-heavy-sync-"))
     _run(["git", "init", "-q"], cwd=tmp_dir)
     _run(["git", "remote", "add", "origin", remote_url], cwd=tmp_dir)
     _run(["git", "fetch", "--prune", "origin", branch], cwd=tmp_dir)
@@ -182,11 +186,11 @@ def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry
                     target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(payload)
             else:
-                text = payload.decode("utf-8", errors="replace")
+                text = payload.decode("utf-8", errors="surrogateescape")
                 sanitized = _sanitize_text(text)
                 if not dry_run:
                     target.parent.mkdir(parents=True, exist_ok=True)
-                    target.write_text(sanitized, encoding="utf-8")
+                    target.write_text(sanitized, encoding="utf-8", errors="surrogateescape")
             copied += 1
 
         checked = duplicates = 0
