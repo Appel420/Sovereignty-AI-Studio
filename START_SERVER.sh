@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════
-# SUPERGROK PORT 9898 BRIDGE STARTUP
+# SUPERGROK PORT 9897 BRIDGE STARTUP
 # Zero Meta · Zero Google · Zero LLaMA · Zero Ollama
 # All AI: DDG Privacy Bridge + Piper TTS (local only)
 # ═══════════════════════════════════════════════════════
@@ -13,9 +13,9 @@ export PIPER_DIR="${PIPER_DIR:-./piper-tts}"
 export TLS_CERT="${TLS_CERT:-}"
 export TLS_KEY="${TLS_KEY:-}"
 
-echo "Starting SuperGrok bridge on port 9898..."
+echo "Starting SuperGrok bridge on port 9897..."
 echo "Piper model: $PIPER_MODEL"
 echo "Network: localhost only — nothing leaves device without user permission"
 echo ""
 
-node server_9898.js
+python bridge.py port 9897
