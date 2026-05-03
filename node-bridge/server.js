@@ -43,7 +43,7 @@ const express = require('express');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
-const { WebSocketServer } = require('ws');
+const { WebSocket: WsClient, WebSocketServer } = require('ws');
 
 // ---------------------------------------------------------------------------
 // Config from environment (sensible defaults for local / iSH)
@@ -52,9 +52,16 @@ const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9898', 10);
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
+const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
+// Derived HTTP base URL for health-check probes against the Python backend bridge
+const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
+
+// Reconnect tuning for Python-backend proxy
+const SG_BASE_RECONNECT_MS = 3000;
+const SG_MAX_RECONNECT_MS  = 30000;
 
 const app = express();
 app.use(express.json());
@@ -221,6 +228,7 @@ app.get('/api/agents/status', async (_req, res) => {
     gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
     backend: { url: BACKEND_URL, status: 'offline', port: 8000 },
     weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
+    py_bridge: { url: SG_BRIDGE_HTTP_URL, status: 'offline', port: 9897, role: 'python-bridge' },
   };
 
   const checkAgent = (key) =>
@@ -255,28 +263,108 @@ app.get('/api/agents/status', async (_req, res) => {
   res.json({
     ecosystem: onlineCount === Object.keys(agents).length ? 'healthy' : onlineCount > 0 ? 'degraded' : 'offline',
     agents,
-    bridge: { status: 'online', uptime: process.uptime(), websocket_clients: clients.size },
+    bridge: { status: 'online', uptime: process.uptime(), websocket_clients: clients.size + rootClients.size },
     timestamp: new Date().toISOString(),
   });
 });
 
 // ---------------------------------------------------------------------------
-// WebSocket — real-time alert channel
+// WebSocket — two servers: /ws/alerts (broadcast) + root / (Python-backend proxy)
 // ---------------------------------------------------------------------------
 const useTLS = TLS_CERT && TLS_KEY && fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY);
 const server = useTLS
   ? https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }, app)
   : http.createServer(app);
-const wss = new WebSocketServer({ server, path: '/ws/alerts' });
+
+// Both servers use noServer so we can route upgrades manually by path
+const wss = new WebSocketServer({ noServer: true });      // /ws/alerts — broadcast channel
+const wssRoot = new WebSocketServer({ noServer: true });  // /  and all other paths — Python-backend proxy
+
+server.on('upgrade', (req, socket, head) => {
+  const pathname = (() => {
+    try { return new URL(req.url, `http://${req.headers.host || 'localhost'}`).pathname; }
+    catch { return '/'; }
+  })();
+  if (pathname === '/ws/alerts') {
+    wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+  } else {
+    wssRoot.handleUpgrade(req, socket, head, (ws) => wssRoot.emit('connection', ws, req));
+  }
+});
+
 const clients = new Set();
 
+// ---------------------------------------------------------------------------
+// Shared sandboxed EXEC helper (used by both WS servers)
+// ---------------------------------------------------------------------------
+function handleWsExec(msg, ws) {
+  const lang = (msg.lang || 'node').toLowerCase();
+  const code = msg.code || '';
+  // Sanitize user to printable ASCII only — prevents log injection
+  const user = String(msg.user || 'anon').replace(/[^\x20-\x7E]/g, '').slice(0, 64) || 'anon';
+  if (!code) {
+    ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'No code provided' }));
+    return;
+  }
+  if (lang === 'node' || lang === 'javascript' || lang === 'js') {
+    try {
+      const logs = [];
+      const pendingTimers = [];
+      const cryptoMod = require('crypto');
+      const sandbox = {
+        console: {
+          log: (...args) => logs.push(args.map(String).join(' ')),
+          error: (...args) => logs.push('[ERR] ' + args.map(String).join(' ')),
+          warn: (...args) => logs.push('[WARN] ' + args.map(String).join(' ')),
+          info: (...args) => logs.push(args.map(String).join(' ')),
+        },
+        Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
+        RegExp, Map, Set, Promise, Error, Buffer,
+        setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
+        clearTimeout: (t) => { clearTimeout(t); },
+        crypto: {
+          randomBytes: cryptoMod.randomBytes,
+          randomUUID: cryptoMod.randomUUID,
+          createHash: cryptoMod.createHash,
+          createHmac: cryptoMod.createHmac,
+          getRandomValues: (buf) => cryptoMod.randomFillSync(buf),
+        },
+        TextEncoder, TextDecoder,
+      };
+      const ctx = vm.createContext(sandbox);
+      const script = new vm.Script(code, { filename: 'ws-exec.js', timeout: 10000 });
+      const result = script.runInContext(ctx, { timeout: 10000 });
+      pendingTimers.forEach((t) => clearTimeout(t));
+      if (result !== undefined && logs.length === 0) {
+        logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
+      }
+      ws.send(JSON.stringify({ type: 'exec_result', output: logs.join('\n') || '(no output)', lang, user }));
+    } catch (err) {
+      ws.send(JSON.stringify({ type: 'exec_result', output: '', error: err.message, lang, user }));
+    }
+  } else if (lang === 'python' || lang === 'py') {
+    execFile('python3', ['-c', code], { timeout: 15000, maxBuffer: 512 * 1024 }, (err, stdout, stderr) => {
+      const output = (stdout || '') + (stderr ? '\n[stderr] ' + stderr : '');
+      ws.send(JSON.stringify({
+        type: 'exec_result',
+        output: output || (err ? err.message : '(no output)'),
+        error: err ? err.message : undefined,
+        lang, user,
+      }));
+    });
+  } else {
+    ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'Unsupported lang: ' + lang }));
+  }
+}
+
+// /ws/alerts — legacy broadcast channel for dashboard alerts/notifications
 wss.on('connection', (ws) => {
   clients.add(ws);
-  console.log(`[ws] client connected (${clients.size} total)`);
+  console.log(`[ws/alerts] client connected (${clients.size} total)`);
 
   ws.on('close', () => {
     clients.delete(ws);
-    console.log(`[ws] client disconnected (${clients.size} total)`);
+    console.log(`[ws/alerts] client disconnected (${clients.size} total)`);
   });
 
   ws.on('message', (raw) => {
@@ -285,63 +373,7 @@ wss.on('connection', (ws) => {
       if (msg.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
       } else if (msg.cmd === 'EXEC') {
-        // CodeMaster terminal — execute code via WebSocket
-        const lang = (msg.lang || 'node').toLowerCase();
-        const code = msg.code || '';
-        const user = msg.user || 'anon';
-        if (!code) {
-          ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'No code provided' }));
-          return;
-        }
-        if (lang === 'node' || lang === 'javascript' || lang === 'js') {
-          try {
-            const logs = [];
-            const pendingTimers = [];
-            const cryptoMod = require('crypto');
-            const sandbox = {
-              console: {
-                log: (...args) => logs.push(args.map(String).join(' ')),
-                error: (...args) => logs.push('[ERR] ' + args.map(String).join(' ')),
-                warn: (...args) => logs.push('[WARN] ' + args.map(String).join(' ')),
-                info: (...args) => logs.push(args.map(String).join(' ')),
-              },
-              Math, Date, JSON, parseInt, parseFloat, String, Number, Boolean, Array, Object,
-              RegExp, Map, Set, Promise, Error, Buffer,
-              setTimeout: (fn, ms) => { const t = setTimeout(fn, Math.min(ms || 0, 5000)); pendingTimers.push(t); return t; },
-              clearTimeout: (t) => { clearTimeout(t); },
-              crypto: {
-                randomBytes: cryptoMod.randomBytes,
-                randomUUID: cryptoMod.randomUUID,
-                createHash: cryptoMod.createHash,
-                createHmac: cryptoMod.createHmac,
-                getRandomValues: (buf) => cryptoMod.randomFillSync(buf),
-              },
-              TextEncoder, TextDecoder,
-            };
-            const ctx = vm.createContext(sandbox);
-            const script = new vm.Script(code, { filename: 'ws-exec.js', timeout: 10000 });
-            const result = script.runInContext(ctx, { timeout: 10000 });
-            pendingTimers.forEach((t) => clearTimeout(t));
-            if (result !== undefined && logs.length === 0) {
-              logs.push(typeof result === 'object' ? JSON.stringify(result, null, 2) : String(result));
-            }
-            ws.send(JSON.stringify({ type: 'exec_result', output: logs.join('\n') || '(no output)', lang, user }));
-          } catch (err) {
-            ws.send(JSON.stringify({ type: 'exec_result', output: '', error: err.message, lang, user }));
-          }
-        } else if (lang === 'python' || lang === 'py') {
-          execFile('python3', ['-c', code], { timeout: 15000, maxBuffer: 512 * 1024 }, (err, stdout, stderr) => {
-            const output = (stdout || '') + (stderr ? '\n[stderr] ' + stderr : '');
-            ws.send(JSON.stringify({
-              type: 'exec_result',
-              output: output || (err ? err.message : '(no output)'),
-              error: err ? err.message : undefined,
-              lang, user,
-            }));
-          });
-        } else {
-          ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'Unsupported lang: ' + lang }));
-        }
+        handleWsExec(msg, ws);
       } else if (msg.cmd === 'STATUS') {
         ws.send(JSON.stringify({
           type: 'status',
@@ -358,16 +390,150 @@ wss.on('connection', (ws) => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Root WebSocket — Python backend proxy (bridge.py on port 9897) (port 9897)
+// SGHv119.html and dashboards connect here: ws://127.0.0.1:9898
+// Messages in PY_BRIDGE_MSG_TYPES are proxied to bridge.py on SG_BRIDGE_URL.
+// Local commands (ping, STATUS, EXEC) are handled in-process.
+// ---------------------------------------------------------------------------
+
+// Message types that belong to the Python bridge (bridge.py)
+const PY_BRIDGE_MSG_TYPES = new Set([
+  'ai_chat', 'ai_code_review',
+  'speak', 'piper_speak', 'speak_alert',
+  'piper_status', 'memory_save', 'memory_get',
+  'set_model', 'gh_exchange',
+  'stt_start', 'stt_stop',
+  'collab_event', 'planet_task',
+]);
+
+const rootClients = new Set();
+
+wssRoot.on('connection', (browserWs) => {
+  rootClients.add(browserWs);
+  console.log(`[ws/root] client connected (${rootClients.size} total)`);
+
+  // Acknowledge the connection so SGHv119.html shows "Bridge LIVE"
+  browserWs.send(JSON.stringify({
+    type: 'handshake_ack',
+    version: '1.0.0',
+    piperReady: false,
+    features: ['ai_chat', 'memory', 'stt', 'piper_tts', 'code_exec'],
+    timestamp: new Date().toISOString(),
+  }));
+
+  // ── Python-backend proxy state (one upstream WS per browser client) ───────────────
+  let pyBridgeWs = null;
+  let pyBridgeQueue = [];
+  let pyBridgeReconnectTimer = null;
+  let pyBridgeRetry = 0;
+
+  function connectPyBridge() {
+    if (browserWs.readyState > WsClient.OPEN) return;     // CLOSING or CLOSED
+    if (pyBridgeWs && pyBridgeWs.readyState < WsClient.CLOSING) return; // CONNECTING or OPEN
+
+    try {
+      pyBridgeWs = new WsClient(SG_BRIDGE_URL);
+
+      pyBridgeWs.on('open', () => {
+        pyBridgeRetry = 0;
+        console.log('[py-bridge] connected to', SG_BRIDGE_URL);
+        const queued = pyBridgeQueue.splice(0);
+        for (const m of queued) { if (pyBridgeWs.readyState === WsClient.OPEN) pyBridgeWs.send(m); }
+      });
+
+      pyBridgeWs.on('message', (data) => {
+        // Relay Python bridge responses back to the browser
+        if (browserWs.readyState === WsClient.OPEN) {
+          browserWs.send(typeof data === 'string' ? data : data.toString());
+        }
+      });
+
+      pyBridgeWs.on('error', (err) => {
+        console.warn('[py-bridge] error:', err.message);
+      });
+
+      pyBridgeWs.on('close', () => {
+        pyBridgeWs = null;
+        if (browserWs.readyState !== WsClient.OPEN) return;
+        const delay = Math.min(SG_MAX_RECONNECT_MS, SG_BASE_RECONNECT_MS * (1 + pyBridgeRetry++));
+        pyBridgeReconnectTimer = setTimeout(connectPyBridge, delay);
+        console.log(`[py-bridge] disconnected — retry in ${Math.round(delay / 1000)}s`);
+      });
+    } catch (err) {
+      console.warn('[py-bridge] connect error:', err.message);
+    }
+  }
+
+  function sendToPyBridge(rawStr) {
+    if (!pyBridgeWs || pyBridgeWs.readyState !== WsClient.OPEN) {
+      pyBridgeQueue.push(rawStr);
+      connectPyBridge();
+    } else {
+      pyBridgeWs.send(rawStr);
+    }
+  }
+
+  // Eagerly connect so the first ai_chat has a live upstream
+  connectPyBridge();
+
+  browserWs.on('message', (raw) => {
+    try {
+      const rawStr = typeof raw === 'string' ? raw : raw.toString();
+      const msg = JSON.parse(rawStr);
+
+      if (msg.type === 'ping') {
+        browserWs.send(JSON.stringify({ type: 'pong', timestamp: new Date().toISOString() }));
+        return;
+      }
+      if (msg.cmd === 'STATUS') {
+        browserWs.send(JSON.stringify({
+          type: 'status',
+          bridge: 'online',
+          py_bridge: pyBridgeWs && pyBridgeWs.readyState === WsClient.OPEN ? 'online' : 'offline',
+          version: '1.0.0',
+          uptime: process.uptime(),
+          websocket_clients: rootClients.size,
+          timestamp: new Date().toISOString(),
+        }));
+        return;
+      }
+      if (msg.cmd === 'EXEC') {
+        handleWsExec(msg, browserWs);
+        return;
+      }
+      if (PY_BRIDGE_MSG_TYPES.has(msg.type)) {
+        sendToPyBridge(rawStr);
+        return;
+      }
+      console.debug('[ws/root] unhandled message type:', msg.type || msg.cmd);
+    } catch {
+      // ignore malformed
+    }
+  });
+
+  browserWs.on('close', () => {
+    rootClients.delete(browserWs);
+    clearTimeout(pyBridgeReconnectTimer);
+    if (pyBridgeWs) { try { pyBridgeWs.close(); } catch {} pyBridgeWs = null; }
+    console.log(`[ws/root] client disconnected (${rootClients.size} total)`);
+  });
+
+  browserWs.on('error', (err) => {
+    console.warn('[ws/root] browser client error:', err.message);
+  });
+});
+
 function broadcast(data) {
   const payload = JSON.stringify(data);
   for (const ws of clients) {
-    if (ws.readyState === 1) ws.send(payload);  // 1 === WebSocket.OPEN
+    if (ws.readyState === WsClient.OPEN) ws.send(payload);
   }
 }
 
 // GET /api/bridge/status — aggregated service connectivity
 app.get('/api/bridge/status', async (_req, res) => {
-  const services = { api: 'offline', weather: 'offline', gateway: 'offline' };
+  const services = { api: 'offline', weather: 'offline', gateway: 'offline', py_bridge: 'offline' };
 
   const checkService = (url, key) =>
     new Promise((resolve) => {
@@ -392,12 +558,32 @@ app.get('/api/bridge/status', async (_req, res) => {
     checkService(BACKEND_URL, 'api'),
     checkService(WEATHER_URL, 'weather'),
     checkService(GATEWAY_URL, 'gateway'),
+    // Python backend (bridge.py) uses WebSocket; check via HTTP health if available, else mark by WS state
+    new Promise((resolve) => {
+      try {
+        const target = new URL('/health', SG_BRIDGE_HTTP_URL);
+        const client = requestClientFor(target);
+        const req = client.request({
+          hostname: target.hostname,
+          port: resolveUpstreamPort(target),
+          path: target.pathname,
+          method: 'GET',
+        }, (r) => {
+          if (r.statusCode && r.statusCode < 500) services.py_bridge = 'online';
+          r.resume();
+          resolve();
+        });
+        req.setTimeout(3000, () => { req.destroy(); resolve(); });
+        req.on('error', () => resolve());
+        req.end();
+      } catch { resolve(); }
+    }),
   ]);
 
   res.json({
     status: 'healthy',
     services,
-    websocket_clients: clients.size,
+    websocket_clients: clients.size + rootClients.size,
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
   });

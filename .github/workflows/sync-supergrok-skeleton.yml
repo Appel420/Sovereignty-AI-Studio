@@ -1,0 +1,52 @@
+name: Sync SuperGrok Heavy Skeleton
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 3 * * *'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Sync last 30 days of updates
+        run: |
+          python scripts/python/sync_supergrok_skeleton.py --days 30
+
+      - name: Open PR for synced files (no direct push)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A external/SuperGrok-Heavy-4-2-Skeleton .sync_state/supergrok-heavy-4-2-skeleton.json || true
+          if git diff --cached --quiet; then
+            echo "No sync changes to commit"
+            exit 0
+          fi
+          BRANCH="bot/sync-supergrok-$(date -u +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          git commit -m "chore(sync): daily SuperGrok Heavy skeleton sync"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore(sync): daily SuperGrok Heavy skeleton sync $(date -u +%Y-%m-%d)" \
+            --body "Automated mirror of upstream SuperGrok-Heavy-4-2-Skeleton changes. **Requires human review before merging.**" \
+            --base main \
+            --label "automated-sync" || true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

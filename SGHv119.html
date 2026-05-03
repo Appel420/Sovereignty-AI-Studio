@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9899 ws://127.0.0.1:9899/ ws://127.0.0.1:9899/terminal ws://127.0.0.1:9899/agent ws://127.0.0.1:9899/chat ws://127.0.0.1:9899/bridge wss://127.0.0.1:9899 wss://127.0.0.1:9899/ wss://127.0.0.1:9899/terminal wss://127.0.0.1:9899/agent wss://127.0.0.1:9899/chat wss://127.0.0.1:9899/bridge ws://localhost:9899 wss://localhost:9899 http://127.0.0.1:9899' https://api.anthropic.com https://api.openai.com https://api.x.ai https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:9899; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://proton.me https://protonmail.com https://protonvpn.com https://signal.org https://localhost:* http://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src blob: blob-request:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9898 ws://127.0.0.1:9898/ ws://127.0.0.1:9898/terminal ws://127.0.0.1:9898/agent ws://127.0.0.1:9898/chat ws://127.0.0.1:9898/bridge wss://127.0.0.1:9898 wss://127.0.0.1:9898/ wss://127.0.0.1:9898/terminal wss://127.0.0.1:9898/agent wss://127.0.0.1:9898/chat wss://127.0.0.1:9898/bridge ws://localhost:9898 wss://localhost:9898 http://127.0.0.1:9898 https://api.anthropic.com https://api.openai.com https://api.x.ai https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:9898; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://proton.me https://protonmail.com https://protonvpn.com https://signal.org https://localhost:* http://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src blob: blob-request:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -3929,7 +3929,7 @@ function auditEntry(action,detail){
 /* ── Tamperproof SEAL ── */
 var _seal=null;
 async function computeSeal(){
-  var src=(window.SG_AGENT?SG_AGENT.toString().slice(0,1500):'init')+Object.keys(CFG).sort().join(',');
+  var src=(window.SG_AGENT?window.SG_AGENT.toString().slice(0,1500):'init')+Object.keys(CFG).sort().join(',');
   var h=await crypto.subtle.digest('SHA-512',new TextEncoder().encode('SEAL_v2:'+src));
   return Array.from(new Uint8Array(h)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
 }
@@ -12605,7 +12605,7 @@ if (!window._sgLastCert) { toast('Generate a cert first','err'); return; }
 var c = window._sgLastCert;
 var cfg = '# SuperGrok bridge.py TLS config\n# Generated: '+new Date().toISOString()+'\n\n'+
 'export CERT_B64="'+c.pubB64+'"\nexport KEY_B64="'+c.privB64+'"\n'+
-'export SG_TLS=1\nexport SG_PORT=9898\nexport SG_HOST=localhost\n\n'+
+'export SG_TLS=1\nexport SG_PORT=9897\nexport SG_HOST=localhost\n\n'+
 '# Then run: python3 bridge.py --tls';
 var a = document.createElement('a');
 a.href = URL.createObjectURL(new Blob([cfg],{type:'text/plain'}));

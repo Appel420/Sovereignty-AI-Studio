@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sovereignty AI Studio — Bridge Server (ws://localhost:9898)
+Sovereignty AI Studio — Bridge Server (ws://localhost:9897)
 BridgeServer class-based architecture with:
 - Sovereign AI routing (no external SaaS, no Anthropic/OpenAI calls)
 - broadcast_ai_response helper
@@ -27,7 +27,7 @@ except ImportError:
     WS_OK = False
     print("WARNING: websockets not installed. Run: pip3 install websockets")
 
-PORT = int(os.environ.get("SG_PORT", 9898))
+PORT = int(os.environ.get("SG_PORT", 9897))
 HOST = os.environ.get("SG_HOST", "localhost")
 SOVEREIGN_API_URL = os.environ.get(
     "SOVEREIGN_API_URL", "http://localhost:8000/api/ai"

@@ -9423,7 +9423,7 @@ window.renderSuperAudit = function() {
     '</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.sanitizeEnv()">🧹 Sanitize Environment</button>' +
-    '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.fixErrors()">🔧 Auto-Fix Errors</button>' +
+    '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="runFixErrorsSafe()">🔧 Auto-Fix Errors</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="ErrorLog.entries=[];loadPanel(\'superaudit\')">Clear Errors</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="loadPanel(\'errorconsole\')">Error Console</button>' +
     '</div>' +
@@ -9460,7 +9460,7 @@ window.renderErrorConsole = function() {
   return '<div class="panel-hdr"><h2>Error Console</h2>' +
     '<p>// Live JS error capture · Promise rejections · Auto-fix · Stack traces</p></div>' +
     '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">' +
-    '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.fixErrors();loadPanel(\'errorconsole\')">🔧 Auto-Fix All</button>' +
+    '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="runFixErrorsSafe();loadPanel(\'errorconsole\')">🔧 Auto-Fix All</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="ErrorLog.entries=[];loadPanel(\'errorconsole\')">Clear</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="AuditLog.exportJSON()">Export Log</button>' +
     '</div>' +
@@ -9507,6 +9507,14 @@ window.renderRoleEditor = function() {
 };
 
 // SuperAdmin actions object
+function runFixErrorsSafe(){
+  if (window.SuperAdmin && typeof window.SuperAdmin.fixErrors === 'function') {
+    window.SuperAdmin.fixErrors();
+  } else if (typeof toast === 'function') {
+    toast('Fix tools not ready', 'warn');
+  }
+}
+
 var SuperAdmin = {
   sanitizeEnv: function() {
     if (typeof ROLES === 'undefined') return;
@@ -9548,7 +9556,7 @@ var SuperAdmin = {
       }
     });
     ErrorLog.entries = [];
-    toast('Fixed: ' + fixed.join(', ') || 'All clean', 'ok');
+    toast(fixed.length > 0 ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
     loadPanel('errorconsole');
   }
 };
@@ -10003,7 +10011,7 @@ if (_origAutoLogin && typeof AutoLogin !== 'undefined') {
         '<div style="color:var(--rd);margin-bottom:8px">⚠ Panel error: ' + id + '</div>' +
         '<div style="color:var(--mu);font-size:7px;margin-bottom:12px">' + (e.message||'').replace(/</g,'&lt;').slice(0,120) + '</div>' +
         '<button onclick="loadPanel(\'dashboard\')" class="btn-s" style="font-size:8px;padding:7px 14px">← Dashboard</button>' +
-        '<button onclick="typeof SuperAdmin!==\'undefined\'&&SuperAdmin.fixErrors()" class="btn-s" style="font-size:8px;padding:7px 14px;margin-left:6px">🔧 Auto-Fix</button>' +
+        '<button onclick="runFixErrorsSafe()" class="btn-s" style="font-size:8px;padding:7px 14px;margin-left:6px">🔧 Auto-Fix</button>' +
         '</div>';
     }
   };
@@ -10075,7 +10083,7 @@ var BridgeManager = {
         BridgeManager.updateAllIndicators(online);
         if (online) {
           BridgeManager.retries = 0;
-          if (typeof toast === 'function') toast('Bridge connected - Port 9898 LIVE', 'ok');
+          if (typeof toast === 'function') toast('Bridge Online', 'ok');
           if (typeof speak === 'function') speak('Bridge connected.');
         } else {
           // Auto-reconnect
@@ -10092,13 +10100,13 @@ var BridgeManager = {
 
   updateAllIndicators: function(online) {
     var color = online ? 'var(--gn)' : 'var(--rd)';
-    var label = online ? '⚡ LIVE' : '⚡ 9898';
+    var label = online ? 'Bridge Online' : 'Bridge Offline';
     // Topbar bridge button
     var qbtn = document.getElementById('bridgeQuickBtn');
     if (qbtn) { qbtn.textContent = label; qbtn.style.color = color; qbtn.style.borderColor = online ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)'; }
     // Header status
     var bs = document.getElementById('bridgeStatus');
-    if (bs) { bs.textContent = online ? 'PORT 9898 ✓' : 'PORT 9898 OFFLINE'; bs.style.color = color; }
+    if (bs) { bs.textContent = online ? 'Bridge Online' : 'Bridge Offline'; bs.style.color = color; }
     var ftBridge = document.getElementById('ftBridge');
     if (ftBridge) { ftBridge.textContent = online ? '✓ ONLINE' : 'OFFLINE'; ftBridge.style.color = color; }
     // TB bridge
@@ -10569,7 +10577,7 @@ window.renderSuperAudit = function() {
     '</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.sanitizeEnv()">🧹 Sanitize Environment</button>' +
-    '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.fixErrors()">🔧 Auto-Fix Errors</button>' +
+    '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="runFixErrorsSafe()">🔧 Auto-Fix Errors</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="ErrorLog.entries=[];loadPanel(\'superaudit\')">Clear Errors</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="loadPanel(\'errorconsole\')">Error Console</button>' +
     '</div>' +
@@ -10606,7 +10614,7 @@ window.renderErrorConsole = function() {
   return '<div class="panel-hdr"><h2>Error Console</h2>' +
     '<p>// Live JS error capture · Promise rejections · Auto-fix · Stack traces</p></div>' +
     '<div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">' +
-    '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.fixErrors();loadPanel(\'errorconsole\')">🔧 Auto-Fix All</button>' +
+    '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="runFixErrorsSafe();loadPanel(\'errorconsole\')">🔧 Auto-Fix All</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="ErrorLog.entries=[];loadPanel(\'errorconsole\')">Clear</button>' +
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="AuditLog.exportJSON()">Export Log</button>' +
     '</div>' +
@@ -10694,7 +10702,7 @@ var SuperAdmin = {
       }
     });
     ErrorLog.entries = [];
-    toast('Fixed: ' + fixed.join(', ') || 'All clean', 'ok');
+    toast(fixed.length > 0 ? ('Fixed: ' + fixed.join(', ')) : 'All clean', 'ok');
     loadPanel('errorconsole');
   }
 };
