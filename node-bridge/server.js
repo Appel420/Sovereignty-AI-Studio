@@ -53,9 +53,15 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
 const KODER_URL = process.env.KODER_URL || 'ws://localhost:9897';
+// Derived HTTP base URL for health-check probes against the KODER bridge
+const KODER_HTTP_URL = KODER_URL.replace(/^ws(s?):\/\//, 'http$1://');
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
+
+// Reconnect tuning for KODER proxy
+const KODER_BASE_RECONNECT_MS = 3000;
+const KODER_MAX_RECONNECT_MS  = 30000;
 
 const app = express();
 app.use(express.json());
@@ -218,12 +224,11 @@ app.use('/api/judge', (req, res) => proxyRequest(GATEWAY_URL, req, res));
 
 // GET /api/agents/status — aggregated ecosystem agent health
 app.get('/api/agents/status', async (_req, res) => {
-  const koderHttpUrl = KODER_URL.replace(/^ws(s?):\/\//, 'http$1://');
   const agents = {
     gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
     backend: { url: BACKEND_URL, status: 'offline', port: 8000 },
     weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
-    koder:   { url: koderHttpUrl, status: 'offline', port: 9897, role: 'python-bridge' },
+    koder:   { url: KODER_HTTP_URL, status: 'offline', port: 9897, role: 'python-bridge' },
   };
 
   const checkAgent = (key) =>
@@ -295,7 +300,8 @@ const clients = new Set();
 function handleWsExec(msg, ws) {
   const lang = (msg.lang || 'node').toLowerCase();
   const code = msg.code || '';
-  const user = msg.user || 'anon';
+  // Sanitize user to printable ASCII only — prevents log injection
+  const user = String(msg.user || 'anon').replace(/[^\x20-\x7E]/g, '').slice(0, 64) || 'anon';
   if (!code) {
     ws.send(JSON.stringify({ type: 'exec_result', output: '', error: 'No code provided' }));
     return;
@@ -423,8 +429,8 @@ wssRoot.on('connection', (browserWs) => {
   let koderRetry = 0;
 
   function connectKoder() {
-    if (browserWs.readyState > 1) return;           // browser gone
-    if (koderWs && koderWs.readyState < 2) return;  // already up
+    if (browserWs.readyState > WsClient.OPEN) return;     // CLOSING or CLOSED
+    if (koderWs && koderWs.readyState < WsClient.CLOSING) return; // CONNECTING or OPEN
 
     try {
       koderWs = new WsClient(KODER_URL);
@@ -433,12 +439,12 @@ wssRoot.on('connection', (browserWs) => {
         koderRetry = 0;
         console.log('[koder-proxy] connected to', KODER_URL);
         const queued = koderQueue.splice(0);
-        for (const m of queued) { if (koderWs.readyState === 1) koderWs.send(m); }
+        for (const m of queued) { if (koderWs.readyState === WsClient.OPEN) koderWs.send(m); }
       });
 
       koderWs.on('message', (data) => {
         // Relay Python bridge responses back to the browser
-        if (browserWs.readyState === 1) {
+        if (browserWs.readyState === WsClient.OPEN) {
           browserWs.send(typeof data === 'string' ? data : data.toString());
         }
       });
@@ -449,8 +455,8 @@ wssRoot.on('connection', (browserWs) => {
 
       koderWs.on('close', () => {
         koderWs = null;
-        if (browserWs.readyState !== 1) return;
-        const delay = Math.min(30000, 3000 * (1 + koderRetry++));
+        if (browserWs.readyState !== WsClient.OPEN) return;
+        const delay = Math.min(KODER_MAX_RECONNECT_MS, KODER_BASE_RECONNECT_MS * (1 + koderRetry++));
         koderReconnectTimer = setTimeout(connectKoder, delay);
         console.log(`[koder-proxy] disconnected — retry in ${Math.round(delay / 1000)}s`);
       });
@@ -460,7 +466,7 @@ wssRoot.on('connection', (browserWs) => {
   }
 
   function sendToKoder(rawStr) {
-    if (!koderWs || koderWs.readyState !== 1) {
+    if (!koderWs || koderWs.readyState !== WsClient.OPEN) {
       koderQueue.push(rawStr);
       connectKoder();
     } else {
@@ -484,7 +490,7 @@ wssRoot.on('connection', (browserWs) => {
         browserWs.send(JSON.stringify({
           type: 'status',
           bridge: 'online',
-          koder: koderWs && koderWs.readyState === 1 ? 'online' : 'offline',
+          koder: koderWs && koderWs.readyState === WsClient.OPEN ? 'online' : 'offline',
           version: '1.0.0',
           uptime: process.uptime(),
           websocket_clients: rootClients.size,
@@ -521,7 +527,7 @@ wssRoot.on('connection', (browserWs) => {
 function broadcast(data) {
   const payload = JSON.stringify(data);
   for (const ws of clients) {
-    if (ws.readyState === 1) ws.send(payload);  // 1 === WebSocket.OPEN
+    if (ws.readyState === WsClient.OPEN) ws.send(payload);
   }
 }
 
@@ -554,9 +560,8 @@ app.get('/api/bridge/status', async (_req, res) => {
     checkService(GATEWAY_URL, 'gateway'),
     // KODER Python bridge uses WebSocket; check via HTTP health if available, else mark by WS state
     new Promise((resolve) => {
-      const koderHttpUrl = KODER_URL.replace(/^ws(s?):\/\//, 'http$1://');
       try {
-        const target = new URL('/health', koderHttpUrl);
+        const target = new URL('/health', KODER_HTTP_URL);
         const client = requestClientFor(target);
         const req = client.request({
           hostname: target.hostname,
