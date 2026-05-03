@@ -1,13 +1,3 @@
-FROM python:3.12-slim
-
-WORKDIR /app
-
-COPY crse_monitor.py .
-
-RUN pip install --no-cache-dir requests
-
-CMD ["python", "crse_monitor.py"]
-
 import os, time, json, requests
 
 audit_file = "/app/audit/audit.jsonl"
