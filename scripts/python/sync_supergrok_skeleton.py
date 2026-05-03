@@ -20,11 +20,25 @@ DEFAULT_REMOTE_URL = "https://github.com/Sovereignty-One/SuperGrok-Heavy-4-2-Ske
 DEFAULT_DEST = REPO_ROOT / "external" / "SuperGrok-Heavy-4-2-Skeleton"
 STATE_FILE = REPO_ROOT / ".sync_state" / "supergrok-heavy-4-2-skeleton.json"
 
-SECRET_PATTERNS = (
-    re.compile(r"(?i)(api[_-]?key\s*[=:]\s*)([\"']?)[A-Za-z0-9_\-]{12,}\2"),
-    re.compile(r"(?i)(token\s*[=:]\s*)([\"']?)[A-Za-z0-9_\-]{12,}\2"),
-    re.compile(r"(?i)(secret\s*[=:]\s*)([\"']?)[^\s\"']{8,}\2"),
-    re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"),
+# Each tuple is (pattern, replacement).  Patterns that capture a leading key +
+# optional quote must use \1\2 so the quote is re-emitted in the replacement.
+_REDACTED = "***REDACTED***"
+
+SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # unquoted or quoted assignment:  api_key = VALUE  /  api_key: VALUE
+    (re.compile(r"(?i)(api[_-]?key\s*[=:]\s*)([\"'])[A-Za-z0-9_\-]{12,}\2"), r"\1\2" + _REDACTED + r"\2"),
+    (re.compile(r"(?i)(api[_-]?key\s*[=:]\s*)([A-Za-z0-9_\-]{12,})"), r"\1" + _REDACTED),
+    (re.compile(r"(?i)(token\s*[=:]\s*)([\"'])[A-Za-z0-9_\-]{12,}\2"), r"\1\2" + _REDACTED + r"\2"),
+    (re.compile(r"(?i)(token\s*[=:]\s*)([A-Za-z0-9_\-]{12,})"), r"\1" + _REDACTED),
+    (re.compile(r"(?i)(secret\s*[=:]\s*)([\"'])[^\s\"']{8,}\2"), r"\1\2" + _REDACTED + r"\2"),
+    (re.compile(r"(?i)(secret\s*[=:]\s*)([^\s\"']{8,})"), r"\1" + _REDACTED),
+    # JSON / dict style:  "api_key": "VALUE"  or  "token":"VALUE"
+    (re.compile(r'(?i)("(?:api[_-]?key|token|secret|password|passwd|private_?key)"\s*:\s*")([^"]{8,})(")'), r"\1" + _REDACTED + r"\3"),
+    (re.compile(r"(?i)('(?:api[_-]?key|token|secret|password|passwd|private_?key)'\s*:\s*')([^']{8,})(')"), r"\1" + _REDACTED + r"\3"),
+    # Bearer / Authorization headers
+    (re.compile(r"(?i)(Authorization\s*:\s*(?:Bearer|Token)\s+)([A-Za-z0-9_\-\.]{12,})"), r"\1" + _REDACTED),
+    # JWT (three base64url segments)
+    (re.compile(r"\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b"), _REDACTED),
 )
 
 
@@ -55,15 +69,26 @@ def _safe_rel_path(rel_path: str) -> Path:
 
 def _sanitize_text(text: str) -> str:
     sanitized = text
-    for pattern in SECRET_PATTERNS:
-        if pattern.groups:
-            sanitized = pattern.sub(r"\1***REDACTED***", sanitized)
-        else:
-            sanitized = pattern.sub("***REDACTED***", sanitized)
+    for pattern, repl in SECRET_PATTERNS:
+        sanitized = pattern.sub(repl, sanitized)
     return sanitized
 
 
+# UTF-16/UTF-32 BOMs (files that are text but contain NUL bytes).
+_TEXT_BOMS = (
+    b"\xff\xfe\x00\x00",  # UTF-32 LE
+    b"\x00\x00\xfe\xff",  # UTF-32 BE
+    b"\xff\xfe",           # UTF-16 LE
+    b"\xfe\xff",           # UTF-16 BE
+)
+
+
 def _is_binary(data: bytes) -> bool:
+    """Return True only for truly binary data (not Unicode text with NUL bytes)."""
+    # Allow UTF-16/UTF-32 BOM-prefixed files to be treated as text.
+    for bom in _TEXT_BOMS:
+        if data.startswith(bom):
+            return False
     return b"\x00" in data
 
 
@@ -154,9 +179,19 @@ def _prepare_remote(remote_url: str, branch: str) -> tuple[Path, str]:
 
 
 def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry_run: bool = False) -> dict:
-    since = datetime.now(tz=timezone.utc) - timedelta(days=days)
     remote_dir, branch_ref = _prepare_remote(remote_url, branch)
     state = _load_state()
+
+    # Use the last recorded sync timestamp if available; otherwise fall back to
+    # the caller-supplied window so the first run still gets a reasonable slice.
+    last_sync_raw = state.get("last_sync_utc")
+    if last_sync_raw:
+        try:
+            since = datetime.fromisoformat(last_sync_raw)
+        except ValueError:
+            since = datetime.now(tz=timezone.utc) - timedelta(days=days)
+    else:
+        since = datetime.now(tz=timezone.utc) - timedelta(days=days)
 
     try:
         changes = _list_changes(remote_dir, branch_ref, since)
@@ -181,15 +216,24 @@ def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry
                 continue
 
             payload = _read_remote_file(remote_dir, branch_ref, change.path)
+
+            if not dry_run:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                # Remove any conflicting filesystem entry (e.g. a directory where
+                # the remote now has a file, or vice-versa).
+                if target.exists() or target.is_symlink():
+                    if target.is_dir() and not target.is_symlink():
+                        shutil.rmtree(target)
+                    else:
+                        target.unlink()
+
             if _is_binary(payload):
                 if not dry_run:
-                    target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_bytes(payload)
             else:
                 text = payload.decode("utf-8", errors="surrogateescape")
                 sanitized = _sanitize_text(text)
                 if not dry_run:
-                    target.parent.mkdir(parents=True, exist_ok=True)
                     target.write_text(sanitized, encoding="utf-8", errors="surrogateescape")
             copied += 1
 

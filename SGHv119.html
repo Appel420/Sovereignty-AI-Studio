@@ -12605,7 +12605,7 @@ if (!window._sgLastCert) { toast('Generate a cert first','err'); return; }
 var c = window._sgLastCert;
 var cfg = '# SuperGrok bridge.py TLS config\n# Generated: '+new Date().toISOString()+'\n\n'+
 'export CERT_B64="'+c.pubB64+'"\nexport KEY_B64="'+c.privB64+'"\n'+
-'export SG_TLS=1\nexport SG_PORT=9898\nexport SG_HOST=localhost\n\n'+
+'export SG_TLS=1\nexport SG_PORT=9897\nexport SG_HOST=localhost\n\n'+
 '# Then run: python3 bridge.py --tls';
 var a = document.createElement('a');
 a.href = URL.createObjectURL(new Blob([cfg],{type:'text/plain'}));

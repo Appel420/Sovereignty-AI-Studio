@@ -4337,7 +4337,7 @@ console.log('%c🏥 HIPAA §164.308/310/312 · GrokMedical420 · All Roles · Ze
 var BridgeCFG = {
   protocol: 'ws',       // ws or wss
   host:     'localhost',
-  port:     9897,
+  port:     9898,
   path:     '',
   // AirPlay / Bonjour friendly alternate ports
   presets: {
@@ -4365,7 +4365,7 @@ var BridgeCFG = {
         var p = JSON.parse(s);
         BridgeCFG.protocol = p.protocol || 'ws';
         BridgeCFG.host = p.host || 'localhost';
-        BridgeCFG.port = p.port || 9897;
+        BridgeCFG.port = p.port || 9898;
         BridgeCFG.path = p.path || '';
       }
     } catch(e) {}
