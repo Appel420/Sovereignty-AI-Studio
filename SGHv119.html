@@ -302,6 +302,24 @@ background-image:url(“data:image/svg+xml,%3Csvg xmlns=‘http://www.w3.org/200
 .bt-name-main{font-size:30px}
 .kgrid{grid-template-columns:repeat(2,1fr)}
 }
+/* ── CodeMaster responsive layout ── */
+@media(max-width:900px){
+#cm-grid{grid-template-columns:1fr!important;gap:6px!important}
+#cm-grid>div{min-width:0}
+#cm-editor{min-height:260px!important;max-height:45vh!important}
+#cm-preview-frame{min-height:220px!important}
+#dbg-tab-problems,#dbg-tab-console,#dbg-tab-variables,#dbg-tab-breakpoints,#dbg-tab-callstack{max-height:220px!important}
+}
+@media(max-width:600px){
+#cm-grid{gap:4px!important}
+.dbg-tab{font-size:7px!important;padding:4px 5px!important}
+#cm-editor{font-size:10px!important}
+}
+/* Ensure all interactive buttons meet 44px touch target on mobile */
+@media(pointer:coarse){
+.btn,.btn-s,.btn-p,.btn-d{min-height:44px;min-width:44px}
+.nav-item{min-height:44px}
+}
 </style><link rel="manifest" id="sg-manifest">
 <meta name="theme-color" content="#00ffc8">
 <meta name="mobile-web-app-capable" content="yes">
@@ -4480,7 +4498,21 @@ window.SGCrypto = (function(){
   };
   window.SGDilithium = Dilithium;
 
-  /* ── Merkle Tree (SHA-512 leaves, Dilithium3 signed roots) ── */
+  /* ── ML-KEM-768 simulation (real PQ on bridge server via liboqs) ── */
+  var MLKEM = {
+    keygen: async function(){
+      var kp = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveKey','deriveBits']);
+      var ek = JSON.stringify(await crypto.subtle.exportKey('jwk',kp.publicKey));
+      return { ek:ek, dk:'ML-KEM-768-SIM', alg:'ML-KEM-768-SIM', note:'Real PQ via bridge liboqs' };
+    },
+    encapsulate: async function(ek){
+      var r = crypto.getRandomValues(new Uint8Array(32));
+      var K = Array.from(r).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+      return { c:'ct-'+K.slice(0,16), K:K, alg:'ML-KEM-768-SIM' };
+    },
+    decapsulate: async function(dk, c){ return { K: c&&c.K ? c.K : '' }; }
+  };
+  window.SGMLKEM = MLKEM;
   var MerkleTree = {
     leaves: [], signedRoots: [], _kp: null,
     init: async function(){
@@ -4526,7 +4558,7 @@ window.SGCrypto = (function(){
 if(typeof PANEL_MAP !== 'undefined') PANEL_MAP.crypto = function(){ return renderCryptoPanel(); };
 
 
-  return {sha512:sha512,sha256:sha256,sha3_512:sha3_512,blake3:blake3,aesEncrypt:aesEncrypt,aesDecrypt:aesDecrypt,aesKey:aesKey,hmac:hmac,argon2id:argon2id,ecdhKeyExchange:ecdhKeyExchange,Dilithium:Dilithium,MerkleTree:MerkleTree};
+  return {sha512:sha512,sha256:sha256,sha3_512:sha3_512,blake3:blake3,aesEncrypt:aesEncrypt,aesDecrypt:aesDecrypt,aesKey:aesKey,hmac:hmac,argon2id:argon2id,ecdhKeyExchange:ecdhKeyExchange,Dilithium:Dilithium,MLKEM:MLKEM,MerkleTree:MerkleTree};
 })();
 
 /* ── Signal that SGCrypto is fully initialized ── */
@@ -13816,7 +13848,7 @@ else if(n===2){SGC.aesKey().then(function(k){return SGC.aesEncrypt('SuperGrok v1
 else if(n===3){o.textContent='ARGON2ID: running...';SGC.argon2id('password','SG_v62_salt').then(function(h){o.textContent='ARGON2ID: '+h.slice(0,48)+'...';});}
 else if(n===4){SGC.Dilithium.keygen().then(function(kp){return SGC.Dilithium.sign('test',kp.sk);}).then(function(s){o.textContent='DILITHIUM3: '+s.sig.slice(0,48)+'...';});}
 else if(n===5){SGC.MLKEM.keygen().then(function(kp){return SGC.MLKEM.encapsulate(kp.ek);}).then(function(enc){o.textContent='ML-KEM-768 SS: '+enc.K.slice(0,48)+'...';});}
-else if(n===6){var mt=new SGC.MerkleTree(['node1','node2','node3','node4']);mt.build().then(function(){o.textContent='MERKLE ROOT: '+mt.root;});}
+else if(n===6){SGC.MerkleTree.addLeaf('node1').then(function(){return SGC.MerkleTree.addLeaf('node2');}).then(function(){return SGC.MerkleTree.addLeaf('node3');}).then(function(){return SGC.MerkleTree.computeRoot();}).then(function(root){o.textContent='MERKLE ROOT: '+root.slice(0,48)+'...';});}
 };
 }
 
@@ -16250,7 +16282,7 @@ var lang = getLang();
 var ext = {html:'html',css:'css',js:'js',json:'json',python:'py',bash:'sh',sql:'sql',markdown:'md'}[lang]||'txt';
 var a = document.createElement('a');
 a.href = URL.createObjectURL(blob);
-a.download = 'code*' + Date.now() + '.' + ext;
+a.download = 'code_' + Date.now() + '.' + ext;
 a.click();
 URL.revokeObjectURL(a.href);
 window.toast && window.toast('\u2193 File saved','ok');
@@ -20638,7 +20670,7 @@ applyBtn._fixFn = function() { setCode(d.fixed_code); };
 }
 
 /* ── EXPOSE GLOBALS ───────────────────────────── */
-window.CM = { runLint: runLint, updatePreview: updatePreview, updateLines: updateLines };
+window.CM = Object.assign(window.CM || {}, { runLint: runLint, updatePreview: updatePreview, updateLines: updateLines });
 
 /* ── EVENT DELEGATION ─────────────────────────── */
 document.addEventListener('input', function(e) {
@@ -20715,7 +20747,7 @@ var lang = getLang();
 var ext = {html:'html',css:'css',js:'js',json:'json',python:'py',bash:'sh',sql:'sql',markdown:'md'}[lang]||'txt';
 var a = document.createElement('a');
 a.href = URL.createObjectURL(blob);
-a.download = 'code*' + Date.now() + '.' + ext;
+a.download = 'code_' + Date.now() + '.' + ext;
 a.click();
 URL.revokeObjectURL(a.href);
 window.toast && window.toast('\u2193 File saved','ok');
