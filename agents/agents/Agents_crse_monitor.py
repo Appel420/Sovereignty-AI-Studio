@@ -9,9 +9,9 @@ max_log_size = int(os.environ.get("MAX_LOG_SIZE", 10*1024*1024))
 
 proposal_chunks = []
 
-# All agents are routed through the gateway on port 9899 (GATEWAY_PORT).
+# All agents are routed through the gateway on port 9898 (GATEWAY_PORT).
 # In Docker each agent is a hostname; all /proposals calls go through the gateway.
-_gateway_port = int(os.environ.get("GATEWAY_PORT", 9899))
+_gateway_port = int(os.environ.get("GATEWAY_PORT", 9898))
 agent_ports = {
     "judge": _gateway_port,
     "ai_router": _gateway_port,
