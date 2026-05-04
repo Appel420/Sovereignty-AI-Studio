@@ -41,11 +41,11 @@ backend (FastAPI on 8000, internal)
 PostgreSQL (5432)   Redis (6379)
 ```
 
-All host traffic enters through **port 9899** (node-bridge). Backend, database, and Redis remain on the internal Docker network. Python bridge (9897) and internal WS relay (9898) are internal only.
+All host traffic enters through **port 9899** (node-bridge). Backend, database, and Redis remain on the internal Docker network. Python bridge (9897) is internal only. KODER frontend is served at port 9898 (static file server, non-Docker).
 
 | Service | Port | Notes |
 |---------|------|-------|
-| node-bridge (gateway) | 9899 | Only external port (docker-compose); 9898 in non-Docker mode |
+| node-bridge (gateway) | 9899 | External port (both Docker and non-Docker) |
 | Python bridge (bridge.py) | 9897 | Internal WebSocket relay to AI backends |
 | backend (FastAPI) | internal | Routed via node-bridge |
 | PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
@@ -87,7 +87,7 @@ docker compose --profile production up -d
 | --- | --- |
 | `SGHv119.html` | KODER — main sovereign dashboard (SuperGrok Heavy 4.2 Enterprise UI) |
 | `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
-| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge (port 9898, proxied via 9899) |
+| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge proxy (port 9899) |
 | `bridge.py` | Python WebSocket bridge server (port 9897) |
 | `scripts/javascript/sanitizer.js` | Enterprise-grade sanitizer with circuit-breaker syslog, log rotation, correlation IDs |
 | `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
