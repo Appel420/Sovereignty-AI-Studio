@@ -221,7 +221,10 @@ class HealthWatcher:
             health.last_check = time.time()
             health.latency_ms = latency_ms
 
-            if 200 <= status_code < 400:
+            if 200 <= status_code < 300:
+                # Only 2xx responses indicate a healthy service.
+                # 3xx redirects are not considered healthy — a health endpoint
+                # should respond directly, not redirect.
                 health.consecutive_fails = 0
                 health.last_error = ""
                 health.status = HealthStatus.HEALTHY
@@ -258,11 +261,16 @@ class HealthWatcher:
 
     @staticmethod
     def _degraded_or_down(consecutive_fails: int) -> HealthStatus:
-        """Map failure count to an appropriate :class:`HealthStatus`."""
+        """Map failure count to an appropriate :class:`HealthStatus`.
+
+        Any failure is at minimum DEGRADED (the mildest failure state in the
+        enum).  Failures at or above ``_DOWN_THRESHOLD`` are declared DOWN.
+        Failures in between are sustained degradation (DEGRADED).
+        """
         if consecutive_fails >= _DOWN_THRESHOLD:
             return HealthStatus.DOWN
-        if consecutive_fails >= _DEGRADED_THRESHOLD:
-            return HealthStatus.DEGRADED
+        # Both the first failure and sustained failures below the DOWN threshold
+        # map to DEGRADED — it is the mildest non-healthy state available.
         return HealthStatus.DEGRADED
 
     def _emit_status_change(self, name: str, health: ServiceHealth) -> None:
