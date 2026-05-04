@@ -49,7 +49,7 @@ services:
     build: ./backend
     restart: unless-stopped
     expose:
-      - "9898"
+      - "8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
       REDIS_URL: redis://redis:6379/0
@@ -71,7 +71,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9898/health')\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 30s
       timeout: 10s
       retries: 5
