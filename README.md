@@ -9,7 +9,7 @@
 **Private Sovereign AI Research and Development Platform**
 **Core Model:** Super Grok Heavy 4.2 (xAI) – Locked, Sealed, Sovereign
 **Authority:** Derek Appel
-**Last Updated:** April 2, 2026
+**Last Updated:** May 4, 2026
 
 ---
 
@@ -25,27 +25,32 @@ No external services, third-party models, or internet connectivity are required 
 
 ---
 
-## Architecture (Single External Port)
+## Architecture
 
 ```
-Port 9899 (ONLY external port)
-     │
-     ▼
-node-bridge (WebSocket + HTTP gateway)
-     │
-     ▼
-backend (FastAPI on 8000, internal)
-     │
- ┌───┴───────────────┐
- ▼                   ▼
-PostgreSQL (5432)   Redis (6379)
+Browser / iPhone
+   │
+   ├─── HTTP GET http://localhost:9898/SGHv119.html  ──► KODER frontend (static server)
+   │
+   └─── WebSocket/API http://localhost:9899/...  ──► node-bridge (gateway)
+                                                          │ proxy
+                                                          ▼
+                                                   Python bridge.py (9897)
+                                                          │
+                                                          ▼
+                                                   backend (FastAPI 8000, internal)
+                                                       ┌──┴──────────────┐
+                                                       ▼                 ▼
+                                               PostgreSQL (5432)   Redis (6379)
 ```
 
-All host traffic enters through **port 9899,9897,9898 **. Backend, database, and Redis remain on the internal Docker network.
+The UI is served at **port 9898** (static file server, non-Docker). All WebSocket and HTTP API traffic from the browser goes to **port 9899** (node-bridge), which proxies AI/TTS/memory/STT messages to the Python bridge at **port 9897**. Backend, database, and Redis remain on the internal Docker network.
 
 | Service | Port | Notes |
 |---------|------|-------|
-| node-bridge (gateway) | 9899 | Only external port |
+| KODER frontend (SGHv119.html) | 9898 | Static file server (non-Docker) |
+| node-bridge (gateway) | 9899 | WebSocket + HTTP API proxy |
+| Python bridge (bridge.py) | 9897 | Primary AI/WS backend |
 | backend (FastAPI) | internal | Routed via node-bridge |
 | PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
 | Redis 7 | internal | Cache + session store |
@@ -84,9 +89,11 @@ docker compose --profile production up -d
 
 | Path | Purpose |
 | --- | --- |
+| `SGHv119.html` | KODER — main sovereign dashboard (SuperGrok Heavy 4.2 Enterprise UI) |
 | `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
-| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge (port 9899) |
-| `bridge.py` | Python WebSocket bridge server |
+| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge proxy (port 9899) |
+| `bridge.py` | Python WebSocket bridge server (port 9897) |
+| `scripts/javascript/sanitizer.js` | Enterprise-grade sanitizer with circuit-breaker syslog, log rotation, correlation IDs |
 | `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
 | `backend/app/api/v1` | FastAPI endpoints (auth, orgs, media, voice, telemetry, etc.) |
 | `frontend/src/views` | React views, including organization management |
@@ -131,7 +138,7 @@ Sovereignty-AI-Studio/
 │   ├── utils/                     # Utility Functions
 │   ├── ai_core/                   # Siri-Replace / Ara Core
 │   └── native/                    # Native Code (C++, Swift, Rust)
-├── backend/                       # FastAPI backend (surfaced via bridge on port 9898)
+├── backend/                       # FastAPI backend (surfaced via bridge on port 9899)
 │   ├── app/
 │   │   ├── api/v1/                # REST & WebSocket API endpoints
 │   │   ├── core/                  # Database, security, WebSocket hub
@@ -175,14 +182,14 @@ Sovereignty-AI-Studio/
 │   ├── ai_defense_module.py
 │   ├── lie_detector.py
 │   └── second_squad_agent.py
-├── resources/
-│   ├── assets/                    # Binary & Font Assets
-│   ├── configs/                   # Configuration Files
-│   └── data/                      # Data Files & Documentation
-├── scripts/                       # Build & Deployment Scripts
+├── scripts/
+│   ├── javascript/
+│   │   └── sanitizer.js           # Enterprise sanitizer (circuit-breaker, TLS syslog, gzip rotation)
+│   └── python/                    # Python utility scripts
 ├── crypto/                        # Cryptography Modules
 │   └── Vault_crypto.js
 ├── docs/                          # Documentation
+├── SGHv119.html                   # KODER — SuperGrok Heavy 4.2 Enterprise Dashboard (main UI)
 ├── Backend_API_AUTH.py            # Post-quantum backend auth router (Dilithium2 + TOTP)
 ├── eeg_streaming.py               # Real-time EEG signal streaming & analysis
 ├── weather_dashboard.py           # Quart weather dashboard entry point

@@ -2,7 +2,9 @@ version: '3.9'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sovereignty AI Studio — Self-Hosted Docker Stack
-# All external traffic enters through port 9899 (node-bridge).
+# FRONTEND: KODER (SGHv119.html) served on port 9898 (non-Docker static server).
+# WS/API:   Node.js node-bridge on port 9899 (browser WebSocket + HTTP API proxy).
+# PYTHON:   bridge.py on port 9897 is started separately (non-Docker, via START_SERVER.sh).
 # Backend, database, and Redis stay on the internal Docker network.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -47,7 +49,7 @@ services:
     build: ./backend
     restart: unless-stopped
     expose:
-      - "9898"
+      - "8000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
       REDIS_URL: redis://redis:6379/0
@@ -69,13 +71,13 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9898/health')\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 20s
 
-  # ── Node.js Sovereign Bridge (only external port: 9899) ────────────────────
+  # ── Node.js Sovereign Bridge (BACKUP proxy on port 9899) ─────────────────
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
@@ -83,10 +85,10 @@ services:
       - "9899:9899"
     environment:
       NODE_BRIDGE_PORT: "9899"
-      BACKEND_URL: http://backend:9899
+      BACKEND_URL: http://backend:8000
       WEATHER_URL: http://backend:8001
-      GATEWAY_URL: http://gateway:9899
-      SOVEREIGN_API_URL: http://backend:9899/api/ai
+      GATEWAY_URL: http://gateway:9898
+      SOVEREIGN_API_URL: http://backend:8000/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
     depends_on:
@@ -197,7 +199,7 @@ services:
       - redis
 
   # ── Python multi-agent gateway (internal port 9898) ───────────────────────
-  # External traffic still enters through node-bridge on port 9898.
+  # Python is the primary backend. Node-bridge (9899) is backup only.
   gateway:
     build:
       context: .

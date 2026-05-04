@@ -21,7 +21,7 @@ os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 
 # ── Schema tests ─────────────────────────────────────────────────────
 
-from backend.app.schemas.user import (
+from app.schemas.user import (
     UserStatus,
     UserStatusUpdate,
     UserStatusResponse,
@@ -110,7 +110,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base
 from app.models.user import User as UserModel
-from backend.app.services.user_service import update_user_status
+from app.services.user_service import update_user_status
 from app.core.security import get_password_hash
 
 

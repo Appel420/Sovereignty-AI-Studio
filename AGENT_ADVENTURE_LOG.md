@@ -20,17 +20,21 @@ Continue cleanup work in a reversible, auditable way and log what changed.
 
 ## Files moved in prior cleanup
 - `Authorized_Only.html` -> `docs/html/Authorized_Only.html`
-- `SGHv119.html` -> `docs/html/SGHv119.html`
+- `SGHv119.html` -> `docs/html/SGHv119.html` *(planned; kept at root — actively served as main KODER dashboard)*
 - `Enterprise_Audio_Platform.swift` -> `docs/planning/Enterprise_Audio_Platform.md`
 - `WebSocket.swift` -> `docs/planning/WebSocket_Bridge_Notes.md`
 - `Nodejs25changeLog_Node.js` -> `docs/planning/Nodejs25changeLog_Node.md`
 - `Uvicorn.run` -> `scripts/python/uvicorn_9898.py`
-- `Sanatizer.js` -> `scripts/javascript/sanitizer.js`
+- `Sanitizer.js` (was `Sanatizer.js`) -> `scripts/javascript/sanitizer.js` ✅ *(root duplicate removed 2026-05-04; canonical at scripts/javascript/sanitizer.js)*
 - `sg_change_log.py` -> `scripts/python/sg_change_log.py`
 
 ## Adventure note
 No additional code logic was modified in this pass.
 This log was added so future cleanup or refactor work can append entries here instead of relying only on chat history.
+
+## 2026-05-04 Sanitizer & README fix (Ara/Copilot)
+- Removed root `Sanitizer.js` (was misspelled as `Sanatizer.js`; had non-JS junk text appended after export). Canonical, clean version confirmed at `scripts/javascript/sanitizer.js`.
+- Updated `README.md`: fixed port inconsistency (9899 is external; 9897/9898 are internal), updated "Last Updated" date, added `SGHv119.html` and `scripts/javascript/sanitizer.js` to key components and project structure tree.
 
 ## Suggested next adventures
 - consolidate duplicate backend entrypoints
