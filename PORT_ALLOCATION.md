@@ -1,52 +1,51 @@
 # Sovereignty AI Studio - Port Allocation Guide
 
-## Dashboard Architecture - Single Port 9898
+## Dashboard Architecture — Three External Ports
 
 ### Overview
 
-**Sovereignty AI Studio uses a centralized dashboard architecture where ALL external traffic goes through port 9898.** This design provides:
+**Sovereignty AI Studio uses three ports for local operation:**
 
-- **Single Entry Point**: Only one port (9898) needs to be exposed externally
-- **Simplified Security**: Firewall and security rules only need to manage one port
-- **Unified Access**: All services accessible through the dashboard
-- **Organization Standard**: Consistent with organizational requirements
+- **9898** — KODER frontend (SGHv119.html) — browser/iPhone loads the UI here
+- **9899** — Node.js node-bridge — receives WebSocket and HTTP API traffic from the browser
+- **9897** — Python bridge.py — the primary AI/WS backend; node-bridge proxies messages here
 
 ## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    EXTERNAL CLIENTS                          │
-│         (Web Browsers, Mobile Apps — iPhone at 9898)         │
-└────────────────────────┬────────────────────────────────────┘
+│         (Web Browsers, Mobile Apps — iPhone)                 │
+└──────────┬────────────────────────────┬─────────────────────┘
+           │ HTTP — Load UI              │ WebSocket / HTTP API
+           ▼                             ▼
+    ┌──────────────┐              ┌──────────────┐
+    │   PORT 9898  │              │   PORT 9899  │
+    │ KODER frontend│              │  node-bridge │
+    │ (SGHv119.html)│              │  (server.js) │
+    └──────────────┘              └──────┬───────┘
+                                         │ proxy
+                                         ▼
+                                  ┌──────────────┐
+                                  │   PORT 9897  │ ◄─── Python bridge.py
+                                  │   (PRIMARY)  │      AI / TTS / STT
+                                  └──────┬───────┘
+                                         │
+                          ┌──────────────┼──────────────┐
+                          ▼              ▼              ▼
+                   ┌───────────┐  ┌───────────┐  ┌───────────┐
+                   │ FastAPI   │  │  Gateway  │  │   Redis   │
+                   │ Port 8000 │  │ Port 9898 │  │ Port 6379 │
+                   │(Internal) │  │(Internal) │  │(Internal) │
+                   └─────┬─────┘  └───────────┘  └───────────┘
                          │
-                         ▼
-                  ┌──────────────┐
-                  │   PORT 9898  │ ◄─── KODER Frontend (SGHv119.html)
-                  └──────┬───────┘
-                         │ WebSocket
-                         ▼
-                  ┌──────────────┐
-                  │   PORT 9897  │ ◄─── Python bridge.py  (PRIMARY backend)
-                  └──────┬───────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-  ┌───────────┐   ┌───────────┐   ┌───────────┐
-  │ FastAPI   │   │  Gateway  │   │   Redis   │
-  │ Port 8000 │   │ Port 9898 │   │ Port 6379 │
-  │(Internal) │   │(Internal) │   │(Internal) │
-  └─────┬─────┘   └───────────┘   └───────────┘
-        │
-   ┌────┴────┐
-   ▼         ▼
-┌────────┐ ┌────────┐
-│  DB    │ │        │
-│ :5432  │ │        │
-│(Int)   │ │        │
-└────────┘ └────────┘
-
-  PORT 9899 — Node.js node-bridge (BACKUP proxy only)
+                    ┌────┴────┐
+                    ▼         ▼
+                 ┌────────┐ ┌────────┐
+                 │  DB    │ │        │
+                 │ :5432  │ │        │
+                 │(Int)   │ │        │
+                 └────────┘ └────────┘
 ```
 
 ## Port Architecture
@@ -55,9 +54,9 @@
 
 | Port | Service | Role | Access |
 |------|---------|------|--------|
-| **9898** | **KODER Frontend (SGHv119.html)** | **Dashboard — iPhone/browser entry point** | **PUBLIC** |
-| **9897** | **Python bridge.py (WebSocket)** | **PRIMARY backend** | Internal |
-| **9899** | Node.js node-bridge (server.js) | Backup proxy | Internal/Backup |
+| **9898** | **KODER Frontend (SGHv119.html)** | **UI served here — iPhone/browser loads the page** | **PUBLIC** |
+| **9899** | **Node.js node-bridge (server.js)** | **WebSocket + HTTP API gateway (browser connects here)** | **PUBLIC** |
+| **9897** | **Python bridge.py (WebSocket)** | **PRIMARY AI/TTS/STT backend** | Internal |
 
 ### Internal Ports (Docker Network Only)
 
@@ -74,26 +73,27 @@
 
 ## Key Principle
 
-🎯 **Everything connects to port 9898**
+🎯 **UI loads from 9898 — all WS/API traffic goes through 9899 — Python AI backend is on 9897**
 
-- Users connect to: `http://localhost:9898` or `http://your-domain:9898`
-- Frontend accesses API via: `http://localhost:9898/api/v1/*`
-- Weather accessed via: `http://localhost:9898/api/weather*`
-- WebSocket connections: `ws://localhost:9898/ws/alerts`
-- Health checks: `http://localhost:9898/health`
+- Load KODER dashboard: `http://localhost:9898/SGHv119.html`
+- WebSocket bridge: `ws://localhost:9899/`
+- API requests: `http://localhost:9899/api/v1/*`
+- Weather API: `http://localhost:9899/api/weather*`
+- WebSocket alerts: `ws://localhost:9899/ws/alerts`
+- Health check: `http://localhost:9899/health`
 
 ## Service Descriptions
 
-### Port 9898 - KODER Frontend ⭐ (Dashboard entry point)
+### Port 9898 - KODER Frontend ⭐ (UI entry point)
 
-**Purpose**: KODER dashboard (SGHv119.html) — what iPhones and browsers connect to.
+**Purpose**: KODER dashboard (SGHv119.html) — what iPhones and browsers load.
 
-**Technology**: Static HTML dashboard (SGHv119.html)
+**Technology**: Static HTML dashboard served by `python3 -m http.server` (bound to 127.0.0.1)
 
 **Features**:
-- Primary dashboard served to all clients
-- Connects to Python bridge.py WebSocket on port 9897
-- Node-bridge (9899) available as backup
+- Primary dashboard HTML served to all clients
+- Browser then connects WebSocket and HTTP API to node-bridge on port **9899**
+- node-bridge proxies AI/TTS/STT messages to Python bridge.py on port **9897**
 
 ### Port 9897 - Python bridge.py ⭐ (PRIMARY backend)
 
@@ -107,15 +107,16 @@
 - Request logging
 
 **Access URLs**:
-- Main Dashboard: `http://localhost:9898`
-- Health Check: `http://localhost:9898/health`
-- API Gateway: `http://localhost:9898/api/v1/*`
-- Weather API: `http://localhost:9898/api/weather*`
-- WebSocket: `ws://localhost:9898/ws/alerts`
+- Load UI: `http://localhost:9898/SGHv119.html`
+- WebSocket bridge: `ws://localhost:9899/`
+- Health Check: `http://localhost:9899/health`
+- API Gateway: `http://localhost:9899/api/v1/*`
+- Weather API: `http://localhost:9899/api/weather*`
+- WebSocket alerts: `ws://localhost:9899/ws/alerts`
 
 **Environment Variables**:
 ```bash
-NODE_BRIDGE_PORT=9898
+NODE_BRIDGE_PORT=9899
 BACKEND_URL=http://backend:8000    # Internal Docker network
 WEATHER_URL=http://backend:8001    # Internal Docker network
 CORS_ORIGIN=http://localhost:9898
@@ -125,7 +126,7 @@ CORS_ORIGIN=http://localhost:9898
 
 **Purpose**: Primary REST API backend (Internal only)
 
-**Access**: Only through dashboard at `http://localhost:9898/api/v1/*`
+**Access**: Only through node-bridge at `http://localhost:9899/api/v1/*`
 
 **Direct Access**: Not exposed externally in Docker mode
 
@@ -133,7 +134,7 @@ CORS_ORIGIN=http://localhost:9898
 
 **Purpose**: Weather API service (Internal only)
 
-**Access**: Only through dashboard at `http://localhost:9898/api/weather*`
+**Access**: Only through node-bridge at `http://localhost:9899/api/weather*`
 
 **Direct Access**: Not exposed externally in Docker mode
 
@@ -151,7 +152,7 @@ File: `docker-compose.yml`
 services:
   node-bridge:
     ports:
-      - "9898:9898"  # ONLY external port
+      - "9899:9899"  # WS + API proxy
     environment:
       - BACKEND_URL=http://backend:8000
       - WEATHER_URL=http://backend:8001
@@ -170,16 +171,15 @@ services:
 File: `.env`
 
 ```bash
-# Dashboard - external facing
-NODE_BRIDGE_PORT=9898
-
-# Internal services
+# Port assignments
+NODE_BRIDGE_PORT=9899
+SG_PORT=9897
 BACKEND_PORT=8000
 WEATHER_PORT=8001
 
-# Access everything through dashboard
-BACKEND_URL=http://localhost:9898/api/v1
-WEATHER_URL=http://localhost:9898/api/weather
+# Internal service URLs (used by node-bridge → backend)
+BACKEND_URL=http://localhost:8000
+WEATHER_URL=http://localhost:8001
 ```
 
 ### Frontend Configuration
@@ -187,70 +187,75 @@ WEATHER_URL=http://localhost:9898/api/weather
 File: `frontend/.env`
 
 ```bash
-# Frontend connects ONLY to dashboard
-REACT_APP_API_URL=http://localhost:9898/api/v1
-REACT_APP_WS_URL=ws://localhost:9898
+# Frontend (KODER) is served at 9898; API/WS traffic targets node-bridge on 9899
+REACT_APP_API_URL=http://localhost:9899/api/v1
+REACT_APP_WS_URL=ws://localhost:9899
 ```
 
 ## Running Services
 
-### Start with Docker (Recommended)
+### Start with START_SERVER.sh (Recommended for local)
 
 ```bash
-# Everything accessible through port 9898
-docker-compose up
+./START_SERVER.sh
 
-# Access dashboard
-open http://localhost:9898
+# Load KODER dashboard
+open http://localhost:9898/SGHv119.html
+
+# API / WS traffic (browser → node-bridge)
+curl http://localhost:9899/health
 ```
 
-### Start with Scripts
+### Start with Docker
 
 ```bash
-# Start all services with dashboard on 9898
-./start-all.sh
+docker-compose up
 
-# Everything routes through dashboard
-curl http://localhost:9898/health
-curl http://localhost:9898/api/v1/mobile/status
-curl http://localhost:9898/api/weather?city=London
+# KODER frontend is served separately (non-Docker):
+python3 -m http.server 9898 --bind 127.0.0.1 --directory .
+open http://localhost:9898/SGHv119.html
+
+# node-bridge WS/API:
+curl http://localhost:9899/health
 ```
 
 ## Testing Connectivity
 
-All testing goes through port 9898:
-
 ```bash
-# Dashboard health
-curl http://localhost:9898/health
+# node-bridge health
+curl http://localhost:9899/health
 
-# Backend API (via dashboard)
-curl http://localhost:9898/api/v1/mobile/status
+# Backend API (via node-bridge)
+curl http://localhost:9899/api/v1/mobile/status
 
-# Weather API (via dashboard)
-curl http://localhost:9898/api/weather?city=London
+# Weather API (via node-bridge)
+curl http://localhost:9899/api/weather?city=London
 
-# Aggregated health
-curl http://localhost:9898/api/bridge/status
+# Aggregated bridge health
+curl http://localhost:9899/api/bridge/status
 
-# WebSocket connection
-wscat -c ws://localhost:9898/ws/alerts
+# WebSocket connection (node-bridge)
+wscat -c ws://localhost:9899/ws/alerts
+
+# Load KODER frontend
+curl http://localhost:9898/SGHv119.html
 ```
 
 ## Firewall Configuration
 
-Only one port needs to be open:
+Two ports need to be open externally:
 
 ```bash
-# Allow port 9898 (dashboard)
+# Allow KODER frontend
 sudo ufw allow 9898/tcp
 
-# That's it! No other ports need external access
+# Allow node-bridge (WS + API)
+sudo ufw allow 9899/tcp
 ```
 
 ## Production Deployment
 
-### Single Port Exposure
+### Reverse Proxy
 
 ```nginx
 # Nginx reverse proxy
@@ -258,10 +263,24 @@ server {
     listen 80;
     server_name your-domain.com;
 
+    # Serve KODER static files
     location / {
         proxy_pass http://localhost:9898;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Proxy WS + API to node-bridge
+    location /api/ {
+        proxy_pass http://localhost:9899;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+    location /ws {
+        proxy_pass http://localhost:9899;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }
 }
 ```
@@ -272,47 +291,53 @@ server {
 services:
   node-bridge:
     ports:
-      - "9898:9898"  # Only port exposed to host
+      - "9899:9899"  # WS + API proxy exposed to host
     environment:
       - BACKEND_URL=http://backend:8000
       - WEATHER_URL=http://backend:8001
     restart: always
 ```
 
-## Benefits of Dashboard Architecture
+## Benefits of Three-Port Architecture
 
-1. **Simplified Security**: Only one port to secure and monitor
-2. **Unified Access Control**: All authentication/authorization at one point
-3. **Easy Load Balancing**: Single entry point for traffic distribution
-4. **Simplified Firewall Rules**: One rule instead of many
-5. **Consistent API Gateway**: All requests logged and monitored in one place
-6. **Organizational Compliance**: Meets requirements for centralized access
+1. **Clear separation**: UI (9898), API/WS proxy (9899), AI backend (9897)
+2. **Unified API gateway**: All REST + WS from the browser go through node-bridge on 9899
+3. **Frontend isolation**: Static file server on 9898 is independent of backend services
+4. **Python-first AI**: bridge.py on 9897 is the primary AI/TTS/STT handler
 
 ## Troubleshooting
 
-### Can't Connect to Services
-
-**Solution**: Always use port 9898
+### Can't load KODER dashboard
 
 ```bash
-# ✅ Correct
-curl http://localhost:9898/api/v1/health
-curl http://localhost:9898/api/weather?city=London
+# ✅ Correct — load the HTML from the static file server
+open http://localhost:9898/SGHv119.html
 
-# ❌ Wrong (these ports not exposed externally)
-curl http://localhost:8000/health
-curl http://localhost:8001/api/weather
+# ❌ Wrong — node-bridge doesn't serve static assets
+open http://localhost:9899
 ```
 
-### Port 9898 Already in Use
+### API or WebSocket not connecting
 
 ```bash
-# Find what's using port 9898
-lsof -i :9898
-netstat -tunlp | grep 9898
+# ✅ Correct — API + WS go to node-bridge
+curl http://localhost:9899/health
+wscat -c ws://localhost:9899
 
-# Stop the conflicting service
+# ❌ Wrong — 9898 is only the static file server
+curl http://localhost:9898/health
+```
+
+### Port already in use
+
+```bash
+# Find and stop what's using the port
+lsof -i :9898
+lsof -i :9899
+lsof -i :9897
 kill -9 $(lsof -t -i:9898)
+kill -9 $(lsof -t -i:9899)
+kill -9 $(lsof -t -i:9897)
 ```
 
 ### Docker Services Not Accessible
@@ -336,32 +361,28 @@ Services should use Docker service names (e.g., `http://backend:8000`, not `http
 
 ## Migration Guide
 
-### From Multi-Port to Dashboard Architecture
+### From Old 9898-only Architecture to Three-Port Architecture
 
-If you have existing code connecting to multiple ports:
+If you have existing code pointing everything at 9898:
 
 ```javascript
-// OLD - Multiple ports
-const backendUrl = 'http://localhost:8000/api/v1';
-const weatherUrl = 'http://localhost:8001/api/weather';
-
-// NEW - Dashboard only
+// OLD - everything through 9898
 const backendUrl = 'http://localhost:9898/api/v1';
-const weatherUrl = 'http://localhost:9898/api/weather';
+const wsUrl = 'ws://localhost:9898';
+
+// NEW - UI from 9898, API/WS from node-bridge on 9899
+const uiUrl   = 'http://localhost:9898/SGHv119.html';  // load KODER
+const apiUrl  = 'http://localhost:9899/api/v1';         // API calls
+const wsUrl   = 'ws://localhost:9899';                  // WebSocket
 ```
 
 ### Environment Variables
 
-Update your `.env` files:
-
 ```bash
-# OLD
-BACKEND_URL=http://localhost:8000
-WEATHER_URL=http://localhost:8001
-
-# NEW - Everything through dashboard
-BACKEND_URL=http://localhost:9898/api/v1
-WEATHER_URL=http://localhost:9898/api/weather
+# Current correct values
+NODE_BRIDGE_PORT=9899        # node-bridge WS + API proxy
+SG_PORT=9897                 # Python bridge.py AI backend
+BACKEND_URL=http://localhost:8000   # direct backend (internal)
 ```
 
 ## References
@@ -369,16 +390,17 @@ WEATHER_URL=http://localhost:9898/api/weather
 - Docker Compose: `/docker-compose.yml`
 - Environment Template: `/.env.example`
 - Node Bridge: `/node-bridge/server.js`
-- Startup Script: `/start-all.sh`
+- Startup Script: `/START_SERVER.sh`
 
 ## Summary
 
-🎯 **One Port to Rule Them All: 9898**
+🎯 **Three ports, three roles:**
 
-- External clients connect only to port 9898
-- All services accessible through the dashboard
-- Internal services isolated on Docker network
-- Simplified security and management
-- Compliant with organizational standards
+| Port | What you do with it |
+|------|---------------------|
+| **9898** | Open this in your browser to load the KODER dashboard |
+| **9899** | Browser connects here for all WebSocket and API traffic |
+| **9897** | Python AI backend — node-bridge proxies to here |
 
-**Remember**: Port 9898 is your dashboard. Everything goes through it.
+- Internal services (FastAPI, DB, Redis) stay on the Docker network only.
+- bridge.py and the static file server are started by `START_SERVER.sh` (non-Docker).

@@ -2,9 +2,9 @@ version: '3.9'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sovereignty AI Studio — Self-Hosted Docker Stack
-# PRIMARY: Python bridge.py on port 9897 (main backend WebSocket).
-# FRONTEND: KODER (SGHv119.html) served on port 9898.
-# BACKUP:   Node.js node-bridge on port 9899 (fallback proxy only).
+# FRONTEND: KODER (SGHv119.html) served on port 9898 (non-Docker static server).
+# WS/API:   Node.js node-bridge on port 9899 (browser WebSocket + HTTP API proxy).
+# PYTHON:   bridge.py on port 9897 is started separately (non-Docker, via START_SERVER.sh).
 # Backend, database, and Redis stay on the internal Docker network.
 # ─────────────────────────────────────────────────────────────────────────────
 

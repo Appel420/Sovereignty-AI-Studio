@@ -25,28 +25,32 @@ No external services, third-party models, or internet connectivity are required 
 
 ---
 
-## Architecture (Single External Port)
+## Architecture
 
 ```
-Port 9899 (ONLY external port)
-     │
-     ▼
-node-bridge (WebSocket + HTTP gateway)
-     │
-     ▼
-backend (FastAPI on 8000, internal)
-     │
- ┌───┴───────────────┐
- ▼                   ▼
-PostgreSQL (5432)   Redis (6379)
+Browser / iPhone
+   │
+   ├─── HTTP GET http://localhost:9898/SGHv119.html  ──► KODER frontend (static server)
+   │
+   └─── WebSocket/API http://localhost:9899/...  ──► node-bridge (gateway)
+                                                          │ proxy
+                                                          ▼
+                                                   Python bridge.py (9897)
+                                                          │
+                                                          ▼
+                                                   backend (FastAPI 8000, internal)
+                                                       ┌──┴──────────────┐
+                                                       ▼                 ▼
+                                               PostgreSQL (5432)   Redis (6379)
 ```
 
-All host traffic enters through **port 9899** (node-bridge). Backend, database, and Redis remain on the internal Docker network. Python bridge (9897) is internal only. KODER frontend is served at port 9898 (static file server, non-Docker).
+The UI is served at **port 9898** (static file server, non-Docker). All WebSocket and HTTP API traffic from the browser goes to **port 9899** (node-bridge), which proxies AI/TTS/memory/STT messages to the Python bridge at **port 9897**. Backend, database, and Redis remain on the internal Docker network.
 
 | Service | Port | Notes |
 |---------|------|-------|
-| node-bridge (gateway) | 9899 | External port (both Docker and non-Docker) |
-| Python bridge (bridge.py) | 9897 | Internal WebSocket relay to AI backends |
+| KODER frontend (SGHv119.html) | 9898 | Static file server (non-Docker) |
+| node-bridge (gateway) | 9899 | WebSocket + HTTP API proxy |
+| Python bridge (bridge.py) | 9897 | Primary AI/WS backend |
 | backend (FastAPI) | internal | Routed via node-bridge |
 | PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
 | Redis 7 | internal | Cache + session store |
