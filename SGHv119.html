@@ -1995,7 +1995,7 @@ const BRIDGE = {
         if(ST && ST.cicd) ST.cicd.status = 'online';
         self.updateUI('PORT 9899 ✓ LIVE','var(--gn)');
         self.log('ok','Bridge connected: '+wsUrl);
-        addAudit('CICD_WS','WebSocket connected to port 9898');
+        addAudit('CICD_WS','WebSocket connected to port 9899');
         toast('⚡ Bridge LIVE — Port 9899','ok');
         if(self.polling){ clearInterval(self.polling); self.polling=null; }
         /* Sync status widgets */
@@ -2069,7 +2069,7 @@ const BRIDGE = {
 
   async pollHealth(){
     try{
-      // Try 9898/health (unified server)
+      // Try 9899/health (node-bridge backup)
       let r;
       try { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
       catch(e2) { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
@@ -2083,7 +2083,7 @@ const BRIDGE = {
       } else {
         this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'error';
         this.updateUI('PORT 9899 ERR','var(--rd)');
-        this.log('err','HTTP '+r.status+' from port 9898');
+        this.log('err','HTTP '+r.status+' from port 9899');
       }
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
@@ -2261,7 +2261,7 @@ var BridgeCFG = {
     custom:   { host:'',             port:0    }
   },
   wsURL: function() {
-    /* 9898 HARDLOCKED — loopback never uses wss:// */
+    /* 9899 node-bridge — loopback never uses wss:// */
     return 'ws://127.0.0.1:9899';
   },
   save: function() {
@@ -3158,7 +3158,7 @@ window.renderBridgeConfig = function() {
     '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:8px">' +
     '<input id="cfgHost" placeholder="host (e.g. 192.168.1.5)" value="' + BridgeCFG.host + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
     '<input id="cfgPort" type="number" placeholder="port" value="' + BridgeCFG.port + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
-    '<button class="btn-p" style="font-size:8px;padding:7px 10px" onclick="BridgeCFG.host=document.getElementById(\'cfgHost\').value;BridgeCFG.port=parseInt(document.getElementById(\'cfgPort\').value)||9898;BridgeCFG.save();PiperTTS.connect();toast(\'Connecting...\',\'\')">Connect</button>' +
+    '<button class="btn-p" style="font-size:8px;padding:7px 10px" onclick="BridgeCFG.host=document.getElementById(\'cfgHost\').value;BridgeCFG.port=parseInt(document.getElementById(\'cfgPort\').value)||9899;BridgeCFG.save();PiperTTS.connect();toast(\'Connecting...\',\'\')">Connect</button>' +
     '</div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
     '<select id="cfgProto" style="padding:7px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="BridgeCFG.protocol=this.value;BridgeCFG.save()">' +

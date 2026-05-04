@@ -85,10 +85,10 @@ services:
       - "9899:9899"
     environment:
       NODE_BRIDGE_PORT: "9899"
-      BACKEND_URL: http://backend:9898
+      BACKEND_URL: http://backend:8000
       WEATHER_URL: http://backend:8001
       GATEWAY_URL: http://gateway:9898
-      SOVEREIGN_API_URL: http://backend:9898/api/ai
+      SOVEREIGN_API_URL: http://backend:8000/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
     depends_on:
