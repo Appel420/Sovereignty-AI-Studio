@@ -3909,14 +3909,14 @@ try {
 /* ── Config ── */
 var _CFG_KEY = 'sg_agent_cfg';
 var CFG = (function(){
-  /* 9898 IS THE ONLY PORT. HARDLOCKED. */
+  /* 9899 is the node-bridge port (backup proxy). */
   var D = {autoRepair:true,logLevel:'info',bridgeRelay:true,repairThrottleMs:500,
     alertThreshold:5,sealIntervalMs:30000,patchSandbox:true,maxRepairLog:200,
     maxErrorLog:500,bridgeWsUrl:'ws://127.0.0.1:9899',bridgeHttpUrl:'http://127.0.0.1:9899/agent'};
   try {
     var saved = JSON.parse(localStorage.getItem(_CFG_KEY)||'{}');
     if (saved) {
-      /* Hardlock: loopback always uses ws:// on 9898 regardless of what localStorage has */
+      /* Hardlock: loopback always uses ws:// on 9899 (node-bridge). */
       saved.bridgeWsUrl = 'ws://127.0.0.1:9899';
       saved.bridgeHttpUrl = 'http://127.0.0.1:9899/agent';
     }
@@ -13861,7 +13861,7 @@ if(out)out.innerHTML='<div class="card"><div class="card-title">⚖️ Council V
 audit('COUNCIL_VOTE',{q:q.slice(0,50)});
 }).catch(function(e){if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Bridge offline: '+e.message+'</div></div>';});
 } else {
-if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start bridge at localhost:9898</div></div>';
+if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start node-bridge at localhost:9899</div></div>';
 }
 }
 
@@ -13869,13 +13869,13 @@ function runEdu(){
 var q=gi('eduQ')&&gi('eduQ').value.trim();if(!q){toast('Enter a question','err');return;}
 var subj=gi('eduSubj')&&gi('eduSubj').value||'General';
 var o=gi('eduOut');if(!o)return;o.style.display='block';o.textContent='Querying GrokEDU...';
-fetch('http://127.0.0.1:9899/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start server at localhost:9898 for live GrokEDU responses.';});
+fetch('http://127.0.0.1:9899/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at localhost:9899 for live GrokEDU responses.';});
 }
 
 function runMed(){
 var q=gi('medQ')&&gi('medQ').value.trim();if(!q){toast('Enter a medical question','err');return;}
 var o=gi('medOut');if(!o)return;o.style.display='block';o.textContent='Querying MedEd...';
-fetch('http://127.0.0.1:9899/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start server at localhost:9898 for live MedEd responses.';});
+fetch('http://127.0.0.1:9899/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at localhost:9899 for live MedEd responses.';});
 }
 
 function genCards(){
