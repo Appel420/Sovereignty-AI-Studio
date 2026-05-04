@@ -16,42 +16,48 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    EXTERNAL CLIENTS                          │
-│         (Web Browsers, Mobile Apps, CLI Tools)               │
+│         (Web Browsers, Mobile Apps — iPhone at 9898)         │
 └────────────────────────┬────────────────────────────────────┘
                          │
-                         │ ALL TRAFFIC
                          ▼
                   ┌──────────────┐
-                  │   PORT 9898  │ ◄─── DASHBOARD (Only External Port)
-                  │  Node Bridge │
-                  │   (Gateway)  │
+                  │   PORT 9898  │ ◄─── KODER Frontend (SGHv119.html)
+                  └──────┬───────┘
+                         │ WebSocket
+                         ▼
+                  ┌──────────────┐
+                  │   PORT 9897  │ ◄─── Python bridge.py  (PRIMARY backend)
                   └──────┬───────┘
                          │
-          ┌──────────────┼──────────────┐
-          │              │              │
-          ▼              ▼              ▼
-   ┌───────────┐  ┌───────────┐  ┌───────────┐
-   │ Backend   │  │  Weather  │  │   Other   │
-   │ Port 8000 │  │ Port 8001 │  │ Services  │
-   │(Internal) │  │(Internal) │  │(Internal) │
-   └─────┬─────┘  └───────────┘  └───────────┘
-         │
-    ┌────┴────┐
-    ▼         ▼
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+  ┌───────────┐   ┌───────────┐   ┌───────────┐
+  │ FastAPI   │   │  Gateway  │   │   Redis   │
+  │ Port 8000 │   │ Port 9898 │   │ Port 6379 │
+  │(Internal) │   │(Internal) │   │(Internal) │
+  └─────┬─────┘   └───────────┘   └───────────┘
+        │
+   ┌────┴────┐
+   ▼         ▼
 ┌────────┐ ┌────────┐
-│  DB    │ │ Redis  │
-│ :5432  │ │ :6379  │
-│(Int)   │ │ (Int)  │
+│  DB    │ │        │
+│ :5432  │ │        │
+│(Int)   │ │        │
 └────────┘ └────────┘
+
+  PORT 9899 — Node.js node-bridge (BACKUP proxy only)
 ```
 
-## Port Allocation
+## Port Architecture
 
-### External Port (Public Facing)
+### Port Assignments
 
-| Port | Service | Purpose | Access |
-|------|---------|---------|--------|
-| **9898** | **Dashboard/Node Bridge** | **All external traffic** | **PUBLIC** |
+| Port | Service | Role | Access |
+|------|---------|------|--------|
+| **9898** | **KODER Frontend (SGHv119.html)** | **Dashboard — iPhone/browser entry point** | **PUBLIC** |
+| **9897** | **Python bridge.py (WebSocket)** | **PRIMARY backend** | Internal |
+| **9899** | Node.js node-bridge (server.js) | Backup proxy | Internal/Backup |
 
 ### Internal Ports (Docker Network Only)
 
@@ -78,16 +84,24 @@
 
 ## Service Descriptions
 
-### Port 9898 - Dashboard/Node Bridge ⭐ (ONLY EXTERNAL PORT)
+### Port 9898 - KODER Frontend ⭐ (Dashboard entry point)
 
-**Purpose**: Centralized dashboard and API gateway - single entry point for all external traffic
+**Purpose**: KODER dashboard (SGHv119.html) — what iPhones and browsers connect to.
 
-**Technology**: Node.js Express + WebSocket
+**Technology**: Static HTML dashboard (SGHv119.html)
 
 **Features**:
-- Proxies `/api/v1/*` to Backend (8000)
-- Proxies `/api/weather*` to Weather (8001)
-- WebSocket at `/ws/alerts`
+- Primary dashboard served to all clients
+- Connects to Python bridge.py WebSocket on port 9897
+- Node-bridge (9899) available as backup
+
+### Port 9897 - Python bridge.py ⭐ (PRIMARY backend)
+
+**Purpose**: Main Python WebSocket backend. Handles AI chat, TTS, memory, STT.
+
+**Technology**: Python asyncio WebSocket server
+
+### Port 9899 - Node.js node-bridge (BACKUP only)
 - Aggregated health at `/api/bridge/status`
 - CORS management
 - Request logging
