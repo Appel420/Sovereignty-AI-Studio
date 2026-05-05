@@ -34,7 +34,6 @@ quart==0.19.9
 Flask==3.0.3
 
 # ── Auth / Security ──────────────────────────────────────────────────────────
-passlib[bcrypt]==1.7.4
 python-multipart==0.0.22
 
 # ── AI / Inference (local only) ──────────────────────────────────────────────
@@ -53,11 +52,7 @@ h11==0.16.0
 
 # ── Utilities ────────────────────────────────────────────────────────────────
 python-dotenv==1.1.0
-< copilot/fix-readme-sanitizer-check
-pydantic[email]==2.7.3
-=======
 pydantic[email]==2.9.0
-> main
 pydantic-settings==2.2.1
 celery==5.4.0
 boto3==1.34.84
@@ -75,3 +70,82 @@ pytest-asyncio==0.23.8
 # ── Multi-agent & observability ───────────────────────────────────────────────
 aiohttp==3.13.3
 email-validator==2.2.0
+
+# ── Extended Package Ecosystem ───────────────────────────────────────────────
+aagora
+ai-model-picker
+aip-identity
+aitop
+allen-powerplatform-client
+anvid
+anysite-cli
+axiron
+blocksolver
+bmk
+brainstem
+check-duplicate-variables
+cognautic-cli
+connector-py
+connector2
+dalexor
+depkeeper
+devoc-sdk
+elizaos-plugin-xai
+event-isc
+flanes
+free-grok
+gchat
+gha-utils
+grok-cli-mcp
+grok-image-generator
+grok-video-generator
+groktest
+HAP-python-pycryptodome
+humanbound-cli
+Ilm-grok
+iphone-backup-decrypt
+Is-converter
+late-sdk
+lexis
+megrok.strictrequire
+memory
+metorial-xai
+mpra
+mpytool
+multiple
+nlweb-core
+novalang
+one-click-ai-spark
+onedb
+open-terminal
+openintent
+piviz-3d
+progressor-lib
+py-browser-automation
+pydocket
+pyhabitat
+pyimagedl
+pyp
+pyzbrowser
+qodacode
+quorum-cli
+quyaml
+runware
+sanna
+sc-oa
+scalexi-llm
+serverpy
+sirine
+solve
+speechmatics-voice
+subtidal
+synpi
+tapkit
+taxgrok
+usefy
+video-cli
+vllm-sr
+wagtail-thumbnail-choice-block
+webex-message-handler
+xai-review-oleg-fork
+xstate-statemachine
