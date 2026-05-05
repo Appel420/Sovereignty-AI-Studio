@@ -60,7 +60,7 @@ class MemoryWatcher:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                log.debug("MemoryWatcher._run error: %s", exc)
+                log.debug("Error during memory event polling: %s", exc)
             await asyncio.sleep(self._interval)
 
     async def _poll(self) -> None:

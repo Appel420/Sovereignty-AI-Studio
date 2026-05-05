@@ -62,14 +62,21 @@ class MemoryStore:
     def __init__(self, db_path: pathlib.Path = _DB_PATH) -> None:
         self._db_path = db_path
         self._lock = asyncio.Lock()
+        self._initialized: bool = False
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
+    async def ensure_initialized(self) -> None:
+        """Initialize the store if it hasn't been initialised yet."""
+        if not self._initialized:
+            await self.init()
+
     async def init(self) -> None:
         """Create tables if they don't exist."""
         await asyncio.get_event_loop().run_in_executor(None, self._init_sync)
+        self._initialized = True
         log.info("MemoryStore initialised at %s", self._db_path)
 
     def _init_sync(self) -> None:

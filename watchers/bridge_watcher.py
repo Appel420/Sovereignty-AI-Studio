@@ -71,7 +71,7 @@ class BridgeWatcher:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                log.debug("BridgeWatcher._run error: %s", exc)
+                log.debug("Error during bridge health check: %s", exc)
             await asyncio.sleep(self._interval)
 
     async def _check(self) -> None:

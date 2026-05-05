@@ -82,7 +82,7 @@ class EventBus:
                     await result
                 count += 1
             except Exception as exc:
-                log.warning("Handler %s raised: %s", handler, exc)
+                log.warning("Handler %s raised exception for event type %s: %s", handler, event_type, exc)
 
         return count
 

@@ -57,8 +57,9 @@ class MemoryHydrator:
         # 6. KV snapshot (non-sensitive keys)
         kv_keys = await store.keys()
         kv_snap: dict[str, Any] = {}
+        _sensitive = ("secret", "key", "password", "token", "api_key", "apikey", "credential")
         for k in kv_keys:
-            if not any(skip in k for skip in ("secret", "key", "password", "token")):
+            if not any(skip in k.lower() for skip in _sensitive):
                 kv_snap[k] = await store.get(k)
 
         payload: dict[str, Any] = {

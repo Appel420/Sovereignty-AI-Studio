@@ -205,9 +205,8 @@ class BridgeServer:
         # Persist user message to memory (best-effort: init if not yet done)
         if self.hydrator:
             try:
-                if self.memory and not getattr(self.memory, '_initialised', False):
-                    await self.memory.init()
-                    self.memory._initialised = True
+                if self.memory:
+                    await self.memory.ensure_initialized()
                 await self.hydrator.persist_message(session, "user", msg, agent)
             except Exception as e:
                 log.debug("Memory persist (user) skipped: %s", e)
@@ -405,7 +404,6 @@ class BridgeServer:
         if self.memory:
             try:
                 await self.memory.init()
-                self.memory._initialised = True
                 log.info("Memory store initialised")
             except Exception as e:
                 log.warning("Memory init failed: %s", e)
