@@ -74,6 +74,9 @@ SUMMARY_LOOKBACK = int(os.environ.get("SUMMARY_LOOKBACK", "6"))
 # Max conversation turns kept in the in-memory list (memory.store is unbounded).
 MAX_IN_MEMORY_TURNS = int(os.environ.get("MAX_IN_MEMORY_TURNS", "100"))
 
+# Max characters of the previous response shown in a reframe notice.
+REFRAME_PREVIEW_LENGTH = 300
+
 
 # ---------------------------------------------------------------------------
 # Optional: persistent memory store
@@ -160,9 +163,9 @@ class AIAssistant:
         self.context_summary: str = ""
 
         # Persistent store (may be None if memory module is unavailable).
-        MemoryStore, MemoryHydrator = _try_import_memory()
-        self._store = MemoryStore() if MemoryStore else None
-        self._hydrator = MemoryHydrator(self._store) if (MemoryHydrator and self._store) else None
+        store_cls, hydrator_cls = _try_import_memory()
+        self._store = store_cls() if store_cls else None
+        self._hydrator = hydrator_cls(self._store) if (hydrator_cls and self._store) else None
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -261,7 +264,7 @@ class AIAssistant:
                 "",
                 "IMPORTANT: Your previous response may have been repetitive. "
                 "Approach this from a completely different angle. "
-                f"Previous attempt: {previous_response[:300]}",
+                f"Previous attempt: {previous_response[:REFRAME_PREVIEW_LENGTH]}",
             ]
 
         system_prompt = "\n".join(system_parts).strip()
@@ -309,13 +312,11 @@ class AIAssistant:
                 return await self._store.get_history(self.session, limit=limit)
             except Exception as exc:
                 log.warning("Could not fetch history from store: %s", exc)
-        # Fall back to in-memory history
+        # Fall back to in-memory history — interleave user/assistant in turn order
         return [
-            {"role": "user", "content": u, "agent": self.agent, "ts": 0}
-            for u, _ in self._history
-        ] + [
-            {"role": "assistant", "content": a, "agent": self.agent, "ts": 0}
-            for _, a in self._history
+            {"role": role, "content": msg, "agent": self.agent, "ts": 0}
+            for u, a in self._history
+            for role, msg in (("user", u), ("assistant", a))
         ]
 
     async def clear_history(self) -> None:
