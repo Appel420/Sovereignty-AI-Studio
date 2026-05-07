@@ -401,7 +401,8 @@ wss.on('connection', (ws) => {
 const PY_BRIDGE_MSG_TYPES = new Set([
   'ai_chat', 'ai_code_review',
   'speak', 'piper_speak', 'speak_alert',
-  'piper_status', 'memory_save', 'memory_get',
+  'piper_status', 'memory_save', 'memory_get', 'memory_query',
+  'token_op',
   'set_model', 'gh_exchange',
   'stt_start', 'stt_stop',
   'collab_event', 'planet_task',
