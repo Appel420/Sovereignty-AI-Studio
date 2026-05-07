@@ -400,6 +400,7 @@ wss.on('connection', (ws) => {
 // Message types that belong to the Python bridge (bridge.py)
 const PY_BRIDGE_MSG_TYPES = new Set([
   'ai_chat', 'ai_code_review',
+  'agent_query',
   'speak', 'piper_speak', 'speak_alert',
   'piper_status', 'memory_save', 'memory_get', 'memory_query',
   'token_op',
@@ -501,6 +502,38 @@ wssRoot.on('connection', (browserWs) => {
       }
       if (msg.cmd === 'EXEC') {
         handleWsExec(msg, browserWs);
+        return;
+      }
+      if (msg.type === 'agent_query') {
+        const messageValue = typeof msg.message === 'string' ? msg.message : undefined;
+        const promptValue = typeof msg.prompt === 'string' ? msg.prompt : undefined;
+        const summarize = (value) => {
+          if (typeof value !== 'string') return '[non-string]';
+          return value.length > 120 ? `${value.slice(0, 117)}...` : value;
+        };
+        if (messageValue && promptValue && messageValue !== promptValue) {
+          console.warn(
+            '[ws/root] agent_query has both message and prompt with different values; preferring message',
+            { message: summarize(messageValue), prompt: summarize(promptValue) },
+          );
+        }
+        const selectedMessage = (messageValue ?? promptValue ?? '').trim();
+        if (!selectedMessage) {
+          console.warn('[ws/root] agent_query missing non-empty message/prompt; dropping request');
+          browserWs.send(JSON.stringify({
+            type: 'error',
+            error: 'agent_query requires a non-empty message or prompt',
+            timestamp: new Date().toISOString(),
+          }));
+          return;
+        }
+        const mapped = {
+          ...msg,
+          type: 'ai_chat',
+          message: selectedMessage,
+          context: msg.context || 'agent_query',
+        };
+        sendToPyBridge(JSON.stringify(mapped));
         return;
       }
       if (PY_BRIDGE_MSG_TYPES.has(msg.type)) {
@@ -1198,7 +1231,26 @@ app.get('/alerts/live', (_req, res) => {
 
 app.post('/error_ping', (req, res) => {
   const { error, source } = req.body || {};
-  if (error) addAlert('err', 'Client Error', `${source || 'dashboard'}: ${error}`, 'error');
+  const safeStringify = (value) => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable error object]';
+    }
+  };
+  const extractErrorMessage = (errorValue) => {
+    if (typeof errorValue === 'string') return errorValue;
+    if (errorValue && typeof errorValue === 'object') return errorValue.message || safeStringify(errorValue);
+    return '';
+  };
+  const extractErrorSource = (errorValue, fallbackSource) => {
+    if (fallbackSource) return fallbackSource;
+    if (errorValue && typeof errorValue === 'object' && errorValue.source) return errorValue.source;
+    return 'dashboard';
+  };
+  const message = extractErrorMessage(error);
+  const sourceLabel = extractErrorSource(error, source);
+  if (message) addAlert('err', 'Client Error', `${sourceLabel}: ${message}`, 'error');
   res.json({ received: true });
 });
 

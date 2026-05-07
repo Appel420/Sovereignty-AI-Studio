@@ -30,6 +30,7 @@ prometheus-client==0.21.0
 # ── Web Frameworks ────────────────────────────────────────────────────────────
 fastapi==0.135.3
 uvicorn[standard]==0.44.0
+hypercorn==0.17.3
 quart==0.19.9
 Flask==3.0.3
 

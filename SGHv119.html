@@ -50,7 +50,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--t0);
 
 /* BOOT */
 #bootScreen{align-items:center;justify-content:center;gap:28px;padding:40px 24px;background:var(--bg)}
-#bootScreen::before{content:””;position:absolute;inset:0;pointer-events:none;
+#bootScreen::before{content:"";position:absolute;inset:0;pointer-events:none;
 background-image:linear-gradient(rgba(0,255,200,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.03) 1px,transparent 1px);
 background-size:36px 36px;mask-image:radial-gradient(ellipse 65% 65% at 50% 50%,#000,transparent)}
 .bt-emblem{position:relative;z-index:1;width:68px;height:68px;border-radius:var(--r2);
@@ -89,8 +89,8 @@ box-shadow:0 0 40px rgba(0,255,200,.18);animation:embpulse 3s ease-in-out infini
 
 /* ROLE CARD */
 .rc{position:relative;overflow:hidden;background:var(--bg2);border:1px solid var(--wire);border-radius:var(--r2);padding:13px 12px 11px;cursor:pointer;min-height:120px;display:flex;flex-direction:column;transition:transform .13s,border-color .13s,box-shadow .13s,background .13s;user-select:none;touch-action:manipulation}
-.rc::before{content:””;position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--rc,var(--acid));opacity:.7}
-.rc::after{content:””;position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rc,var(--acid)) 40%,transparent);opacity:.35}
+.rc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--rc,var(--acid));opacity:.7}
+.rc::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rc,var(--acid)) 40%,transparent);opacity:.35}
 .rc:hover{transform:translateY(-2px);border-color:var(--rc,var(--acid));background:var(--bg3);box-shadow:0 6px 24px rgba(0,0,0,.5)}
 .rc:active{transform:none}
 .rc-lv{position:absolute;top:7px;right:7px;font-family:var(--mono);font-size:7px;font-weight:700;color:var(--rc,var(--acid));border:1px solid;border-radius:2px;padding:1px 5px}
@@ -101,11 +101,11 @@ box-shadow:0 0 40px rgba(0,255,200,.18);animation:embpulse 3s ease-in-out infini
 
 /* AUTH */
 #authScreen{align-items:center;justify-content:center;background:var(--bg)}
-#authScreen::before{content:””;position:absolute;inset:0;pointer-events:none;
+#authScreen::before{content:"";position:absolute;inset:0;pointer-events:none;
 background-image:linear-gradient(rgba(0,255,200,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.02) 1px,transparent 1px);
 background-size:30px 30px;mask-image:radial-gradient(ellipse 55% 55% at 50% 50%,#000,transparent)}
 .auth-box{position:relative;z-index:1;width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--wire);border-radius:var(--r3);padding:26px 22px 22px;margin:16px;box-shadow:var(--sh2)}
-.auth-box::before{content:””;position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--aclr,var(--acid)),var(--plasma));border-radius:var(--r3) var(--r3) 0 0}
+.auth-box::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--aclr,var(--acid)),var(--plasma));border-radius:var(--r3) var(--r3) 0 0}
 .auth-back{display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--wire);color:var(--t2);border-radius:var(--r);padding:6px 11px;font-family:var(--mono);font-size:9px;cursor:pointer;margin-bottom:18px;transition:all .13s;letter-spacing:.5px}
 .auth-back:hover{border-color:var(--acid);color:var(--acid)}
 .auth-role{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--wire);border-radius:var(--r2);padding:13px;margin-bottom:18px}
@@ -761,7 +761,7 @@ var tnow = window.tnow;
     /* ── 5. HTTP fallback — fire-and-forget ── */
     if(!sent){
       try {
-        fetch('http://127.0.0.1:9899/error_ping', {
+        fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9899/error_ping' : 'http://127.0.0.1:9899/error_ping'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -23471,7 +23471,7 @@ _renderDots: function(){
 
   if(wsLive){
     var bridgeDone = false;
-    var payload = {type:'agent_query',agent:agentId,model:agent.model,message:message,prompt:message,context:ctx,request_id:ctx,ts:Date.now()};
+    var payload = {type:'ai_chat',agent:agentId,model:agent.model,message:message,context:ctx,request_id:ctx,ts:Date.now()};
     try{ window.ws.send(JSON.stringify(payload)); } catch(e){ wsLive = false; }
     if(wsLive && cb){
       var handler = function(e){
@@ -23547,7 +23547,7 @@ _queryDirect: function(agentId, message, history, cb){
   /* ── GPT / Grok / Copilot: CORS blocks browser — must use bridge ── */
   if(window.ws && window.ws.readyState === 1){
     var rid = 'qd_'+Date.now()+'_'+agentId;
-    try{ window.ws.send(JSON.stringify({type:'agent_query',agent:agentId,prompt:message,history:history||[],request_id:rid})); }
+    try{ window.ws.send(JSON.stringify({type:'ai_chat',agent:agentId,message:message,history:history||[],context:rid,request_id:rid})); }
     catch(e){ if(cb) cb({error:'Bridge send error: '+e.message, agent:agentId}); return; }
     var h = function(ev){
       var d=ev&&ev.detail||{};
@@ -24072,7 +24072,7 @@ try{
 /* When served by bridge, WS is on same host */
 var _wsURL = (location.protocol==='http:' && location.hostname==='127.0.0.1')
 ? 'ws://'+location.host
-: 'ws://127.0.0.1:9899';
+: ((location.protocol==='https:'?'wss://':'ws://')+'127.0.0.1:9899');
 var ws = new WebSocket(_wsURL);
 window.ws = ws;
 ws.onopen = function(){
@@ -25322,7 +25322,7 @@ var msgs = [{role:'user',content:'Reply with only the word: CONNECTED'}];
 /* Try bridge first */
 if(window.ws && window.ws.readyState===1){
 var rid = 'vault_test_'+Date.now();
-try{ window.ws.send(JSON.stringify({type:'agent_query',agent:provider,prompt:'Reply with only the word: CONNECTED',request_id:rid})); }catch(e){}
+try{ window.ws.send(JSON.stringify({type:'ai_chat',agent:provider,message:'Reply with only the word: CONNECTED',context:rid,request_id:rid})); }catch(e){}
 var h = function(ev){
 var d = ev&&ev.detail||{};
 if(d.request_id===rid || (d.type==='agent_response'&&d.agent===provider)){
@@ -25969,7 +25969,7 @@ setTimeout(function(){
     var ws = window.ws || window._ws;
     if(ws && ws.readyState === 1){
       var rid = 'qd_'+Date.now()+'_'+agentId;
-      try{ ws.send(JSON.stringify({type:'agent_query',agent:agentId,prompt:message,history:history||[],request_id:rid})); }
+      try{ ws.send(JSON.stringify({type:'ai_chat',agent:agentId,message:message,history:history||[],context:rid,request_id:rid})); }
       catch(e){ cb({error:'WS send: '+e.message}); return; }
       var done = false;
       var h = function(ev){
@@ -26180,26 +26180,9 @@ fmtBtn.addEventListener('click', function(){ toast('Format: basic indent only in
 var aiBtn = document.getElementById('cm-ai-fix');
 if(aiBtn && !aiBtn._cm){
 aiBtn._cm = true;
-aiBtn.addEventListener('click', function(){
-var code = getCode();
-if(!code.trim()){ toast('Nothing to fix','err'); return; }
-var aiOut = document.getElementById('cm-ai-output');
-if(aiOut) aiOut.textContent = 'Analyzing...';
-var aiPanel = document.getElementById('cm-ai-panel');
-if(aiPanel) aiPanel.style.display = 'block';
-SG_DIRECT_AI.call([{role:'user',content:'Review this '+getLang()+' code and return ONLY the corrected version with no explanation:\n\n'+code}], function(d){
-if(d.error){ if(aiOut) aiOut.textContent='Error: '+d.error; return; }
-if(aiOut) aiOut.textContent = d.response;
-var applyBtn = document.getElementById('cm-apply-fix');
-if(applyBtn && !applyBtn._cm){
-applyBtn._cm = true;
-applyBtn.addEventListener('click', function(){
-editor.value = (aiOut.textContent||'').trim();
-if(aiPanel) aiPanel.style.display='none';
-runCode();
-});
-}
-});
+aiBtn.addEventListener('click', function(e){
+if(e){ e.preventDefault(); e.stopPropagation(); }
+if(typeof window.aiAnalyze === 'function') window.aiAnalyze();
 });
 }
 
