@@ -507,7 +507,10 @@ wssRoot.on('connection', (browserWs) => {
       if (msg.type === 'agent_query') {
         const messageValue = typeof msg.message === 'string' ? msg.message : undefined;
         const promptValue = typeof msg.prompt === 'string' ? msg.prompt : undefined;
-        const summarize = (value) => (value.length > 120 ? `${value.slice(0, 117)}...` : value);
+        const summarize = (value) => {
+          if (typeof value !== 'string') return '[non-string]';
+          return value.length > 120 ? `${value.slice(0, 117)}...` : value;
+        };
         if (messageValue && promptValue && messageValue !== promptValue) {
           console.warn(
             '[ws/root] agent_query has both message and prompt with different values; preferring message',
@@ -528,7 +531,7 @@ wssRoot.on('connection', (browserWs) => {
           ...msg,
           type: 'ai_chat',
           message: selectedMessage,
-          context: msg.context || msg.request_id || 'agent_query',
+          context: msg.context || 'agent_query',
         };
         sendToPyBridge(JSON.stringify(mapped));
         return;
