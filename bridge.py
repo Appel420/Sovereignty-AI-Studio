@@ -312,6 +312,58 @@ class BridgeServer:
             valid = self.tokens.validate(provider)
             await self.send(ws, {"type": "token_result", "action": action, "provider": provider, "valid": valid, "ts": int(time.time() * 1000)})
 
+    async def _handle_memory_save(self, ws, message: dict) -> None:
+        """Handle legacy memory_save messages from PiperTTS.ws (SGHv119.html)."""
+        title = message.get("title", "")
+        content = message.get("content", "")
+        role = message.get("role", "")
+        user = message.get("user", "")
+        card_id = sha256(f"{title}{content}{int(time.time())}")
+
+        if self.memory and title:
+            try:
+                await self.memory.set(f"card:{card_id}", {"id": card_id, "title": title, "content": content, "role": role, "user": user, "ts": int(time.time() * 1000)})
+            except Exception as e:
+                log.debug("memory_save store error for card %s (%s): %s", card_id[:8], title, e)
+
+        await self.send(ws, {"type": "memory_saved", "id": card_id, "label": title, "ts": int(time.time() * 1000)})
+
+    async def _handle_memory_get(self, ws, message: dict) -> None:
+        """Handle legacy memory_get messages from PiperTTS.ws (SGHv119.html)."""
+        cards: list = []
+        if self.memory:
+            try:
+                # Return recent history entries as card-like objects
+                session = message.get("session", "default")
+                history = await self.memory.get_history(session, limit=20)
+                cards = [
+                    {"title": (h.get("role") or "unknown") + " message", "content": h.get("content", ""), "ts": h.get("ts", 0)}
+                    for h in (history or [])
+                ]
+            except Exception as e:
+                log.debug("memory_get error: %s", e)
+        await self.send(ws, {"type": "memory_result", "cards": cards, "ts": int(time.time() * 1000)})
+
+    async def _handle_ai_code_review(self, ws, message: dict) -> None:
+        """Handle ai_code_review messages — review code via sovereign bridge."""
+        lang = message.get("lang", "unknown")
+        code = message.get("code", "")
+        prompt = message.get("prompt") or f"Review this {lang} code. List errors with line numbers. For each error provide an exact fix. Be concise."
+
+        full_prompt = f"{prompt}\n\n```{lang}\n{code}\n```"
+        try:
+            # sys_prompt is empty because the full prompt is in full_prompt
+            review = await self._chat_sovereign(full_prompt, "", agent="code_review")
+        except Exception as e:
+            review = f"[Code review error: {e}]"
+
+        await self.send(ws, {
+            "type": "ai_code_review_result",
+            "lang": lang,
+            "review": review,
+            "ts": int(time.time() * 1000),
+        })
+
     # ------------------------------------------------------------------
     # Client handler
     # ------------------------------------------------------------------
@@ -356,6 +408,17 @@ class BridgeServer:
 
                 elif mtype == "memory_query":
                     asyncio.create_task(self._handle_memory_query(ws, message))
+
+                elif mtype == "memory_save":
+                    # Legacy API used by PiperTTS.ws in SGHv119.html
+                    asyncio.create_task(self._handle_memory_save(ws, message))
+
+                elif mtype == "memory_get":
+                    # Legacy API: retrieve stored memory cards for a role/user
+                    asyncio.create_task(self._handle_memory_get(ws, message))
+
+                elif mtype == "ai_code_review":
+                    asyncio.create_task(self._handle_ai_code_review(ws, message))
 
                 elif mtype == "token_op":
                     asyncio.create_task(self._handle_token_op(ws, message))
