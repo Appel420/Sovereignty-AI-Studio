@@ -53,6 +53,10 @@ cleanup() {
 trap cleanup INT TERM
 
 # --- Python bridge.py (must be started before node-bridge) ---
+if [ ! -f "./bridge.py" ]; then
+  echo "[error] bridge.py not found in repository root: $(pwd)"
+  exit 1
+fi
 if wait_for_port_free "$PY_BRIDGE_PORT"; then
   echo "[start] python bridge.py on port $PY_BRIDGE_PORT"
   SG_PORT="$PY_BRIDGE_PORT" python3 bridge.py &
