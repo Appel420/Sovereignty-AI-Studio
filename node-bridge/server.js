@@ -505,15 +505,29 @@ wssRoot.on('connection', (browserWs) => {
         return;
       }
       if (msg.type === 'agent_query') {
-        if (typeof msg.message === 'string' && typeof msg.prompt === 'string' && msg.message !== msg.prompt) {
-          console.warn('[ws/root] agent_query has both message and prompt with different values; preferring message');
+        const messageValue = typeof msg.message === 'string' ? msg.message : undefined;
+        const promptValue = typeof msg.prompt === 'string' ? msg.prompt : undefined;
+        const summarize = (value) => (value.length > 120 ? `${value.slice(0, 117)}...` : value);
+        if (messageValue && promptValue && messageValue !== promptValue) {
+          console.warn(
+            '[ws/root] agent_query has both message and prompt with different values; preferring message',
+            { message: summarize(messageValue), prompt: summarize(promptValue) },
+          );
+        }
+        const selectedMessage = (messageValue ?? promptValue ?? '').trim();
+        if (!selectedMessage) {
+          console.warn('[ws/root] agent_query missing non-empty message/prompt; dropping request');
+          browserWs.send(JSON.stringify({
+            type: 'error',
+            error: 'agent_query requires a non-empty message or prompt',
+            timestamp: new Date().toISOString(),
+          }));
+          return;
         }
         const mapped = {
           ...msg,
           type: 'ai_chat',
-          message: typeof msg.message === 'string'
-            ? msg.message
-            : (typeof msg.prompt === 'string' ? msg.prompt : ''),
+          message: selectedMessage,
           context: msg.context || msg.request_id || 'agent_query',
         };
         sendToPyBridge(JSON.stringify(mapped));
@@ -1214,9 +1228,16 @@ app.get('/alerts/live', (_req, res) => {
 
 app.post('/error_ping', (req, res) => {
   const { error, source } = req.body || {};
+  const safeStringify = (value) => {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '[unserializable error object]';
+    }
+  };
   const extractErrorMessage = (errorValue) => {
     if (typeof errorValue === 'string') return errorValue;
-    if (errorValue && typeof errorValue === 'object') return errorValue.message || JSON.stringify(errorValue);
+    if (errorValue && typeof errorValue === 'object') return errorValue.message || safeStringify(errorValue);
     return '';
   };
   const extractErrorSource = (errorValue, fallbackSource) => {
