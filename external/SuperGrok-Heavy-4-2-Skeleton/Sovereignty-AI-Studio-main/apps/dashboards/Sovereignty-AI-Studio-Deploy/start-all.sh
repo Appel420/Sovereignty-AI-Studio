@@ -4,9 +4,9 @@
 
 set -e
 
-BRIDGE_PORT="${NODE_BRIDGE_PORT:-3001}"
+BRIDGE_PORT="${NODE_BRIDGE_PORT:-9899}"
 WEATHER_PORT="${WEATHER_PORT:-9898}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+BACKEND_PORT="${BACKEND_PORT:-9899}"
 
 cleanup() {
   echo ""
@@ -21,7 +21,7 @@ trap cleanup INT TERM
 # --- Redis (optional — skip if already running) ---
 if command -v redis-server >/dev/null 2>&1; then
   if ! redis-cli ping >/dev/null 2>&1; then
-    echo "[start] redis on port 6379"
+    echo "[start] redis on port 9899"
     redis-server --daemonize yes
     REDIS_PID=$(cat /var/run/redis.pid 2>/dev/null || echo "")
   else

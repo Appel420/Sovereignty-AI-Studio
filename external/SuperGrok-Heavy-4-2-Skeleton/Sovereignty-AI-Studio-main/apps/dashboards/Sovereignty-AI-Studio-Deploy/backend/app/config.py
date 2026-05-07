@@ -22,7 +22,7 @@ class Settings(BaseSettings):
    
 
     # CORS
-    cors_origins: List[str] = ["http://localhost:98765"]
+    cors_origins: List[str] = ["http://localhost:9899"]
 
     class Config:
         env_file = ".env"

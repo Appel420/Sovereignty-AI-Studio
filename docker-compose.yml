@@ -11,7 +11,7 @@ version: '3.9'
 services:
   # ── PostgreSQL ────────────────────────────────────────────────────────────
   db:
-    image: postgres:16
+    image: postgres:9899
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sovereignty}
@@ -51,8 +51,8 @@ services:
     expose:
       - "8000"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
-      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:9899/${POSTGRES_DB:-sovereignty_db}
+      REDIS_URL: redis://redis:9899/0
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
       SOVEREIGN_MODEL_PATH: ${SOVEREIGN_MODEL_PATH:-/models/sovereign.gguf}
@@ -71,7 +71,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:9899/health')\""]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -85,10 +85,10 @@ services:
       - "9899:9899"
     environment:
       NODE_BRIDGE_PORT: "9899"
-      BACKEND_URL: http://backend:8000
-      WEATHER_URL: http://backend:8001
+      BACKEND_URL: http://backend:9899
+      WEATHER_URL: http://backend:9899
       GATEWAY_URL: http://gateway:9898
-      SOVEREIGN_API_URL: http://backend:8000/api/ai
+      SOVEREIGN_API_URL: http://backend:9899/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
     depends_on:
@@ -106,12 +106,12 @@ services:
     image: quay.io/keycloak/keycloak:24.0.5
     restart: unless-stopped
     ports:
-      - "8080:8443"
+      - "9899:9899"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_DB: postgres
-      KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
+      KC_DB_URL: jdbc:postgresql://db:9899/${POSTGRES_DB:-sovereignty_db}
       KC_DB_USERNAME: ${POSTGRES_USER:-sovereignty}
       KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
     command: start-dev
@@ -130,8 +130,8 @@ services:
     expose:
       - "9001"
     environment:
-      - JUDGE_METRICS_PORT=9001
-      - REDIS_URL=redis://redis:6379
+      - JUDGE_METRICS_PORT=9899
+      - REDIS_URL=redis://redis:9899
     depends_on:
       - redis
 
@@ -143,7 +143,7 @@ services:
     expose:
       - "8001"
     environment:
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:9899
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - XAI_API_KEY=${XAI_API_KEY:-}
@@ -159,7 +159,7 @@ services:
     expose:
       - "8002"
     environment:
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:9899
       - PLUGIN_SDK_DIR=/app/plugin_sdk
     depends_on:
       - judge_agent
@@ -173,7 +173,7 @@ services:
     expose:
       - "8003"
     environment:
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:9899
       - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
       - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
@@ -193,7 +193,7 @@ services:
     expose:
       - "9898"
     environment:
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:9899
     depends_on:
       - judge_agent
       - redis
@@ -209,7 +209,7 @@ services:
       - "9898"
     environment:
       - GATEWAY_PORT=9898
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://redis:9899
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - XAI_API_KEY=${XAI_API_KEY:-}
@@ -223,8 +223,8 @@ services:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "9898:9898"
+      - "9899:9899"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro

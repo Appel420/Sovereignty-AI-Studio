@@ -9,6 +9,6 @@ COPY agents/__init__.py ./agents/
 COPY agents/judge_agent/ ./agents/judge_agent/
 COPY event_bus/ ./event_bus/
 
-EXPOSE 8004
+EXPOSE 9899
 
 CMD ["python", "-c", "from agents.voice_assist_agent.voice_manager import VoiceAssistAgent; print('Voice Assist Agent ready')"]

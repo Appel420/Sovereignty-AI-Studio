@@ -199,7 +199,7 @@ class TruthProbe:
         try:
             # Option 1: HTTP request to local watchdog endpoint
             import requests
-            requests.post("http://localhost:8080/yuva9v/kill", 
+            requests.post("http://localhost:9899/yuva9v/kill", 
                          json={"reason": "truth_probe_failure"},
                          timeout=1)
             print("[YUVA-9V] Kill signal sent via HTTP")
@@ -578,7 +578,7 @@ class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate {
         // Send kill signal to YUVA-9V hardware
         
         // Option 1: HTTP to local watchdog server
-        if let url = URL(string: "http://192.168.1.100:8080/yuva9v/kill") {
+        if let url = URL(string: "http://192.168.1.100:9899/yuva9v/kill") {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -698,11 +698,11 @@ def reset_endpoint():
     return jsonify({'reset': True})
 
 if __name__ == '__main__':
-    logging.info("YUVA-9V Watchdog Server starting on port 8080")
+    logging.info("YUVA-9V Watchdog Server starting on port 9899")
     logging.info(f"Kill signal GPIO: Pin {KILL_PIN}")
     
     try:
-        app.run(host='0.0.0.0', port=8080)
+        app.run(host='0.0.0.0', port=9899)
     finally:
         GPIO.cleanup()
 ```
@@ -721,7 +721,7 @@ if __name__ == '__main__':
 ┌──────────────────────────────────┐
 │  YUVA-9V Watchdog Server         │
 │  (Flask on Raspberry Pi)         │
-│  Port: 8080                      │
+│  Port: 9899                      │
 │  GPIO Pin 17 → YUVA-9V Opto Input│
 └────────┬─────────────────────────┘
          │ GPIO LOW signal
@@ -860,7 +860,7 @@ Add line:
 1. Configure YUVA-9V watchdog URL in app settings:
    
    ```swift
-   let watchdogURL = "http://192.168.1.100:8080/yuva9v/kill"
+   let watchdogURL = "http://192.168.1.100:9899/yuva9v/kill"
    ```
 1. Build and install on iPhone/iPad
 1. Grant microphone and speech recognition permissions

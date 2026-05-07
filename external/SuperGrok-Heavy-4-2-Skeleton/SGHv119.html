@@ -2372,7 +2372,7 @@ var BridgeCFG = {
   presets: {
     local:    { host:'127.0.0.1',    port:9897 }, // IPv4 literal — Safari/iOS safe
     lan:      { host:'192.168.1.1',  port:9897 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
+    airplay:  { host:'localhost',    port:9899 },   // AirPlay bridge
     tailscale:{ host:'100.x.x.x',   port:9897 },   // Tailscale mesh
     custom:   { host:'',             port:0    }
   },
@@ -2739,7 +2739,7 @@ var MicInput = {
 
 // ─── 5. KEYCLOAK PERSISTENCE ─────────────────────────────────────────
 var KC = {
-  url: localStorage.getItem('kc_url') || 'http://localhost:8080',
+  url: localStorage.getItem('kc_url') || 'http://localhost:9899',
   realm: localStorage.getItem('kc_realm') || 'supergrok',
   clientId: 'supergrok-dashboard',
   token: null,
@@ -3334,7 +3334,7 @@ window.renderBridgeConfig = function() {
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="speak(\'Bridge test. SuperGrok voice is live.\')">Test Voice</button>' +
     '</div>' +
     '<div style="margin-top:8px;padding:6px;background:rgba(0,0,0,.3);border-radius:5px;font-family:var(--mono);font-size:6.5px;color:var(--mu)">' +
-    'AirPlay: set host to your Mac IP + port 7000  |  LAN: device IP + 9897  |  Tailscale: 100.x.x.x + 9897' +
+    'AirPlay: set host to your Mac IP + port 9899  |  LAN: device IP + 9897  |  Tailscale: 100.x.x.x + 9897' +
     '</div>';
 };
 
@@ -3430,7 +3430,7 @@ window.renderKeycloakPanel = function() {
       '<button class="btn-s" style="font-size:8px;padding:6px 12px;color:var(--rd)" onclick="KC.logout();loadPanel(\'keycloak\')">Logout KC</button>' +
       '</div>' :
       '<div style="display:flex;flex-direction:column;gap:6px">' +
-      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:8080)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
+      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:9899)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
       '<input id="kcRealm" placeholder="Realm (default: supergrok)" value="' + KC.realm + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.realm=this.value;localStorage.setItem(\'kc_realm\',this.value)">' +
       '<input id="kcUser" placeholder="Username" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
       '<input id="kcPass" type="password" placeholder="Password" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
@@ -6189,7 +6189,7 @@ function afterPanel(id){
         var blkBtn=document.getElementById('fort-block-btn');
         if(blkBtn&&!blkBtn._fw){blkBtn._fw=true;blkBtn.addEventListener('click',function(){
           var ip=(document.getElementById('fort-block-ip')||{}).value||'';
-          var dur=parseInt((document.getElementById('fort-block-dur')||{}).value||'300');
+          var dur=parseInt((document.getElementById('fort-block-dur')||{}).value||'9899');
           if(!ip){toast('Enter an IP to block','err');return;}
           var logs=JSON.parse(localStorage.getItem('sg_block_log')||'[]');
           logs.push({ip:ip,duration:dur,ts:Date.now(),active:true});
@@ -6737,7 +6737,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     };
     var tc=document.getElementById('kc-test-conn'); if(tc) tc.addEventListener('click',testFn);
     var oa=document.getElementById('kc-open-admin');
-    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:8080/admin','_blank','noopener,noreferrer'); });
+    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:9899/admin','_blank','noopener,noreferrer'); });
     var lf=document.getElementById('kc-login-flow');
     if(lf) lf.addEventListener('click',function(){
       fetch('http://127.0.0.1:9897/auth/keycloak/realm')
@@ -7455,7 +7455,7 @@ window.toast && window.toast('\ud83d\udd04 All keys rotation-flagged \u2014 re-i
 function genCert() {
 var domain = (document.getElementById('cert-domain')||{}).value || 'supergrok.local';
 var org    = (document.getElementById('cert-org')||{}).value    || 'SuperGrok';
-var days   = parseInt((document.getElementById('cert-days')||{}).value  || '365');
+var days   = parseInt((document.getElementById('cert-days')||{}).value  || '9899');
 var algo   = (document.getElementById('cert-algo')||{}).value   || 'P-256';
 var ips    = (document.getElementById('cert-ips')||{}).value    || '127.0.0.1';
 var sans   = (document.getElementById('cert-sans')||{}).value   || 'localhost';
@@ -7527,7 +7527,7 @@ window.toast && window.toast(cs.length + ' certs: ' + cs.map(function(c){ return
 function genMX() {
 var domain   = (document.getElementById('mx-domain')||{}).value    || 'example.com';
 var ip       = (document.getElementById('mx-ip')||{}).value         || '203.0.113.1';
-var priority = (document.getElementById('mx-priority')||{}).value   || '10';
+var priority = (document.getElementById('mx-priority')||{}).value   || '9899';
 var selector = (document.getElementById('mx-selector')||{}).value   || 'sg2026';
 var spf      = (document.getElementById('mx-spf')||{}).checked;
 var dkim     = (document.getElementById('mx-dkim')||{}).checked;
@@ -10592,7 +10592,7 @@ if (hcInput) hcInput.addEventListener('input', function(){
 var applyBtn = document.getElementById('opar-apply');
 if (applyBtn) applyBtn.addEventListener('click', function() {
   var name   = (document.getElementById('opar-name')  ||{}).value || 'Companion';
-  var height = parseInt((document.getElementById('opar-height')||{}).value||'165')/165;
+  var height = parseInt((document.getElementById('opar-height')||{}).value||'9899')/165;
   var build  = {slim:0.88, athletic:1.0, average:1.06, stocky:1.14}[(document.getElementById('opar-build')||{}).value||'athletic']||1;
   var role   = (window.ST && window.ST.roleLabel) || 'AI Companion';
 
@@ -12038,7 +12038,7 @@ var _currentRole = null;
 var SLOT_ROLES_BASE = {
 home_aid:25000,chef:35000,housekeeper:22000,au_pair:30000,personal_trainer:28000,
 tutor:24000,chauffeur:26000,security:45000,concierge:32000,medical_aide:38000,
-tech_support:29000,elder_care:33000
+tech_support:9899,elder_care:9899
 };
 
 function boot() {
@@ -12133,7 +12133,7 @@ var saved  = {};
 try { saved = JSON.parse(localStorage.getItem('sg_opar_slot_'+role)||'{}'); } catch(e){}
 var rid    = _currentRole || saved.roleId;
 var base   = SLOT_ROLES_BASE[rid] || 0;
-var hours  = parseInt((document.getElementById('slot-hours')||{}).value||'40');
+var hours  = parseInt((document.getElementById('slot-hours')||{}).value||'9899');
 var weekly = Math.round(base/52);
 var hourly = hours > 0 ? Math.round(weekly/hours*10)/10 : 0;
 
@@ -12148,7 +12148,7 @@ var role  = window.ST ? window.ST.role || 'user' : 'user';
 var saved = {};
 try { saved = JSON.parse(localStorage.getItem('sg_opar_slot_'+role)||'{}'); } catch(e){}
 saved.roleId       = _currentRole || saved.roleId;
-saved.hoursPerWeek = parseInt((document.getElementById('slot-hours')||{}).value||'40');
+saved.hoursPerWeek = parseInt((document.getElementById('slot-hours')||{}).value||'9899');
 saved.schedule     = (document.getElementById('slot-schedule')||{}).value||'full_time';
 saved.startDate    = (document.getElementById('slot-start')||{}).value||'';
 saved.notes        = (document.getElementById('slot-notes')||{}).value||'';
@@ -12400,7 +12400,7 @@ kc('2FA','Enforced','#00e676') + kc('LOCAL','Sovereignty','var(--volt)') +
 '</div>' +
 '<div class="two">' +
 '<div class="card"><div class="card-title">Connection</div>' +
-sr('Keycloak URL','localhost:8080','b-warn') +
+sr('Keycloak URL','localhost:9899','b-warn') +
 sr('Realm','master','b-info') +
 sr('Client ID','supergrok','b-info') +
 '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
@@ -12410,7 +12410,7 @@ sr('Client ID','supergrok','b-info') +
 '</div>' +
 '<div class="card"><div class="card-title">Auth Flow</div>' +
 '<div style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8">' +
-'1. export KEYCLOAK_URL=http://localhost:8080<br>' +
+'1. export KEYCLOAK_URL=http://localhost:9899<br>' +
 '2. export KEYCLOAK_CLIENT_SECRET=...<br>' +
 '3. Restart bridge.py<br>' +
 '4. Click Test Connection<br>' +
@@ -17318,7 +17318,7 @@ var t = e.target;
 if (t.id === 'mc-gen') {
 var topic = (document.getElementById('mc-topic')||{}).value || '';
 if (!topic.trim()) { window.toast && window.toast('Enter a topic','err'); return; }
-var count = parseInt((document.getElementById('mc-count')||{}).value||'10');
+var count = parseInt((document.getElementById('mc-count')||{}).value||'9899');
 var diff  = (document.getElementById('mc-diff')||{}).value||'intermediate';
 var type  = (document.getElementById('mc-type')||{}).value||'qa';
 MC.generateDeck(topic, count, diff, type);
@@ -17445,7 +17445,7 @@ if (t.id === 'lie-verify') {
 var stmt = (document.getElementById('lie-input')||{}).value||'';
 if (!stmt.trim()) { window.toast && window.toast('Enter a statement','err'); return; }
 var mode = (document.getElementById('lie-mode')||{}).value||'factual';
-var thr  = (document.getElementById('lie-threshold')||{}).value||'75';
+var thr  = (document.getElementById('lie-threshold')||{}).value||'9899';
 LieDetector.verify(stmt, mode, parseInt(thr));
 return;
 }
@@ -17569,7 +17569,7 @@ _stream: null,
 _snapCount: 0,
 
 start: async function() {
-var quality = (document.getElementById('sc-quality')||{}).value||'1080';
+var quality = (document.getElementById('sc-quality')||{}).value||'9899';
 var audio   = !!(document.getElementById('sc-audio')||{}).checked;
 var status  = document.getElementById('sc-status');
 var video   = document.getElementById('sc-video');
@@ -19246,17 +19246,17 @@ ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
 
 /* ── COLOR UTILS ────────────────────────────────────────────── */
 _shade: function(hex, f) {
-var r=parseInt(hex.slice(1,3)||'88',16);
-var g=parseInt(hex.slice(3,5)||'88',16);
-var b=parseInt(hex.slice(5,7)||'88',16);
+var r=parseInt(hex.slice(1,3)||'9899',16);
+var g=parseInt(hex.slice(3,5)||'9899',16);
+var b=parseInt(hex.slice(5,7)||'9899',16);
 r=Math.max(0,Math.min(255,Math.round(r+r*f)));
 g=Math.max(0,Math.min(255,Math.round(g+g*f)));
 b=Math.max(0,Math.min(255,Math.round(b+b*f)));
 return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
 },
 _mix: function(h1,h2,t) {
-var r1=parseInt(h1.slice(1,3)||'88',16),g1=parseInt(h1.slice(3,5)||'88',16),b1=parseInt(h1.slice(5,7)||'88',16);
-var r2=parseInt(h2.slice(1,3)||'88',16),g2=parseInt(h2.slice(3,5)||'88',16),b2=parseInt(h2.slice(5,7)||'88',16);
+var r1=parseInt(h1.slice(1,3)||'9899',16),g1=parseInt(h1.slice(3,5)||'9899',16),b1=parseInt(h1.slice(5,7)||'9899',16);
+var r2=parseInt(h2.slice(1,3)||'9899',16),g2=parseInt(h2.slice(3,5)||'9899',16),b2=parseInt(h2.slice(5,7)||'9899',16);
 var r=Math.round(r1*(1-t)+r2*t),g=Math.round(g1*(1-t)+g2*t),b=Math.round(b1*(1-t)+b2*t);
 return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
 },
@@ -21776,7 +21776,7 @@ var t = e.target;
 if (t.id === 'mc-gen') {
 var topic = (document.getElementById('mc-topic')||{}).value || '';
 if (!topic.trim()) { window.toast && window.toast('Enter a topic','err'); return; }
-var count = parseInt((document.getElementById('mc-count')||{}).value||'10');
+var count = parseInt((document.getElementById('mc-count')||{}).value||'9899');
 var diff  = (document.getElementById('mc-diff')||{}).value||'intermediate';
 var type  = (document.getElementById('mc-type')||{}).value||'qa';
 MC.generateDeck(topic, count, diff, type);
@@ -21903,7 +21903,7 @@ if (t.id === 'lie-verify') {
 var stmt = (document.getElementById('lie-input')||{}).value||'';
 if (!stmt.trim()) { window.toast && window.toast('Enter a statement','err'); return; }
 var mode = (document.getElementById('lie-mode')||{}).value||'factual';
-var thr  = (document.getElementById('lie-threshold')||{}).value||'75';
+var thr  = (document.getElementById('lie-threshold')||{}).value||'9899';
 LieDetector.verify(stmt, mode, parseInt(thr));
 return;
 }
@@ -22027,7 +22027,7 @@ _stream: null,
 _snapCount: 0,
 
 start: async function() {
-var quality = (document.getElementById('sc-quality')||{}).value||'1080';
+var quality = (document.getElementById('sc-quality')||{}).value||'9899';
 var audio   = !!(document.getElementById('sc-audio')||{}).checked;
 var status  = document.getElementById('sc-status');
 var video   = document.getElementById('sc-video');
@@ -22932,17 +22932,17 @@ return '<tr>' +
 PANELS.federation = function(){
 var nodes = [
 {id:'node-a',port:9897,role:'validator',status:'active'},
-{id:'node-b',port:9876,role:'producer',status:'active'},
+{id:'node-b',port:9899,role:'producer',status:'active'},
 {id:'node-c',port:9899,role:'validator',status:'standby'},
 {id:'node-d',port:9897,role:'producer',status:'standby'},
-{id:'node-e',port:9999,role:'validator',status:'offline'},
+{id:'node-e',port:9899,role:'validator',status:'offline'},
 ];
 var services=[
-{name:'Keycloak',port:8443,status:'configured',icon:'🔑'},
-{name:'Prometheus',port:9090,status:'configured',icon:'📊'},
-{name:'Grafana',port:3000,status:'configured',icon:'📈'},
-{name:'Alertmanager',port:9093,status:'configured',icon:'🚨'},
-{name:'Pi-hole Guard',port:98765,status:'configured',icon:'🛡'},
+{name:'Keycloak',port:9899,status:'configured',icon:'🔑'},
+{name:'Prometheus',port:9899,status:'configured',icon:'📊'},
+{name:'Grafana',port:9899,status:'configured',icon:'📈'},
+{name:'Alertmanager',port:9899,status:'configured',icon:'🚨'},
+{name:'Pi-hole Guard',port:9899,status:'configured',icon:'🛡'},
 ];
 return hdr('🏗 Federation','Sovereign Audit Cluster · 5 nodes · Prometheus · Grafana · Keycloak') +
 '<div class="kgrid">' +
@@ -23206,10 +23206,10 @@ return '<div style="background:var(--bg2);border-radius:6px;padding:8px">' +
 '<div class="card-title">📊 Observability Stack</div>' +
 '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">' +
 [
-{name:"Prometheus",    port:9090, icon:"📊", color:"#e6522c"},
-{name:"Grafana",       port:3000, icon:"📈", color:"#f46800"},
-{name:"Alertmanager",  port:9093, icon:"🚨", color:"#e05d44"},
-{name:"k6 Dashboards", port:6565, icon:"⚡", color:"#7d64ff"},
+{name:"Prometheus",    port:9899, icon:"📊", color:"#e6522c"},
+{name:"Grafana",       port:9899, icon:"📈", color:"#f46800"},
+{name:"Alertmanager",  port:9899, icon:"🚨", color:"#e05d44"},
+{name:"k6 Dashboards", port:9899, icon:"⚡", color:"#7d64ff"},
 ].map(function(svc){
 return '<div style="background:var(--bg2);border:1px solid var(--wire);border-radius:8px;padding:10px;text-align:center">' +
 '<div style="font-size:22px;margin-bottom:4px">'+svc.icon+'</div>' +
@@ -24007,7 +24007,7 @@ _beat: function(){
   /* 3 — Token budget check — flip key if needed */
   var budgetEl = document.getElementById('token-budget');
   if(budgetEl){
-    var pct = parseFloat(budgetEl.textContent||'100');
+    var pct = parseFloat(budgetEl.textContent||'9899');
     if(!isNaN(pct) && pct < 20){
       _safeBridgeSend({type:'key_rotate',reason:'token_budget_low',pct:pct,ts:Date.now()});
       toast('🔑 Token budget <20% — key rotation requested','ok');
@@ -25246,7 +25246,7 @@ return {
 
 connect: function(){
   var host = _v('ssh-host')||'127.0.0.1';
-  var port = _v('ssh-port')||'22';
+  var port = _v('ssh-port')||'9899';
   var user = _v('ssh-user')||'root';
   var pass = _v('ssh-pass')||'';
   _out('Connecting to '+user+'@'+host+':'+port+'...', '#888');

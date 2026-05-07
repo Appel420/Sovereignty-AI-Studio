@@ -426,7 +426,7 @@ export function useRealFocus(opts: UseFocusOptions = {}): {
   connectSSE: () => void;
 } {
   const {
-    sseUrl          = "http://localhost:5000/api/eeg/live",
+    sseUrl          = "http://localhost:9899/api/eeg/live",
     onNudge,
     onDrift,
     onDistraction,

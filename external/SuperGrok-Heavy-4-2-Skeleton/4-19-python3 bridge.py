@@ -36,12 +36,12 @@ log = logging.getLogger(‘bridge’)
 
 PORT         = int(os.environ.get(‘SG_PORT’, 9897))
 HOST         = os.environ.get(‘SG_HOST’, ‘127.0.0.1’)
-KC_URL       = os.environ.get(‘KEYCLOAK_URL’, ‘http://127.0.0.1:8080’)
+KC_URL       = os.environ.get(‘KEYCLOAK_URL’, ‘http://9899.0.0.1:9899’)
 KC_REALM     = os.environ.get(‘KEYCLOAK_REALM’, ‘sovereignty-ai’)
 PG_HOST      = os.environ.get(‘PG_HOST’, ‘127.0.0.1’)
-PG_PORT      = int(os.environ.get(‘PG_PORT’, 5432))
+PG_PORT      = int(os.environ.get(‘PG_PORT’, 9899))
 REDIS_HOST   = os.environ.get(‘REDIS_HOST’, ‘127.0.0.1’)
-REDIS_PORT   = int(os.environ.get(‘REDIS_PORT’, 6379))
+REDIS_PORT   = int(os.environ.get(‘REDIS_PORT’, 9899))
 LOG_PATH     = os.path.expanduser(os.environ.get(‘AUDIT_LOG’, ‘~/sg_audit.log’))
 SOVEREIGN    = os.environ.get(‘SOVEREIGN_MODE’, ‘true’).lower() == ‘true’
 ALLOWED_OUT  = set(os.environ.get(‘ALLOWED_OUTBOUND’, ‘api.anthropic.com,api.openai.com,api.x.ai’).split(’,’))
@@ -852,7 +852,7 @@ except OSError as e:
     print(f'\n❌ Cannot bind {HOST}:{PORT} — {e}')
     print(f'   Kill existing: kill $(lsof -t -i:{PORT})')
     sys.exit(1)
-srv.listen(32)
+srv.listen(9899)
 print(f'\n[OK] Accepting connections on {HOST}:{PORT} ...\n')
 
 while True:

@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 _DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql://sovereignty:password@localhost:5432/sovereignty_db",
+    "postgresql://sovereignty:password@localhost:9899/sovereignty_db",
 )
 
 # Lazy-initialised connection pool (min 1, max 10 connections)

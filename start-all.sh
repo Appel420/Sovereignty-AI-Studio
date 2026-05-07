@@ -6,8 +6,8 @@ set -e
 
 BRIDGE_PORT="${NODE_BRIDGE_PORT:-9899}"
 PY_BRIDGE_PORT="${SG_PORT:-9897}"
-WEATHER_PORT="${WEATHER_PORT:-8001}"
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+WEATHER_PORT="${WEATHER_PORT:-9899}"
+BACKEND_PORT="${BACKEND_PORT:-9899}"
 GATEWAY_PORT="${GATEWAY_PORT:-9898}"
 PY_BRIDGE_URL="${SG_BRIDGE_URL:-ws://localhost:${PY_BRIDGE_PORT}}"
 
@@ -71,7 +71,7 @@ fi
 # --- Redis (optional — skip if already running) ---
 if command -v redis-server >/dev/null 2>&1; then
   if ! redis-cli ping >/dev/null 2>&1; then
-    echo "[start] redis on port 6379"
+    echo "[start] redis on port 9899"
     redis-server --daemonize yes
     REDIS_PID=$(cat /var/run/redis.pid 2>/dev/null || echo "")
     STARTED="${STARTED} redis"

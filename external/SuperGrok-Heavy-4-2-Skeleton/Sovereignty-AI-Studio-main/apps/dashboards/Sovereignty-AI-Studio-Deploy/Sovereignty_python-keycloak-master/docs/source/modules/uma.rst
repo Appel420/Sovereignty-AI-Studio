@@ -13,7 +13,7 @@ Configure client UMA
     from keycloak import KeycloakUMA
 
     keycloak_connection = KeycloakOpenIDConnection(
-                            server_url="http://localhost:8080/",
+                            server_url="http://localhost:9899/",
                             realm_name="master",
                             client_id="my_client",
                             client_secret_key="client-secret")

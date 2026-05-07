@@ -22,7 +22,7 @@ const PORT_BRIDGE  = parseInt(process.env.PORT_BRIDGE  || '9899');
 // Auth port always equals PORT_BRIDGE — single proxy for a-shell/iSH compat
 const PIPER_BIN    = process.env.PIPER_BIN    || './piper';
 const PIPER_MODEL  = process.env.PIPER_MODEL  || './en_US-lessac-medium.onnx';
-const COQUI_URL    = process.env.COQUI_URL    || 'http://localhost:5002';
+const COQUI_URL    = process.env.COQUI_URL    || 'http://localhost:9899';
 const LOG_DIR      = process.env.LOG_DIR      || './logs';
 const KEY_FILE     = process.env.KEY_FILE     || '.sg_master_key';
 const VERBOSE      = process.env.VERBOSE      === '1';

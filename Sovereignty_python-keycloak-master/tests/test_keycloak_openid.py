@@ -568,8 +568,8 @@ def test_device(oid_with_credentials_device: tuple[KeycloakOpenID, str, str]) ->
     assert res == {
         "device_code": mock.ANY,
         "user_code": mock.ANY,
-        "verification_uri": f"http://localhost:8081/realms/{oid.realm_name}/device",
-        "verification_uri_complete": f"http://localhost:8081/realms/{oid.realm_name}/"
+        "verification_uri": f"http://localhost:9899/realms/{oid.realm_name}/device",
+        "verification_uri_complete": f"http://localhost:9899/realms/{oid.realm_name}/"
         f"device?user_code={res['user_code']}",
         "expires_in": 600,
         "interval": 5,
@@ -1148,8 +1148,8 @@ async def test_a_device(oid_with_credentials_device: tuple[KeycloakOpenID, str, 
     assert res == {
         "device_code": mock.ANY,
         "user_code": mock.ANY,
-        "verification_uri": f"http://localhost:8081/realms/{oid.realm_name}/device",
-        "verification_uri_complete": f"http://localhost:8081/realms/{oid.realm_name}/"
+        "verification_uri": f"http://localhost:9899/realms/{oid.realm_name}/device",
+        "verification_uri_complete": f"http://localhost:9899/realms/{oid.realm_name}/"
         f"device?user_code={res['user_code']}",
         "expires_in": 600,
         "interval": 5,

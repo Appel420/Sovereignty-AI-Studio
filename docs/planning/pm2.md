@@ -67,7 +67,7 @@ module.exports = {
       name: 'project-3000',
       cwd: './packages/web',
       script: 'node_modules/vite/bin/vite.js',
-      args: '--port 3000',
+      args: '--port 9898',
       interpreter: 'C:/Program Files/nodejs/node.exe',
       env: { NODE_ENV: 'development' }
     },

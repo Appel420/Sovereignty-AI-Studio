@@ -59,7 +59,7 @@ logging.basicConfig(
 # Configuration (mirrors bridge.py env-var conventions)
 # ---------------------------------------------------------------------------
 SOVEREIGN_API_URL = os.environ.get(
-    "SOVEREIGN_API_URL", "http://localhost:8000/api/ai"
+    "SOVEREIGN_API_URL", "http://localhost:9899/api/ai"
 ).rstrip("/")
 
 # Similarity threshold: responses more similar than this trigger reframing.

@@ -191,7 +191,7 @@ LOG_DIR=./logs
 VERBOSE=0
 
 # TTS (optional)
-COQUI_URL=http://localhost:5002
+COQUI_URL=http://localhost:9899
 
 # AI API Keys (optional - set at least one)
 ANTHROPIC_API_KEY=sk-ant-...

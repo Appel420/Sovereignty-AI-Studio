@@ -21,7 +21,7 @@ trap cleanup INT TERM
 # --- Redis (optional — skip if already running) ---
 if command -v redis-server >/dev/null 2>&1; then
   if ! redis-cli ping >/dev/null 2>&1; then
-    echo "[start] redis on port 6379"
+    echo "[start] redis on port 9899"
     redis-server --daemonize yes
     REDIS_PID=$(cat /var/run/redis.pid 2>/dev/null || echo "")
   else

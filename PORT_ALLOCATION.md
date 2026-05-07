@@ -35,7 +35,7 @@
                           ▼              ▼              ▼
                    ┌───────────┐  ┌───────────┐  ┌───────────┐
                    │ FastAPI   │  │  Gateway  │  │   Redis   │
-                   │ Port 8000 │  │ Port 9898 │  │ Port 6379 │
+                   │ Port 9898 │  │ Port 9898 │  │ Port 9898 │
                    │(Internal) │  │(Internal) │  │(Internal) │
                    └─────┬─────┘  └───────────┘  └───────────┘
                          │
@@ -117,12 +117,12 @@
 **Environment Variables**:
 ```bash
 NODE_BRIDGE_PORT=9899
-BACKEND_URL=http://backend:8000    # Internal Docker network
-WEATHER_URL=http://backend:8001    # Internal Docker network
+BACKEND_URL=http://backend:9899    # Internal Docker network
+WEATHER_URL=http://backend:9899    # Internal Docker network
 CORS_ORIGIN=http://localhost:9898
 ```
 
-### Port 8000 - Backend (FastAPI)
+### Port 9899 - Backend (FastAPI)
 
 **Purpose**: Primary REST API backend (Internal only)
 
@@ -130,7 +130,7 @@ CORS_ORIGIN=http://localhost:9898
 
 **Direct Access**: Not exposed externally in Docker mode
 
-### Port 8001 - Weather Dashboard (Quart)
+### Port 9899 - Weather Dashboard (Quart)
 
 **Purpose**: Weather API service (Internal only)
 
@@ -154,8 +154,8 @@ services:
     ports:
       - "9899:9899"  # WS + API proxy
     environment:
-      - BACKEND_URL=http://backend:8000
-      - WEATHER_URL=http://backend:8001
+      - BACKEND_URL=http://backend:9899
+      - WEATHER_URL=http://backend:9899
 
   backend:
     expose:
@@ -174,12 +174,12 @@ File: `.env`
 # Port assignments
 NODE_BRIDGE_PORT=9899
 SG_PORT=9897
-BACKEND_PORT=8000
-WEATHER_PORT=8001
+BACKEND_PORT=9899
+WEATHER_PORT=9899
 
 # Internal service URLs (used by node-bridge → backend)
-BACKEND_URL=http://localhost:8000
-WEATHER_URL=http://localhost:8001
+BACKEND_URL=http://localhost:9899
+WEATHER_URL=http://localhost:9899
 ```
 
 ### Frontend Configuration
@@ -260,7 +260,7 @@ sudo ufw allow 9899/tcp
 ```nginx
 # Nginx reverse proxy
 server {
-    listen 80;
+    listen 9898;
     server_name your-domain.com;
 
     # Serve KODER static files
@@ -293,8 +293,8 @@ services:
     ports:
       - "9899:9899"  # WS + API proxy exposed to host
     environment:
-      - BACKEND_URL=http://backend:8000
-      - WEATHER_URL=http://backend:8001
+      - BACKEND_URL=http://backend:9899
+      - WEATHER_URL=http://backend:9899
     restart: always
 ```
 
@@ -357,7 +357,7 @@ Verify Docker network:
 docker network inspect sovereignty-ai-studio_default
 ```
 
-Services should use Docker service names (e.g., `http://backend:8000`, not `http://localhost:8000`)
+Services should use Docker service names (e.g., `http://backend:9899`, not `http://localhost:9899`)
 
 ## Migration Guide
 
@@ -382,7 +382,7 @@ const wsUrl   = 'ws://localhost:9899';                  // WebSocket
 # Current correct values
 NODE_BRIDGE_PORT=9899        # node-bridge WS + API proxy
 SG_PORT=9897                 # Python bridge.py AI backend
-BACKEND_URL=http://localhost:8000   # direct backend (internal)
+BACKEND_URL=http://localhost:9899   # direct backend (internal)
 ```
 
 ## References

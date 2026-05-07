@@ -1,6 +1,6 @@
 import { Alert, AlertStats } from '../types/alert';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9899/api/v1';
 
 export class AlertAPI {
   private static async request<T>(

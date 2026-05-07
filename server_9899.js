@@ -122,7 +122,7 @@ function ddgProxy(query, mode, wsId) {
 // ─── Sovereign AI Proxy ──────────────────────────────────────────────
 // Routes ALL AI requests through the self-hosted sovereign bridge.
 // No external SaaS. No data leaves the infrastructure.
-const SOVEREIGN_AI_URL = (process.env.SOVEREIGN_API_URL || 'http://localhost:8000/api/ai').replace(/\/$/, '');
+const SOVEREIGN_AI_URL = (process.env.SOVEREIGN_API_URL || 'http://localhost:9899/api/ai').replace(/\/$/, '');
 
 function aiProxy(agent, payload) {
   return new Promise((resolve) => {

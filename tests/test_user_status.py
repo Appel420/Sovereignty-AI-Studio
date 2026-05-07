@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 # Set required env vars before any backend import triggers Settings()
 os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379")
+os.environ.setdefault("REDIS_URL", "redis://localhost:9899")
 os.environ.setdefault("SECRET_KEY", "test-secret-key-do-not-use")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 

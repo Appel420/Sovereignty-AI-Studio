@@ -43,7 +43,7 @@ We only support Python versions that have active or security support by the Pyth
 from keycloak import KeycloakOpenID
 
 # Configure client
-keycloak_openid = KeycloakOpenID(server_url="http://localhost:8080/auth/",
+keycloak_openid = KeycloakOpenID(server_url="http://localhost:9899/auth/",
                                  client_id="example_client",
                                  realm_name="example_realm",
                                  client_secret_key="secret")
@@ -88,7 +88,7 @@ from keycloak import KeycloakAdmin
 from keycloak import KeycloakOpenIDConnection
 
 keycloak_connection = KeycloakOpenIDConnection(
-                        server_url="http://localhost:8080/",
+                        server_url="http://localhost:9899/",
                         username='example-admin',
                         password='secret',
                         realm_name="master",

@@ -10,6 +10,6 @@ COPY agents/judge_agent/ ./agents/judge_agent/
 COPY platform_connectors/ ./platform_connectors/
 COPY event_bus/ ./event_bus/
 
-EXPOSE 8003
+EXPOSE 9899
 
 CMD ["python", "-c", "from agents.platform_agent.platform_manager import PlatformAgent; print('Platform Agent ready')"]

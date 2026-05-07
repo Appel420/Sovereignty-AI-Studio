@@ -212,8 +212,8 @@ cd frontend
 npm install
 
 # Set environment variables
-echo "REACT_APP_API_URL=http://localhost:8000/api/v1" > .env
-echo "REACT_APP_WS_URL=ws://localhost:8000" >> .env
+echo "REACT_APP_API_URL=http://localhost:9899/api/v1" > .env
+echo "REACT_APP_WS_URL=ws://localhost:9899" >> .env
 
 # Run the development server
 npm start
@@ -252,7 +252,7 @@ See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
 ```bash
 # Create a security alert
-curl -X POST "http://localhost:8000/api/v1/alerts/" \
+curl -X POST "http://localhost:9899/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -264,7 +264,7 @@ curl -X POST "http://localhost:8000/api/v1/alerts/" \
   }'
 
 # Create an alert with audio notification
-curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
+curl -X POST "http://localhost:9899/api/v1/alerts/?speak=true" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -280,7 +280,7 @@ curl -X POST "http://localhost:8000/api/v1/alerts/?speak=true" \
 The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/api/v1/alerts/ws/USER_ID');
+const ws = new WebSocket('ws://localhost:9899/api/v1/alerts/ws/USER_ID');
 
 ws.onmessage = (event) => {
   const message = JSON.parse(event.data);

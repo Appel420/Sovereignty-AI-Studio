@@ -12,7 +12,7 @@
 'use strict';
 
 // ─── CONSTANTS ────────────────────────────────────────
-const SG_API    = 'http://127.0.0.1:8443';
+const SG_API    = 'http://127.0.0.1:9899';
 const SG_VER    = 'v13.1-sec';
 const TOKEN_KEY = 'sg_jwt';
 const ROLE_KEY2 = 'sg_role_claim';
@@ -1635,9 +1635,9 @@ h+='<button class="btn bp btn-w" onclick="saveAIKeys()" style="margin-top:4px">S
 // Bridge
 h+='<div class="card"><div class="ct">⚡ Port 9898 Bridge</div>';
 h+=kv('Status',tag(STATE.bridgeOnline?'ONLINE':'OFFLINE',STATE.bridgeOnline?'tg':'tr2'));
-h+=kv('Primary','ws://localhost:9000');
+h+=kv('Primary','ws://localhost:9899');
 h+=kv('Bridge alias','ws://localhost:9898');
-h+=kv('Auth alias','http://localhost:8443');
+h+=kv('Auth alias','http://localhost:9899');
 h+=kv('Piper TTS',tag(STATE.piperActive?'Active':'Inactive',STATE.piperActive?'tg':'ta2'));
 h+='<div class="btn-row" style="margin-top:10px"><button class="btn bp" onclick="Bridge.connect()">Reconnect Bridge</button><button class="btn bs" onclick="Bridge.pingHealth()">Ping Health</button></div>';
 h+='<div class="banner-i" style="margin-top:8px">Run: <code>node unified_server.js</code> - all services on 9000/9898/8443</div></div>';
@@ -2671,7 +2671,7 @@ var Bridge={
     }catch(e){STATE.bridgeOnline=false;}
   },
   pingHealth:function(){
-    fetch('http://localhost:9000/health').then(function(r){return r.json();}).then(function(d){toast('Bridge: '+JSON.stringify(d),'ok');}).catch(function(){toast('Bridge offline','err');});
+    fetch('http://localhost:9899/health').then(function(r){return r.json();}).then(function(d){toast('Bridge: '+JSON.stringify(d),'ok');}).catch(function(){toast('Bridge offline','err');});
   },
   speak:function(text){
     if(!text)return;
@@ -2881,7 +2881,7 @@ var Term={
   cmdSession:function(){if(!STATE.user){this.line('No session','w');return;}this.line('User: '+STATE.user.name,'i');this.line('Role: '+(STATE.role?STATE.role.lbl:'-'),'i');this.line('Level: L'+(STATE.role?STATE.role.lvl:1),'i');this.line('Uptime: '+this.uptime(),'i');this.line('Audit: '+STATE.auditLog.length+' entries','i');this.line('Memory: '+STATE.memory.length+' cards','i');},
   cmdAlgo:function(){[['ML-KEM-768','NIST FIPS 203'],['Dilithium3','NIST FIPS 204'],['BLAKE3','BLAKE3 2020'],['ChaCha20-Poly1305','RFC 8439']].forEach(function(a){Term.line('  '+a[0].padEnd(20)+a[1],'s');});},
   cmdAudit:function(){this.line('── Last 10 ──','i');(this.audit.length?this.audit:STATE.auditLog).slice(-10).forEach(function(e){Term.line('  '+(e.allowed!==false?'✓':'⛔')+' '+(e.cmd||e.msg||''),'i');});},
-  cmdPing:function(){var self=this;this.line('Pinging 9898…','d');fetch('http://localhost:9000/health').then(function(r){return r.json();}).then(function(d){self.line('PONG ✓ '+JSON.stringify(d),'s');}).catch(function(){self.line('Bridge offline. Run: node server_9898.js','w');});},
+  cmdPing:function(){var self=this;this.line('Pinging 9898…','d');fetch('http://localhost:9899/health').then(function(r){return r.json();}).then(function(d){self.line('PONG ✓ '+JSON.stringify(d),'s');}).catch(function(){self.line('Bridge offline. Run: node server_9898.js','w');});},
   cmdWhoami:function(){this.line((STATE.user?STATE.user.name:'SYSTEM')+' · '+(STATE.roleKey||'-'),'i');},
   cmdLs:function(){Object.keys(PANELS).slice(0,20).forEach(function(p){Term.line('  '+p,'d');});this.line('  … '+(Math.max(0,Object.keys(PANELS).length-20))+' more','d');},
   cmdHash:function(text){if(!text){this.line('Usage: hash <text>','w');return;}this.line('Hash: '+sha256str(text),'s');},
@@ -2966,7 +2966,7 @@ function sgMemorySync(){if(!Bridge.ws||Bridge.ws.readyState!==1)return;var k=(ST
 function sgMFAGen(role){if(!Bridge.ws||Bridge.ws.readyState!==1){toast('Bridge offline','err');return;}Bridge.ws.send(JSON.stringify({type:'mfa_gen',role:role||STATE.roleKey||''}));}
 function sgPlaidBridge(t,extra){if(!Bridge.ws||Bridge.ws.readyState!==1){toast('Bridge offline','err');return;}Bridge.ws.send(JSON.stringify(Object.assign({type:t,client_id:SS.get('sg_plaid_cid'),secret:SS.get('sg_plaid_sec'),env:'sandbox'},extra||{})));}
 function sgCollabSend(payload){if(!Bridge.ws||Bridge.ws.readyState!==1)return;Bridge.ws.send(JSON.stringify({type:'collab_broadcast',payload:payload,from:STATE.userName||'?'}));}
-async function sgRefreshToken(){var tok=STATE.sgToken||sessionStorage.getItem('sg_jwt');if(!tok)return;try{var r=await fetch('http://localhost:9000/api/auth/refresh',{method:'POST',headers:{Authorization:'Bearer '+tok},signal:AbortSignal.timeout(5000)});if(r.ok){var d=await r.json();STATE.sgToken=d.token;sessionStorage.setItem('sg_jwt',d.token);}}catch(_){}}
+async function sgRefreshToken(){var tok=STATE.sgToken||sessionStorage.getItem('sg_jwt');if(!tok)return;try{var r=await fetch('http://localhost:9899/api/auth/refresh',{method:'POST',headers:{Authorization:'Bearer '+tok},signal:AbortSignal.timeout(5000)});if(r.ok){var d=await r.json();STATE.sgToken=d.token;sessionStorage.setItem('sg_jwt',d.token);}}catch(_){}}
 setInterval(sgRefreshToken,27900000);
 setInterval(function(){if(STATE.bridgeOnline)sgMemorySync();},300000);
 </script>

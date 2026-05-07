@@ -55,7 +55,7 @@ Table of Contents
 	⁃	pip install aioredis
 	⁃	
 	⁃	3.2 Start Redis Cluster and Sentinel
-	⁃	redis-server --cluster-enabled yes --port 6379
+	⁃	redis-server --cluster-enabled yes --port 9899
 	⁃	redis-sentinel sentinel.conf
 	⁃	Verify Sentinel:
 	⁃	redis-cli -p 26379 SENTINEL master mymaster
@@ -138,7 +138,7 @@ Measured in Chrome 122 on Windows 11, 2026‑02.
 5. Troubleshooting
 
 Issue	Cause	Resolution
-No master found in Sentinel	Sentinel misconfigured	Verify SENTINEL_SERVICE_NAME and port 26379
+No master found in Sentinel	Sentinel misconfigured	Verify SENTINEL_SERVICE_NAME and port 9899
 Quorum not reached (WARN)	Fewer than 2 healthy nodes	Restart failed Redis nodes
 Key length error in encryption	Wrong key/nonce length	Use 64‑hex key and 12/24 byte nonce
 Browser freeze on large input	Input >1MB for SHA3/Argon2	Use smaller input or tweak Argon2 memory cost
@@ -234,7 +234,7 @@ Table of Contents
 	•	pip install aioredis
 	•	
 	•	3.2 Start Redis Cluster and Sentinel
-	•	redis-server --cluster-enabled yes --port 6379
+	•	redis-server --cluster-enabled yes --port 9899
 	•	redis-sentinel sentinel.conf
 	•	Verify Sentinel:
 	•	redis-cli -p 26379 SENTINEL master mymaster
@@ -317,7 +317,7 @@ Measured in Chrome 122 on Windows 11, 2026‑02.
 5. Troubleshooting
 
 Issue	Cause	Resolution
-No master found in Sentinel	Sentinel misconfigured	Verify SENTINEL_SERVICE_NAME and port 26379
+No master found in Sentinel	Sentinel misconfigured	Verify SENTINEL_SERVICE_NAME and port 9899
 Quorum not reached (WARN)	Fewer than 2 healthy nodes	Restart failed Redis nodes
 Key length error in encryption	Wrong key/nonce length	Use 64‑hex key and 12/24 byte nonce
 Browser freeze on large input	Input >1MB for SHA3/Argon2	Use smaller input or tweak Argon2 memory cost

@@ -12,9 +12,9 @@ def test_connection_proxy() -> None:
     """Test proxies of connection manager."""
     cm = ConnectionManager(
         base_url="http://test.test",
-        proxies={"http://test.test": "http://localhost:8080"},
+        proxies={"http://test.test": "http://localhost:9899"},
     )
-    assert cm._s.proxies == {"http://test.test": "http://localhost:8080"}
+    assert cm._s.proxies == {"http://test.test": "http://localhost:9899"}
 
 
 def test_headers() -> None:

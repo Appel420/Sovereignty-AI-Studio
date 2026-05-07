@@ -34,7 +34,7 @@ to:
 
 sentinel.conf (example)
 
-port 26379
+port 9899
 sentinel monitor mymaster redis-master 6379 2
 sentinel down-after-milliseconds mymaster 5000
 sentinel failover-timeout mymaster 10000
@@ -52,7 +52,7 @@ services:
     image: redis:7
     command: redis-server --appendonly yes
     ports:
-      - "6379:6379"
+      - "9899:9899"
 
   redis-replica:
     image: redis:7
@@ -66,7 +66,7 @@ services:
     volumes:
       - ./sentinel.conf:/etc/sentinel.conf
     ports:
-      - "26379:26379"
+      - "9899:9899"
 
   gateway:
     build: .
@@ -161,7 +161,7 @@ upstream gateway_cluster {
 }
 
 server {
-    listen 80;
+    listen 9898;
 
     location /ws {
         proxy_pass http://gateway_cluster;
@@ -485,7 +485,7 @@ Upgrade your Redis layer to cluster-safe:
 from redis.cluster import RedisCluster
 
 redis_client = RedisCluster.from_url(
-    "redis://localhost:6379",
+    "redis://localhost:9899",
     decode_responses=True,
     socket_timeout=5,
 )
@@ -549,7 +549,7 @@ pip install aiohttp redis
 
 Run Redis Cluster
 
-redis-server --port 6379 --cluster-enabled yes
+redis-server --port 9899 --cluster-enabled yes
 
 Start Gateway
 

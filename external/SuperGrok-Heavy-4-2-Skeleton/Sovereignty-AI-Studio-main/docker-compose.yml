@@ -7,11 +7,11 @@ services:
     expose:
       - "9898"
     environment:
-      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@db:5432/creativeflow_db
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-password}@db:9899/creativeflow_db
+      - REDIS_URL=redis://redis:9899/0
       - SECRET_KEY=${SECRET_KEY:-}
       - ALGORITHM=HS256
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=http://keycloak:9899
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-sovereignty}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-sovereignty-app}
     depends_on:
@@ -22,13 +22,13 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     ports:
-      - "8080:8080"
-      - "8443:8443"
+      - "9899:9899"
+      - "9899:9899"
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-changeme}
       - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
+      - KC_DB_URL=jdbc:postgresql://db:9899/${POSTGRES_DB:-sovereignty_db}
       - KC_DB_USERNAME=${POSTGRES_USER:-postgres}
       - KC_DB_PASSWORD=${POSTGRES_PASSWORD:-password}
     command: start-dev
@@ -44,13 +44,13 @@ services:
       - WEATHER_URL=http://backend:9898
       - NODE_BRIDGE_PORT=9899
       - CORS_ORIGIN=http://localhost:9897,http://localhost:9899,http://127.0.0.1:9897,http://127.0.0.1:9899
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=http://keycloak:9899
     depends_on:
       - backend
       - keycloak
 
   db:
-    image: postgres:13
+    image: postgres:9899
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password

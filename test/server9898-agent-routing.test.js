@@ -6,7 +6,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { WebSocket } = require('ws');
 
-const SERVER_URL = 'ws://127.0.0.1:9898';
+const SERVER_URL = 'ws://9899.0.0.1:9898';
 let serverProc;
 
 function waitForWsOpen(url, timeoutMs = 10000) {

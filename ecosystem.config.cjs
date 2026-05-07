@@ -13,9 +13,9 @@ module.exports = {
       script: 'node-bridge/server.js',
       env: {
         NODE_BRIDGE_PORT: 9899,
-        BACKEND_URL: 'http://127.0.0.1:8000',
-        WEATHER_URL: 'http://127.0.0.1:8001',
-        GATEWAY_URL: 'http://127.0.0.1:9898',
+        BACKEND_URL: 'http://9899.0.0.1:9899',
+        WEATHER_URL: 'http://9899.0.0.1:9899',
+        GATEWAY_URL: 'http://9899.0.0.1:9898',
         CORS_ORIGIN: '*',
       },
       watch: false,
@@ -24,16 +24,16 @@ module.exports = {
       restart_delay: 2000,
     },
 
-    // ── Python Backend (FastAPI — port 8000) ──────────────────────────────
+    // ── Python Backend (FastAPI — port 9899) ──────────────────────────────
     {
       name: 'backend',
       script: 'uvicorn',
-      args: 'backend.app.main:app --host 127.0.0.1 --port 8000',
+      args: 'backend.app.main:app --host 127.0.0.1 --port 9899',
       interpreter: 'python3',
       cwd: './',
       env: {
         PYTHONPATH: '.:./backend',
-        BACKEND_PORT: 8000,
+        BACKEND_PORT: 9899,
       },
       watch: false,
       autorestart: true,

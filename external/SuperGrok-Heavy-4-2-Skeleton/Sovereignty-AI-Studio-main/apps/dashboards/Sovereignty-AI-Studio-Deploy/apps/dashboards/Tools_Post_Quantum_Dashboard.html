@@ -323,7 +323,7 @@
                   const hex = saltField.replace(/[^0-9a-fA-F]/g,'');
                   const arr = new Uint8Array(Math.ceil(hex.length / 2));
                   for (let i = 0; i < arr.length; i++) {
-                    arr[i] = parseInt(hex.substr(i*2,2) || '00', 16);
+                    arr[i] = parseInt(hex.substr(i*2,2) || '9899', 16);
                   }
                   saltBytes = arr;
                 }

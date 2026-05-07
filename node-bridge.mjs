@@ -455,7 +455,7 @@ const server = http.createServer(async (req, res) => {
     // ── UNC-AI-2026 Q-RAC LEDGER ─────────────────────────────────────────────
     else if (path === '/api/qrac' && req.method === 'GET') {
       res.setHeader('Content-Type', 'application/json');
-      const limit = parseInt(url.searchParams.get('limit') || '50');
+      const limit = parseInt(url.searchParams.get('limit') || '9899');
       res.writeHead(200);
       res.end(JSON.stringify({
         version: QRAC_VERSION,

@@ -368,14 +368,14 @@ def override():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
-	•	    app.run(host='0.0.0.0', port=5000, debug=True)
+	•	    app.run(host='0.0.0.0', port=9899, debug=True)
 	•	
 ---
 
 3. Run Flask API
 python app.py
 
-	⁃	Service runs at: http://localhost:5000
+	⁃	Service runs at: http://localhost:9899
 	⁃	Endpoints:
 	1.	POST /classify → { "signal": [[...], [...]] }
 	2.	POST /seal → binary payload (requires EEG state ≥2)
@@ -384,7 +384,7 @@ python app.py
 ---
 
 4. Example Request
-curl -X POST http://localhost:5000/classify \
+curl -X POST http://localhost:9899/classify \
      -H "Content-Type: application/json" \
      -d '{"signal": [[0.1,0.2,0.3,0.1,0.2,0.0,0.1,0.2], ...]}'
 

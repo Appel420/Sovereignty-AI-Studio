@@ -1659,7 +1659,7 @@ var BridgeCFG = {
   presets: {
     local:    { host:'localhost',    port:9898 },
     lan:      { host:'192.168.1.1',  port:9898 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
+    airplay:  { host:'localhost',    port:9899 },   // AirPlay bridge
     tailscale:{ host:'100.x.x.x',   port:9898 },   // Tailscale mesh
     custom:   { host:'',             port:0    }
   },
@@ -2000,7 +2000,7 @@ var MicInput = {
 
 // ─── 5. KEYCLOAK PERSISTENCE ─────────────────────────────────────────
 var KC = {
-  url: localStorage.getItem('kc_url') || 'http://localhost:8080',
+  url: localStorage.getItem('kc_url') || 'http://localhost:9899',
   realm: localStorage.getItem('kc_realm') || 'supergrok',
   clientId: 'supergrok-dashboard',
   token: null,
@@ -2577,7 +2577,7 @@ window.renderBridgeConfig = function() {
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="speak(\'Bridge test. SuperGrok voice is live.\')">Test Voice</button>' +
     '</div>' +
     '<div style="margin-top:8px;padding:6px;background:rgba(0,0,0,.3);border-radius:5px;font-family:var(--mono);font-size:6.5px;color:var(--mu)">' +
-    'AirPlay: set host to your Mac IP + port 7000  |  LAN: device IP + 9898  |  Tailscale: 100.x.x.x + 9898' +
+    'AirPlay: set host to your Mac IP + port 9899  |  LAN: device IP + 9898  |  Tailscale: 100.x.x.x + 9898' +
     '</div>';
 };
 
@@ -2673,7 +2673,7 @@ window.renderKeycloakPanel = function() {
       '<button class="btn-s" style="font-size:8px;padding:6px 12px;color:var(--rd)" onclick="KC.logout();loadPanel(\'keycloak\')">Logout KC</button>' +
       '</div>' :
       '<div style="display:flex;flex-direction:column;gap:6px">' +
-      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:8080)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
+      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:9899)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
       '<input id="kcRealm" placeholder="Realm (default: supergrok)" value="' + KC.realm + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.realm=this.value;localStorage.setItem(\'kc_realm\',this.value)">' +
       '<input id="kcUser" placeholder="Username" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
       '<input id="kcPass" type="password" placeholder="Password" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
@@ -5366,7 +5366,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     };
     var tc=document.getElementById('kc-test-conn'); if(tc) tc.addEventListener('click',testFn);
     var oa=document.getElementById('kc-open-admin');
-    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:8080/admin','_blank','noopener,noreferrer'); });
+    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:9899/admin','_blank','noopener,noreferrer'); });
     var lf=document.getElementById('kc-login-flow');
     if(lf) lf.addEventListener('click',function(){
       fetch('http://localhost:9898/auth/keycloak/realm')
@@ -8383,7 +8383,7 @@ kc('2FA','Enforced','#00e676') + kc('LOCAL','Sovereignty','var(--volt)') +
 '</div>' +
 '<div class="two">' +
 '<div class="card"><div class="card-title">Connection</div>' +
-sr('Keycloak URL','localhost:8080','b-warn') +
+sr('Keycloak URL','localhost:9899','b-warn') +
 sr('Realm','master','b-info') +
 sr('Client ID','supergrok','b-info') +
 '<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">' +
@@ -8393,7 +8393,7 @@ sr('Client ID','supergrok','b-info') +
 '</div>' +
 '<div class="card"><div class="card-title">Auth Flow</div>' +
 '<div style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8">' +
-'1. export KEYCLOAK_URL=http://localhost:8080<br>' +
+'1. export KEYCLOAK_URL=http://localhost:9899<br>' +
 '2. export KEYCLOAK_CLIENT_SECRET=…<br>' +
 '3. Restart bridge.py<br>' +
 '4. Click Test Connection<br>' +
@@ -11785,7 +11785,7 @@ var t = e.target;
 if (t.id === 'mc-gen') {
 var topic = (document.getElementById('mc-topic')||{}).value || '';
 if (!topic.trim()) { window.toast && window.toast('Enter a topic','err'); return; }
-var count = parseInt((document.getElementById('mc-count')||{}).value||'10');
+var count = parseInt((document.getElementById('mc-count')||{}).value||'9899');
 var diff  = (document.getElementById('mc-diff')||{}).value||'intermediate';
 var type  = (document.getElementById('mc-type')||{}).value||'qa';
 MC.generateDeck(topic, count, diff, type);
@@ -11914,7 +11914,7 @@ if (t.id === 'lie-verify') {
 var stmt = (document.getElementById('lie-input')||{}).value||'';
 if (!stmt.trim()) { window.toast && window.toast('Enter a statement','err'); return; }
 var mode = (document.getElementById('lie-mode')||{}).value||'factual';
-var thr  = (document.getElementById('lie-threshold')||{}).value||'75';
+var thr  = (document.getElementById('lie-threshold')||{}).value||'9899';
 LieDetector.verify(stmt, mode, parseInt(thr));
 return;
 }
@@ -12040,7 +12040,7 @@ _stream: null,
 _snapCount: 0,
 
 start: async function() {
-var quality = (document.getElementById('sc-quality')||{}).value||'1080';
+var quality = (document.getElementById('sc-quality')||{}).value||'9899';
 var audio   = !!(document.getElementById('sc-audio')||{}).checked;
 var status  = document.getElementById('sc-status');
 var video   = document.getElementById('sc-video');
@@ -13739,17 +13739,17 @@ ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
 
 /* ── COLOR UTILS ────────────────────────────────────────────── */
 _shade: function(hex, f) {
-var r=parseInt(hex.slice(1,3)||'88',16);
-var g=parseInt(hex.slice(3,5)||'88',16);
-var b=parseInt(hex.slice(5,7)||'88',16);
+var r=parseInt(hex.slice(1,3)||'9899',16);
+var g=parseInt(hex.slice(3,5)||'9899',16);
+var b=parseInt(hex.slice(5,7)||'9899',16);
 r=Math.max(0,Math.min(255,Math.round(r+r*f)));
 g=Math.max(0,Math.min(255,Math.round(g+g*f)));
 b=Math.max(0,Math.min(255,Math.round(b+b*f)));
 return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
 },
 _mix: function(h1,h2,t) {
-var r1=parseInt(h1.slice(1,3)||'88',16),g1=parseInt(h1.slice(3,5)||'88',16),b1=parseInt(h1.slice(5,7)||'88',16);
-var r2=parseInt(h2.slice(1,3)||'88',16),g2=parseInt(h2.slice(3,5)||'88',16),b2=parseInt(h2.slice(5,7)||'88',16);
+var r1=parseInt(h1.slice(1,3)||'9899',16),g1=parseInt(h1.slice(3,5)||'9899',16),b1=parseInt(h1.slice(5,7)||'9899',16);
+var r2=parseInt(h2.slice(1,3)||'9899',16),g2=parseInt(h2.slice(3,5)||'9899',16),b2=parseInt(h2.slice(5,7)||'9899',16);
 var r=Math.round(r1*(1-t)+r2*t),g=Math.round(g1*(1-t)+g2*t),b=Math.round(b1*(1-t)+b2*t);
 return '#'+r.toString(16).padStart(2,'0')+g.toString(16).padStart(2,'0')+b.toString(16).padStart(2,'0');
 },
@@ -18928,7 +18928,7 @@ var t = e.target;
 if (t.id === 'mc-gen') {
 var topic = (document.getElementById('mc-topic')||{}).value || '';
 if (!topic.trim()) { window.toast && window.toast('Enter a topic','err'); return; }
-var count = parseInt((document.getElementById('mc-count')||{}).value||'10');
+var count = parseInt((document.getElementById('mc-count')||{}).value||'9899');
 var diff  = (document.getElementById('mc-diff')||{}).value||'intermediate';
 var type  = (document.getElementById('mc-type')||{}).value||'qa';
 MC.generateDeck(topic, count, diff, type);
@@ -19057,7 +19057,7 @@ if (t.id === 'lie-verify') {
 var stmt = (document.getElementById('lie-input')||{}).value||'';
 if (!stmt.trim()) { window.toast && window.toast('Enter a statement','err'); return; }
 var mode = (document.getElementById('lie-mode')||{}).value||'factual';
-var thr  = (document.getElementById('lie-threshold')||{}).value||'75';
+var thr  = (document.getElementById('lie-threshold')||{}).value||'9899';
 LieDetector.verify(stmt, mode, parseInt(thr));
 return;
 }
@@ -19183,7 +19183,7 @@ _stream: null,
 _snapCount: 0,
 
 start: async function() {
-var quality = (document.getElementById('sc-quality')||{}).value||'1080';
+var quality = (document.getElementById('sc-quality')||{}).value||'9899';
 var audio   = !!(document.getElementById('sc-audio')||{}).checked;
 var status  = document.getElementById('sc-status');
 var video   = document.getElementById('sc-video');

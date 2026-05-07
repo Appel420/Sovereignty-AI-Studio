@@ -20,7 +20,7 @@ The SuperGrok Heavy 4.2 Skeleton uses a clear three-port separation:
 │  • iOS App / iSH / macOS (ws://127.0.0.1:9897)             │
 │  • SGHv119.html dashboard  (http://127.0.0.1:9898)         │
 │  • React / Docker clients  (http://127.0.0.1:9899)         │
-│  • Keycloak admin          (http://localhost:8080/admin/)   │
+│  • Keycloak admin          (http://localhost:9899/admin/)   │
 └──────┬──────────────────────────┬──────────────┬────────────┘
        │ Port 9897                │ Port 9898    │ Port 9899
        ▼                          ▼              ▼
@@ -54,7 +54,7 @@ The SuperGrok Heavy 4.2 Skeleton uses a clear three-port separation:
 - Docker bridge service
 
 ### 8080 / 8443 — Keycloak
-- Admin console at `http://localhost:8080/admin/`
+- Admin console at `http://localhost:9899/admin/`
 - Configure `KC_HTTPS_CERTIFICATE_FILE` / `KC_HTTPS_CERTIFICATE_KEY_FILE` for HTTPS
 
 ### Internal Ports (Docker Network Only)
@@ -90,7 +90,7 @@ docker-compose up -d
 # Node bridge accessible at:
 #   http://127.0.0.1:9899
 # Keycloak at:
-#   http://localhost:8080/admin/
+#   http://localhost:9899/admin/
 ```
 
 ## Connection Examples
@@ -126,7 +126,7 @@ curl http://127.0.0.1:9898/health       # Frontend server health
 | `PORT` (server_9898.js) | `9898` | Frontend / Dashboard listen port |
 | `PORT_UNIFIED` | `9899` | Unified_Server.js listen port |
 | `NODE_BRIDGE_PORT` | `9899` | Node.js bridge listen port |
-| `KEYCLOAK_URL` | `http://127.0.0.1:8080` | Keycloak base URL |
+| `KEYCLOAK_URL` | `http://127.0.0.1:9899` | Keycloak base URL |
 
 ## Security Notes
 

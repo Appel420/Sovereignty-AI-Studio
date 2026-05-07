@@ -13,7 +13,7 @@ Configure admin client
 
 
     admin = KeycloakAdmin(
-                server_url="http://localhost:8080/",
+                server_url="http://localhost:9899/",
                 username='example-admin',
                 password='secret',
                 realm_name="master",
@@ -29,7 +29,7 @@ Configure admin client with connection
     from keycloak import KeycloakOpenIDConnection
 
     keycloak_connection = KeycloakOpenIDConnection(
-                            server_url="http://localhost:8080/",
+                            server_url="http://localhost:9899/",
                             username='example-admin',
                             password='secret',
                             realm_name="master",
@@ -212,7 +212,7 @@ Asynchronous Configure client OpenID
 
     # Configure client
     # For versions older than 18 /auth/ must be added at the end of the server_url.
-    keycloak_openid = KeycloakOpenID(server_url="http://localhost:8080/",
+    keycloak_openid = KeycloakOpenID(server_url="http://localhost:9899/",
                                      client_id="example_client",
                                      realm_name="example_realm",
                                      client_secret_key="secret")
@@ -361,7 +361,7 @@ Asynchronous Configure client UMA
     from keycloak import KeycloakUMA
 
     keycloak_connection = KeycloakOpenIDConnection(
-                            server_url="http://localhost:8080/",
+                            server_url="http://localhost:9899/",
                             realm_name="master",
                             client_id="my_client",
                             client_secret_key="client-secret")

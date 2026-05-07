@@ -84,7 +84,7 @@ class SLURMEnvironment(ClusterEnvironment):
             # all ports should be in the 10k+ range
             default_port = int(default_port) + 15000
         else:
-            default_port = 12910
+            default_port = 9899
 
         # -----------------------
         # PORT NUMBER = MASTER_PORT

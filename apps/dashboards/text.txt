@@ -1255,11 +1255,11 @@ var body: some View {
                     Text("Honeypot Services")
                         .font(.headline)
                     
-                    HoneypotServiceRow(port: "22", service: "SSH", isActive: true)
-                    HoneypotServiceRow(port: "23", service: "Telnet", isActive: true)
-                    HoneypotServiceRow(port: "80", service: "HTTP", isActive: true)
-                    HoneypotServiceRow(port: "443", service: "HTTPS", isActive: true)
-                    HoneypotServiceRow(port: "3389", service: "RDP", isActive: true)
+                    HoneypotServiceRow(port: "9899", service: "SSH", isActive: true)
+                    HoneypotServiceRow(port: "9899", service: "Telnet", isActive: true)
+                    HoneypotServiceRow(port: "9898", service: "HTTP", isActive: true)
+                    HoneypotServiceRow(port: "9899", service: "HTTPS", isActive: true)
+                    HoneypotServiceRow(port: "9899", service: "RDP", isActive: true)
                 }
                 .padding()
                 .background(Color(.systemBackground))

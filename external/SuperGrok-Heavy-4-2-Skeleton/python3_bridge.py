@@ -1319,7 +1319,7 @@ if __name__ == "__main__":
             print("   Cause   : Node.js server (Unified_Server.js) already bound to this port.")
             print(f"   Fix     : Stop Node first — `kill {_conflict_pid}`")
             print("             Node.js should run on port 9899, not 9897.")
-            print("             Or set a different port: SG_PORT=9900 python3 python3_bridge.py")
+            print("             Or set a different port: SG_PORT=9897 python3 python3_bridge.py")
         else:
             print(f"   Fix     : kill {_conflict_pid}  or set SG_PORT=<other port>")
         print()
@@ -1370,7 +1370,7 @@ if __name__ == "__main__":
         print(f"Kill the existing process: kill $(lsof -t -i:{PORT})")
         sys.exit(1)
 
-    srv.listen(32)
+    srv.listen(9899)
     print("\n[OK]  Accepting connections ...\n")
     while True:
         try:

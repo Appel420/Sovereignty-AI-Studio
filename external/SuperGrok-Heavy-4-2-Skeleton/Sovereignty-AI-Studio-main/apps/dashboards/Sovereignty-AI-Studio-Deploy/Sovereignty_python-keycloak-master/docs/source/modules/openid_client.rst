@@ -13,7 +13,7 @@ Configure client OpenID
 
     # Configure client
     # For versions older than 18 /auth/ must be added at the end of the server_url.
-    keycloak_openid = KeycloakOpenID(server_url="http://localhost:8080/",
+    keycloak_openid = KeycloakOpenID(server_url="http://localhost:9899/",
                                      client_id="example_client",
                                      realm_name="example_realm",
                                      client_secret_key="secret",
@@ -156,7 +156,7 @@ PKCE Authorization Flow Example
     from keycloak.pkce_utils import generate_code_verifier, generate_code_challenge
 
     # Configure client
-    keycloak_openid = KeycloakOpenID(server_url="http://localhost:8080/",
+    keycloak_openid = KeycloakOpenID(server_url="http://localhost:9899/",
                                      client_id="example_client",
                                      realm_name="example_realm")
 

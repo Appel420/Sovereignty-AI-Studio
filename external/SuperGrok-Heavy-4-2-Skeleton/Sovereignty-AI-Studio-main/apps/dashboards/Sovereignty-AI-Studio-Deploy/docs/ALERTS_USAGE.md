@@ -140,7 +140,7 @@ GET /api/v1/alerts/?unread_only=true&limit=20
 
 ### Connection
 
-Connect to: `ws://localhost:8000/api/v1/alerts/ws/{user_id}`
+Connect to: `ws://localhost:9899/api/v1/alerts/ws/{user_id}`
 
 ### Message Types
 
@@ -268,7 +268,7 @@ The Rust security module can trigger alerts through the API:
 ```rust
 // Call Python API via HTTP
 let client = reqwest::Client::new();
-client.post("http://localhost:8000/api/v1/alerts/")
+client.post("http://localhost:9899/api/v1/alerts/")
     .json(&json!({
         "type": "chain_break",
         "title": "CHAIN BROKEN",
@@ -310,7 +310,7 @@ client.post("http://localhost:8000/api/v1/alerts/")
 ## Troubleshooting
 
 ### WebSocket Won't Connect
-1. Check backend is running: `curl http://localhost:8000/health`
+1. Check backend is running: `curl http://localhost:9899/health`
 2. Verify WebSocket URL in frontend env: `REACT_APP_WS_URL`
 3. Check browser console for errors
 4. Verify user authentication token is valid

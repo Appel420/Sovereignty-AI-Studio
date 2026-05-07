@@ -185,7 +185,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=9899)
 `;
     
     const blob = new Blob([code], { type: 'text/x-python' });
@@ -298,7 +298,7 @@ def start_whisper_stt(on_transcript):
     CHUNK = 1024
     
     ws = websocket.WebSocketApp(
-        "ws://127.0.0.1:8020",
+        "ws://127.0.0.1:9899",
         on_message=lambda ws, msg: on_transcript(msg)
     )
     
@@ -344,9 +344,9 @@ COPY backend.py requirements.txt ./
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 8000
+EXPOSE 9899
 
-CMD ["uvicorn", "backend:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "backend:app", "--host", "0.0.0.0", "--port", "9899"]
 `;
 
     const requirements = `fastapi==0.109.0
@@ -362,7 +362,7 @@ services:
   backend:
     build: .
     ports:
-      - "8000:8000"
+      - "9899:9899"
     volumes:
       - ./supergrok.db:/app/supergrok.db
     restart: unless-stopped
@@ -406,7 +406,7 @@ spec:
       - name: backend
         image: supergrok/backend:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 9899
         resources:
           requests:
             cpu: "500m"
@@ -426,8 +426,8 @@ spec:
   selector:
     app: supergrok
   ports:
-  - port: 80
-    targetPort: 8000
+  - port: 9898
+    targetPort: 9899
 `;
 
     const blob = new Blob([manifest], { type: 'text/yaml' });
@@ -510,11 +510,11 @@ spec:
                 </div>
                 <div className="bg-slate-900 p-3 rounded">
                   <div className="text-slate-400">Run:</div>
-                  <div className="text-green-400">uvicorn backend:app --host 0.0.0.0 --port 8000</div>
+                  <div className="text-green-400">uvicorn backend:app --host 0.0.0.0 --port 9899</div>
                 </div>
                 <div className="bg-slate-900 p-3 rounded">
                   <div className="text-slate-400">Verify:</div>
-                  <div className="text-green-400">curl http://localhost:8000/health</div>
+                  <div className="text-green-400">curl http://localhost:9899/health</div>
                 </div>
               </div>
             </div>

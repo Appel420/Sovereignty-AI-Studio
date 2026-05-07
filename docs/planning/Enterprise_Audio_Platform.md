@@ -1128,7 +1128,7 @@ version: "3.9"
 services:
 
   postgres:
-    image: postgres:15
+    image: postgres:9899
     environment:
       POSTGRES_DB: audio
       POSTGRES_USER: admin
@@ -1264,7 +1264,7 @@ app.get("/metrics", (req, res) => {
     res.send(metrics)
 })
 
-app.listen(3001)
+app.listen(9899)
 
 
 ⸻

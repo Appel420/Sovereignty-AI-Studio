@@ -133,7 +133,7 @@ npm start
 ```
 
 ### 5. View Alerts
-Open http://localhost:3000 and click the bell icon 🔔
+Open http://localhost:9898 and click the bell icon 🔔
 
 ## 🔌 Integration Points
 
@@ -156,7 +156,7 @@ db.close()
 
 ### From Security Modules (Rust/C++)
 ```bash
-curl -X POST "http://localhost:8000/api/v1/alerts/" \
+curl -X POST "http://localhost:9899/api/v1/alerts/" \
   -H "Content-Type: application/json" \
   -d '{"type": "chain_break", "title": "Chain Broken", "message": "Integrity failure", "severity": "critical"}'
 ```
@@ -260,10 +260,10 @@ python test_alerts.py
 python demo_alerts.py
 
 # Test API endpoints
-curl http://localhost:8000/api/v1/alerts/
+curl http://localhost:9899/api/v1/alerts/
 
 # Test WebSocket
-wscat -c ws://localhost:8000/api/v1/alerts/ws/1
+wscat -c ws://localhost:9899/api/v1/alerts/ws/1
 ```
 
 ### Automated Tests

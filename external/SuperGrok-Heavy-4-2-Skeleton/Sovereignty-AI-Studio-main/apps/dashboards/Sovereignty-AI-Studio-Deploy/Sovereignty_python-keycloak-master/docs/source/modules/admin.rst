@@ -11,7 +11,7 @@ Configure admin client
 
 
     admin = KeycloakAdmin(
-                server_url="http://localhost:8080/",
+                server_url="http://localhost:9899/",
                 username='example-admin',
                 password='secret',
                 realm_name="master",
@@ -28,7 +28,7 @@ Configure admin client with connection
     from keycloak import KeycloakOpenIDConnection
 
     keycloak_connection = KeycloakOpenIDConnection(
-                            server_url="http://localhost:8080/",
+                            server_url="http://localhost:9899/",
                             username='example-admin',
                             password='secret',
                             realm_name="master",

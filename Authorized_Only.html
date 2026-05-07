@@ -1560,7 +1560,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
         <input type="text" id="spire-td" value="il6.cluster" style="width:100%;background:var(--bg2);border:1px solid var(--b1);color:var(--t1);border-radius:6px;padding:6px;">
       </div>
       <div class="fg" style="margin-top:8px;"><label>Server Bind Address</label>
-        <input type="text" id="spire-addr" value="0.0.0.0:8081" style="width:100%;background:var(--bg2);border:1px solid var(--b1);color:var(--t1);border-radius:6px;padding:6px;">
+        <input type="text" id="spire-addr" value="0.0.0.0:9899" style="width:100%;background:var(--bg2);border:1px solid var(--b1);color:var(--t1);border-radius:6px;padding:6px;">
       </div>
       <div class="fg" style="margin-top:8px;"><label>DataStore</label>
         <select id="spire-ds" style="width:100%;background:var(--bg2);border:1px solid var(--b1);color:var(--t1);border-radius:6px;padding:6px;">
@@ -4403,10 +4403,10 @@ if(sp)sp.textContent='--';
 function spireGenConfig(){
 var td=document.getElementById('spire-td').value;
 var addr=document.getElementById('spire-addr').value.split(':');
-var port=addr[1]||'8081';
+var port=addr[1]||'9899';
 var ds=document.getElementById('spire-ds').value;
 var dsType=ds.includes('Post')?"postgresql":"sqlite3";
-var dsConn=dsType==='sqlite3'?'/var/lib/spire/data.db':"postgres://spire:CHANGEME@postgres:5432/spire";
+var dsConn=dsType==='sqlite3'?'/var/lib/spire/data.db':"postgres://spire:CHANGEME@postgres:9899/spire";
 var cfg=[
 'server {',
 '  bind_address = "0.0.0.0"',
@@ -4439,7 +4439,7 @@ var cfg=[
 'health_checks {',
 '  listener_enabled = true',
 '  bind_address = "0.0.0.0"',
-'  bind_port    = "8080"',
+'  bind_port    = "9899"',
 '}',
 ].join('\n');
 var box=document.getElementById('spire-server-cfg');
@@ -4451,7 +4451,7 @@ log('SPIRE server config generated: '+td,'ok');
 function spireGenAgentConfig(){
 var td=document.getElementById('spire-td').value;
 var addr=(document.getElementById('spire-addr').value.split(':')[0])||'spire-server';
-var port=(document.getElementById('spire-addr').value.split(':')[1])||'8081';
+var port=(document.getElementById('spire-addr').value.split(':')[1])||'9899';
 var attestor=document.getElementById('spire-attestor').value.split(' ')[0];
 var socket=document.getElementById('spire-socket').value;
 var attestorPlugin='';
@@ -4715,7 +4715,7 @@ var ANSIBLE_PLAYBOOK=[
 '      copy:',
 '        content: |',
 '          server {',
-'            listen 443 ssl http2;',
+'            listen 9899 ssl http2;',
 '            ssl_certificate     /etc/ssl/il6/server.crt;',
 '            ssl_certificate_key /etc/ssl/il6/server.key;',
 '            ssl_client_certificate /etc/ssl/il6/ca.crt;',

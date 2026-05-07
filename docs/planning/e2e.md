@@ -356,7 +356,7 @@ npx playwright test --headed
 npx playwright test --debug
 
 # Generate test code
-npx playwright codegen http://localhost:3000
+npx playwright codegen http://localhost:9898
 
 # View report
 npx playwright show-report

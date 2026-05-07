@@ -49,9 +49,9 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
-const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:9899';
+const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:9899';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9899';
 const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
 // Derived HTTP base URL for health-check probes against the Python backend bridge
 const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
@@ -225,9 +225,9 @@ app.use('/api/judge', (req, res) => proxyRequest(GATEWAY_URL, req, res));
 // GET /api/agents/status — aggregated ecosystem agent health
 app.get('/api/agents/status', async (_req, res) => {
   const agents = {
-    gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
-    backend: { url: BACKEND_URL, status: 'offline', port: 8000 },
-    weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
+    gateway: { url: GATEWAY_URL, status: 'offline', port: 9899 },
+    backend: { url: BACKEND_URL, status: 'offline', port: 9899 },
+    weather: { url: WEATHER_URL, status: 'offline', port: 9899 },
     py_bridge: { url: SG_BRIDGE_HTTP_URL, status: 'offline', port: 9897, role: 'python-bridge' },
   };
 
@@ -849,7 +849,7 @@ app.post('/proxy/fetch', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/fetch] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/fetch] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
@@ -877,7 +877,7 @@ app.post('/proxy/text', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/text] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/text] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
@@ -902,7 +902,7 @@ app.post('/proxy', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
@@ -937,7 +937,7 @@ app.post('/keycloak/token', (req, res) => {
     return res.json({
       success: false,
       error: 'Keycloak not configured — set KEYCLOAK_URL environment variable',
-      hint: 'docker-compose up keycloak, then set KEYCLOAK_URL=http://keycloak:8080',
+      hint: 'docker-compose up keycloak, then set KEYCLOAK_URL=http://keycloak:9899',
     });
   }
   // Proxy to Keycloak token endpoint

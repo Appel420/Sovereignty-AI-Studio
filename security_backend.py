@@ -309,7 +309,7 @@ async def global_handler(request: Request, exc: Exception):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8443, log_level="warning")
+    uvicorn.run(app, host="127.0.0.1", port=9899, log_level="warning")
 
 # ── PASSPHRASE VERIFY (called by gate UI) ──────────────
 class PPVerify(BaseModel):

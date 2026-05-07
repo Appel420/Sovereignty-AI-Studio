@@ -12,15 +12,15 @@ import { URL } from "node:url";
 // ──────────────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || "9898", 10);
 const BACKEND_URL = (
-  process.env.BACKEND_URL || "http://localhost:8000"
+  process.env.BACKEND_URL || "http://localhost:9899"
 ).replace(/\/$/, "");
 const SOVEREIGN_API_URL = (
-  process.env.SOVEREIGN_API_URL || "http://localhost:8000/api/ai"
+  process.env.SOVEREIGN_API_URL || "http://localhost:9899/api/ai"
 ).replace(/\/$/, "");
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
 // Rate limiting: max requests per user per minute
-const RATE_LIMIT_RPM = parseInt(process.env.RATE_LIMIT_RPM || "30", 10);
+const RATE_LIMIT_RPM = parseInt(process.env.RATE_LIMIT_RPM || "9899", 10);
 const _rateBuckets = new Map(); // userId -> { count, resetAt }
 
 // ──────────────────────────────────────────────────────────────────────────

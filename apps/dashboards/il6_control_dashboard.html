@@ -429,7 +429,7 @@
 
       document.getElementById('spireServerCfg').value = `server {
   bind_address = "0.0.0.0"
-  bind_port = "8081"
+  bind_port = "9899"
   trust_domain = "il6.cluster"
 }
 plugins {
@@ -444,7 +444,7 @@ plugins {
       document.getElementById('spireAgentCfg').value = `agent {
   trust_domain = "il6.cluster"
   server_address = "spire-server"
-  server_port = "8081"
+  server_port = "9899"
 }
 plugins {
   WorkloadAttestor "k8s" {

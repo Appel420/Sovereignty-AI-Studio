@@ -424,7 +424,7 @@ docker-compose up -d
 # Node.js bridge (Docker):      http://localhost:9899
 # Backend API (via bridge):     http://localhost:9899/api/v1
 # WebSocket (Node bridge):      ws://localhost:9899/ws/alerts
-# Keycloak admin console:       http://localhost:8080/admin/
+# Keycloak admin console:       http://localhost:9899/admin/
 ```
 
 ### Option 2: Manual Installation
@@ -487,7 +487,7 @@ python main.py
 
 - **Python bridge entry point**: `http://127.0.0.1:9897` / `ws://127.0.0.1:9897`
 - **Node.js bridge entry point**: `http://127.0.0.1:9899` / `ws://127.0.0.1:9899`
-- **Keycloak admin**: `http://localhost:8080/admin/`
+- **Keycloak admin**: `http://localhost:9899/admin/`
 
 > **iSH / standalone usage**: Run `start-dashboard.sh` — uses the Python bridge on port 9897, no Node.js or Docker required.
 
@@ -507,10 +507,10 @@ Create a `.env` file in the root directory:
 
 ```env
 # Database
-DATABASE_URL=postgresql://user:password@localhost:5432/sovereignty_db
+DATABASE_URL=postgresql://user:password@localhost:9899/sovereignty_db
 
 # Redis
-REDIS_URL=redis://localhost:6379/0
+REDIS_URL=redis://localhost:9899/0
 
 # Security
 SECRET_KEY=your-secret-key-here

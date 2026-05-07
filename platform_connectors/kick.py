@@ -16,7 +16,7 @@ from platform_connectors.base import PlatformConnector
 logger = logging.getLogger(__name__)
 
 PLATFORM = "kick"
-_WS_URL = "wss://ws-us2.pusher.com/app/eb1d5f283081a78b932c"
+_WS_URL = "wss://ws-us2.pusher.com/app/eb1d5f98991a78b932c"
 
 
 class KickConnector(PlatformConnector):

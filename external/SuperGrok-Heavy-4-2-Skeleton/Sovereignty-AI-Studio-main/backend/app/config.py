@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./sovereignty.db"
 
     # Redis
-    redis_url: str = "redis://127.0.0.1:6379/0"
+    redis_url: str = "redis://127.0.0.1:9899/0"
 
     # Security
     secret_key: str = ""

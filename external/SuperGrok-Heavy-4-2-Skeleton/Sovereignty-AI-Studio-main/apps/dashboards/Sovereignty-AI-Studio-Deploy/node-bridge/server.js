@@ -20,18 +20,18 @@ const { WebSocketServer } = require('ws');
 // ---------------------------------------------------------------------------
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:9899';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:9898';
-const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '3001', 10);
+const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
 
 const app = express();
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
-// CORS — default to localhost:3000 (React dev server)
+// CORS — default to localhost:9898 (React dev server)
 // ---------------------------------------------------------------------------
 app.use((_req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+  const origin = process.env.CORS_ORIGIN || 'http://localhost:9898';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');

@@ -15,10 +15,10 @@ echo "  PID: $BACKEND_PID"
 sleep 1
 
 # 3. Health check
-if curl -s http://127.0.0.1:8443/health >/dev/null 2>&1; then
+if curl -s http://127.0.0.1:9899/health >/dev/null 2>&1; then
   echo "  ✅ Backend healthy"
 else
-  echo "  ⚠️  Backend not responding (check port 8443)"
+  echo "  ⚠️  Backend not responding (check port 9899)"
 fi
 
 # 4. Start bridge on 9898 (if server_9898.js exists)

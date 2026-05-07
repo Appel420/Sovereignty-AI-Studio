@@ -2172,7 +2172,7 @@ var BridgeCFG = {
   presets: {
     local:    { host:'127.0.0.1',    port:9897 }, // IPv4 literal — Safari/iOS safe
     lan:      { host:'192.168.1.1',  port:9897 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
+    airplay:  { host:'localhost',    port:9899 },   // AirPlay bridge
     tailscale:{ host:'100.x.x.x',   port:9897 },   // Tailscale mesh
     custom:   { host:'',             port:0    }
   },
@@ -2523,7 +2523,7 @@ var MicInput = {
 
 // ─── 5. KEYCLOAK PERSISTENCE ─────────────────────────────────────────
 var KC = {
-  url: localStorage.getItem('kc_url') || 'http://localhost:8080',
+  url: localStorage.getItem('kc_url') || 'http://localhost:9899',
   realm: localStorage.getItem('kc_realm') || 'supergrok',
   clientId: 'supergrok-dashboard',
   token: null,
@@ -3100,7 +3100,7 @@ window.renderBridgeConfig = function() {
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="speak(\'Bridge test. SuperGrok voice is live.\')">Test Voice</button>' +
     '</div>' +
     '<div style="margin-top:8px;padding:6px;background:rgba(0,0,0,.3);border-radius:5px;font-family:var(--mono);font-size:6.5px;color:var(--mu)">' +
-    'AirPlay: set host to your Mac IP + port 7000  |  LAN: device IP + 9897  |  Tailscale: 100.x.x.x + 9897' +
+    'AirPlay: set host to your Mac IP + port 9899  |  LAN: device IP + 9897  |  Tailscale: 100.x.x.x + 9897' +
     '</div>';
 };
 
@@ -3196,7 +3196,7 @@ window.renderKeycloakPanel = function() {
       '<button class="btn-s" style="font-size:8px;padding:6px 12px;color:var(--rd)" onclick="KC.logout();loadPanel(\'keycloak\')">Logout KC</button>' +
       '</div>' :
       '<div style="display:flex;flex-direction:column;gap:6px">' +
-      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:8080)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
+      '<input id="kcUrl" placeholder="Keycloak URL (e.g. http://localhost:9899)" value="' + KC.url + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.url=this.value;localStorage.setItem(\'kc_url\',this.value)">' +
       '<input id="kcRealm" placeholder="Realm (default: supergrok)" value="' + KC.realm + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="KC.realm=this.value;localStorage.setItem(\'kc_realm\',this.value)">' +
       '<input id="kcUser" placeholder="Username" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
       '<input id="kcPass" type="password" placeholder="Password" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
@@ -5674,7 +5674,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     };
     var tc=document.getElementById('kc-test-conn'); if(tc) tc.addEventListener('click',testFn);
     var oa=document.getElementById('kc-open-admin');
-    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:8080/admin','_blank','noopener,noreferrer'); });
+    if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:9899/admin','_blank','noopener,noreferrer'); });
     var lf=document.getElementById('kc-login-flow');
     if(lf) lf.addEventListener('click',function(){
       fetch('http://127.0.0.1:9897/auth/keycloak/realm')
@@ -9519,7 +9519,7 @@ if (hcInput) hcInput.addEventListener('input', function(){
 var applyBtn = document.getElementById('opar-apply');
 if (applyBtn) applyBtn.addEventListener('click', function() {
   var name   = (document.getElementById('opar-name')  ||{}).value || 'Companion';
-  var height = parseInt((document.getElementById('opar-height')||{}).value||'165')/165;
+  var height = parseInt((document.getElementById('opar-height')||{}).value||'9899')/165;
   var build  = {slim:0.88, athletic:1.0, average:1.06, stocky:1.14}[(document.getElementById('opar-build')||{}).value||'athletic']||1;
   var role   = (window.ST && window.ST.roleLabel) || 'AI Companion';
 
@@ -10958,7 +10958,7 @@ var _currentRole = null;
 var SLOT_ROLES_BASE = {
 home_aid:25000,chef:35000,housekeeper:22000,au_pair:30000,personal_trainer:28000,
 tutor:24000,chauffeur:26000,security:45000,concierge:32000,medical_aide:38000,
-tech_support:29000,elder_care:33000
+tech_support:9899,elder_care:9899
 };
 
 function boot() {
@@ -11326,7 +11326,7 @@ kc(‘2FA’,‘Enforced’,’#00e676’) + kc(‘LOCAL’,‘Sovereignty’,�
 ‘</div>’ +
 ‘<div class="two">’ +
 ‘<div class="card"><div class="card-title">Connection</div>’ +
-sr(‘Keycloak URL’,‘localhost:8080’,‘b-warn’) +
+sr(‘Keycloak URL’,‘localhost:9899’,‘b-warn’) +
 sr(‘Realm’,‘master’,‘b-info’) +
 sr(‘Client ID’,‘supergrok’,‘b-info’) +
 ‘<div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">’ +
@@ -11336,7 +11336,7 @@ sr(‘Client ID’,‘supergrok’,‘b-info’) +
 ‘</div>’ +
 ‘<div class="card"><div class="card-title">Auth Flow</div>’ +
 ‘<div style="font-family:var(--mono);font-size:9px;color:var(--t3);line-height:1.8">’ +
-‘1. export KEYCLOAK_URL=http://localhost:8080<br>’ +
+‘1. export KEYCLOAK_URL=http://localhost:9899<br>’ +
 ‘2. export KEYCLOAK_CLIENT_SECRET=…<br>’ +
 ‘3. Restart bridge.py<br>’ +
 ‘4. Click Test Connection<br>’ +
@@ -24585,7 +24585,7 @@ _beat: function(){
   /* 3 — Token budget check — flip key if needed */
   var budgetEl = document.getElementById('token-budget');
   if(budgetEl){
-    var pct = parseFloat(budgetEl.textContent||'100');
+    var pct = parseFloat(budgetEl.textContent||'9899');
     if(!isNaN(pct) && pct < 20){
       _safeBridgeSend({type:'key_rotate',reason:'token_budget_low',pct:pct,ts:Date.now()});
       toast('🔑 Token budget <20% — key rotation requested','ok');

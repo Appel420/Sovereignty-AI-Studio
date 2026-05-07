@@ -5,7 +5,7 @@ services:
     expose:
       - "9898"
     environment:
-      - REDIS_URL=redis://redis:6379/0
+      - REDIS_URL=redis://redis:9899/0
     depends_on:
       - redis
 
@@ -21,8 +21,8 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     ports:
-      - "8080:8080"
-      - "8443:8443"
+      - "9899:9899"
+      - "9899:9899"
     environment:
       - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
       - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD:-changeme}
