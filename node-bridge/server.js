@@ -400,6 +400,7 @@ wss.on('connection', (ws) => {
 // Message types that belong to the Python bridge (bridge.py)
 const PY_BRIDGE_MSG_TYPES = new Set([
   'ai_chat', 'ai_code_review',
+  'agent_query',
   'speak', 'piper_speak', 'speak_alert',
   'piper_status', 'memory_save', 'memory_get', 'memory_query',
   'token_op',
@@ -501,6 +502,16 @@ wssRoot.on('connection', (browserWs) => {
       }
       if (msg.cmd === 'EXEC') {
         handleWsExec(msg, browserWs);
+        return;
+      }
+      if (msg.type === 'agent_query') {
+        const mapped = {
+          ...msg,
+          type: 'ai_chat',
+          message: msg.message || msg.prompt || '',
+          context: msg.context || msg.request_id || 'agent_query',
+        };
+        sendToPyBridge(JSON.stringify(mapped));
         return;
       }
       if (PY_BRIDGE_MSG_TYPES.has(msg.type)) {
@@ -1198,7 +1209,11 @@ app.get('/alerts/live', (_req, res) => {
 
 app.post('/error_ping', (req, res) => {
   const { error, source } = req.body || {};
-  if (error) addAlert('err', 'Client Error', `${source || 'dashboard'}: ${error}`, 'error');
+  const message = typeof error === 'string'
+    ? error
+    : (error && typeof error === 'object' ? (error.message || JSON.stringify(error)) : '');
+  const sourceLabel = source || (error && typeof error === 'object' ? error.source : null) || 'dashboard';
+  if (message) addAlert('err', 'Client Error', `${sourceLabel}: ${message}`, 'error');
   res.json({ received: true });
 });
 
