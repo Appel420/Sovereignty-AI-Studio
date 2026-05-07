@@ -505,10 +505,15 @@ wssRoot.on('connection', (browserWs) => {
         return;
       }
       if (msg.type === 'agent_query') {
+        if (typeof msg.message === 'string' && typeof msg.prompt === 'string' && msg.message !== msg.prompt) {
+          console.warn('[ws/root] agent_query has both message and prompt with different values; preferring message');
+        }
         const mapped = {
           ...msg,
           type: 'ai_chat',
-          message: msg.message || msg.prompt || '',
+          message: typeof msg.message === 'string'
+            ? msg.message
+            : (typeof msg.prompt === 'string' ? msg.prompt : ''),
           context: msg.context || msg.request_id || 'agent_query',
         };
         sendToPyBridge(JSON.stringify(mapped));
@@ -1209,10 +1214,18 @@ app.get('/alerts/live', (_req, res) => {
 
 app.post('/error_ping', (req, res) => {
   const { error, source } = req.body || {};
-  const message = typeof error === 'string'
-    ? error
-    : (error && typeof error === 'object' ? (error.message || JSON.stringify(error)) : '');
-  const sourceLabel = source || (error && typeof error === 'object' ? error.source : null) || 'dashboard';
+  const extractErrorMessage = (errorValue) => {
+    if (typeof errorValue === 'string') return errorValue;
+    if (errorValue && typeof errorValue === 'object') return errorValue.message || JSON.stringify(errorValue);
+    return '';
+  };
+  const extractErrorSource = (errorValue, fallbackSource) => {
+    if (fallbackSource) return fallbackSource;
+    if (errorValue && typeof errorValue === 'object' && errorValue.source) return errorValue.source;
+    return 'dashboard';
+  };
+  const message = extractErrorMessage(error);
+  const sourceLabel = extractErrorSource(error, source);
   if (message) addAlert('err', 'Client Error', `${sourceLabel}: ${message}`, 'error');
   res.json({ received: true });
 });
