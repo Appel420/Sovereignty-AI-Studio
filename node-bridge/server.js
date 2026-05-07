@@ -849,7 +849,7 @@ app.post('/proxy/fetch', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/fetch] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/fetch] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
@@ -877,7 +877,7 @@ app.post('/proxy/text', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/text] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy/text] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
@@ -902,7 +902,7 @@ app.post('/proxy', rateLimit(60000, 30), (req, res) => {
     return res.status(400).json({ error: 'url is required' });
   }
   let parsed;
-  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(9899).json({ error: 'Invalid URL' }); }
+  try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }

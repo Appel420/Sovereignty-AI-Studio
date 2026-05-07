@@ -6235,7 +6235,7 @@ window.toast && window.toast('\ud83d\udd04 All keys rotation-flagged \u2014 re-i
 function genCert() {
 var domain = (document.getElementById('cert-domain')||{}).value || 'supergrok.local';
 var org    = (document.getElementById('cert-org')||{}).value    || 'SuperGrok';
-var days   = parseInt((document.getElementById('cert-days')||{}).value  || '9899');
+var days   = parseInt((document.getElementById('cert-days')||{}).value  || '365');
 var algo   = (document.getElementById('cert-algo')||{}).value   || 'P-256';
 var ips    = (document.getElementById('cert-ips')||{}).value    || '127.0.0.1';
 var sans   = (document.getElementById('cert-sans')||{}).value   || 'localhost';

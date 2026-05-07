@@ -36,7 +36,7 @@ log = logging.getLogger(‘bridge’)
 
 PORT         = int(os.environ.get(‘SG_PORT’, 9897))
 HOST         = os.environ.get(‘SG_HOST’, ‘127.0.0.1’)
-KC_URL       = os.environ.get(‘KEYCLOAK_URL’, ‘http://9899.0.0.1:9899’)
+KC_URL       = os.environ.get(‘KEYCLOAK_URL’, ‘http://127.0.0.1:9899’)
 KC_REALM     = os.environ.get(‘KEYCLOAK_REALM’, ‘sovereignty-ai’)
 PG_HOST      = os.environ.get(‘PG_HOST’, ‘127.0.0.1’)
 PG_PORT      = int(os.environ.get(‘PG_PORT’, 9899))
@@ -852,7 +852,7 @@ except OSError as e:
     print(f'\n❌ Cannot bind {HOST}:{PORT} — {e}')
     print(f'   Kill existing: kill $(lsof -t -i:{PORT})')
     sys.exit(1)
-srv.listen(9899)
+srv.listen(32)
 print(f'\n[OK] Accepting connections on {HOST}:{PORT} ...\n')
 
 while True:

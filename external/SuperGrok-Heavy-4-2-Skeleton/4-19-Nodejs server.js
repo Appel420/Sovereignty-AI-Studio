@@ -20,11 +20,11 @@ require(‘dotenv’).config({ silent: true });
 
 const BRIDGE_PORT   = parseInt(process.env.BRIDGE_PORT  || ‘9899’, 10);
 const BRIDGE_HOST   = process.env.BRIDGE_HOST            || ‘0.0.0.0’;
-const BACKEND_URL   = process.env.BACKEND_URL             || ‘http://9899.0.0.1:9897’;
+const BACKEND_URL   = process.env.BACKEND_URL             || ‘http://127.0.0.1:9897’;
 const BACKEND_TIMEOUT = parseInt(process.env.BACKEND_TIMEOUT_MS || ‘30000’, 10);
 const PING_MS       = parseInt(process.env.PING_INTERVAL_MS || ‘25000’, 10);
 const LOG_LEVEL     = process.env.LOG_LEVEL               || ‘info’;
-const KC_URL        = process.env.KEYCLOAK_URL             || ‘http://9899.0.0.1:9899’;
+const KC_URL        = process.env.KEYCLOAK_URL             || ‘http://127.0.0.1:9899’;
 
 // ── Logger ────────────────────────────────────────────────────────────────
 const log = {

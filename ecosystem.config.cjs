@@ -13,9 +13,9 @@ module.exports = {
       script: 'node-bridge/server.js',
       env: {
         NODE_BRIDGE_PORT: 9899,
-        BACKEND_URL: 'http://9899.0.0.1:9899',
-        WEATHER_URL: 'http://9899.0.0.1:9899',
-        GATEWAY_URL: 'http://9899.0.0.1:9898',
+        BACKEND_URL: 'http://127.0.0.1:9899',
+        WEATHER_URL: 'http://127.0.0.1:9899',
+        GATEWAY_URL: 'http://127.0.0.1:9898',
         CORS_ORIGIN: '*',
       },
       watch: false,

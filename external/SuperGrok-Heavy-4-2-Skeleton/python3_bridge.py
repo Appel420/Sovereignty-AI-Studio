@@ -1370,7 +1370,7 @@ if __name__ == "__main__":
         print(f"Kill the existing process: kill $(lsof -t -i:{PORT})")
         sys.exit(1)
 
-    srv.listen(9899)
+    srv.listen(32)
     print("\n[OK]  Accepting connections ...\n")
     while True:
         try:

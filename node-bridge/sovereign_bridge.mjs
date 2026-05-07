@@ -20,7 +20,7 @@ const SOVEREIGN_API_URL = (
 const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
 // Rate limiting: max requests per user per minute
-const RATE_LIMIT_RPM = parseInt(process.env.RATE_LIMIT_RPM || "9899", 10);
+const RATE_LIMIT_RPM = parseInt(process.env.RATE_LIMIT_RPM || "30", 10);
 const _rateBuckets = new Map(); // userId -> { count, resetAt }
 
 // ──────────────────────────────────────────────────────────────────────────
