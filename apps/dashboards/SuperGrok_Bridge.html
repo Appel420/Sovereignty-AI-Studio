@@ -11248,7 +11248,7 @@ console.log('%c grantAccess freeze fix applied', 'color:#10b981');
         }
       } catch(ex) {}
     };
-    console.log('%c Piper TTS client attached to port 9898 bridge', 'color:#10b981');
+    console.log('%c Piper TTS client attached to port 9897 bridge', 'color:#10b981');
   }
   setTimeout(attachPiperListener, 2000);
 
@@ -11299,8 +11299,8 @@ console.log('%c grantAccess freeze fix applied', 'color:#10b981');
       '<button style="margin-left:auto;padding:2px 8px;background:rgba(0,188,212,.08);border:1px solid rgba(0,188,212,.2);border-radius:4px;font-family:var(--mono);font-size:7px;cursor:pointer;color:var(--cy)" onclick="if(typeof PiperTTS!==\'undefined\'&&PiperTTS.ws)PiperTTS.ws.send(JSON.stringify({type:\'piper_status\'}))">Check</button>' +
       '</div>' +
       '<div style="font-family:var(--mono);font-size:7px;color:var(--mu);line-height:1.9">' +
-      'Voice: <b style="color:var(--tx)">Piper TTS (local, port 9898)</b><br>' +
-      'Setup: <code style="color:var(--cy)">export PIPER_MODEL=/path/to/model.onnx && node server_9898.js</code><br>' +
+      'Voice: <b style="color:var(--tx)">Piper TTS (local, port 9897)</b><br>' +
+      'Setup: <code style="color:var(--cy)">export PIPER_MODEL=/path/to/model.onnx && node server_9899.js</code><br>' +
       'Models: <a href="https://github.com/rhasspy/piper/releases" style="color:var(--cy)" target="_blank">github.com/rhasspy/piper</a><br>' +
       '<b style="color:var(--gn)">✓ Zero Meta · Zero Google · Zero LLaMA · Zero Ollama</b>' +
       '</div>' +
