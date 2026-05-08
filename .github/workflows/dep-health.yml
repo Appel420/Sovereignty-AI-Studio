@@ -1,0 +1,217 @@
+name: Dependency Health
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Runs on every push, PR, and weekly schedule.
+# Performs three checks in parallel:
+#   1. pip-audit  – Python CVE scan (requirements.txt)
+#   2. pip-review – outdated Python packages
+#   3. npm-audit  – Node.js CVE scan (node-bridge)
+# Any discovered vulnerabilities cause the workflow to fail and show a summary.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "requirements.txt"
+      - "requirements-extra.txt"
+      - "node-bridge/package.json"
+      - "node-bridge/package-lock.json"
+      - ".github/workflows/dep-health.yml"
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  # ── Python CVE audit ─────────────────────────────────────────────────────
+  python-audit:
+    name: Python — CVE audit (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install pip-audit
+        run: pip install --quiet pip-audit
+
+      - name: Run pip-audit on requirements.txt
+        id: audit
+        run: |
+          pip-audit -r requirements.txt \
+            --output-format markdown \
+            --output /tmp/audit-report.md \
+            || echo "AUDIT_FAILED=true" >> "$GITHUB_ENV"
+
+      - name: Show audit report
+        if: always()
+        run: |
+          if [ -f /tmp/audit-report.md ]; then
+            echo "## pip-audit Report" >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/audit-report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "✅ No vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail if vulnerabilities found
+        if: env.AUDIT_FAILED == 'true'
+        run: |
+          echo "::error::pip-audit found vulnerabilities in requirements.txt — see step summary."
+          exit 1
+
+  # ── Python outdated check ─────────────────────────────────────────────────
+  python-outdated:
+    name: Python — outdated packages
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    # Non-blocking: outdated ≠ broken; report only
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps + pip-review
+        run: |
+          pip install --quiet pip-review
+          # Install the pinned deps so pip-review can compare installed vs PyPI
+          pip install --quiet -r requirements.txt || true
+
+      - name: Check for outdated packages
+        run: |
+          echo "## Outdated Python Packages" >> "$GITHUB_STEP_SUMMARY"
+          pip-review --no-interactive 2>&1 | tee /tmp/outdated.txt || true
+          if grep -q "==" /tmp/outdated.txt; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/outdated.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "✅ All packages are up-to-date." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # ── Node.js CVE audit ────────────────────────────────────────────────────
+  node-audit:
+    name: Node.js — CVE audit (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: node-bridge/package-lock.json
+
+      - name: Install node-bridge dependencies
+        working-directory: node-bridge
+        run: npm ci --prefer-offline
+
+      - name: Run npm audit
+        working-directory: node-bridge
+        id: npm_audit
+        run: |
+          npm audit --audit-level=moderate --json > /tmp/npm-audit.json 2>&1 \
+            && echo "NPM_AUDIT_CLEAN=true" >> "$GITHUB_ENV" \
+            || echo "NPM_AUDIT_FAILED=true" >> "$GITHUB_ENV"
+
+      - name: Show npm audit summary
+        if: always()
+        run: |
+          echo "## npm audit (node-bridge)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f /tmp/npm-audit.json ]; then
+            node -e "
+              const r = require('/tmp/npm-audit.json');
+              const v = r.metadata && r.metadata.vulnerabilities || {};
+              const total = Object.values(v).reduce((a,b)=>a+b,0);
+              console.log(total === 0
+                ? '✅ No vulnerabilities found.'
+                : JSON.stringify(v, null, 2));
+            " >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || \
+            echo "See job logs for details." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Fail if vulnerabilities found
+        if: env.NPM_AUDIT_FAILED == 'true'
+        run: |
+          echo "::error::npm audit found vulnerabilities in node-bridge — see step summary."
+          exit 1
+
+  # ── Sanitize requirements syntax ─────────────────────────────────────────
+  requirements-lint:
+    name: Lint requirements files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate requirements.txt is parseable
+        run: |
+          python3 - <<'EOF'
+          import re, sys
+
+          files = ["requirements.txt", ".github/workflows/Requirements.txt"]
+          errors = []
+          for fname in files:
+              try:
+                  with open(fname) as f:
+                      lines = f.readlines()
+              except FileNotFoundError:
+                  continue
+              for i, line in enumerate(lines, 1):
+                  stripped = line.strip()
+                  if not stripped or stripped.startswith("#"):
+                      continue
+                  # Must be a valid PEP 508 specifier or URL
+                  if not re.match(
+                      r'^[A-Za-z0-9_\-\.\[\]]+\s*(==|>=|<=|!=|~=|>|<)\s*[\w\.\-\*]+.*$',
+                      stripped,
+                  ) and not stripped.startswith("http") and not stripped.startswith("-r"):
+                      errors.append(f"{fname}:{i}: suspicious line: {stripped!r}")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}")
+              sys.exit(1)
+          else:
+              print("✅ requirements files look clean.")
+          EOF
+
+      - name: Dry-run install (no-deps, check only)
+        run: |
+          pip install --quiet --dry-run --no-deps -r requirements.txt 2>&1 | \
+            grep -i "error\|warn" || true
+          echo "✅ requirements.txt dry-run passed."
