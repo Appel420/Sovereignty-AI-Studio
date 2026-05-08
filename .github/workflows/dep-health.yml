@@ -6,6 +6,7 @@ name: Dependency Health
 #   1. pip-audit  – Python CVE scan (requirements.txt)
 #   2. PyPI version check – outdated Python packages
 #   3. npm-audit  – Node.js CVE scan (node-bridge)
+#   4. Lint – requirements files syntax validation
 # Any discovered vulnerabilities cause the workflow to fail and show a summary.
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -53,20 +54,9 @@ jobs:
         id: audit
         run: |
           pip-audit -r requirements.txt \
-            --ignore-vuln CVE-2025-2953 \
-            --ignore-vuln CVE-2025-3730 \
             --output-format markdown \
             --output /tmp/audit-report.md \
             || echo "AUDIT_FAILED=true" >> "$GITHUB_ENV"
-
-      - name: Note ignored advisories
-        run: |
-          {
-            echo "## Ignored advisories"
-            echo "- CVE-2025-2953 (`torch==2.6.0`) — fixed only in `2.7.1rc1` prerelease."
-            echo "- CVE-2025-3730 (`torch==2.6.0`) — fixed only in unreleased `2.8.0`."
-            echo "- Remove these ignores once a stable Torch release is available on PyPI."
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show audit report
         if: always()

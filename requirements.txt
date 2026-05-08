@@ -39,15 +39,14 @@ python-multipart==0.0.27
 
 # ── AI / Inference (local only) ──────────────────────────────────────────────
 numpy==1.26.4
-torch==2.6.0
-# CVE-2025-2953 fix: 2.7.1rc1 (RC only); CVE-2025-3730 fix: 2.8.0 (unreleased).
-# Upgrade torch when a stable 2.7.x or 2.8.x is published on PyPI.
-pennylane>=0.44.0
+torch==2.8.0
+# torch 2.8.0 fixes CVE-2025-2953 and CVE-2025-3730 (both stable releases on PyPI)
+pennylane==0.44.1
 
 # ── Voice / TTS / STT (self-hosted) ─────────────────────────────────────────
 pyttsx3==2.90
-piper-tts==1.4.1
-onnx-asr==0.10.2
+piper-tts==1.4.2
+onnx-asr==0.11.0
 
 # ── WebSocket ──────────────────────────────────────────────────────────���─────
 websockets==13.1
