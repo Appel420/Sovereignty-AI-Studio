@@ -2,9 +2,9 @@ name: Dependency Health
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Runs on every push, PR, and weekly schedule.
-# Performs three checks in parallel:
+# Performs four checks in parallel:
 #   1. pip-audit  – Python CVE scan (requirements.txt)
-#   2. pip-review – outdated Python packages
+#   2. PyPI version check – outdated Python packages
 #   3. npm-audit  – Node.js CVE scan (node-bridge)
 # Any discovered vulnerabilities cause the workflow to fail and show a summary.
 # ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
@@ -53,9 +53,20 @@ jobs:
         id: audit
         run: |
           pip-audit -r requirements.txt \
+            --ignore-vuln CVE-2025-2953 \
+            --ignore-vuln CVE-2025-3730 \
             --output-format markdown \
             --output /tmp/audit-report.md \
             || echo "AUDIT_FAILED=true" >> "$GITHUB_ENV"
+
+      - name: Note ignored advisories
+        run: |
+          {
+            echo "## Ignored advisories"
+            echo "- CVE-2025-2953 (`torch==2.6.0`) — fixed only in `2.7.1rc1` prerelease."
+            echo "- CVE-2025-3730 (`torch==2.6.0`) — fixed only in unreleased `2.8.0`."
+            echo "- Remove these ignores once a stable Torch release is available on PyPI."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Show audit report
         if: always()
@@ -87,27 +98,51 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install deps + pip-review
+      - name: Check pinned versions against PyPI
         run: |
-          pip install --quiet pip-review
-          # Install the pinned deps so pip-review can compare installed vs PyPI
-          pip install --quiet -r requirements.txt || true
+          python3 - <<'PY'
+          import json
+          import re
+          import urllib.request
 
-      - name: Check for outdated packages
+          pattern = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(==|>=|<=|!=|~=|>|<)\s*(.+)$")
+          outdated = []
+
+          with open("requirements.txt", encoding="utf-8") as handle:
+              for raw_line in handle:
+                  line = raw_line.strip()
+                  if not line or line.startswith("#"):
+                      continue
+                  match = pattern.match(line)
+                  if not match:
+                      continue
+                  package, operator, pinned = match.groups()
+                  try:
+                      with urllib.request.urlopen(f"https://pypi.org/pypi/{package}/json", timeout=10) as response:
+                          latest = json.load(response)["info"]["version"]
+                  except Exception:
+                      continue
+                  if latest != pinned:
+                      outdated.append(f"{package}{operator}{pinned} -> {latest}")
+
+          with open("/tmp/outdated.txt", "w", encoding="utf-8") as handle:
+              handle.write("\n".join(outdated))
+          PY
+
+      - name: Write outdated summary
         run: |
           echo "## Outdated Python Packages" >> "$GITHUB_STEP_SUMMARY"
-          pip-review --no-interactive 2>&1 | tee /tmp/outdated.txt || true
-          if grep -q "==" /tmp/outdated.txt; then
+          if [ -s /tmp/outdated.txt ]; then
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             cat /tmp/outdated.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "✅ All packages are up-to-date." >> "$GITHUB_STEP_SUMMARY"
+            echo "✅ All pinned packages match the latest PyPI release." >> "$GITHUB_STEP_SUMMARY"
           fi
 
   # ── Node.js CVE audit ────────────────────────────────────────────────────
@@ -121,10 +156,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - name: Set up Node.js 25
+        uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "25"
           cache: "npm"
           cache-dependency-path: node-bridge/package-lock.json
 
@@ -174,7 +209,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
