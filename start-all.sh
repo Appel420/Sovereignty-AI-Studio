@@ -4,10 +4,12 @@
 
 set -e
 
-BRIDGE_PORT="${NODE_BRIDGE_PORT:-9898}"
+BRIDGE_PORT="${NODE_BRIDGE_PORT:-9899}"
+PY_BRIDGE_PORT="${SG_PORT:-9897}"
 WEATHER_PORT="${WEATHER_PORT:-8001}"
 BACKEND_PORT="${BACKEND_PORT:-8000}"
-GATEWAY_PORT="${GATEWAY_PORT:-9000}"
+GATEWAY_PORT="${GATEWAY_PORT:-9898}"
+PY_BRIDGE_URL="${SG_BRIDGE_URL:-ws://localhost:${PY_BRIDGE_PORT}}"
 
 STARTED=""
 SKIPPED=""
@@ -41,6 +43,7 @@ wait_for_port_free() {
 cleanup() {
   echo ""
   echo "[stop] shutting down..."
+  [ -n "$PY_BRIDGE_PID" ] && kill "$PY_BRIDGE_PID" 2>/dev/null
   [ -n "$REDIS_PID" ]   && kill "$REDIS_PID"   2>/dev/null
   [ -n "$WEATHER_PID" ] && kill "$WEATHER_PID" 2>/dev/null
   [ -n "$GATEWAY_PID" ] && kill "$GATEWAY_PID" 2>/dev/null
@@ -48,6 +51,22 @@ cleanup() {
   exit 0
 }
 trap cleanup INT TERM
+
+# --- Python bridge.py (must be started before node-bridge) ---
+if [ ! -f "./bridge.py" ]; then
+  echo "[error] bridge.py not found in repository root: $(pwd)"
+  exit 1
+fi
+if wait_for_port_free "$PY_BRIDGE_PORT"; then
+  echo "[start] python bridge.py on port $PY_BRIDGE_PORT"
+  SG_PORT="$PY_BRIDGE_PORT" python3 bridge.py &
+  PY_BRIDGE_PID=$!
+  sleep 2
+  STARTED="${STARTED} py-bridge"
+else
+  echo "[skip] python bridge.py not started (port $PY_BRIDGE_PORT busy)"
+  echo "[info] assuming an existing bridge.py is already running on :$PY_BRIDGE_PORT"
+fi
 
 # --- Redis (optional — skip if already running) ---
 if command -v redis-server >/dev/null 2>&1; then
@@ -96,6 +115,7 @@ if wait_for_port_free "$BRIDGE_PORT"; then
   WEATHER_URL="http://localhost:$WEATHER_PORT" \
   BACKEND_URL="http://localhost:$BACKEND_PORT" \
   GATEWAY_URL="http://localhost:$GATEWAY_PORT" \
+  SG_BRIDGE_URL="$PY_BRIDGE_URL" \
   NODE_BRIDGE_PORT="$BRIDGE_PORT" \
     node server.js &
   BRIDGE_PID=$!
@@ -118,6 +138,7 @@ else
   echo "=== All services running ==="
 fi
 echo "  Bridge:   http://localhost:$BRIDGE_PORT/health"
+echo "  PyBridge: ws://localhost:$PY_BRIDGE_PORT"
 echo "  Gateway:  http://localhost:$GATEWAY_PORT/health"
 echo "  Weather:  http://localhost:$WEATHER_PORT/api/weather?city=London"
 echo "  Agents:   http://localhost:$BRIDGE_PORT/api/agents/status"

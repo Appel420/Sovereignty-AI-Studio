@@ -46,4 +46,5 @@ exclude =
     ring_gate_boot_nfc_9v.asm,
     archives,
     docs,
-    frontend
+    frontend,
+    external
