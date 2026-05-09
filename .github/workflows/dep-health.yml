@@ -53,25 +53,54 @@ jobs:
       - name: Run pip-audit on requirements.txt
         id: audit
         run: |
-          pip-audit -r requirements.txt \
-            --output-format markdown \
-            --output /tmp/audit-report.md \
-            || echo "AUDIT_FAILED=true" >> "$GITHUB_ENV"
+          set +e
+          pip-audit -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
+          status=$?
+          echo "PIP_AUDIT_EXIT_CODE=$status" >> "$GITHUB_ENV"
+          case "$status" in
+            0)
+              ;;
+            1)
+              echo "AUDIT_VULNS=true" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "AUDIT_ERROR=true" >> "$GITHUB_ENV"
+              ;;
+          esac
 
       - name: Show audit report
         if: always()
         run: |
-          if [ -f /tmp/audit-report.md ]; then
-            echo "## pip-audit Report" >> "$GITHUB_STEP_SUMMARY"
-            cat /tmp/audit-report.md >> "$GITHUB_STEP_SUMMARY"
-          else
+          echo "## pip-audit Report" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${AUDIT_ERROR:-}" = "true" ]; then
+            echo "⚠️ pip-audit failed to run correctly (exit code ${PIP_AUDIT_EXIT_CODE:-unknown})." >> "$GITHUB_STEP_SUMMARY"
+            if [ -f /tmp/audit-error.txt ] && [ -s /tmp/audit-error.txt ]; then
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+              cat /tmp/audit-error.txt >> "$GITHUB_STEP_SUMMARY"
+              echo '```' >> "$GITHUB_STEP_SUMMARY"
+            fi
+          elif [ "${AUDIT_VULNS:-}" = "true" ] && [ -f /tmp/audit-report.txt ] && [ -s /tmp/audit-report.txt ]; then
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            cat /tmp/audit-report.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${AUDIT_VULNS:-}" = "true" ]; then
+            echo "⚠️ pip-audit reported vulnerabilities, but no textual report was captured." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "${PIP_AUDIT_EXIT_CODE:-}" = "0" ]; then
             echo "✅ No vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ pip-audit produced an unexpected result (exit code ${PIP_AUDIT_EXIT_CODE:-unknown})." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Fail if vulnerabilities found
-        if: env.AUDIT_FAILED == 'true'
+        if: env.AUDIT_VULNS == 'true'
         run: |
           echo "::error::pip-audit found vulnerabilities in requirements.txt — see step summary."
+          exit 1
+
+      - name: Fail on pip-audit execution/configuration errors
+        if: env.AUDIT_ERROR == 'true'
+        run: |
+          echo "::error::pip-audit failed to run correctly (exit code $PIP_AUDIT_EXIT_CODE) — see step summary."
           exit 1
 
   # ── Python outdated check ─────────────────────────────────────────────────
