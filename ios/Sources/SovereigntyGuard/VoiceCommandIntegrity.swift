@@ -170,6 +170,9 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
     private func hashTranscription(_ transcription: String) -> Data {
         let data = Data(transcription.utf8)
         let hash = SHA3_512.hash(data: data)
+        // CryptoKit does not currently provide SHA3; SHA-512 is used as an on-device
+        // placeholder for SHA3-512 (documentation/audit schema compatibility).
+        let hash = SHA512.hash(data: data)
         return Data(hash)
     }
 
