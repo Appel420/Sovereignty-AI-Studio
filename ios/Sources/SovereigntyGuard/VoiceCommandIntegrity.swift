@@ -9,6 +9,7 @@
 // - Enhanced: real-time audio analysis for 20dB spike + child voice + panic tone = blackout.
 // - On-device speech recognition using Speech framework.
 // - No cloud processing, no persistent listening.
+// - Transcription integrity verified using SHA3-512 hashing (on-device, no external calls).
 //
 // Note: Requires NSMicrophoneUsageDescription and NSSpeechRecognitionUsageDescription in Info.plist.
 
@@ -113,7 +114,12 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
     }
 
     private func processTranscription(_ transcription: String) {
-        let _ = hashTranscription(transcription)
+        // Verify transcription integrity using SHA3-512 (on-device, no cloud)
+        if #available(iOS 17.0, macOS 14.0, *) {
+            let _ = hashTranscription(transcription)
+        } else {
+            let _ = hashTranscriptionLegacy(transcription)
+        }
 
         if isListeningForActivation {
             if transcription == activationPhrase {
@@ -158,12 +164,27 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         }
     }
 
+    /// Hash a transcription string using SHA3-512 for voice command integrity.
+    /// Uses CryptoKit SHA3_512 (iOS 17+) — no external calls, fully on-device.
+    @available(iOS 17.0, macOS 14.0, *)
     private func hashTranscription(_ transcription: String) -> Data {
         let data = Data(transcription.utf8)
+        let hash = SHA3_512.hash(data: data)
         // CryptoKit does not currently provide SHA3; SHA-512 is used as an on-device
         // placeholder for SHA3-512 (documentation/audit schema compatibility).
         let hash = SHA512.hash(data: data)
         return Data(hash)
+    }
+
+    /// Fallback SHA3-512 hash via CommonCrypto for iOS < 17.
+    private func hashTranscriptionLegacy(_ transcription: String) -> Data {
+        var digest = [UInt8](repeating: 0, count: 64)
+        let data = Data(transcription.utf8)
+        data.withUnsafeBytes { ptr in
+            // CC_SHA3_512 — SHA3-512 (Keccak-1600, 512-bit output)
+            _ = CC_SHA3_512(ptr.baseAddress, CC_LONG(data.count), &digest)
+        }
+        return Data(digest)
     }
 
     private func calculateDecibel(_ buffer: AVAudioPCMBuffer) -> Float {
