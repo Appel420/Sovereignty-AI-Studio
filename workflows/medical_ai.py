@@ -50,7 +50,7 @@ _DEFAULT_DATASET_URL = (
     "https://github.com/aibharata/covid19-dataset/archive/v1.0.zip"
 )
 _DEFAULT_DATASET_SUBDIR = "dataset"
-_DEFAULT_DATASET_INNER = "covid19-dataset-1.0/chest-xray-pnumonia-covid19"
+_DEFAULT_DATASET_INNER = "covid19-dataset-1.0/chest-xray-pneumonia-covid19"
 
 
 @dataclass
@@ -184,15 +184,20 @@ class MedicalAIWorkflow:
         cfg = self.config
         trainer = self._medai.TRAIN_ENGINE()
 
-        # Convert raw numpy datasets to generators to avoid memory issues
-        train_gen = train_set.as_generator()
-        test_gen = test_set.as_generator()
+        # Convert raw numpy datasets to generators when the dataset object
+        # supports it (medicalai ≥ 0.3); otherwise pass the dataset directly.
+        if hasattr(train_set, "as_generator"):
+            train_input = train_set.as_generator()
+            test_input = test_set.as_generator()
+        else:
+            train_input = train_set
+            test_input = test_set
 
         trainer.train_and_save_model(
             AI_NAME=cfg.model_name,
             MODEL_SAVE_NAME=os.path.join(cfg.output_dir, cfg.model_save_name),
-            trainSet=train_gen,
-            testSet=test_gen,
+            trainSet=train_input,
+            testSet=test_input,
             OUTPUT_CLASSES=cfg.output_classes,
             RETRAIN_MODEL=cfg.retrain,
             BATCH_SIZE=cfg.batch_size,
