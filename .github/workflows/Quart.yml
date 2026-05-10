@@ -29,7 +29,7 @@ jobs:
         # Install hypercorn for running Quart apps
         pip install hypercorn
         # Start the Quart app in the background using hypercorn
-        hypercorn weather_dashboard:app --bind 0.0.0.0:9898 &
+        hypercorn weather_dashboard:app --bind 0.0.0.0:8001 &
         APP_PID=$!
         echo "Started hypercorn with PID: $APP_PID"
         # Wait for the app to start and verify it's running
@@ -39,6 +39,6 @@ jobs:
           exit 1
         fi
         # Test the endpoint
-        curl -f http://localhost:9898/api/weather?city=London || exit 1
+        curl -f http://localhost:8001/api/weather?city=London || exit 1
         # Kill the background process using specific PID
         kill $APP_PID

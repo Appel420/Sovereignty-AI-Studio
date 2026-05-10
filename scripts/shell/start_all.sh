@@ -47,7 +47,7 @@ done
 
 echo ""
 echo "  Open SuperGrok_v13_COMPLETE.html in your browser"
-echo "  Ports: 9000 (primary) 9898 (bridge) 8443 (auth)"
+echo "  Ports: 9000 (primary) 9899 (bridge) 8443 (auth)"
 echo "  Logs:  ./logs/access.jsonl"
 echo ""
 echo "  Press Ctrl+C to stop"

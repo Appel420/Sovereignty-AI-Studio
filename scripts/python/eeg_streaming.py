@@ -631,7 +631,7 @@ def _start_ble_thread():
 if __name__ == "__main__":
     print("=" * 60)
     print("  GrokEdu EEG Streaming Server v2.0")
-    print("  Real Muse 2 BLE  |  Port :9898")
+    print("  Real Muse 2 BLE  |  Port :8002")
     print("=" * 60)
     print(f"  bleak:    {'✓' if HAS_BLEAK else '✗  pip install bleak'}")
     print(f"  muselsl:  {'✓' if HAS_MUSELSL else '✗  pip install muselsl'}")
@@ -641,4 +641,4 @@ if __name__ == "__main__":
     ble_thread = threading.Thread(target=_start_ble_thread, daemon=True)
     ble_thread.start()
 
-    app.run(host="0.0.0.0", port=9898, threaded=True, debug=False)
+    app.run(host="0.0.0.0", port=8002, threaded=True, debug=False)
