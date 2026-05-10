@@ -53,7 +53,7 @@ async def mobile_status():
         "status": "online",
         "service": "Sovereignty AI Studio",
         "api_version": "v1",
-        "port": int(os.environ.get("BACKEND_PORT", 8000)),
+        "port": int(os.environ.get("BACKEND_PORT", 8002)),
         "endpoints": {
             "health": "/health",
             "alerts": "/api/v1/alerts",

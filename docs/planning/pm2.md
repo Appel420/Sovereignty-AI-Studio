@@ -23,7 +23,7 @@ Auto-analyze project and generate PM2 service commands.
 | Nuxt | nuxt.config.* | 3000 |
 | CRA | react-scripts in package.json | 3000 |
 | Express/Node | server/backend/api directory + package.json | 3000 |
-| FastAPI/Flask | requirements.txt / pyproject.toml | 8000 |
+| FastAPI/Flask | requirements.txt / pyproject.toml | 8002 |
 | Go | go.mod / main.go | 8080 |
 
 **Port Detection Priority**: User specified > .env > config file > scripts args > default port
@@ -73,7 +73,7 @@ module.exports = {
     },
     // Python
     {
-      name: 'project-8000',
+      name: 'project-8002',
       cwd: './backend',
       script: 'start.cjs',
       interpreter: 'C:/Program Files/nodejs/node.exe',
@@ -96,7 +96,7 @@ module.exports = {
 
 ```javascript
 const { spawn } = require('child_process');
-const proc = spawn('python', ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8000', '--reload'], {
+const proc = spawn('python', ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8002', '--reload'], {
   cwd: __dirname, stdio: 'inherit', windowsHide: true
 });
 proc.on('close', (code) => process.exit(code));

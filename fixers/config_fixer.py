@@ -35,7 +35,7 @@ class ConfigFixer:
             "SG_HOST": "localhost",
             "NODE_BRIDGE_PORT": 9899,
             "FRONTEND_PORT": 9898,
-            "SOVEREIGN_API_URL": "http://localhost:8000/api/ai",
+            "SOVEREIGN_API_URL": "http://localhost:9899/api/ai",
             "LOG_LEVEL": "INFO",
             "MAX_CLIENTS": 100,
             "PING_INTERVAL": 20,
