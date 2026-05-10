@@ -31,21 +31,21 @@
                                   │   (PRIMARY)  │      AI / TTS / STT
                                   └──────┬───────┘
                                          │
-                          ┌──────────────┼──────────────┐
-                          ▼              ▼              ▼
-                   ┌───────────┐  ┌───────────┐  ┌───────────┐
-                   │ FastAPI   │  │  Gateway  │  │   Redis   │
-                   │ Port 8000 │  │ Port 9000 │  │ Port 6379 │
-                   │(Internal) │  │(Internal) │  │(Internal) │
-                   └─────┬─────┘  └───────────┘  └───────────┘
-                         │
-                    ┌────┴────┐
-                    ▼         ▼
-                 ┌────────┐ ┌────────┐
-                 │  DB    │ │        │
-                 │ :5432  │ │        │
-                 │(Int)   │ │        │
-                 └────────┘ └────────┘
+                 ┌───────────────┬────────┴───────┬───────────────┐
+                 ▼               ▼                ▼               ▼
+          ┌───────────┐  ┌───────────┐  ┌──────────────┐  ┌───────────┐
+          │ FastAPI   │  │  Gateway  │  │   Keycloak   │  │   Redis   │
+          │ Port 8000 │  │ Port 9000 │  │ :8080→:8443  │  │ Port 6379 │
+          │(Internal) │  │(Internal) │  │  SSO/Identity│  │(Internal) │
+          └─────┬─────┘  └───────────┘  └──────────────┘  └───────────┘
+                │
+           ┌────┴─────┐
+           ▼           ▼
+      ┌─────────┐  ┌─────────┐
+      │ Postgres│  │ Weather │
+      │  :5432  │  │  :8001  │
+      │(Internal)│  │(Internal)│
+      └─────────┘  └─────────┘
 ```
 
 ## Port Architecture
@@ -67,8 +67,8 @@
 | 6379 | Redis | Cache | Internal |
 | 8000 | Backend (FastAPI) | Primary API | Internal |
 | 8001 | Weather (Quart) | Weather service | Internal |
-| 8080 | Web App Server | apps/web | Internal |
-| 8443 | Auth Proxy | WebSocket auth | Internal |
+| 8080 | Keycloak SSO | SSO / Identity (host port, maps to :8443 inside container) | Internal |
+| 8443 | Keycloak HTTPS | Keycloak container-internal HTTPS port | Internal |
 | 9000 | Unified Server | Primary server | Internal |
 
 ## Key Principle
