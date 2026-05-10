@@ -87,7 +87,7 @@ services:
       NODE_BRIDGE_PORT: "9899"
       BACKEND_URL: http://backend:8000
       WEATHER_URL: http://backend:8001
-      GATEWAY_URL: http://gateway:9898
+      GATEWAY_URL: http://gateway:9000
       SOVEREIGN_API_URL: http://backend:8000/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
@@ -191,14 +191,14 @@ services:
       dockerfile: agents/voice_assist_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "9898"
+      - "8004"
     environment:
       - REDIS_URL=redis://redis:6379
     depends_on:
       - judge_agent
       - redis
 
-  # ── Python multi-agent gateway (internal port 9898) ───────────────────────
+  # ── Python multi-agent gateway (internal port 9000) ───────────────────────
   # Python is the primary backend. Node-bridge (9899) is backup only.
   gateway:
     build:
@@ -206,9 +206,9 @@ services:
       dockerfile: gateway/Dockerfile
     restart: unless-stopped
     expose:
-      - "9898"
+      - "9000"
     environment:
-      - GATEWAY_PORT=9898
+      - GATEWAY_PORT=9000
       - REDIS_URL=redis://redis:6379
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}

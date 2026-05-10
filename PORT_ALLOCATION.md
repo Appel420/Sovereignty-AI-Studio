@@ -35,7 +35,7 @@
                           ▼              ▼              ▼
                    ┌───────────┐  ┌───────────┐  ┌───────────┐
                    │ FastAPI   │  │  Gateway  │  │   Redis   │
-                   │ Port 8000 │  │ Port 9898 │  │ Port 6379 │
+                   │ Port 8000 │  │ Port 9000 │  │ Port 6379 │
                    │(Internal) │  │(Internal) │  │(Internal) │
                    └─────┬─────┘  └───────────┘  └───────────┘
                          │
