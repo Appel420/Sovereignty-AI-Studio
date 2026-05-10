@@ -1,21 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // Sovereignty AI Studio — PM2 Ecosystem Configuration
 // All services orchestrated through a single process manager.
-// External traffic enters through node-bridge on port 9898.
+// External traffic enters through node-bridge on port 9899.
 // ═══════════════════════════════════════════════════════════════════════════
 'use strict';
 
 module.exports = {
   apps: [
-    // ── Node.js Bridge (external gateway — port 9898) ─────────────────────
+    // ── Node.js Bridge (external gateway — port 9899) ─────────────────────
     {
       name: 'node-bridge',
       script: 'node-bridge/server.js',
       env: {
-        NODE_BRIDGE_PORT: 9898,
+        NODE_BRIDGE_PORT: 9899,
         BACKEND_URL: 'http://127.0.0.1:8000',
         WEATHER_URL: 'http://127.0.0.1:8001',
-        GATEWAY_URL: 'http://127.0.0.1:9000',
+        GATEWAY_URL: 'http://127.0.0.1:9898',
         CORS_ORIGIN: '*',
       },
       watch: false,
@@ -41,7 +41,7 @@ module.exports = {
       restart_delay: 3000,
     },
 
-    // ── Multi-Agent Gateway (port 9000) ───────────────────────────────────
+    // ── Multi-Agent Gateway (port 9898) ───────────────────────────────────
     {
       name: 'gateway',
       script: 'gateway/main.py',
@@ -49,7 +49,7 @@ module.exports = {
       cwd: './',
       env: {
         PYTHONPATH: '.:./backend',
-        GATEWAY_PORT: 9000,
+        GATEWAY_PORT: 9898,
       },
       watch: false,
       autorestart: true,
@@ -57,10 +57,9 @@ module.exports = {
       restart_delay: 3000,
     },
 
-    // ── SuperGrok TTS + Agent Bridge (port 9898 alt) ──────────────────────
-    // NOTE: server-9898 conflicts with node-bridge on port 9898.
-    // Only enable ONE of them. Use node-bridge for production (proxies to
-    // gateway). Use server-9898 only for standalone TTS/agent development.
+    // ── SuperGrok TTS + Agent Bridge (standalone dev on 9898) ─────────────
+    // NOTE: this is a separate local dev server and should not replace
+    // node-bridge in normal production routing.
     {
       name: 'server-9898',
       script: 'server_9898.js',

@@ -10,8 +10,8 @@ Design
 - **Fast-path cache**: an in-process Python dict keyed by ``namespace:key`` so
   hot reads (e.g. frequently re-read agent context) never touch disk.
 - **Graceful degradation**: if ``aiosqlite`` is not installed the store falls
-  back to a plain JSON file on disk.  This keeps the module usable in minimal
-  environments (CI, local dev without full requirements installed).
+  back to synchronous stdlib ``sqlite3``.  This keeps the module usable in
+  minimal environments (CI, local dev without full requirements installed).
 
 Schema (SQLite)
 ---------------
@@ -61,7 +61,6 @@ MEMORY_DIR = ROOT_DIR / "data" / "memory"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_DB_PATH = MEMORY_DIR / "sovereignty_memory.db"
-FALLBACK_JSON_PATH = MEMORY_DIR / "sovereignty_memory.json"
 
 
 # ---------------------------------------------------------------------------

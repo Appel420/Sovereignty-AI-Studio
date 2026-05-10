@@ -6,10 +6,14 @@ handler functions (agents, watchers, or any callable).
 
 Architecture
 ------------
-The listener owns a single asyncio.Queue.  Any component can push an event
-via :meth:`EventListener.emit` (thread-safe).  A background dispatch task
-dequeues events one at a time and calls the matching handler for the event
-type.  If no handler is registered the event is logged and dropped.
+The listener owns a single asyncio.Queue.  Any component running on the
+**same event loop thread** can push an event via :meth:`EventListener.emit`
+(awaitable) or :meth:`EventListener.emit_nowait` (sync, same thread).
+
+For cross-thread emission (e.g. from a background thread), use
+:meth:`EventListener.emit_threadsafe`, which uses
+``loop.call_soon_threadsafe`` to safely enqueue the event from another OS
+thread.
 
 Failed handlers are retried up to *max_retries* times.  Events that exhaust
 all retries land in the *dead_letter_queue* list for inspection.
@@ -107,6 +111,7 @@ class EventListener:
         self.dead_letter_queue: List[Event] = []
         self._task: Optional[asyncio.Task] = None
         self._running = False
+        self._loop: Optional[asyncio.AbstractEventLoop] = None
 
     # ------------------------------------------------------------------
     # Registration
@@ -183,12 +188,37 @@ class EventListener:
         *,
         source: str = "unknown",
     ) -> None:
-        """Non-blocking variant of :meth:`emit` — safe to call from sync code.
+        """Non-blocking variant of :meth:`emit` — safe to call from sync code
+        on the **same event loop thread**.
 
         Raises ``asyncio.QueueFull`` if the queue is full and *queue_size* > 0.
         """
         event = Event(event_type=event_type, data=data or {}, source=source)
         self._queue.put_nowait(event)
+
+    def emit_threadsafe(
+        self,
+        event_type: str,
+        data: Optional[Dict[str, Any]] = None,
+        *,
+        source: str = "unknown",
+    ) -> None:
+        """Thread-safe event emission for use from non-event-loop threads.
+
+        Uses ``loop.call_soon_threadsafe`` to schedule the enqueue on the
+        event loop.  Must be called after :meth:`start` (which captures the
+        running loop).
+
+        Raises:
+            RuntimeError: If the listener has not been started yet.
+        """
+        if self._loop is None:
+            raise RuntimeError(
+                "EventListener.emit_threadsafe() called before start(). "
+                "Call await listener.start() first."
+            )
+        event = Event(event_type=event_type, data=data or {}, source=source)
+        self._loop.call_soon_threadsafe(self._queue.put_nowait, event)
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -199,22 +229,34 @@ class EventListener:
         if self._running:
             return
         self._running = True
+        self._loop = asyncio.get_running_loop()
         self._task = asyncio.create_task(
             self._dispatch_loop(), name="event_listener"
         )
         log.info("EventListener started.")
 
     async def stop(self) -> None:
-        """Drain the queue and stop the dispatch task gracefully."""
+        """Drain the queue and stop the dispatch task gracefully.
+
+        Sets ``_running = False`` and pushes a ``_stop`` sentinel so the
+        dispatch loop exits cleanly after processing any already-queued events.
+        Waits for the task to finish before returning.
+        """
         self._running = False
-        # Put a sentinel to unblock the queue.get()
+        # Sentinel unblocks the queue.get() call inside _dispatch_loop
         await self._queue.put(
             Event(event_type="_stop", data={}, source="listener")
         )
         if self._task and not self._task.done():
-            self._task.cancel()
             try:
-                await self._task
+                # Allow up to 5 s for the dispatch loop to drain and exit
+                await asyncio.wait_for(self._task, timeout=5.0)
+            except asyncio.TimeoutError:
+                self._task.cancel()
+                try:
+                    await self._task
+                except asyncio.CancelledError:
+                    pass
             except asyncio.CancelledError:
                 pass
         log.info(

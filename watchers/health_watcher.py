@@ -26,7 +26,7 @@ import asyncio
 import enum
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional
 import urllib.request
 import urllib.error
@@ -92,11 +92,12 @@ class HealthWatcher:
         await watcher.start()
     """
 
-    # Well-known services pre-loaded from the .env.example port layout
+    # Well-known services pre-loaded from the port layout.
+    # bridge.py (9897) is WebSocket-only — no HTTP health endpoint.
+    # FastAPI backend (8000) is Docker-internal only, not reachable on localhost.
+    # node-bridge (9899) is the single HTTP-accessible health endpoint.
     DEFAULT_SERVICES: Dict[str, str] = {
-        "bridge": "http://localhost:9897/health",
         "node-bridge": "http://localhost:9899/health",
-        "backend": "http://localhost:8000/health",
     }
 
     def __init__(
@@ -263,14 +264,16 @@ class HealthWatcher:
     def _degraded_or_down(consecutive_fails: int) -> HealthStatus:
         """Map failure count to an appropriate :class:`HealthStatus`.
 
-        Any failure is at minimum DEGRADED (the mildest failure state in the
-        enum).  Failures at or above ``_DOWN_THRESHOLD`` are declared DOWN.
-        Failures in between are sustained degradation (DEGRADED).
+        - 1 to ``_DEGRADED_THRESHOLD - 1`` failures → DEGRADED (transient blip)
+        - ``_DEGRADED_THRESHOLD`` to ``_DOWN_THRESHOLD - 1`` → sustained DEGRADED
+        - ``_DOWN_THRESHOLD`` or more → DOWN
         """
         if consecutive_fails >= _DOWN_THRESHOLD:
             return HealthStatus.DOWN
-        # Both the first failure and sustained failures below the DOWN threshold
-        # map to DEGRADED — it is the mildest non-healthy state available.
+        if consecutive_fails >= _DEGRADED_THRESHOLD:
+            return HealthStatus.DEGRADED
+        # First failure (consecutive_fails == 1) is still DEGRADED — service may
+        # recover on the next poll.
         return HealthStatus.DEGRADED
 
     def _emit_status_change(self, name: str, health: ServiceHealth) -> None:

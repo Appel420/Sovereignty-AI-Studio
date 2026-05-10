@@ -50,7 +50,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--t0);
 
 /* BOOT */
 #bootScreen{align-items:center;justify-content:center;gap:28px;padding:40px 24px;background:var(--bg)}
-#bootScreen::before{content:””;position:absolute;inset:0;pointer-events:none;
+#bootScreen::before{content:"";position:absolute;inset:0;pointer-events:none;
 background-image:linear-gradient(rgba(0,255,200,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.03) 1px,transparent 1px);
 background-size:36px 36px;mask-image:radial-gradient(ellipse 65% 65% at 50% 50%,#000,transparent)}
 .bt-emblem{position:relative;z-index:1;width:68px;height:68px;border-radius:var(--r2);
@@ -89,8 +89,8 @@ box-shadow:0 0 40px rgba(0,255,200,.18);animation:embpulse 3s ease-in-out infini
 
 /* ROLE CARD */
 .rc{position:relative;overflow:hidden;background:var(--bg2);border:1px solid var(--wire);border-radius:var(--r2);padding:13px 12px 11px;cursor:pointer;min-height:120px;display:flex;flex-direction:column;transition:transform .13s,border-color .13s,box-shadow .13s,background .13s;user-select:none;touch-action:manipulation}
-.rc::before{content:””;position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--rc,var(--acid));opacity:.7}
-.rc::after{content:””;position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rc,var(--acid)) 40%,transparent);opacity:.35}
+.rc::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--rc,var(--acid));opacity:.7}
+.rc::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--rc,var(--acid)) 40%,transparent);opacity:.35}
 .rc:hover{transform:translateY(-2px);border-color:var(--rc,var(--acid));background:var(--bg3);box-shadow:0 6px 24px rgba(0,0,0,.5)}
 .rc:active{transform:none}
 .rc-lv{position:absolute;top:7px;right:7px;font-family:var(--mono);font-size:7px;font-weight:700;color:var(--rc,var(--acid));border:1px solid;border-radius:2px;padding:1px 5px}
@@ -101,11 +101,11 @@ box-shadow:0 0 40px rgba(0,255,200,.18);animation:embpulse 3s ease-in-out infini
 
 /* AUTH */
 #authScreen{align-items:center;justify-content:center;background:var(--bg)}
-#authScreen::before{content:””;position:absolute;inset:0;pointer-events:none;
+#authScreen::before{content:"";position:absolute;inset:0;pointer-events:none;
 background-image:linear-gradient(rgba(0,255,200,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,200,.02) 1px,transparent 1px);
 background-size:30px 30px;mask-image:radial-gradient(ellipse 55% 55% at 50% 50%,#000,transparent)}
 .auth-box{position:relative;z-index:1;width:100%;max-width:420px;background:var(--bg2);border:1px solid var(--wire);border-radius:var(--r3);padding:26px 22px 22px;margin:16px;box-shadow:var(--sh2)}
-.auth-box::before{content:””;position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--aclr,var(--acid)),var(--plasma));border-radius:var(--r3) var(--r3) 0 0}
+.auth-box::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--aclr,var(--acid)),var(--plasma));border-radius:var(--r3) var(--r3) 0 0}
 .auth-back{display:flex;align-items:center;gap:5px;background:none;border:1px solid var(--wire);color:var(--t2);border-radius:var(--r);padding:6px 11px;font-family:var(--mono);font-size:9px;cursor:pointer;margin-bottom:18px;transition:all .13s;letter-spacing:.5px}
 .auth-back:hover{border-color:var(--acid);color:var(--acid)}
 .auth-role{display:flex;align-items:center;gap:12px;background:var(--bg3);border:1px solid var(--wire);border-radius:var(--r2);padding:13px;margin-bottom:18px}
@@ -761,7 +761,7 @@ var tnow = window.tnow;
     /* ── 5. HTTP fallback — fire-and-forget ── */
     if(!sent){
       try {
-        fetch('http://127.0.0.1:9899/error_ping', {
+        fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9899/error_ping' : 'http://127.0.0.1:9899/error_ping'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -1384,7 +1384,7 @@ var ST = window.ST;
 // - IndexedDB persistent user vault (never locked out)
 // - Role-specific credential verification (EMT cert, bar numbers, etc.)
 // - Real voice engine: Web Speech API + Piper TTS (offline, no cloud)
-// - Port 9898 WebSocket + auto-reconnect with exponential backoff
+// - Port 9899 WebSocket + auto-reconnect with exponential backoff
 // - ST sub-object initialization (ST.edu, ST.ride, ST.creds)
 // - Court-admissible credential audit chain
 // ═══════════════════════════════════════════════════════════════════════
@@ -1947,7 +1947,7 @@ window.renderVoicePanel = function(){
   </div>`}`;
 };
 
-// ─── 6. Port 9898 WebSocket + Auto-Reconnect ────────────────────────
+// ─── 6. Port 9899 WebSocket + Auto-Reconnect ────────────────────────
 const BRIDGE = {
   ws:          null,
   wsRetries:   0,
@@ -2204,7 +2204,7 @@ window.renderDash = function(){
   // Start persistent audit flush every 30s
   setInterval(async()=>{
     if((ST&&ST.audit?ST.audit.length:0) && ST.name){
-      const newEntries = (ST&&ST.audit?ST.audit:[])(-10);
+      const newEntries = (ST&&ST.audit?ST.audit:[]).slice(-10);
       for(const e of newEntries){
         await persistAuditEntry(e).catch(()=>{});
       }
@@ -2293,7 +2293,7 @@ var BridgeCFG = {
 };
 BridgeCFG.load();
 
-// Force-connect immediately — SuperGrok requires port 9898 live
+// Force-connect immediately — SuperGrok requires port 9899 live
 (function _forceConnect(){
   function _tryConnect(){
     if(typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
@@ -2735,7 +2735,7 @@ var GitHub = {
     if (PiperTTS.ws && PiperTTS.ws.readyState === 1) {
       PiperTTS.ws.send(JSON.stringify({ type: 'gh_exchange', code: code }));
     } else {
-      toast('Bridge offline — cannot exchange GitHub code. Start server_9898.js', 'err');
+      toast('Bridge offline — cannot exchange GitHub code. Start node-bridge/server.js (port 9899)', 'err');
     }
     addAudit('GH_OAUTH_CALLBACK', 'Code received, exchanging via bridge');
   },
@@ -3098,7 +3098,7 @@ window.addEventListener('online', function() { if (DDQ.mode === 'hybrid') DDQ.fl
 var FileTransfer = {
   send: function(file, label) {
     if (!PiperTTS.ws || PiperTTS.ws.readyState !== 1) {
-      toast('Bridge offline — start server_9898.js', 'err'); return;
+      toast('Bridge offline — start node-bridge/server.js (port 9899)', 'err'); return;
     }
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -3884,8 +3884,8 @@ try {
       '<button style="margin-left:auto;padding:2px 8px;background:rgba(0,188,212,.08);border:1px solid rgba(0,188,212,.2);border-radius:4px;font-family:var(--mono);font-size:7px;cursor:pointer;color:var(--cy)" onclick="if(typeof PiperTTS!==\'undefined\'&&PiperTTS.ws)PiperTTS.ws.send(JSON.stringify({type:\'piper_status\'}))">Check</button>' +
       '</div>' +
       '<div style="font-family:var(--mono);font-size:7px;color:var(--mu);line-height:1.9">' +
-      'Voice: <b style="color:var(--tx)">Piper TTS (local, port 9898)</b><br>' +
-      'Setup: <code style="color:var(--cy)">export PIPER_MODEL=/path/to/model.onnx && node server_9898.js</code><br>' +
+      'Voice: <b style="color:var(--tx)">Piper TTS (local, port 9899)</b><br>' +
+      'Setup: <code style="color:var(--cy)">export PIPER_MODEL=/path/to/model.onnx && node node-bridge/server.js</code><br>' +
       'Models: <a href="https://github.com/rhasspy/piper/releases" style="color:var(--cy)" target="_blank">github.com/rhasspy/piper</a><br>' +
       '<b style="color:var(--gn)">✓ Zero Meta · Zero Google · Zero LLaMA · Zero Ollama</b>' +
       '</div>' +
@@ -4100,17 +4100,17 @@ function getState(){
 /* ── Config UI helpers ── */
 function cfgToggle(key,label){
   return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;color:var(--t1)">'+
-    '<input type="checkbox" id="cfg-'+key+'" '+(CFG[key]?'checked':'')+' onchange="CFG.\x27+key+\x27=this.checked" style="accent-color:var(--acid)">'+label+'</label>';
+    '<input type="checkbox" id="cfg-'+key+'" '+(CFG[key]?'checked':'')+' onchange="CFG[\''+key+'\']=this.checked" style="accent-color:var(--acid)">'+label+'</label>';
 }
 function cfgSelect(key,label,opts){
   return '<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--t1)">'+label+
-    '<select id="cfg-'+key+'" onchange="CFG.\x27+key+\x27=this.value" style="background:var(--bg3);border:1px solid var(--wire);color:var(--t0);border-radius:4px;padding:4px;font-size:10px">'+
+    '<select id="cfg-'+key+'" onchange="CFG[\''+key+'\']=this.value" style="background:var(--bg3);border:1px solid var(--wire);color:var(--t0);border-radius:4px;padding:4px;font-size:10px">'+
     opts.map(function(o){return'<option value="'+o+'" '+(CFG[key]===o?'selected':'')+'>'+o+'</option>';}).join('')+
     '</select></label>';
 }
 function cfgNumber(key,label,mn,mx){
   return '<label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--t1)">'+label+
-    '<input type="number" id="cfg-'+key+'" value="'+CFG[key]+'" min="'+mn+'" max="'+mx+'" onchange="CFG.\x27+key+\x27=parseInt(this.value)||\x27+CFG[key]+\x27" style="background:var(--bg3);border:1px solid var(--wire);color:var(--t0);border-radius:4px;padding:4px;font-size:10px;width:100%"></label>';
+    '<input type="number" id="cfg-'+key+'" value="'+CFG[key]+'" min="'+mn+'" max="'+mx+'" onchange="CFG[\''+key+'\']=parseInt(this.value)||'+CFG[key]+'" style="background:var(--bg3);border:1px solid var(--wire);color:var(--t0);border-radius:4px;padding:4px;font-size:10px;width:100%"></label>';
 }
 
 /* ── Panel renderer ── */
@@ -7266,7 +7266,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 /* ── STT — Faster-Whisper via bridge ─────────────── */
 '<div class="card">' +
 '<div class="card-title">\ud83d\udde3\ufe0f STT \u2014 Faster-Whisper (On-Device)</div>' +
-'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Local Whisper model via bridge port 9898. CPU/GPU accelerated. Privacy-first — audio never leaves localhost. Latency ~300\u2013800ms on modern hardware. Fallback: Web Speech API (browser, on-device).</p>' +
+'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Local Whisper model via bridge port 9899. CPU/GPU accelerated. Privacy-first — audio never leaves localhost. Latency ~300\u2013800ms on modern hardware. Fallback: Web Speech API (browser, on-device).</p>' +
 '<div class="two" style="margin-bottom:10px">' +
 '<div>' +
 '<label class="fi-label">Whisper Model</label>' +
@@ -7303,7 +7303,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 /* ── TTS — Piper ─────────────────────────────────── */
 '<div class="card">' +
 '<div class="card-title">\ud83d\udde8\ufe0f TTS \u2014 Piper (Offline, Natural Voice)</div>' +
-'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (localhost:9898/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
+'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (localhost:9899/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
 '<div class="two" style="margin-bottom:10px">' +
 '<div>' +
 '<label class="fi-label">Voice Model</label>' +
@@ -7377,7 +7377,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '# 3. Picovoice Porcupine (wake word)\n' +
 'pip install pvporcupine\n' +
 'pvporcupinedemo --access_key YOUR_KEY --keywords "SuperGrok"\n\n' +
-'# 4. Bridge server (port 9898)\n' +
+'# 4. Bridge server (port 9899)\n' +
 'python backend.py  # already configured\n\n' +
 '# 5. iOS: a-shell or iSH + Piper WASM\n' +
 '# 6. Android: Termux + bridge via WS\n' +
@@ -9252,7 +9252,7 @@ var stages = [
 
 html += '<div id="sg-inc-acc">';
 stages.forEach(function(s,i){
-html += '<button class="sg-acc-btn" onclick="sg(function(){sgSecOpen(\x27+i+\x27)})">';
+html += '<button class="sg-acc-btn" onclick="sg(function(){sgSecOpen('+i+')})">';
 html += s.ic+' '+s.label;
 html += '</button>';
 html += '<div class="sg-pnl" id="sg-pnl-'+i+'"><div class="sg-pnl-body">'+s.body+'</div></div>';
@@ -10504,7 +10504,7 @@ kc('TTS','Broadcast','#00e676') +
 {id:'amber',  label:'AMBER ALERT',    icon:'\ud83d\udc76', color:'#ffb300', sound:'panic', msg:'Amber Alert issued. Be alert for described vehicle or individuals.'},
 {id:'test',   label:'SYSTEM TEST',    icon:'\ud83d\udcdf', color:'#444',    sound:'wake',  msg:'This is a test of the emergency alert system. No action required.'},
 ].map(function(a){
-return '<div style="cursor:pointer;padding:10px;border-radius:var(--r);background:var(--bg2);border:1px solid '+a.color+'33;text-align:center" onclick="AlertPanel.fire(\x27+JSON.stringify(a)+\x27)">' +
+return '<div style="cursor:pointer;padding:10px;border-radius:var(--r);background:var(--bg2);border:1px solid '+a.color+'33;text-align:center" onclick="AlertPanel.fireById(\''+a.id+'\')">' +
 '<div style="font-size:24px;margin-bottom:5px">'+a.icon+'</div>' +
 '<div style="font-family:var(--mono);font-size:8px;font-weight:700;color:'+a.color+';letter-spacing:1px">'+a.label+'</div>' +
 '</div>';
@@ -10578,8 +10578,8 @@ return '<div style="padding:8px;border-radius:var(--r);background:var(--bg2);bor
 presets.map(function(p,i){
 return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--wire)">' +
 '<span style="font-size:10px;flex:1;color:var(--t1)">'+p.msg.slice(0,60)+(p.msg.length>60?'...':'')+'</span>' +
-'<button class="btn btn-s" style="font-size:8px" onclick="AlertPanel.firePreset(\x27+i+\x27)">FIRE</button>' +
-'<button class="btn" style="font-size:8px" onclick="AlertPanel.deletePreset(\x27+i+\x27)">DEL</button>' +
+'<button class="btn btn-s" style="font-size:8px" onclick="AlertPanel.firePreset('+i+')">FIRE</button>' +
+'<button class="btn" style="font-size:8px" onclick="AlertPanel.deletePreset('+i+')">DEL</button>' +
 '</div>';
 }).join('')
 ) +
@@ -10679,13 +10679,13 @@ kc('DDG','Search','#00e676') +
 '<div style="font-size:11px;color:var(--t2);line-height:1.7">' +
 'This browser enforces post-quantum cryptographic standards on all connections routed through the SuperGrok bridge. ' +
 'Key exchange uses ML-KEM (CRYSTALS-Kyber) 1024-bit. Digital signatures use Falcon-1024. ' +
-'All outbound requests through the local proxy at localhost:9898 are wrapped with PQ headers. ' +
+'All outbound requests through the local proxy at localhost:9899 are wrapped with PQ headers. ' +
 'Direct iframe connections inherit the browser\x27s native TLS — bridge routing adds PQ layer on supported endpoints.' +
 '</div>' +
 '<div class="code-block" style="font-size:9px;margin-top:8px;line-height:1.7">' +
 'X-PQ-KEM: ML-KEM-1024\n' +
 'X-PQ-SIG: Falcon-1024\n' +
-'X-SuperGrok-Bridge: localhost:9898\n' +
+'X-SuperGrok-Bridge: localhost:9899\n' +
 'Strict-Transport-Security: max-age=31536000; includeSubDomains\n' +
 'X-Content-Type-Options: nosniff\n' +
 'X-Frame-Options: SAMEORIGIN\n' +
@@ -11151,9 +11151,9 @@ new Date(ev.ts || Date.now()).toLocaleString() +
 '</div>' +
 /* Action buttons */
 '<div style="display:flex;gap:6px;margin-top:8px">' +
-(isUnauth ? '<button class="btn btn-s" style="font-size:8px;border-color:var(--pulse);color:var(--pulse)" onclick="FileWatcher.escalate(\x27+i+\x27)">🚨 Escalate</button>' : '') +
-'<button class="btn btn-s" style="font-size:8px" onclick="FileWatcher.editNote(\x27+i+\x27)">✏️ Edit Note</button>' +
-'<button class="btn" style="font-size:8px" onclick="FileWatcher.deleteEvent(\x27+i+\x27)">🗑</button>' +
+(isUnauth ? '<button class="btn btn-s" style="font-size:8px;border-color:var(--pulse);color:var(--pulse)" onclick="FileWatcher.escalate('+i+')">🚨 Escalate</button>' : '') +
+'<button class="btn btn-s" style="font-size:8px" onclick="FileWatcher.editNote('+i+')">✏️ Edit Note</button>' +
+'<button class="btn" style="font-size:8px" onclick="FileWatcher.deleteEvent('+i+')">🗑</button>' +
 '</div>' +
 '</div>'
 );
@@ -11510,8 +11510,8 @@ kc('$' + totalPrice.toLocaleString(), 'Current Config', 'var(--volt)') +
             '<div style="font-size:8px;color:var(--t3)">'+(o.roleName||o.role||'—')+' · $'+(o.price||0).toLocaleString()+'</div>' +
             '<div style="font-size:7px;color:#333;font-family:var(--mono);margin-top:2px">'+new Date(o.ts).toLocaleDateString()+'</div>' +
             '<div style="display:flex;gap:4px;margin-top:5px">' +
-              '<button class="btn btn-s" style="font-size:7px;padding:2px 6px" onclick="OPAROrder.advanceStatus(\x27+i+\x27)">▶</button>' +
-              '<button class="btn" style="font-size:7px;padding:2px 6px" onclick="OPAROrder.deleteOrder(\x27+i+\x27)">🗑</button>' +
+              '<button class="btn btn-s" style="font-size:7px;padding:2px 6px" onclick="OPAROrder.advanceStatus('+i+')">▶</button>' +
+              '<button class="btn" style="font-size:7px;padding:2px 6px" onclick="OPAROrder.deleteOrder('+i+')">🗑</button>' +
             '</div>' +
           '</div>'
         );
@@ -11988,7 +11988,7 @@ return '<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border
 '<span style="font-family:var(--mono);font-size:9px;color:var(--acid)">'+a.type+'</span>'+
 '<span style="flex:1;color:var(--t1)">'+a.name+'</span>'+
 '<span style="color:var(--t3);font-family:var(--mono);font-size:8px">'+a.nick+'</span>'+
-'<button class="btn" style="font-size:8px" onclick="Wallet.deleteCustom(\x27+i+\x27)">\ud83d\uddd1</button>'+
+'<button class="btn" style="font-size:8px" onclick="Wallet.deleteCustom('+i+')">\ud83d\uddd1</button>'+
 '</div>';
 }).join('')+
 '</div>'
@@ -13254,7 +13254,7 @@ var modes = [
 h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
 modes.forEach(function(m){
 var active = RS.mode === m.id;
-h += '<div onclick="sg(function(){window._robotSetMode(\x27\x27+m.id+\x27\x27)})" ' +
+h += '<div onclick="sg(function(){window._robotSetMode(\''+m.id+'\')})" ' +
 'style="background:'+(active?'rgba(0,255,200,.08)':'var(--bg2)')+';border:1px solid '+(active?'var(--acid)':'var(--wire)')+';border-radius:8px;padding:10px;cursor:pointer;transition:.2s">' +
 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">' +
 '<span style="font-size:18px">' + m.ic + '</span>' +
@@ -13504,7 +13504,7 @@ canvas.addEventListener('mousedown',startDraw);canvas.addEventListener('mousemov
 canvas.addEventListener('touchstart',startDraw,{passive:false});canvas.addEventListener('touchmove',doDraw,{passive:false});canvas.addEventListener('touchend',endDraw);
 var clr=gi('drawClear');if(clr)clr.addEventListener('click',function(){ctx.clearRect(0,0,canvas.width,canvas.height);});
 var exp=gi('drawExport');if(exp)exp.addEventListener('click',function(){var a=document.createElement('a');a.download='drawing.png';a.href=canvas.toDataURL();a.click();});
-var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at localhost:9898 to analyze drawing.';}});
+var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at localhost:9899 to analyze drawing.';}});
 return;
 }
 
@@ -13898,7 +13898,7 @@ var o=gi('lieOut');if(!o)return;o.style.display='block';o.textContent='Verifying
 fetch('http://127.0.0.1:9899/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:s})}).then(function(r){return r.json();}).then(function(d){
 o.textContent='STATEMENT: '+s+'\nVERDICT: '+(d.verdict||'Unknown')+'\nCONFIDENCE: '+(d.confidence||'—')+'\nSIGNED: '+new Date().toISOString()+'\nALG: DILITHIUM3';
 audit('VERIFY',{s:s.slice(0,50)});
-}).catch(function(){o.textContent='Bridge offline. Connect localhost:9898 for live verification.';});
+}).catch(function(){o.textContent='Bridge offline. Connect localhost:9899 for live verification.';});
 }
 
 function runFileAI(){
@@ -13909,7 +13909,7 @@ var reader=new FileReader();
 reader.onload=function(ev){
 var content=ev.target.result;
 var preview=typeof content==='string'?content.slice(0,2000):'[Binary file]';
-o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at localhost:9898 for AI analysis]';
+o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at localhost:9899 for AI analysis]';
 audit('FILE_AI',{name:fi.files[0].name,size:fi.files[0].size,q:q.slice(0,40)});
 };
 reader.readAsText(fi.files[0]);
@@ -14579,7 +14579,7 @@ sendChat: function(msg) {
       chatLine('OP-AR','#444','[Bridge processing...]');
     } catch(e) { chatLine('OP-AR','#333','Bridge error: '+e.message); }
   } else {
-    chatLine('BRIDGE','#1a1a1a','OFFLINE · start: python backend.py --port 9898');
+    chatLine('BRIDGE','#1a1a1a','OFFLINE · start: python bridge.py (9897) + node node-bridge/server.js (9899)');
   }
 }
 
@@ -14756,6 +14756,20 @@ deletePreset: function(i) {
 this._presets.splice(i, 1);
 try { localStorage.setItem('sg_alert_presets', JSON.stringify(this._presets)); } catch(e) {}
 if (typeof loadPanel === 'function' && window.ST && window.ST.panel === 'alerts') loadPanel('alerts');
+},
+fireById: function(id) {
+var ALERT_DEFS = [
+{id:'evac',   label:'EVACUATE NOW',   sound:'panic', msg:'Evacuation required. Please evacuate the building immediately via emergency exits.'},
+{id:'lockdwn',label:'LOCKDOWN',       sound:'panic', msg:'Lockdown in effect. Secure all doors. Do not open for anyone.'},
+{id:'fire',   label:'FIRE ALARM',     sound:'panic', msg:'Fire alarm activated. Evacuate immediately. Do not use elevators.'},
+{id:'medical',label:'MEDICAL ALERT',  sound:'err',   msg:'Medical emergency. Call 911. Provide first aid if trained.'},
+{id:'allclear',label:'ALL CLEAR',     sound:'ok',    msg:'All clear. The situation has been resolved. Normal operations may resume.'},
+{id:'shelter',label:'SHELTER IN',     sound:'err',   msg:'Shelter in place directive. Stay indoors, close all windows and doors.'},
+{id:'amber',  label:'AMBER ALERT',    sound:'panic', msg:'Amber Alert issued. Be alert for described vehicle or individuals.'},
+{id:'test',   label:'SYSTEM TEST',    sound:'wake',  msg:'This is a test of the emergency alert system. No action required.'}
+];
+var a = ALERT_DEFS.find(function(p){ return p.id === id; });
+if (a) this.fire(a);
 }
 };
 
@@ -15151,7 +15165,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · localhost:9898</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · localhost:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -15594,7 +15608,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (localhost:9898) for full AI code review.';
+    '\n\n# Connect bridge (localhost:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -16962,7 +16976,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect localhost:9898 for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect localhost:9899 for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -17232,7 +17246,7 @@ var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyStat
 if (bridgeOk) {
 try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
 }
-if (out) out.textContent='Bridge offline. Connect localhost:9898 for AI vision analysis.';
+if (out) out.textContent='Bridge offline. Connect localhost:9899 for AI vision analysis.';
 }
 };
 
@@ -17806,7 +17820,7 @@ BridgeTerm._ws.onmessage = function(e) {
 BridgeTerm._log(e.data, 'var(--t1)');
 };
 BridgeTerm._ws.onerror = function() {
-BridgeTerm._log('Connection error — is bridge running on port 9898?', 'var(--pulse)');
+BridgeTerm._log('Connection error — is bridge running on port 9899?', 'var(--pulse)');
 };
 BridgeTerm._ws.onclose = function() {
 BridgeTerm._log('Disconnected — retrying in 5s...', '#ffb300');
@@ -17899,9 +17913,9 @@ ts: Date.now()
 
 /* ── BRIDGE TERMINAL PANEL ───────────────────────────────────── */
 PANELS.terminal = function() {
-return hdr('\ud83d\udda5\ufe0f Bridge Terminal','localhost:9898 \u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
+return hdr('\ud83d\udda5\ufe0f Bridge Terminal','localhost:9899 \u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
 '<div class="kgrid">' +
-kc('9898',     'Bridge Port',   'var(--acid)') +
+kc('9899',     'Bridge Port',   'var(--acid)') +
 kc('WS',       'Protocol',      'var(--volt)') +
 kc('ON-DEVICE','Execution',     '#00e676') +
 kc('ZERO',     'Cloud',         'var(--pulse)') +
@@ -17952,7 +17966,7 @@ item.label +
 '</div>' +
 '</div>' +
 '<div id="bt-output" style="background:#000;padding:10px;min-height:200px;max-height:45vh;overflow-y:auto;font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.6">' +
-'<div style="color:var(--acid)">SuperGrok Terminal \u2014 localhost:9898</div>' +
+'<div style="color:var(--acid)">SuperGrok Terminal \u2014 localhost:9899</div>' +
 '<div style="color:var(--t3)">Run commands via bridge. Start bridge.py on device first.</div>' +
 '<div style="color:var(--t3)">iSH: copy bridge.py into /root, run: python3 bridge.py</div>' +
 '<div style="color:var(--t3)">a-Shell: python3 bridge.py in working dir</div>' +
@@ -19655,7 +19669,7 @@ sendChat: function(msg) {
       chatLine('OP-AR','#444','[Bridge processing...]');
     } catch(e) { chatLine('OP-AR','#333','Bridge error: '+e.message); }
   } else {
-    chatLine('BRIDGE','#1a1a1a','OFFLINE · start: python backend.py --port 9898');
+    chatLine('BRIDGE','#1a1a1a','OFFLINE · start: python bridge.py (9897) + node node-bridge/server.js (9899)');
   }
 }
 
@@ -19832,6 +19846,20 @@ deletePreset: function(i) {
 this._presets.splice(i, 1);
 try { localStorage.setItem('sg_alert_presets', JSON.stringify(this._presets)); } catch(e) {}
 if (typeof loadPanel === 'function' && window.ST && window.ST.panel === 'alerts') loadPanel('alerts');
+},
+fireById: function(id) {
+var ALERT_DEFS = [
+{id:'evac',   label:'EVACUATE NOW',   sound:'panic', msg:'Evacuation required. Please evacuate the building immediately via emergency exits.'},
+{id:'lockdwn',label:'LOCKDOWN',       sound:'panic', msg:'Lockdown in effect. Secure all doors. Do not open for anyone.'},
+{id:'fire',   label:'FIRE ALARM',     sound:'panic', msg:'Fire alarm activated. Evacuate immediately. Do not use elevators.'},
+{id:'medical',label:'MEDICAL ALERT',  sound:'err',   msg:'Medical emergency. Call 911. Provide first aid if trained.'},
+{id:'allclear',label:'ALL CLEAR',     sound:'ok',    msg:'All clear. The situation has been resolved. Normal operations may resume.'},
+{id:'shelter',label:'SHELTER IN',     sound:'err',   msg:'Shelter in place directive. Stay indoors, close all windows and doors.'},
+{id:'amber',  label:'AMBER ALERT',    sound:'panic', msg:'Amber Alert issued. Be alert for described vehicle or individuals.'},
+{id:'test',   label:'SYSTEM TEST',    sound:'wake',  msg:'This is a test of the emergency alert system. No action required.'}
+];
+var a = ALERT_DEFS.find(function(p){ return p.id === id; });
+if (a) this.fire(a);
 }
 };
 
@@ -20227,7 +20255,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · localhost:9898</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · localhost:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -20634,7 +20662,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (localhost:9898) for full AI code review.';
+    '\n\n# Connect bridge (localhost:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -21405,7 +21433,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect localhost:9898 for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect localhost:9899 for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -21675,7 +21703,7 @@ var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyStat
 if (bridgeOk) {
 try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
 }
-if (out) out.textContent='Bridge offline. Connect localhost:9898 for AI vision analysis.';
+if (out) out.textContent='Bridge offline. Connect localhost:9899 for AI vision analysis.';
 }
 };
 
@@ -22782,7 +22810,7 @@ return '<div style="background:var(--bg2);border:1px solid var(--wire);border-ra
 '<div style="font-family:var(--syne);font-size:9px;font-weight:700;color:'+svc.color+'">'+svc.name+'</div>' +
 '<div style="font-family:var(--mono);font-size:8px;color:var(--t3)">:'+svc.port+'</div>' +
 '<button class="btn-s" style="font-size:7px;margin-top:6px;width:100%;border-radius:4px;background:'+svc.color+'22;border:1px solid '+svc.color+'44;color:'+svc.color+'" '+
-'onclick="sg(function(){window.open(\x27http://127.0.0.1:\x27+svc.port+\x27\x27,\x27_blank\x27);})">Open</button>' +
+'onclick="window.open(\'http://127.0.0.1:'+svc.port+'\',\'_blank\')">Open</button>' +
 '</div>';
 }).join('') +
 '</div>' +
@@ -23443,7 +23471,7 @@ _renderDots: function(){
 
   if(wsLive){
     var bridgeDone = false;
-    var payload = {type:'agent_query',agent:agentId,model:agent.model,message:message,prompt:message,context:ctx,request_id:ctx,ts:Date.now()};
+    var payload = {type:'ai_chat',agent:agentId,model:agent.model,message:message,context:ctx,request_id:ctx,ts:Date.now()};
     try{ window.ws.send(JSON.stringify(payload)); } catch(e){ wsLive = false; }
     if(wsLive && cb){
       var handler = function(e){
@@ -23519,7 +23547,7 @@ _queryDirect: function(agentId, message, history, cb){
   /* ── GPT / Grok / Copilot: CORS blocks browser — must use bridge ── */
   if(window.ws && window.ws.readyState === 1){
     var rid = 'qd_'+Date.now()+'_'+agentId;
-    try{ window.ws.send(JSON.stringify({type:'agent_query',agent:agentId,prompt:message,history:history||[],request_id:rid})); }
+    try{ window.ws.send(JSON.stringify({type:'ai_chat',agent:agentId,message:message,history:history||[],context:rid,request_id:rid})); }
     catch(e){ if(cb) cb({error:'Bridge send error: '+e.message, agent:agentId}); return; }
     var h = function(ev){
       var d=ev&&ev.detail||{};
@@ -24044,7 +24072,7 @@ try{
 /* When served by bridge, WS is on same host */
 var _wsURL = (location.protocol==='http:' && location.hostname==='127.0.0.1')
 ? 'ws://'+location.host
-: 'ws://127.0.0.1:9899';
+: ((location.protocol==='https:'?'wss://':'ws://')+'127.0.0.1:9899');
 var ws = new WebSocket(_wsURL);
 window.ws = ws;
 ws.onopen = function(){
@@ -25294,7 +25322,7 @@ var msgs = [{role:'user',content:'Reply with only the word: CONNECTED'}];
 /* Try bridge first */
 if(window.ws && window.ws.readyState===1){
 var rid = 'vault_test_'+Date.now();
-try{ window.ws.send(JSON.stringify({type:'agent_query',agent:provider,prompt:'Reply with only the word: CONNECTED',request_id:rid})); }catch(e){}
+try{ window.ws.send(JSON.stringify({type:'ai_chat',agent:provider,message:'Reply with only the word: CONNECTED',context:rid,request_id:rid})); }catch(e){}
 var h = function(ev){
 var d = ev&&ev.detail||{};
 if(d.request_id===rid || (d.type==='agent_response'&&d.agent===provider)){
@@ -25351,6 +25379,272 @@ if(h.length>500) h=h.slice(-500);
 localStorage.setItem('sg_browser_history',JSON.stringify(h));
 }catch(e){}
 };
+
+/* ════ SG BRAIN — Persistent Memory + Token Handler + Watchers ══════════
+Client-side orchestration layer. Hydrates from bridge on connect,
+persists messages, manages API keys, and wires event listeners.
+════════════════════════════════════════════════════════════════════════ */
+window.SGBrain = (function(){
+'use strict';
+
+/* ── Local memory store (IndexedDB-backed, fallback to localStorage) ── */
+var _mem = {
+  _db: null,
+  _lsPrefix: 'sgbrain_',
+
+  _lsGet: function(k){ try{ return JSON.parse(localStorage.getItem(this._lsPrefix+k)||'null'); }catch(e){ return null; } },
+  _lsSet: function(k,v){ try{ localStorage.setItem(this._lsPrefix+k, JSON.stringify(v)); }catch(e){} },
+
+  get: function(k, def){ var v=this._lsGet(k); return v!==null?v:(def!==undefined?def:null); },
+  set: function(k,v){ this._lsSet(k,v); },
+  del: function(k){ try{ localStorage.removeItem(this._lsPrefix+k); }catch(e){} },
+
+  getHistory: function(session, limit){
+    var all=this._lsGet('conv_'+session)||[];
+    return all.slice(-Math.abs(limit||50));
+  },
+  addMessage: function(session, role, content, agent){
+    var all=this._lsGet('conv_'+session)||[];
+    all.push({role:role, content:content, agent:agent||'system', ts:Date.now()});
+    if(all.length>500) all=all.slice(-500);
+    this._lsSet('conv_'+session, all);
+  },
+  clearHistory: function(session){ this._lsSet('conv_'+session, []); }
+};
+
+/* ── Token vault (in-memory, keys loaded from localStorage on hydrate) ── */
+var _tokens = {};
+var _TOKEN_LS = 'sg_apikeys';
+
+function _loadTokens(){
+  try{
+    var k=JSON.parse(localStorage.getItem(_TOKEN_LS)||'{}');
+    if(k && typeof k==='object') _tokens=Object.assign({},k);
+  }catch(e){}
+}
+
+function _saveTokens(){
+  try{ localStorage.setItem(_TOKEN_LS, JSON.stringify(_tokens)); }catch(e){}
+}
+
+function _normaliseProvider(p){
+  if(!p) return 'unknown';
+  var s=p.toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(s==='anthropic') return 'claude';
+  if(s==='openai') return 'gpt';
+  if(s==='xai') return 'grok';
+  return s;
+}
+
+/* ── Event listeners / watchers ── */
+var _listeners = {};
+var _watcherTimers = {};
+
+function _emit(type, detail){
+  try{ document.dispatchEvent(new CustomEvent('sg:brain:'+type, {detail:detail})); }catch(e){}
+  var handlers=_listeners[type]||[];
+  handlers.forEach(function(h){ try{ h(detail); }catch(ex){ console.warn('[SGBrain]',ex); } });
+  handlers=_listeners['*']||[];
+  handlers.forEach(function(h){ try{ h({type:type, detail:detail}); }catch(ex){} });
+}
+
+/* ── Memory hydration from bridge ── */
+function _applyHydration(data){
+  if(!data) return;
+  /* History */
+  if(data.history && Array.isArray(data.history)){
+    data.history.forEach(function(m){
+      _mem.addMessage(data.session||'default', m.role, m.content, m.agent);
+    });
+  }
+  /* KV pairs */
+  if(data.kv && typeof data.kv==='object'){
+    Object.keys(data.kv).forEach(function(k){
+      _mem.set(k, data.kv[k]);
+    });
+  }
+  /* Preferences */
+  if(data.prefs && typeof data.prefs==='object'){
+    window.SG_PREFS=Object.assign(window.SG_PREFS||{}, data.prefs);
+    try{ localStorage.setItem('sg_prefs', JSON.stringify(window.SG_PREFS)); }catch(e){}
+  }
+  /* Agent config */
+  if(data.agent_config && typeof data.agent_config==='object'){
+    _mem.set('agent_config', data.agent_config);
+  }
+  _emit('hydrated', data);
+  console.log('[SGBrain] Memory hydrated — session:', data.session, '| messages:', (data.history||[]).length);
+}
+
+/* ── Bridge message listener ── */
+document.addEventListener('sg:bridgeMsg', function(ev){
+  var d=ev&&ev.detail;
+  if(!d) return;
+  if(d.type==='memory_hydrated') { _applyHydration(d); return; }
+  if(d.type==='memory_result')   { _emit('memory_result', d); return; }
+  if(d.type==='token_result')    { _emit('token_result', d); return; }
+  if(d.type==='handshake_ack'){
+    /* Bridge sends hydration payload in handshake on connect */
+    if(d.hydration) _applyHydration(d.hydration);
+    return;
+  }
+  if(d.type==='ai_response'){
+    /* Persist AI replies to local memory */
+    var session = d.session||'default';
+    _mem.addMessage(session, 'assistant', d.text||'', d.agent||'ai');
+    _emit('ai_response', d);
+    return;
+  }
+});
+
+/* ── Watcher: periodic ping to bridge for keepalive ── */
+function _startBridgePingWatcher(){
+  _watcherTimers.bridgePing = setInterval(function(){
+    var ws=window.ws||window.BRIDGE_WS;
+    if(ws && ws.readyState===1){
+      try{ ws.send(JSON.stringify({type:'ping',ts:Date.now()})); }catch(e){}
+    }
+  }, 30000);
+}
+
+/* ── Watcher: detect bridge disconnect and attempt reconnect ── */
+function _startBridgeHealthWatcher(){
+  _watcherTimers.bridgeHealth = setInterval(function(){
+    var ws=window.ws||window.BRIDGE_WS;
+    var connected = ws && ws.readyState===1;
+    var prev = _mem.get('bridge_connected', null);
+    if(prev===true && !connected){
+      _emit('bridge_down', {ts:Date.now()});
+      console.warn('[SGBrain] Bridge disconnected');
+    } else if(prev===false && connected){
+      _emit('bridge_up', {ts:Date.now()});
+      console.log('[SGBrain] Bridge reconnected');
+    }
+    _mem.set('bridge_connected', !!connected);
+  }, 5000);
+}
+
+/* ── Watcher: localStorage change (cross-tab sync) ── */
+window.addEventListener('storage', function(e){
+  if(!e||!e.key) return;
+  if(e.key===_TOKEN_LS){ _loadTokens(); _emit('tokens_updated', {}); }
+  if(e.key==='sg_prefs'){ try{ window.SG_PREFS=JSON.parse(e.newValue||'{}'); }catch(ex){} }
+});
+
+/* ── Public API ── */
+return {
+  /* Memory */
+  mem: {
+    get: function(k, def){ return _mem.get(k, def); },
+    set: function(k,v){ _mem.set(k,v); },
+    del: function(k){ _mem.del(k); },
+    history: function(session, limit){ return _mem.getHistory(session, limit); },
+    addMessage: function(session, role, content, agent){ _mem.addMessage(session, role, content, agent); },
+    clearHistory: function(session){ _mem.clearHistory(session); }
+  },
+
+  /* Token management */
+  tokens: {
+    set: function(provider, key){
+      if(!provider||!key) return false;
+      var norm=_normaliseProvider(provider);
+      _tokens[norm]=key.trim();
+      /* Also set aliases */
+      if(norm==='claude') _tokens['anthropic']=_tokens[norm];
+      if(norm==='gpt')    _tokens['openai']=_tokens[norm];
+      if(norm==='grok')   _tokens['xai']=_tokens[norm];
+      _saveTokens();
+      /* Sync to legacy stores */
+      window._agentApiKeys=Object.assign(window._agentApiKeys||{}, _tokens);
+      window.SG_APIKEYS=Object.assign(window.SG_APIKEYS||{}, _tokens);
+      /* Send to bridge */
+      var ws=window.ws||window.BRIDGE_WS;
+      if(ws&&ws.readyState===1){
+        try{ ws.send(JSON.stringify({type:'token_op',action:'set',provider:norm,key:key.trim()})); }catch(e){}
+      }
+      _emit('token_set', {provider:norm});
+      return true;
+    },
+    get: function(provider){
+      var norm=_normaliseProvider(provider);
+      return _tokens[norm]||_tokens[provider]||null;
+    },
+    has: function(provider){ return !!this.get(provider); },
+    status: function(){
+      return {
+        claude: !!_tokens['claude'],
+        gpt: !!_tokens['gpt'],
+        grok: !!_tokens['grok'],
+        copilot: !!_tokens['copilot']
+      };
+    }
+  },
+
+  /* Event bus */
+  on: function(type, handler){ (_listeners[type]=_listeners[type]||[]).push(handler); },
+  off: function(type, handler){
+    if(!_listeners[type]) return;
+    _listeners[type]=_listeners[type].filter(function(h){ return h!==handler; });
+  },
+  emit: _emit,
+
+  /* Request memory hydration from bridge */
+  hydrate: function(session){
+    var ws=window.ws||window.BRIDGE_WS;
+    if(ws&&ws.readyState===1){
+      try{ ws.send(JSON.stringify({type:'memory_query',action:'hydrate',session:session||'default'})); }catch(e){}
+    } else {
+      /* Fallback: hydrate from localStorage */
+      _emit('hydrated', {session:session||'default', history:_mem.getHistory(session||'default',40), kv:{}});
+    }
+  },
+
+  /* Save user message to memory before sending to bridge */
+  saveUserMessage: function(text, session, agent){
+    _mem.addMessage(session||'default', 'user', text, agent||'user');
+  },
+
+  /* Status */
+  status: function(){
+    return {
+      bridge: !!(window.ws&&window.ws.readyState===1),
+      tokens: this.tokens.status(),
+      listeners: Object.keys(_listeners).reduce(function(acc,k){ acc[k]=(_listeners[k]||[]).length; return acc; }, {}),
+      watchers: Object.keys(_watcherTimers).length,
+      memKeys: Object.keys(localStorage).filter(function(k){ return k.startsWith('sgbrain_'); }).length
+    };
+  },
+
+  /* Initialise — called from boot sequence */
+  init: function(){
+    _loadTokens();
+    /* Sync loaded tokens to legacy global stores */
+    window._agentApiKeys=Object.assign(window._agentApiKeys||{}, _tokens);
+    window.SG_APIKEYS=Object.assign(window.SG_APIKEYS||{}, _tokens);
+    _startBridgePingWatcher();
+    _startBridgeHealthWatcher();
+    console.log('[SGBrain] Initialised');
+    _emit('init', {ts:Date.now()});
+  }
+};
+})();
+
+/* Auto-init SGBrain on load */
+SGBrain.init();
+
+/* Wire SGBrain.tokens.set to the existing sgSetApiKey function */
+(function(){
+var _orig=window.sgSetApiKey;
+window.sgSetApiKey=function(provider,value){
+  if(value&&value.trim()) SGBrain.tokens.set(provider,value.trim());
+  if(_orig) _orig.apply(this,arguments);
+};
+})();
+
+/* Request hydration after bridge connects */
+document.addEventListener('sg:bridgeConnected', function(){
+  setTimeout(function(){ SGBrain.hydrate(); }, 500);
+});
 
 })();
 
@@ -25675,7 +25969,7 @@ setTimeout(function(){
     var ws = window.ws || window._ws;
     if(ws && ws.readyState === 1){
       var rid = 'qd_'+Date.now()+'_'+agentId;
-      try{ ws.send(JSON.stringify({type:'agent_query',agent:agentId,prompt:message,history:history||[],request_id:rid})); }
+      try{ ws.send(JSON.stringify({type:'ai_chat',agent:agentId,message:message,history:history||[],context:rid,request_id:rid})); }
       catch(e){ cb({error:'WS send: '+e.message}); return; }
       var done = false;
       var h = function(ev){
@@ -25886,26 +26180,9 @@ fmtBtn.addEventListener('click', function(){ toast('Format: basic indent only in
 var aiBtn = document.getElementById('cm-ai-fix');
 if(aiBtn && !aiBtn._cm){
 aiBtn._cm = true;
-aiBtn.addEventListener('click', function(){
-var code = getCode();
-if(!code.trim()){ toast('Nothing to fix','err'); return; }
-var aiOut = document.getElementById('cm-ai-output');
-if(aiOut) aiOut.textContent = 'Analyzing...';
-var aiPanel = document.getElementById('cm-ai-panel');
-if(aiPanel) aiPanel.style.display = 'block';
-SG_DIRECT_AI.call([{role:'user',content:'Review this '+getLang()+' code and return ONLY the corrected version with no explanation:\n\n'+code}], function(d){
-if(d.error){ if(aiOut) aiOut.textContent='Error: '+d.error; return; }
-if(aiOut) aiOut.textContent = d.response;
-var applyBtn = document.getElementById('cm-apply-fix');
-if(applyBtn && !applyBtn._cm){
-applyBtn._cm = true;
-applyBtn.addEventListener('click', function(){
-editor.value = (aiOut.textContent||'').trim();
-if(aiPanel) aiPanel.style.display='none';
-runCode();
-});
-}
-});
+aiBtn.addEventListener('click', function(e){
+if(e){ e.preventDefault(); e.stopPropagation(); }
+if(typeof window.aiAnalyze === 'function') window.aiAnalyze();
 });
 }
 

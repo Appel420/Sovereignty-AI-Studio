@@ -75,13 +75,16 @@ class RateLimitPolicy:
     Attributes:
         requests_per_window: Maximum requests allowed within *window_seconds*.
         window_seconds:      Length of the sliding window in seconds.
-        burst_multiplier:    Allow up to ``requests_per_window * burst_multiplier``
-                             requests in any single second (burst headroom).
+        burst_multiplier:    Allow up to ``int(requests_per_window * burst_multiplier)``
+                             requests within any single *burst_window_seconds* sub-window
+                             (short-burst headroom).  Set to 1.0 to disable bursting.
+        burst_window_seconds: Duration of the burst sub-window (default 1 s).
     """
 
     requests_per_window: int = 60
     window_seconds: float = 60.0
     burst_multiplier: float = 1.5
+    burst_window_seconds: float = 1.0
 
 
 # Default policy applied to all subjects unless overridden
@@ -196,20 +199,38 @@ class RateLimiter:
     # ------------------------------------------------------------------
 
     async def _check_local(self, subject: str, policy: RateLimitPolicy) -> None:
-        """Sliding-window check using in-process counters."""
+        """Sliding-window check using in-process counters.
+
+        Two checks are applied:
+        1. **Window limit**: total requests within ``policy.window_seconds``.
+        2. **Burst limit**: requests within the last ``policy.burst_window_seconds``
+           may not exceed ``int(policy.requests_per_window * policy.burst_multiplier)``.
+        """
         now = time.time()
         cutoff = now - policy.window_seconds
+        burst_cutoff = now - policy.burst_window_seconds
+        burst_limit = int(policy.requests_per_window * policy.burst_multiplier)
 
         async with self._lock:
-            # Prune timestamps outside the window
+            # Prune timestamps outside the full window
             window = [t for t in self._counters[subject] if t > cutoff]
+
+            # --- Window limit check ---
             if len(window) >= policy.requests_per_window:
-                # Calculate when the oldest request will fall out of the window
                 retry_after = window[0] + policy.window_seconds - now
                 raise RateLimitExceeded(
                     subject=subject,
                     retry_after_seconds=math.ceil(retry_after),
                 )
+
+            # --- Burst limit check ---
+            burst_window = [t for t in window if t > burst_cutoff]
+            if len(burst_window) >= burst_limit:
+                raise RateLimitExceeded(
+                    subject=subject,
+                    retry_after_seconds=1,
+                )
+
             window.append(now)
             self._counters[subject] = window
 
@@ -272,4 +293,7 @@ class RateLimiter:
         except RateLimitExceeded:
             raise
         except Exception as exc:  # noqa: BLE001
-            log.warning("Redis rate-limit check failed (%s); allowing request", exc)
+            log.warning(
+                "Redis rate-limit check failed (%s); falling back to local limiter", exc
+            )
+            await self._check_local(subject, policy)

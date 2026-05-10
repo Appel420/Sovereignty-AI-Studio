@@ -1,27 +1,40 @@
 """
-Sovereignty AI Studio — Watchers & Listeners
-=============================================
-Background monitoring services that run alongside the orchestrator.
+Sovereignty AI Studio — Watchers Module
 
-Exports:
-    FileWatcher     — watches config/model files and triggers hot-reload
-    HealthWatcher   — polls service endpoints and reports health status
-    EventListener   — central async event dispatcher to registered handlers
+Provides async watchers, listeners, and event handlers for the orchestrator.
 
-Typical usage::
+WebSocket / health monitoring:
+  - BridgeWatcher: monitors WebSocket connection health
+  - MemoryWatcher: watches for memory store changes and emits events
+  - EventBus: in-process pub/sub for agent coordination
 
-    from watchers import FileWatcher, HealthWatcher, EventListener
+AI-specific watchers:
+  - AIModelWatcher: monitors AI model selection and routing
+  - MedicalAIWatcher: monitors medical AI workflows and compliance
 
-    fw = FileWatcher(paths=["config.json"])
-    hw = HealthWatcher()
-    el = EventListener()
+Infrastructure watchers (background orchestrator services):
+  - FileWatcher: polls config/model files and triggers hot-reload callbacks
+  - HealthWatcher: polls HTTP endpoints and reports service health status
+  - EventListener: central async fan-out dispatcher with DLQ
 """
 
+from .bridge_watcher import BridgeWatcher
+from .event_bus import EventBus
+from .memory_watcher import MemoryWatcher
+from .ai_model_watcher import AIModelWatcher
+from .medical_ai_watcher import MedicalAIWatcher
 from .file_watcher import FileWatcher, FileChangeEvent
 from .health_watcher import HealthWatcher, ServiceHealth, HealthStatus
 from .event_listener import EventListener, EventHandler
 
 __all__ = [
+    # Core watchers (used by bridge.py / gateway)
+    "BridgeWatcher",
+    "EventBus",
+    "MemoryWatcher",
+    "AIModelWatcher",
+    "MedicalAIWatcher",
+    # Infrastructure watchers (used by System_Orchestrator)
     "FileWatcher",
     "FileChangeEvent",
     "HealthWatcher",

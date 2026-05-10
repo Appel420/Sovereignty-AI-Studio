@@ -128,9 +128,10 @@ class TokenManager:
     ) -> None:
         self._secret = secret or os.environ.get("JWT_SECRET", "")
         if not self._secret:
-            log.warning(
-                "JWT_SECRET is not set — tokens will be signed with an empty "
-                "secret.  This is insecure.  Set JWT_SECRET in your environment."
+            raise ValueError(
+                "JWT_SECRET is not set.  Set the JWT_SECRET environment variable "
+                "or pass `secret=` explicitly.  Operating with an empty HMAC key "
+                "removes all signature security and is not permitted."
             )
         self._algorithm = algorithm
         self.access_ttl = access_ttl
@@ -325,9 +326,10 @@ class TokenManager:
     def revoke_token(self, token: str) -> None:
         """Revoke a token by decoding it to extract its JTI.
 
-        Unlike :meth:`revoke`, this method accepts the raw JWT string.
-        The token's signature and expiry are *not* re-verified here since the
-        goal is to invalidate it regardless of its current validity.
+        Unlike :meth:`revoke`, this method accepts the raw JWT string and
+        verifies the signature (to prevent DoS via crafted JTIs) but ignores
+        token expiry — the goal is to mark the JTI as revoked regardless of
+        whether the token has already expired.
         """
         if not _JWT_OK:
             return
