@@ -6,7 +6,6 @@ Monitors the health of all Sovereignty AI Studio services.
 Services monitored (with configurable URLs):
     - bridge.py WebSocket     (ws://localhost:9897)
     - Node.js node-bridge     (http://localhost:9899/health)
-    - FastAPI backend         (http://localhost:8000/health)
 
 Each service is polled via an HTTP HEAD / GET request every
 *check_interval* seconds.  The watcher maintains a :class:`ServiceHealth`
@@ -87,14 +86,13 @@ class HealthWatcher:
     Example::
 
         watcher = HealthWatcher(check_interval=10.0)
-        watcher.add_service("bridge", "http://localhost:9897/health")
+        watcher.add_service("node-bridge", "http://localhost:9899/health")
         watcher.on_status_change(lambda name, h: log.warning("%s is %s", name, h.status))
         await watcher.start()
     """
 
     # Well-known services pre-loaded from the port layout.
     # bridge.py (9897) is WebSocket-only — no HTTP health endpoint.
-    # FastAPI backend (8000) is Docker-internal only, not reachable on localhost.
     # node-bridge (9899) is the single HTTP-accessible health endpoint.
     DEFAULT_SERVICES: Dict[str, str] = {
         "node-bridge": "http://localhost:9899/health",

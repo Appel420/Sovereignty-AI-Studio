@@ -49,7 +49,7 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:9897';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
 const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
@@ -226,7 +226,7 @@ app.use('/api/judge', (req, res) => proxyRequest(GATEWAY_URL, req, res));
 app.get('/api/agents/status', async (_req, res) => {
   const agents = {
     gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
-    backend: { url: BACKEND_URL, status: 'offline', port: 8000 },
+    backend: { url: BACKEND_URL, status: 'offline', port: 9897 },
     weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
     py_bridge: { url: SG_BRIDGE_HTTP_URL, status: 'offline', port: 9897, role: 'python-bridge' },
   };
