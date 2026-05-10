@@ -51,7 +51,7 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:9897';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9000';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9897';
 const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
 // Derived HTTP base URL for health-check probes against the Python backend bridge
 const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
@@ -225,7 +225,7 @@ app.use('/api/judge', (req, res) => proxyRequest(GATEWAY_URL, req, res));
 // GET /api/agents/status — aggregated ecosystem agent health
 app.get('/api/agents/status', async (_req, res) => {
   const agents = {
-    gateway: { url: GATEWAY_URL, status: 'offline', port: 9000 },
+    gateway: { url: GATEWAY_URL, status: 'offline', port: 9897 },
     backend: { url: BACKEND_URL, status: 'offline', port: 9897 },
     weather: { url: WEATHER_URL, status: 'offline', port: 8001 },
     py_bridge: { url: SG_BRIDGE_HTTP_URL, status: 'offline', port: 9897, role: 'python-bridge' },
