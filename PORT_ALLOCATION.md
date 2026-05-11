@@ -31,21 +31,21 @@
                                   │   (PRIMARY)  │      AI / TTS / STT
                                   └──────┬───────┘
                                          │
-                          ┌──────────────┼──────────────┐
-                          ▼              ▼              ▼
-                   ┌───────────┐  ┌───────────┐  ┌───────────┐
-                   │ FastAPI   │  │  Gateway  │  │   Redis   │
-                   │ Port 8000 │  │ Port 9898 │  │ Port 6379 │
-                   │(Internal) │  │(Internal) │  │(Internal) │
-                   └─────┬─────┘  └───────────┘  └───────────┘
-                         │
-                    ┌────┴────┐
-                    ▼         ▼
-                 ┌────────┐ ┌────────┐
-                 │  DB    │ │        │
-                 │ :5432  │ │        │
-                 │(Int)   │ │        │
-                 └────────┘ └────────┘
+                 ┌───────────────┬────────┴───────┬───────────────┐
+                 ▼               ▼                ▼               ▼
+          ┌───────────┐  ┌───────────┐  ┌──────────────┐  ┌───────────┐
+          │ FastAPI   │  │  Gateway  │  │   Keycloak   │  │   Redis   │
+          │ Port 8002 │  │ Port 9001 │  │ :8080→:8443  │  │ Port 6379 │
+          │(Internal) │  │(Internal) │  │  SSO/Identity│  │(Internal) │
+          └─────┬─────┘  └───────────┘  └──────────────┘  └───────────┘
+                │
+           ┌────┴─────┐
+           ▼           ▼
+      ┌─────────┐  ┌─────────┐
+      │ Postgres│  │ Weather │
+      │  :5432  │  │  :8001  │
+      │(Internal)│  │(Internal)│
+      └─────────┘  └─────────┘
 ```
 
 ## Port Architecture
@@ -65,11 +65,14 @@
 | 3000 | Frontend (React) | Development UI | Internal |
 | 5432 | PostgreSQL | Database | Internal |
 | 6379 | Redis | Cache | Internal |
-| 8000 | Backend (FastAPI) | Primary API | Internal |
 | 8001 | Weather (Quart) | Weather service | Internal |
-| 8080 | Web App Server | apps/web | Internal |
-| 8443 | Auth Proxy | WebSocket auth | Internal |
-| 9000 | Unified Server | Primary server | Internal |
+| 8002 | Backend (FastAPI) | Primary API | Internal |
+| 8080 | Keycloak SSO | SSO / Identity (host port, maps to :8443 inside container) | Internal |
+| 8443 | Keycloak HTTPS | Keycloak container-internal HTTPS port | Internal |
+| 9001 | Multi-agent Gateway | Internal orchestration | Internal |
+| 9002 | Judge Metrics | Prometheus scrape target | Internal |
+
+> ⛔ **BANNED**: Ports 8000 and 9000 are never used. Any service previously on these ports is now on 8002 and 9001 respectively.
 
 ## Key Principle
 
@@ -117,12 +120,12 @@
 **Environment Variables**:
 ```bash
 NODE_BRIDGE_PORT=9899
-BACKEND_URL=http://backend:8000    # Internal Docker network
+BACKEND_URL=http://backend:8002    # Internal Docker network
 WEATHER_URL=http://backend:8001    # Internal Docker network
 CORS_ORIGIN=http://localhost:9898
 ```
 
-### Port 8000 - Backend (FastAPI)
+### Port 8002 - Backend (FastAPI)
 
 **Purpose**: Primary REST API backend (Internal only)
 
@@ -154,12 +157,12 @@ services:
     ports:
       - "9899:9899"  # WS + API proxy
     environment:
-      - BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8002
       - WEATHER_URL=http://backend:8001
 
   backend:
     expose:
-      - "8000"  # Internal only
+      - "8002"  # Internal only
 
   db:
     expose:
@@ -174,11 +177,11 @@ File: `.env`
 # Port assignments
 NODE_BRIDGE_PORT=9899
 SG_PORT=9897
-BACKEND_PORT=8000
+BACKEND_PORT=8002
 WEATHER_PORT=8001
 
 # Internal service URLs (used by node-bridge → backend)
-BACKEND_URL=http://localhost:8000
+BACKEND_URL=http://localhost:8002
 WEATHER_URL=http://localhost:8001
 ```
 
@@ -293,9 +296,8 @@ services:
     ports:
       - "9899:9899"  # WS + API proxy exposed to host
     environment:
-      - BACKEND_URL=http://backend:8000
+      - BACKEND_URL=http://backend:8002
       - WEATHER_URL=http://backend:8001
-    restart: always
 ```
 
 ## Benefits of Three-Port Architecture
@@ -357,7 +359,7 @@ Verify Docker network:
 docker network inspect sovereignty-ai-studio_default
 ```
 
-Services should use Docker service names (e.g., `http://backend:8000`, not `http://localhost:8000`)
+Services should use Docker service names (e.g., `http://backend:8002`, not `http://localhost:8002`)
 
 ## Migration Guide
 
@@ -382,7 +384,7 @@ const wsUrl   = 'ws://localhost:9899';                  // WebSocket
 # Current correct values
 NODE_BRIDGE_PORT=9899        # node-bridge WS + API proxy
 SG_PORT=9897                 # Python bridge.py AI backend
-BACKEND_URL=http://localhost:8000   # direct backend (internal)
+BACKEND_URL=http://localhost:8002   # direct backend (internal, never use 8000)
 ```
 
 ## References

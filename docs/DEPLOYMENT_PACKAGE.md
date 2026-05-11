@@ -39,7 +39,7 @@ pm2 start ecosystem.config.cjs
 ```
 Health probes:
 - Bridge: http://localhost:9898/health
-- Gateway: http://localhost:9000/health
+- Gateway: http://localhost:9001/health
 - Agents status: http://localhost:9898/api/agents/status
 
 ## Containerized deployment

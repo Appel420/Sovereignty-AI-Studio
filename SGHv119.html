@@ -5819,7 +5819,7 @@ function afterPanel(id){
           fetch('http://127.0.0.1:9899/auth/keycloak/test')
             .then(function(r){return r.json();})
             .then(function(d){bOut('fort-oauth-out',JSON.stringify(d,null,2),'var(--gn)');})
-            .catch(function(){bOut('fort-oauth-out','Keycloak at :8443 — start keycloak before testing','var(--t3)');});
+            .catch(function(){bOut('fort-oauth-out','Keycloak at :8080 — start keycloak before testing','var(--t3)');});
         });}
 
         /* Export alert log */
@@ -22533,7 +22533,7 @@ var nodes = [
 {id:'node-e',port:9999,role:'validator',status:'offline'},
 ];
 var services=[
-{name:'Keycloak',port:8443,status:'configured',icon:'🔑'},
+{name:'Keycloak',port:8080,status:'configured',icon:'🔑'},
 {name:'Prometheus',port:9090,status:'configured',icon:'📊'},
 {name:'Grafana',port:3000,status:'configured',icon:'📈'},
 {name:'Alertmanager',port:9093,status:'configured',icon:'🚨'},
@@ -22918,7 +22918,7 @@ return '<div style="display:flex;gap:8px;padding:3px 0;font-family:var(--mono);f
 '<div class="card-title">🔐 Sovereign OAuth (Keycloak — No Google/Meta)</div>' +
 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-family:var(--mono);font-size:9px;margin-bottom:10px">' +
 '<div style="color:var(--t2)">Provider</div><div style="color:var(--t0)">Self-hosted Keycloak</div>' +
-'<div style="color:var(--t2)">Port</div><div style="color:var(--acid)">8443 (HTTPS)</div>' +
+'<div style="color:var(--t2)">Port</div><div style="color:var(--acid)">8080 / 8443 (Docker)</div>' +
 '<div style="color:var(--t2)">Protocol</div><div style="color:var(--t0)">OAuth2 / OIDC</div>' +
 '<div style="color:var(--t2)">Google OAuth</div><div style="color:var(--pulse)">REMOVED</div>' +
 '<div style="color:var(--t2)">Meta OAuth</div><div style="color:var(--pulse)">REMOVED</div>' +
@@ -23770,8 +23770,8 @@ var agentDefs = [
   {id:'plugin',icon:'🔌',name:'Plugin Agent',port:8002,role:'Dynamic Plugin Exec'},
   {id:'platform',icon:'📡',name:'Platform Agent',port:8003,role:'Streaming Integration'},
   {id:'voice',icon:'🎙️',name:'Voice Assist',port:8004,role:'Accessibility Voice'},
-  {id:'gateway',icon:'🚪',name:'Gateway',port:9000,role:'Orchestrator'},
-  {id:'backend',icon:'⚙️',name:'Backend API',port:8000,role:'FastAPI Core'},
+  {id:'gateway',icon:'🚪',name:'Gateway',port:9001,role:'Orchestrator'},
+  {id:'backend',icon:'⚙️',name:'Backend API',port:8002,role:'FastAPI Core'},
   {id:'bridge',icon:'🌉',name:'Node Bridge',port:9899,role:'External Gateway'}
 ];
 agentDefs.forEach(function(a){

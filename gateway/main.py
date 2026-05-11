@@ -5,7 +5,7 @@ The gateway is the single entry point for the multi-agent system.  It:
 2. Creates and wires all specialist agents (AI Router, Plugin, Platform, Voice)
 3. Starts the event bus processing loop
 4. Runs an example task pipeline that exercises every agent
-5. Exposes a minimal HTTP API (GATEWAY_PORT, default 9898) for external control
+5. Exposes a minimal HTTP API (GATEWAY_PORT, default 9001) for external control
 """
 
 import asyncio
@@ -25,7 +25,7 @@ from event_bus import bus as event_bus
 
 logger = logging.getLogger(__name__)
 
-_GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "9898"))
+_GATEWAY_PORT = int(os.getenv("GATEWAY_PORT", "9001"))
 
 
 # ---------------------------------------------------------------------------
