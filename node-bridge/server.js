@@ -49,9 +49,9 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:9897';
-const WEATHER_URL = process.env.WEATHER_URL || 'http://127.0.0.1:9897';
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://127.0.0.1:9897';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8002';
+const WEATHER_URL = process.env.WEATHER_URL || 'http://127.0.0.1:8001';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://127.0.0.1:9001';
 const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://127.0.0.1:9897';
 // Derived HTTP base URL for health-check probes against the Python backend bridge
 const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
@@ -70,7 +70,10 @@ app.use(express.json());
 // CORS — default to bridge origin
 // ---------------------------------------------------------------------------
 app.use((_req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || 'http://localhost:9898';
+  const configuredOrigin = process.env.CORS_ORIGIN || '';
+  const requestOrigin = _req.headers.origin || '';
+  const loopbackOrigins = new Set(['http://127.0.0.1:9898', 'http://localhost:9898']);
+  const origin = configuredOrigin || (loopbackOrigins.has(requestOrigin) ? requestOrigin : 'http://127.0.0.1:9898');
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -122,6 +125,32 @@ function proxyRequest(targetBase, req, res) {
     console.error(`[proxy] ${targetBase} error:`, err.message);
     if (!res.headersSent) {
       res.status(502).json({ error: 'Backend unavailable', target: targetBase });
+    }
+  });
+
+  req.pipe(proxyReq, { end: true });
+}
+
+function proxyAbsoluteUrl(targetUrl, req, res) {
+  const url = new URL(targetUrl);
+  const client = requestClientFor(url);
+  const options = {
+    hostname: url.hostname,
+    port: resolveUpstreamPort(url),
+    path: url.pathname + url.search,
+    method: req.method,
+    headers: { ...req.headers, host: url.host },
+  };
+
+  const proxyReq = client.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error(`[proxy] ${targetUrl} error:`, err.message);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Backend unavailable', target: targetUrl });
     }
   });
 
@@ -940,8 +969,31 @@ app.post('/keycloak/token', (req, res) => {
       hint: 'docker-compose up keycloak, then set KEYCLOAK_URL=http://keycloak:8080',
     });
   }
-  // Proxy to Keycloak token endpoint
-  proxyRequest(kcUrl, req, res);
+  let parsed;
+  try {
+    parsed = new URL(kcUrl);
+  } catch (err) {
+    return res.status(400).json({ success: false, error: 'Invalid KEYCLOAK_URL', details: err.message });
+  }
+
+  const blockedOAuthHosts = [
+    'google.com',
+    'googleapis.com',
+    'gstatic.com',
+    'facebook.com',
+    'fb.com',
+    'meta.com',
+    'instagram.com',
+    'whatsapp.com',
+  ];
+  if (blockedOAuthHosts.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
+    return res.status(403).json({ success: false, error: 'Blocked OAuth host: use self-hosted Keycloak only' });
+  }
+
+  const realm = process.env.KEYCLOAK_REALM || 'sovereignty';
+  const tokenPath = `/realms/${encodeURIComponent(realm)}/protocol/openid-connect/token`;
+  const tokenUrl = new URL(tokenPath, parsed);
+  proxyAbsoluteUrl(tokenUrl.toString(), req, res);
 });
 
 // ---------------------------------------------------------------------------

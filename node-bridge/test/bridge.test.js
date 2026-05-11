@@ -50,9 +50,29 @@ describe('Node Bridge – Health', () => {
     assert.equal(r.status, 200);
     assert.equal(r.body.status, 'healthy');
     assert.equal(r.body.service, 'node-bridge');
-    assert.equal(r.body.backends.api, 'http://127.0.0.1:9897');
-    assert.equal(r.body.backends.weather, 'http://127.0.0.1:9897');
+    assert.equal(r.body.backends.api, 'http://127.0.0.1:8002');
+    assert.equal(r.body.backends.weather, 'http://127.0.0.1:8001');
+    assert.equal(r.body.backends.gateway, 'http://127.0.0.1:9001');
     assert.ok(r.body.timestamp);
+  });
+});
+
+describe('Node Bridge – OAuth hardening', () => {
+  it('rejects Google/Meta OAuth hosts for token exchange', async () => {
+    const prev = process.env.KEYCLOAK_URL;
+    process.env.KEYCLOAK_URL = 'https://accounts.google.com';
+    try {
+      const r = await request('/keycloak/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'client_credentials' }),
+      });
+      assert.equal(r.status, 403);
+      assert.equal(r.body.success, false);
+    } finally {
+      if (prev === undefined) delete process.env.KEYCLOAK_URL;
+      else process.env.KEYCLOAK_URL = prev;
+    }
   });
 });
 

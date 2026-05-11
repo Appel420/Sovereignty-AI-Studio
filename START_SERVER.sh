@@ -39,8 +39,8 @@ SG_BRIDGE_URL=ws://127.0.0.1:9897 NODE_BRIDGE_PORT=9899 node "$NODE_BRIDGE_DIR/s
 NODE_PID=$!
 
 echo "Starting KODER frontend static server on port 9898..."
-# Serve SGHv119.html at http://localhost:9898 — python3 is always available
-python3 -m http.server 9898 --bind localhost --directory "$SCRIPT_DIR" &
+# Serve SGHv119.html at http://127.0.0.1:9898 — python3 is always available
+python3 -m http.server 9898 --bind 127.0.0.1 --directory "$SCRIPT_DIR" &
 STATIC_PID=$!
 
 # Ensure all services are stopped on exit (Ctrl+C or crash)
