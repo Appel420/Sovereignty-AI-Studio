@@ -49,10 +49,10 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8002';
-const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9001';
-const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:9897';
+const WEATHER_URL = process.env.WEATHER_URL || 'http://127.0.0.1:9897';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://127.0.0.1:9897';
+const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://127.0.0.1:9897';
 // Derived HTTP base URL for health-check probes against the Python backend bridge
 const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
 const TLS_CERT = process.env.TLS_CERT || '';
@@ -70,7 +70,7 @@ app.use(express.json());
 // CORS — default to bridge origin
 // ---------------------------------------------------------------------------
 app.use((_req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || `http://localhost:${PORT}`;
+  const origin = process.env.CORS_ORIGIN || 'http://localhost:9898';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -1278,8 +1278,8 @@ if (require.main === module) {
   server.listen(PORT, () => {
     const proto = useTLS ? 'https' : 'http';
     const wsproto = useTLS ? 'wss' : 'ws';
-    console.log(`[node-bridge] listening on ${proto}://localhost:${PORT}${useTLS ? ' (TLS)' : ''}`);
-    console.log(`[node-bridge] WebSocket   ${wsproto}://localhost:${PORT}/ws/alerts`);
+    console.log(`[node-bridge] listening on ${proto}://127.0.0.1:${PORT}${useTLS ? ' (TLS)' : ''}`);
+    console.log(`[node-bridge] WebSocket   ${wsproto}://127.0.0.1:${PORT}/ws/alerts`);
     console.log(`[node-bridge] proxy /api/v1/*      → ${BACKEND_URL}`);
     console.log(`[node-bridge] proxy /api/weather/*  → ${WEATHER_URL}`);
     console.log(`[node-bridge] proxy /api/forecast/* → ${WEATHER_URL}`);
