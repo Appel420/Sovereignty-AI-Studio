@@ -53,6 +53,16 @@ const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8002';
 const WEATHER_URL = process.env.WEATHER_URL || 'http://127.0.0.1:8001';
 const GATEWAY_URL = process.env.GATEWAY_URL || 'http://127.0.0.1:9001';
 const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://127.0.0.1:9897';
+const BLOCKED_OAUTH_HOSTS = [
+  'google.com',
+  'googleapis.com',
+  'gstatic.com',
+  'facebook.com',
+  'fb.com',
+  'meta.com',
+  'instagram.com',
+  'whatsapp.com',
+];
 // Derived HTTP base URL for health-check probes against the Python backend bridge
 const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
 const TLS_CERT = process.env.TLS_CERT || '';
@@ -976,17 +986,7 @@ app.post('/keycloak/token', (req, res) => {
     return res.status(400).json({ success: false, error: 'Invalid KEYCLOAK_URL', details: err.message });
   }
 
-  const blockedOAuthHosts = [
-    'google.com',
-    'googleapis.com',
-    'gstatic.com',
-    'facebook.com',
-    'fb.com',
-    'meta.com',
-    'instagram.com',
-    'whatsapp.com',
-  ];
-  if (blockedOAuthHosts.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
+  if (BLOCKED_OAUTH_HOSTS.some((d) => parsed.hostname === d || parsed.hostname.endsWith(`.${d}`))) {
     return res.status(403).json({ success: false, error: 'Blocked OAuth host: use self-hosted Keycloak only' });
   }
 

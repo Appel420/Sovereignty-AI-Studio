@@ -69,6 +69,63 @@ describe('Node Bridge – OAuth hardening', () => {
       });
       assert.equal(r.status, 403);
       assert.equal(r.body.success, false);
+
+      process.env.KEYCLOAK_URL = 'https://graph.facebook.com';
+      const rMeta = await request('/keycloak/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'client_credentials' }),
+      });
+      assert.equal(rMeta.status, 403);
+      assert.equal(rMeta.body.success, false);
+    } finally {
+      if (prev === undefined) delete process.env.KEYCLOAK_URL;
+      else process.env.KEYCLOAK_URL = prev;
+    }
+  });
+
+  it('proxies token exchange to Keycloak OpenID token endpoint', async () => {
+    const prevUrl = process.env.KEYCLOAK_URL;
+    const prevRealm = process.env.KEYCLOAK_REALM;
+    let seenPath = '';
+    const mock = http.createServer((req, res) => {
+      seenPath = req.url || '';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ access_token: 'local-token' }));
+    });
+    await new Promise((resolve) => mock.listen(0, '127.0.0.1', resolve));
+    const addr = mock.address();
+    process.env.KEYCLOAK_URL = `http://127.0.0.1:${addr.port}`;
+    process.env.KEYCLOAK_REALM = 'sovereignty';
+    try {
+      const r = await request('/keycloak/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'grant_type=client_credentials',
+      });
+      assert.equal(r.status, 200);
+      assert.equal(r.body.access_token, 'local-token');
+      assert.equal(seenPath, '/realms/sovereignty/protocol/openid-connect/token');
+    } finally {
+      await new Promise((resolve) => mock.close(resolve));
+      if (prevUrl === undefined) delete process.env.KEYCLOAK_URL;
+      else process.env.KEYCLOAK_URL = prevUrl;
+      if (prevRealm === undefined) delete process.env.KEYCLOAK_REALM;
+      else process.env.KEYCLOAK_REALM = prevRealm;
+    }
+  });
+
+  it('returns 502 when Keycloak endpoint is unreachable', async () => {
+    const prev = process.env.KEYCLOAK_URL;
+    process.env.KEYCLOAK_URL = 'http://127.0.0.1:1';
+    try {
+      const r = await request('/keycloak/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ grant_type: 'client_credentials' }),
+      });
+      assert.equal(r.status, 502);
+      assert.equal(r.body.error, 'Backend unavailable');
     } finally {
       if (prev === undefined) delete process.env.KEYCLOAK_URL;
       else process.env.KEYCLOAK_URL = prev;
