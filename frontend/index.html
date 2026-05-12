@@ -287,7 +287,7 @@
           <p><strong>Provider order:</strong> local_gguf → local_onnx → sovereign_api</p>
           <p>Never falls back to Anthropic, OpenAI, Google, or any external SaaS.</p>
           <br/>
-          <p>WebSocket endpoint: <code>ws://127.0.0.1:9899</code></p>
+          <p>WebSocket endpoint: <code>ws://localhost:9898</code></p>
           <p>HTTP AI endpoint: <code>POST /api/ai/chat</code></p>
         </div>
       </div>
@@ -405,8 +405,8 @@
           <ul style="padding-left:1.2rem;list-style:disc;">
             <li>Postgres 16 (persistent, internal)</li>
             <li>Redis 7 (cache/queue, internal)</li>
-            <li>Python backend bridge (port 9897)</li>
-            <li>Node.js sovereign bridge (external port 9899)</li>
+            <li>Python FastAPI backend (internal port 8002)</li>
+            <li>Node.js sovereign bridge (external port 9898)</li>
             <li>Nginx reverse proxy (port 80/443)</li>
           </ul>
           <br/>

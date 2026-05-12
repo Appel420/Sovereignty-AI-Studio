@@ -3,7 +3,7 @@
  * Connects all frontend pages to backend services via the node-bridge.
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://127.0.0.1:9899/api/v1';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9898/api/v1';
 const BRIDGE_BASE_URL = API_BASE_URL.replace(/\/api\/v1$/, '');
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
