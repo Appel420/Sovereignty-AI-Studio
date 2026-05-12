@@ -43,7 +43,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
+          pip install -r .github/workflows/requirements.txt
           pip install flake8 safety
 
       - name: Lint with flake8
@@ -56,7 +56,7 @@ jobs:
 
       - name: Dependency safety check
         run: |
-          safety check -r .github/workflows/Requirements.txt --output text || true
+          safety check -r .github/workflows/requirements.txt --output text || true
           safety check -r requirements.txt --output text || true
         continue-on-error: true
 
