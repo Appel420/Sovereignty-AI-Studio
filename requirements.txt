@@ -39,9 +39,9 @@ python-multipart==0.0.27
 
 # ── AI / Inference (local only) ──────────────────────────────────────────────
 numpy==1.26.4
-torch==2.8.0
-# torch 2.8.0 fixes CVE-2025-2953 and CVE-2025-3730 (both stable releases on PyPI)
 pennylane==0.44.1
+# torch moved to requirements-ml.txt to keep base installs lightweight/stable in
+# constrained environments; install it when ML/quantum agents are needed.
 
 # ── Voice / TTS / STT (self-hosted) ─────────────────────────────────────────
 pyttsx3==2.90
@@ -74,5 +74,5 @@ aiohttp==3.13.5
 email-validator==2.2.0
 
 # ── Extended / Experimental packages ─────────────────────────────────────────
-# See requirements-extra.txt for the full extended ecosystem package list.
+# See requirements-ml.txt and requirements-extra.txt for optional ecosystems.
 # Those packages are tracked separately as many are not yet on PyPI.

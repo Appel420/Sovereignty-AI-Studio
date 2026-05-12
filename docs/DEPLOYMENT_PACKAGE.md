@@ -19,6 +19,7 @@ This replaces the legacy `Deployv2.0.py` artifact with a markdown quick referenc
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+# Optional (ML modules): pip install -r requirements-ml.txt
 ```
 2) Install Node dependencies for the unified server and node-bridge:
 ```
