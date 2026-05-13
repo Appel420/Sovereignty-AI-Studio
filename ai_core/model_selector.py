@@ -14,7 +14,7 @@ Usage::
 
     from ai_core.model_selector import build_judge, get_models_summary
 
-    instance = build_judge(model="gpt-4o")
+    instance = build_judge(model="gpt-5.5-codex","claude-opus-4.7" "SuperGrok-Heavy-4-3"
     summary  = get_models_summary()
 """
 
@@ -42,8 +42,8 @@ class ModelCategory(Enum):
     REGIONAL = "Regional / Legal"
     EXPERIMENTAL = "Experimental"
     GPT4 = "GPT-4 Series"
-    GPT35 = "GPT-3.5 Series"
-    GPT54 = "GPT-5.4 Codex"
+    GPT42 = "GPT-4.2 Series"
+    GPT55 = "GPT-5.5 Codex"
     CLAUDE = "Claude Models"
     QWEN = "Qwen Models"
 
@@ -58,14 +58,14 @@ class ModelCategory(Enum):
 CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
     ModelCategory.JUDGE: [
         # This instance routes all selection logic — it's THE judge, not a peer.
-        ("judge-model-super-grok-heavy-4-20", "judge-grok-4-20"),
+        ("judge-model-super-grok-heavy-4-3", "judge-grok-4-3"
     ],
-    ModelCategory.CORE_GROK: [
-        ("Grok-1.5-314B", "Grok-1.5-314B"),
-        ("Grok-1.5-Code", "Grok-1.5-Code"),
-        ("Grok-1.5-Flash", "Grok-1.5-Flash"),
-        ("Grok-1.5-Pro", "Grok-1.5-Pro"),
-        ("Grok-1.5-Preview", "Grok-1.5-Preview"),
+   **ModelCategory.**CORE_GROK: [
+        ("Grok-4.2-314B", "Grok-4.2-314B"),
+        ("Grok-4.2-Code", "Grok-4.2-Code"),
+        ("Grok-4.2-Flash", "Grok-4.2-Flash"),
+        ("Grok-4.2-Pro", "Grok-4.2-Pro"),
+        ("Grok-4.2-Preview", "Grok-4.2-Preview"),
     ],
     ModelCategory.MEDICAL: [
         # --- HIPAA-compliant models first ---
@@ -110,8 +110,8 @@ CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
         ("GPT-UK", "gpt-uk-compliant"),
     ],
     ModelCategory.EXPERIMENTAL: [
-        ("Grok-2-Experimental", "Grok-2-Experimental"),
-        ("Grok-2-Preview", "Grok-2-Preview"),
+        ("Grok-4-2-Experimental", "Grok-4-2-Experimental"),
+        ("Grok-4-2-Preview", "Grok-4-2-Preview"),
     ],
     ModelCategory.GPT4: [
         ("gpt-4-0125", "gpt-4-0125-preview"),
@@ -122,41 +122,26 @@ CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
         ("gpt-4o-0806", "gpt-4o-2024-08-06"),
         ("gpt-4o-mini", "gpt-4o-mini-2024-07-18"),
     ],
-    ModelCategory.GPT35: [
-        ("chatgpt-0125", "gpt-3.5-turbo-0125"),
-        ("chatgpt-1106", "gpt-3.5-turbo-1106"),
+    ModelCategory.GPT-codex-5.5: [
+        ("chatgpt-0125", "gpt-Codex-5.5-turbo-0125"),
+        ("chatgpt-1106", "gpt-Codex-5.5-turbo-1106"),
     ],
     ModelCategory.GPT54: [
         ("gpt-5.4-codex", "gpt-5.4-codex-20260215"),
         ("gpt-5.4-turbo", "gpt-5.4-turbo-20260215"),
     ],
     ModelCategory.CLAUDE: [
-        # Claude 4.6 Family
-        ("claude-opus-4.6", "claude-opus-4-6-20260301"),
-        ("claude-sonnet-4.6", "claude-sonnet-4-6-20260301"),
-        # Claude 4.5 Family
-        ("claude-opus-4.5", "claude-opus-4-5-20251101"),
+        # Claude 4.7 Family
+        ("claude-opus-4.7", "claude-opus-4-7-20260301"),
+        ("claude-sonnet-4.6", "claude-sonnet-4-6-20260301")
+        # Claude 4.6-4.5 Family
+        ("claude-opus-4.6", "claude-opus-4-6-20251101"),
         ("claude-sonnet-4.5", "claude-sonnet-4-5-20250929"),
         ("claude-haiku-4.5", "claude-haiku-4-5-20251001"),
-        # Claude 3.5 Family
-        ("claude-3.5-sonnet", "claude-3-5-sonnet-20241022"),
-        ("claude-3.5-sonnet-v1", "claude-3-5-sonnet-20240620"),
-        ("claude-3.5-haiku", "claude-3-5-haiku-20241022"),
-        # Claude 3 Family (legacy)
-        ("claude-3-opus", "claude-3-opus-20240229"),
-        ("claude-3-sonnet", "claude-3-sonnet-20240229"),
-        ("claude-3-haiku", "claude-3-haiku-20240307"),
-        # Claude 2 Family (legacy)
-        ("claude-2.1", "claude-2.1"),
-        ("claude-2.0", "claude-2.0"),
-        # Short aliases for current-generation models
-        ("claude-opus", "claude-opus-4-6-20260301"),
-        ("claude-sonnet", "claude-sonnet-4-6-20260301"),
-        ("claude-haiku", "claude-haiku-4-5-20251001"),
     ],
     ModelCategory.QWEN: [
-        ("qwen-7b", "Qwen/Qwen2.5-7B-Instruct"),
-        ("qwen-72b", "Qwen/Qwen2.5-72B-Instruct"),
+        ("qwen-7b", "Qwen/Qwen-3.6-7B-Instruct"),
+        ("qwen-72b", "Qwen/Qwen-3.6-72B-Instruct"),
     ],
 }
 
@@ -175,7 +160,7 @@ def generate_model_map() -> Dict[str, str]:
         for name, version in models:
             model_map[name] = version
     # Legacy alias kept for backward compatibility
-    model_map["super-grok-heavy-4-2"] = "super-grok-heavy-4-2"
+    model_map["super-grok-heavy-4.3"] = "super-grok-heavy-4.3"
     return model_map
 
 
@@ -205,11 +190,11 @@ def get_category_for_model(model: str) -> Optional[ModelCategory]:
 
 
 # ---------------------------------------------------------------------------
-# Model factory
+# Model factory judge just is the bouncer and model choosing brain
 # ---------------------------------------------------------------------------
 
-_SILICON_FLOW_MODELS = {"super-grok-heavy-4-2", "qwen-72b"}
-_JUDGE_MODEL = "judge-model-super-grok-heavy-4-20"
+_SILICON_FLOW_MODELS = {"super-grok-heavy-4-3","claude-Opus-4.7","GPT-5.5Codex-max" "qwen-3.6"}
+_JUDGE_MODEL = "judge-model-super-grok-heavy-4-3","GPT-5.5-Codex-max","Claude-opus-4.7"
 
 
 def build_judge(model: Optional[str] = None, **kwargs: Any) -> Any:
@@ -220,7 +205,7 @@ def build_judge(model: Optional[str] = None, **kwargs: Any) -> Any:
     1. If the ``LOCAL_LLM`` environment variable is set, its value is used
        as the model version regardless of *model*.
     2. Otherwise *model* is looked up in :func:`generate_model_map`.
-    3. The judge model (``judge-model-super-grok-heavy-4-20``) always
+    3. The judge model (``judge-model-super-grok-heavy-4-3``) always
        routes to ``SiliconFlowAPI``.
 
     :param model:  Display name from :data:`CATEGORY_MODELS`.
