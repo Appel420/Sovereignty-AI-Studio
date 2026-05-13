@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import AuditLogTable from '../components/AuditLogTable';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:9899/api/v1';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:9899/api/v1';
 
 async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('access_token');

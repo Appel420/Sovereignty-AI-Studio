@@ -9,7 +9,7 @@ PY_BRIDGE_PORT="${SG_PORT:-9897}"
 WEATHER_PORT="${WEATHER_PORT:-8001}"
 BACKEND_PORT="${BACKEND_PORT:-8002}"
 GATEWAY_PORT="${GATEWAY_PORT:-9001}"
-PY_BRIDGE_URL="${SG_BRIDGE_URL:-ws://127.0.0.1:${PY_BRIDGE_PORT}}"
+PY_BRIDGE_URL="${SG_BRIDGE_URL:-ws://localhost:${PY_BRIDGE_PORT}}"
 
 STARTED=""
 SKIPPED=""
@@ -112,9 +112,9 @@ fi
 if wait_for_port_free "$BRIDGE_PORT"; then
   echo "[start] node-bridge on port $BRIDGE_PORT"
   cd node-bridge
-  WEATHER_URL="http://127.0.0.1:$WEATHER_PORT" \
-  BACKEND_URL="http://127.0.0.1:$BACKEND_PORT" \
-  GATEWAY_URL="http://127.0.0.1:$GATEWAY_PORT" \
+  WEATHER_URL="http://localhost:$WEATHER_PORT" \
+  BACKEND_URL="http://localhost:$BACKEND_PORT" \
+  GATEWAY_URL="http://localhost:$GATEWAY_PORT" \
   SG_BRIDGE_URL="$PY_BRIDGE_URL" \
   NODE_BRIDGE_PORT="$BRIDGE_PORT" \
     node server.js &
@@ -137,12 +137,12 @@ if [ -n "$SKIPPED" ]; then
 else
   echo "=== All services running ==="
 fi
-echo "  Bridge:   http://127.0.0.1:$BRIDGE_PORT/health"
-echo "  PyBridge: ws://127.0.0.1:$PY_BRIDGE_PORT"
-echo "  Gateway:  http://127.0.0.1:$GATEWAY_PORT/health"
-echo "  Weather:  http://127.0.0.1:$WEATHER_PORT/api/weather?city=London"
-echo "  Agents:   http://127.0.0.1:$BRIDGE_PORT/api/agents/status"
-echo "  WS:       ws://127.0.0.1:$BRIDGE_PORT/ws/alerts"
+echo "  Bridge:   http://localhost:$BRIDGE_PORT/health"
+echo "  PyBridge: ws://localhost:$PY_BRIDGE_PORT"
+echo "  Gateway:  http://localhost:$GATEWAY_PORT/health"
+echo "  Weather:  http://localhost:$WEATHER_PORT/api/weather?city=London"
+echo "  Agents:   http://localhost:$BRIDGE_PORT/api/agents/status"
+echo "  WS:       ws://localhost:$BRIDGE_PORT/ws/alerts"
 echo ""
 echo "Press Ctrl+C to stop all services."
 

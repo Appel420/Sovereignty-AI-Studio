@@ -5,7 +5,7 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://127.0.0.1:9899/api/v1';
+const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:9898/api/v1';
 
 interface Member {
   id: number;

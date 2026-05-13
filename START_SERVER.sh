@@ -35,7 +35,7 @@ SG_PORT=9897 python bridge.py &
 BRIDGE_PID=$!
 
 echo "Starting node-bridge proxy on port 9899..."
-SG_BRIDGE_URL=ws://127.0.0.1:9897 NODE_BRIDGE_PORT=9899 node "$NODE_BRIDGE_DIR/server.js" &
+SG_BRIDGE_URL=ws://localhost:9897 NODE_BRIDGE_PORT=9899 node "$NODE_BRIDGE_DIR/server.js" &
 NODE_PID=$!
 
 echo "Starting KODER frontend static server on port 9898..."
@@ -48,11 +48,11 @@ trap 'echo "Stopping services..."; kill "$BRIDGE_PID" "$NODE_PID" "$STATIC_PID" 
 
 echo ""
 echo "Services running:"
-echo "  bridge.py   PID=$BRIDGE_PID   → ws://127.0.0.1:9897  (Python AI backend)"
-echo "  node-bridge PID=$NODE_PID     → ws://127.0.0.1:9899  (node bridge proxy)"
+echo "  bridge.py   PID=$BRIDGE_PID   → ws://localhost:9897  (Python AI backend)"
+echo "  node-bridge PID=$NODE_PID     → ws://localhost:9899  (node bridge proxy)"
 echo "  static srv  PID=$STATIC_PID  → http://localhost:9898 (KODER frontend)"
 echo ""
-echo "Open KODER at: http://localhost:9898/SGHv119.html"
+echo "Open KODER at: http://127.0.0.1:9898/SGHv119.html"
 echo "Press Ctrl+C to stop all services."
 
 # Wait for all background jobs

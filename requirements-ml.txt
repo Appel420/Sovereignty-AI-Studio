@@ -1,5 +1,0 @@
-# Optional heavyweight ML/quantum dependencies.
-# Install only if you need model training/inference modules under src/models and src/agents.
-
-torch==2.8.0
-# torch 2.8.0 fixes CVE-2025-2953 and CVE-2025-3730.

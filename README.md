@@ -659,8 +659,6 @@ Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
 ```bash
 # Install Python dependencies
 pip install -r requirements.txt
-# Optional: install heavyweight ML dependencies (torch, etc.) when needed
-pip install -r requirements-ml.txt
 pip install -r backend/requirements.txt
 
 # Initialize the database
