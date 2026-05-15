@@ -17,6 +17,7 @@ import subprocess
 import secrets
 from collections import defaultdict, deque
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional, Dict
 
 logging.basicConfig(level=logging.INFO)
@@ -27,6 +28,7 @@ app = FastAPI(title="Sovereignty Bridge", version="2.5")
 # ===================== KEYCHAIN + SECURE ENCLAVE =====================
 KEYCHAIN_SERVICE = "SovereigntyBridge"
 KEYCHAIN_ACCOUNT = "api_key"
+API_KEY_FILE = Path(os.getenv("SOVEREIGN_API_KEY_FILE", Path.home() / ".config" / "sovereignty" / "bridge_api_key"))
 
 SWIFT_HELPER = "./secure-enclave-helper"
 
@@ -47,18 +49,43 @@ def store_api_key_in_keychain(key: str) -> bool:
     except Exception:
         return False
 
-def get_or_create_api_key() -> str:
+def get_api_key_from_file() -> Optional[str]:
+    try:
+        return API_KEY_FILE.read_text(encoding="utf-8").strip() or None
+    except FileNotFoundError:
+        return None
+    except Exception:
+        return None
+
+def store_api_key_in_file(key: str) -> bool:
+    try:
+        API_KEY_FILE.parent.mkdir(parents=True, exist_ok=True)
+        API_KEY_FILE.write_text(key, encoding="utf-8")
+        os.chmod(API_KEY_FILE, 0o600)
+        return True
+    except Exception:
+        return False
+
+def get_or_create_api_key() -> tuple[str, str, bool]:
     key = get_api_key_from_keychain()
-    if key: return key
+    if key:
+        return key, "keychain", True
     env_key = os.getenv("SOVEREIGN_API_KEY")
     if env_key:
-        store_api_key_in_keychain(env_key)
-        return env_key
+        persisted = store_api_key_in_keychain(env_key) or store_api_key_in_file(env_key)
+        return env_key, "environment", persisted
+    file_key = get_api_key_from_file()
+    if file_key:
+        return file_key, "file", True
     new_key = secrets.token_urlsafe(32)
-    store_api_key_in_keychain(new_key)
-    return new_key
+    if store_api_key_in_keychain(new_key):
+        return new_key, "keychain", True
+    if store_api_key_in_file(new_key):
+        return new_key, "file", True
+    logger.warning("Generated an in-memory API key because no persistent store was available.")
+    return new_key, "generated", False
 
-SOVEREIGN_API_KEY = get_or_create_api_key()
+SOVEREIGN_API_KEY, API_KEY_SOURCE, API_KEY_PERSISTED = get_or_create_api_key()
 
 # ===================== RATE LIMITING =====================
 class RateLimiter:
@@ -91,17 +118,28 @@ async def verify_auth(x_sovereign_key: Optional[str] = Header(None)):
 # ===================== WEBSOCKET =====================
 class ConnectionManager:
     def __init__(self):
-        self.active_connections = []
-    async def connect(self, websocket):
+        self.active_connections: Dict[WebSocket, bool] = {}
+    async def connect(self, websocket: WebSocket) -> bool:
         await websocket.accept()
-        self.active_connections.append(websocket)
-    def disconnect(self, websocket):
-        if websocket in self.active_connections: self.active_connections.remove(websocket)
-    async def broadcast(self, message):
-        for conn in self.active_connections[: ]:
+        supplied_key = websocket.headers.get("x-sovereign-key") or websocket.query_params.get("key") or websocket.query_params.get("token")
+        authenticated = supplied_key == SOVEREIGN_API_KEY
+        self.active_connections[websocket] = authenticated
+        if not authenticated:
+            await websocket.send_json({
+                "type": "auth_status",
+                "authenticated": False,
+                "message": "Connected without a valid sovereign key; sensitive broadcasts are disabled."
+            })
+        return authenticated
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.pop(websocket, None)
+    async def broadcast(self, message: dict):
+        for conn, authenticated in list(self.active_connections.items()):
+            if not authenticated:
+                continue
             try:
                 await conn.send_json(message)
-            except:
+            except Exception:
                 self.disconnect(conn)
 
 manager = ConnectionManager()
@@ -139,7 +177,7 @@ def smart_python_fix(code: str, errors: str) -> str:
         needed = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name) and node.id in ["json", "os", "sys", "asyncio"]}
         fixed = code
         if needed:
-            fixed = "\n".join([f"import {m}" for m in needed]) + "\n\n" + code
+            fixed = "\n".join([f"import {m}" for m in sorted(needed)]) + "\n\n" + code
         return fixed
     except:
         return code
@@ -147,7 +185,7 @@ def smart_python_fix(code: str, errors: str) -> str:
 # ===================== ENDPOINTS =====================
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "key_source": "keychain"}
+    return {"status": "healthy", "key_source": API_KEY_SOURCE, "key_persisted": API_KEY_PERSISTED}
 
 @app.post("/fix", dependencies=[Depends(verify_auth), Depends(rate_limit_dependency)])
 async def fix_errors(request: FixRequest):
@@ -178,21 +216,20 @@ async def install_packages(request: PackageInstallRequest):
     await manager.broadcast({"type": "log", "message": result, "signature": signature})
     return {"status": "success", "secure_enclave_signature": signature}
 
-async def _handle_websocket_connection(websocket: WebSocket):
+async def websocket_loop(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        while True:
-            await websocket.receive_text()
+        while True: await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+@app.websocket("/")
+async def websocket_root(websocket: WebSocket):
+    await websocket_loop(websocket)
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
-    await _handle_websocket_connection(websocket)
-
-@app.websocket("/")
-async def websocket_root_endpoint(websocket: WebSocket):
-    await _handle_websocket_connection(websocket)
+    await websocket_loop(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=9897, log_level="info")

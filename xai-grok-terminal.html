@@ -40,6 +40,7 @@
   <div class="status">
     <div><span id="dot-backend" class="dot"></span> Python 9897</div>
     <div><span id="dot-gateway" class="dot"></span> Gateway 9899</div>
+    <input type="password" id="api-key" placeholder="X-Sovereign-Key" style="width:220px" oninput="saveApiKey()">
     <button onclick="testConnection()">Test Connection</button>
   </div>
 </header>
@@ -77,6 +78,7 @@
 <script>
 const BACKEND = 'http://127.0.0.1:9897';
 const GATEWAY = 'ws://127.0.0.1:9899';
+const API_KEY_STORAGE = 'xai-grok-terminal-api-key';
 
 let ws = null;
 
@@ -102,6 +104,17 @@ function addOutput(text, cls = '') {
 function clearLogs() { document.getElementById('logs').innerHTML = ''; }
 function clearOutput() { document.getElementById('output').innerHTML = ''; }
 function clearAll() { clearLogs(); clearOutput(); }
+function saveApiKey() { localStorage.setItem(API_KEY_STORAGE, document.getElementById('api-key').value); }
+function getApiKey() { return document.getElementById('api-key').value.trim(); }
+
+function getBackendHeaders() {
+  const key = getApiKey();
+  if (!key) throw new Error('Enter X-Sovereign-Key before sending backend requests.');
+  return {
+    'Content-Type': 'application/json',
+    'X-Sovereign-Key': key
+  };
+}
 
 function updateDot(id, connected) {
   const dot = document.getElementById(id);
@@ -169,7 +182,8 @@ async function sendCommand() {
   addOutput(`$ ${cmd}`, 'command');
 
   if (isDangerous(cmd)) {
-    if (!confirm('⚠️ DANGEROUS COMMAND DETECTED\n\nThis command can destroy data.\nType YES to confirm execution.')) {
+    const confirmation = prompt('⚠️ DANGEROUS COMMAND DETECTED\n\nThis command can destroy data.\nType YES to confirm execution.');
+    if (confirmation !== 'YES') {
       addOutput('Command cancelled for safety.', 'danger');
       input.value = '';
       return;
@@ -179,15 +193,15 @@ async function sendCommand() {
   try {
     const res = await fetch(`${BACKEND}/terminal`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getBackendHeaders(),
       body: JSON.stringify({ command: cmd })
     });
 
     const text = await res.text();
-    addOutput(text);
-    log(`Command sent to 9897: ${cmd}`, 'success');
+    addOutput(text, res.ok ? '' : 'danger');
+    log(res.ok ? `Command sent to 9897: ${cmd}` : `Command failed (${res.status})`, res.ok ? 'success' : 'error');
   } catch (e) {
-    addOutput('Failed to reach backend on 9897', 'danger');
+    addOutput(e.message || 'Failed to reach backend on 9897', 'danger');
     log('Backend connection failed: ' + e.message, 'error');
   }
 
@@ -206,26 +220,21 @@ async function installPackages() {
   try {
     const res = await fetch(`${BACKEND}/install-packages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getBackendHeaders(),
       body: JSON.stringify(payload)
     });
-
     const text = await res.text();
-
-    if (!res.ok) {
-      throw new Error(text || `Install request failed with status ${res.status}`);
-    }
-
-    addOutput(text || 'Package installation started.');
-    log('Package install request sent to backend', 'success');
+    addOutput(text, res.ok ? '' : 'danger');
+    log(res.ok ? 'Package install request sent to backend' : `Package install failed (${res.status})`, res.ok ? 'success' : 'error');
   } catch (e) {
-    addOutput('Failed to trigger package installation.', 'danger');
-    log('Package installation failed: ' + e.message, 'error');
+    addOutput(e.message || 'Package install failed', 'danger');
+    log('Package install failed: ' + e.message, 'error');
   }
 }
 
 // Boot
 window.onload = () => {
+  document.getElementById('api-key').value = localStorage.getItem(API_KEY_STORAGE) || '';
   log('xAI Grok Live Terminal initialized — Sovereign mode');
   connectWS();
   updateDot('dot-backend', false);

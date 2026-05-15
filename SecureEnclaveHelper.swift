@@ -1,44 +1,59 @@
 import Foundation
-import CryptoKit
+
+#if canImport(Security)
 import Security
 
-enum SEError: Error { case keyGenerationFailed, signingFailed, keyNotFound }
+enum SEError: Error, LocalizedError {
+    case keyGenerationFailed(String)
+    case signingFailed(String)
+    case keyNotFound
+    case invalidArguments
+
+    var errorDescription: String? {
+        switch self {
+        case .keyGenerationFailed(let message):
+            return "Secure Enclave key generation failed: \(message)"
+        case .signingFailed(let message):
+            return "Secure Enclave signing failed: \(message)"
+        case .keyNotFound:
+            return "Secure Enclave key not found. Run `secure-enclave-helper generate` first."
+        case .invalidArguments:
+            return "Usage: secure-enclave-helper <generate|sign|public-key> [payload]"
+        }
+    }
+}
 
 struct SecureEnclaveHelper {
     private static let keyTag = "com.sovereignty.secureenclave.api_key".data(using: .utf8)!
 
-    private static func loadPrivateKey() throws -> SecKey {
+    private static func existingPrivateKey() throws -> SecKey {
         let query: [String: Any] = [
             kSecClass as String: kSecClassKey,
             kSecAttrApplicationTag as String: keyTag,
             kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecReturnRef as String: true
+            kSecReturnRef as String: true,
         ]
 
         var item: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &item)
-        guard status == errSecSuccess, let privateKey = item as! SecKey? else {
+        guard status == errSecSuccess, let key = item as? SecKey else {
             throw SEError.keyNotFound
         }
-
-        return privateKey
+        return key
     }
 
     static func generateKey() throws {
-        let deleteQuery: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: keyTag,
-            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom
-        ]
-        SecItemDelete(deleteQuery as CFDictionary)
+        if (try? existingPrivateKey()) != nil {
+            return
+        }
 
         guard let accessControl = SecAccessControlCreateWithFlags(
             nil,
             kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            .privateKeyUsage,
+            [.privateKeyUsage],
             nil
         ) else {
-            throw SEError.keyGenerationFailed
+            throw SEError.keyGenerationFailed("unable to configure access control")
         }
 
         let attributes: [String: Any] = [
@@ -48,18 +63,19 @@ struct SecureEnclaveHelper {
             kSecPrivateKeyAttrs as String: [
                 kSecAttrIsPermanent as String: true,
                 kSecAttrApplicationTag as String: keyTag,
-                kSecAttrAccessControl as String: accessControl
-            ]
+                kSecAttrAccessControl as String: accessControl,
+            ],
         ]
 
         var error: Unmanaged<CFError>?
         guard SecKeyCreateRandomKey(attributes as CFDictionary, &error) != nil else {
-            throw SEError.keyGenerationFailed
+            let message = (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown error"
+            throw SEError.keyGenerationFailed(message)
         }
     }
 
     static func sign(data: Data) throws -> Data {
-        let privateKey = try loadPrivateKey()
+        let privateKey = try existingPrivateKey()
         var error: Unmanaged<CFError>?
         guard let signature = SecKeyCreateSignature(
             privateKey,
@@ -67,76 +83,51 @@ struct SecureEnclaveHelper {
             data as CFData,
             &error
         ) as Data? else {
-            throw SEError.signingFailed
+            let message = (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown error"
+            throw SEError.signingFailed(message)
         }
-
         return signature
     }
 
     static func getPublicKey() throws -> String {
-        let privateKey = try loadPrivateKey()
-        guard let publicKey = SecKeyCopyPublicKey(privateKey) else {
-            throw SEError.keyNotFound
-        }
-
+        let publicKey = SecKeyCopyPublicKey(try existingPrivateKey())
         var error: Unmanaged<CFError>?
-        guard let publicKeyData = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
-            throw SEError.keyNotFound
+        guard let data = SecKeyCopyExternalRepresentation(publicKey, &error) as Data? else {
+            let message = (error?.takeRetainedValue() as Error?)?.localizedDescription ?? "unknown error"
+            throw SEError.keyGenerationFailed(message)
         }
-
-        return publicKeyData.base64EncodedString()
+        return data.base64EncodedString()
     }
 }
 
-@main
-struct SecureEnclaveHelperCLI {
-    static func main() {
-        do {
-            let arguments = CommandLine.arguments
-            guard arguments.count >= 2 else {
-                printUsageAndExit()
-            }
+do {
+    let args = Array(CommandLine.arguments.dropFirst())
+    guard let command = args.first else {
+        throw SEError.invalidArguments
+    }
 
-            switch arguments[1] {
-            case "generate":
-                guard arguments.count == 2 else {
-                    printUsageAndExit()
-                }
-                try SecureEnclaveHelper.generateKey()
-                print("OK")
-
-            case "sign":
-                guard arguments.count == 3 else {
-                    printUsageAndExit()
-                }
-                guard let data = Data(base64Encoded: arguments[2]) else {
-                    fputs("Invalid base64 input for sign command.\n", stderr)
-                    exit(EXIT_FAILURE)
-                }
-                let signature = try SecureEnclaveHelper.sign(data: data)
-                print(signature.base64EncodedString())
-
-            case "public-key":
-                guard arguments.count == 2 else {
-                    printUsageAndExit()
-                }
-                print(try SecureEnclaveHelper.getPublicKey())
-
-            default:
-                printUsageAndExit()
-            }
-        } catch {
-            fputs("secure-enclave-helper error: \(error)\n", stderr)
-            exit(EXIT_FAILURE)
+    switch command {
+    case "generate":
+        try SecureEnclaveHelper.generateKey()
+        print(try SecureEnclaveHelper.getPublicKey())
+    case "sign":
+        guard args.count >= 2 else {
+            throw SEError.invalidArguments
         }
+        try SecureEnclaveHelper.generateKey()
+        let payload = args.dropFirst().joined(separator: " ")
+        print(try SecureEnclaveHelper.sign(data: Data(payload.utf8)).base64EncodedString())
+    case "public-key":
+        try SecureEnclaveHelper.generateKey()
+        print(try SecureEnclaveHelper.getPublicKey())
+    default:
+        throw SEError.invalidArguments
     }
-
-    private static func printUsageAndExit() -> Never {
-        let executable = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "secure-enclave-helper"
-        fputs("Usage:\n", stderr)
-        fputs("  \(executable) generate\n", stderr)
-        fputs("  \(executable) sign <base64-data>\n", stderr)
-        fputs("  \(executable) public-key\n", stderr)
-        exit(EXIT_FAILURE)
-    }
+} catch {
+    fputs("\((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)\n", stderr)
+    Foundation.exit(1)
 }
+#else
+fputs("Secure Enclave helper requires macOS with the Security framework.\n", stderr)
+Foundation.exit(1)
+#endif

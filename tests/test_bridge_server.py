@@ -1,121 +1,106 @@
-"""Tests for the bridge server WebSocket handling.
-
-Uses lightweight protocol-compliant test transports instead of mocks.
-"""
-import json
+"""Tests for the hardened FastAPI bridge server."""
 
 import pytest
+from fastapi.testclient import TestClient
 
 import bridge
 
 
-class WSTransport:
-    """Protocol-compliant in-process WebSocket transport for testing.
+class DummyWebSocket:
+    def __init__(self, headers=None, query_params=None):
+        self.headers = headers or {}
+        self.query_params = query_params or {}
+        self.accepted = False
+        self.sent = []
 
-    Implements the same interface as a real websockets connection object
-    (send, close, remote_address) so the bridge server can operate on it
-    without any monkey-patching or mock frameworks.
-    """
+    async def accept(self):
+        self.accepted = True
 
-    def __init__(self, addr: tuple = ("127.0.0.1", 12345)):
-        self.sent: list = []
-        self.closed: bool = False
-        self.remote_address: tuple = addr
-
-    async def send(self, payload: str) -> None:
-        self.sent.append(json.loads(payload))
-
-    async def close(self) -> None:
-        self.closed = True
+    async def send_json(self, payload):
+        self.sent.append(payload)
 
 
-class ServerHandle:
-    """Protocol-compliant in-process server handle for testing.
+def test_smart_python_fix_sorts_generated_imports():
+    code = "print(asyncio)\nprint(json)\nprint(os)"
 
-    Mirrors the real asyncio server interface (close, wait_closed).
-    """
+    fixed = bridge.smart_python_fix(code, "NameError")
 
-    def __init__(self):
-        self.closed: bool = False
-        self.waited: bool = False
-
-    def close(self) -> None:
-        self.closed = True
-
-    async def wait_closed(self) -> None:
-        self.waited = True
+    assert fixed.splitlines()[:3] == ["import asyncio", "import json", "import os"]
 
 
-@pytest.mark.asyncio
-async def test_broadcast_ai_response_excludes_origin():
-    srv = bridge.BridgeServer()
-    sender = WSTransport()
-    other = WSTransport()
-    srv.clients = {sender, other}
+def test_get_or_create_api_key_falls_back_to_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(bridge, "API_KEY_FILE", tmp_path / "bridge_api_key")
+    monkeypatch.setattr(bridge, "get_api_key_from_keychain", lambda: None)
+    monkeypatch.setattr(bridge, "store_api_key_in_keychain", lambda _key: False)
+    monkeypatch.delenv("SOVEREIGN_API_KEY", raising=False)
 
-    await srv.broadcast_ai_response("gpt", "hello", "ctx", exclude=sender)
+    key, source, persisted = bridge.get_or_create_api_key()
+    cached_key, cached_source, cached_persisted = bridge.get_or_create_api_key()
 
-    assert sender.sent == []
-    assert len(other.sent) == 1
-    payload = other.sent[0]
-    assert payload["type"] == "ai_response"
-    assert payload["agent"] == "gpt"
-    assert payload["text"] == "hello"
-    assert payload["context"] == "ctx"
-    assert payload["hash"] == bridge.sha256("hello")
+    assert source == "file"
+    assert persisted is True
+    assert cached_key == key
+    assert cached_source == "file"
+    assert cached_persisted is True
 
 
-@pytest.mark.asyncio
-async def test_ai_chat_returns_sovereign_bridge_response(monkeypatch):
-    """ai_chat should return a response routed through the sovereign bridge."""
-    srv = bridge.BridgeServer()
-    ws = WSTransport()
+def test_health_reports_runtime_key_source(monkeypatch):
+    monkeypatch.setattr(bridge, "API_KEY_SOURCE", "environment")
+    monkeypatch.setattr(bridge, "API_KEY_PERSISTED", False)
+    client = TestClient(bridge.app)
 
-    async def real_sovereign(msg: str, sys_prompt: str, agent: str = "sovereign") -> str:
-        return "sovereign-response"
+    response = client.get("/health")
 
-    monkeypatch.setattr(srv, "_chat_sovereign", real_sovereign)
+    assert response.status_code == 200
+    assert response.json()["key_source"] == "environment"
+    assert response.json()["key_persisted"] is False
 
-    await srv.ai_chat(ws, msg="hi", agent="sovereign", context="c1")
 
-    assert len(ws.sent) == 1
-    payload = ws.sent[0]
-    assert payload["type"] == "ai_response"
-    assert payload["agent"] == "sovereign"
-    assert payload["text"] == "sovereign-response"
+def test_terminal_requires_x_sovereign_key(monkeypatch):
+    async def fake_broadcast(_message):
+        return None
+
+    monkeypatch.setattr(bridge, "SOVEREIGN_API_KEY", "secret")
+    monkeypatch.setattr(bridge, "sign_with_secure_enclave", lambda _data: "signature")
+    monkeypatch.setattr(bridge.manager, "broadcast", fake_broadcast)
+    client = TestClient(bridge.app)
+
+    unauthorized = client.post("/terminal", json={"command": "echo hi"})
+    authorized = client.post(
+        "/terminal",
+        json={"command": "echo hi"},
+        headers={"X-Sovereign-Key": "secret"},
+    )
+
+    assert unauthorized.status_code == 401
+    assert authorized.status_code == 200
+    assert authorized.json()["secure_enclave_signature"] == "signature"
 
 
 @pytest.mark.asyncio
-async def test_ai_chat_routes_through_sovereign_bridge(monkeypatch):
-    """ai_chat should always route through _chat_sovereign regardless of agent name."""
-    srv = bridge.BridgeServer()
-    ws = WSTransport()
+async def test_connection_manager_skips_sensitive_broadcasts_for_unauthenticated_clients(monkeypatch):
+    monkeypatch.setattr(bridge, "SOVEREIGN_API_KEY", "secret")
+    manager = bridge.ConnectionManager()
+    anonymous = DummyWebSocket()
+    authenticated = DummyWebSocket(query_params={"key": "secret"})
 
-    async def real_sovereign(msg: str, sys_prompt: str, agent: str = "sovereign") -> str:
-        assert msg == "route this"
-        assert "sovereign" in sys_prompt.lower()
-        return "from-sovereign"
+    anonymous_auth = await manager.connect(anonymous)
+    authenticated_auth = await manager.connect(authenticated)
+    await manager.broadcast({"type": "terminal_output", "message": "sensitive"})
 
-    monkeypatch.setattr(srv, "_chat_sovereign", real_sovereign)
+    assert anonymous_auth is False
+    assert authenticated_auth is True
+    assert anonymous.sent == [{
+        "type": "auth_status",
+        "authenticated": False,
+        "message": "Connected without a valid sovereign key; sensitive broadcasts are disabled.",
+    }]
+    assert authenticated.sent == [{"type": "terminal_output", "message": "sensitive"}]
 
-    await srv.ai_chat(ws, msg="route this", agent="any-agent", context="ctx")
 
-    assert ws.sent[0]["text"] == "from-sovereign"
+def test_websocket_root_path_is_available(monkeypatch):
+    monkeypatch.setattr(bridge, "SOVEREIGN_API_KEY", "secret")
+    client = TestClient(bridge.app)
 
-
-@pytest.mark.asyncio
-async def test_stop_closes_clients_and_server():
-    srv = bridge.BridgeServer()
-    ws1 = WSTransport()
-    ws2 = WSTransport()
-    srv.clients = {ws1, ws2}
-    srv._server = ServerHandle()
-
-    await srv.stop()
-
-    assert srv._stopping is True
-    assert ws1.closed is True
-    assert ws2.closed is True
-    assert srv.clients == set()
-    assert srv._server.closed is True
-    assert srv._server.waited is True
+    with client.websocket_connect("/?key=secret") as websocket:
+        websocket.close()
