@@ -26,10 +26,10 @@ class DatabaseFixer:
     """
 
     def __init__(self, db_path: pathlib.Path, schema: str):
-        self.db_path = db_path
+        self.db_path = pathlib.Path(db_path)
         self.schema = schema
-        self._backup_dir = db_path.parent / "backups"
-        self._backup_dir.mkdir(exist_ok=True)
+        self._backup_dir = self.db_path.parent / "backups"
+        self._backup_dir.mkdir(parents=True, exist_ok=True)
 
     def check_integrity(self) -> tuple[bool, list[str]]:
         """
@@ -48,7 +48,7 @@ class DatabaseFixer:
             cursor.execute("PRAGMA integrity_check")
             result = cursor.fetchone()
 
-            if result[0] != "ok":
+            if result and result[0] != "ok":
                 issues.append(f"Integrity check failed: {result[0]}")
 
             # Check for required tables
@@ -136,6 +136,7 @@ class DatabaseFixer:
         Returns:
             True if rebuild successful
         """
+        conn = None
         try:
             # Backup existing database if it exists
             if self.db_path.exists():
@@ -148,11 +149,29 @@ class DatabaseFixer:
             if self.db_path.exists():
                 self.db_path.unlink()
 
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
             # Create new database with schema
             conn = sqlite3.connect(self.db_path)
             conn.executescript(self.schema)
             conn.commit()
-            conn.close()
+
+            # Ensure required tables exist even if schema is partial.
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT
+                );
+                CREATE TABLE IF NOT EXISTS kv (
+                    key TEXT PRIMARY KEY,
+                    value TEXT
+                );
+                CREATE TABLE IF NOT EXISTS events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT
+                );
+                """
+            )
+            conn.commit()
 
             log.info("Database rebuilt successfully")
             return True
@@ -160,6 +179,9 @@ class DatabaseFixer:
         except Exception as e:
             log.error("Failed to rebuild database: %s", e)
             return False
+        finally:
+            if conn is not None:
+                conn.close()
 
     async def fix_database(self) -> bool:
         """
