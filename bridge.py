@@ -178,13 +178,21 @@ async def install_packages(request: PackageInstallRequest):
     await manager.broadcast({"type": "log", "message": result, "signature": signature})
     return {"status": "success", "secure_enclave_signature": signature}
 
-@app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def _handle_websocket_connection(websocket: WebSocket):
     await manager.connect(websocket)
     try:
-        while True: await websocket.receive_text()
+        while True:
+            await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await _handle_websocket_connection(websocket)
+
+@app.websocket("/")
+async def websocket_root_endpoint(websocket: WebSocket):
+    await _handle_websocket_connection(websocket)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=9897, log_level="info")
