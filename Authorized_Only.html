@@ -1140,7 +1140,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
 <!-- NOAA LIVE FEED -->
 <div id="noaa" class="pnl">
   <div class="ptitle">🛰️ NOAA Live Operations</div>
-  <div class="ab info">NOAA API v2 · NWS Alerts · Weather.gov · Air-gapped bridge proxy port 9898 · Every command Dilithium3-signed · No cloud intermediary</div>
+  <div class="ab info">NOAA API v2 · NWS Alerts · Weather.gov · Air-gapped bridge proxy port 9899 · Every command Dilithium3-signed · No cloud intermediary</div>
 
   <div class="g2">
     <div class="card ok">
@@ -1149,7 +1149,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
         <span class="dot dg" id="noaa-bridge-dot"></span>
         <span id="noaa-bridge-status" style="font-weight:700;font-size:12px">CONNECTING...</span>
       </div>
-      <div class="cs" id="noaa-bridge-url">ws://localhost:9898/noaa</div>
+      <div class="cs" id="noaa-bridge-url">ws://localhost:9899/noaa</div>
     </div>
     <div class="card">
       <div class="ct">Dilithium3 Sig</div>
@@ -1293,7 +1293,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
 <!-- CODEMASTER / KODER -->
 <div id="codemaster" class="pnl">
   <div class="ptitle">💻 CodeMaster -- KODER · Python · Node.js · iSH · a-Shell</div>
-  <div class="ab info">Sovereign local-only dev environment · No cloud IDE · No telemetry · All execution logs hash-chained · Bridge port 9898</div>
+  <div class="ab info">Sovereign local-only dev environment · No cloud IDE · No telemetry · All execution logs hash-chained · Bridge port 9899</div>
 
   <!-- Environment selector -->
   <div class="g4">
@@ -1305,7 +1305,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
     <div class="card" id="env-node-card" onclick="kmSetEnv('node')" style="cursor:pointer">
       <div class="ct">⬡ Node.js</div>
       <div style="font-size:10px;margin-top:4px;color:var(--t2)">v25 LTS</div>
-      <div class="cs">Bridge port 9898</div>
+      <div class="cs">Bridge port 9899</div>
     </div>
     <div class="card" id="env-ish-card" onclick="kmSetEnv('ish')" style="cursor:pointer">
       <div class="ct">📱 iSH</div>
@@ -1332,7 +1332,7 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
           <option value="blake3">BLAKE3 Hash</option>
           <option value="keccak">Keccak-256</option>
           <option value="dilithium">Dilithium3 Sign</option>
-          <option value="ws_bridge">WS Bridge :9898</option>
+          <option value="ws_bridge">WS Bridge :9899</option>
           <option value="noaa_fetch">NOAA API Fetch</option>
           <option value="chain_verify">Chain Verify</option>
           <option value="argon2_kdf">Argon2 KDF</option>
@@ -1375,13 +1375,13 @@ label{font-size:8px;color:var(--t2);display:block;margin-bottom:4px;font-weight:
       <span style="color:var(--ok)"># iSH (Alpine) -- connect to bridge:</span><br>
       apk add curl python3 py3-pip nodejs npm<br>
       pip3 install websocket-client blake3 argon2-cffi<br>
-      python3 -c "import websocket; ws=websocket.create_connection('ws://localhost:9898'); ws.send('PING'); print(ws.recv())"<br>
+      python3 -c "import websocket; ws=websocket.create_connection('ws://localhost:9899'); ws.send('PING'); print(ws.recv())"<br>
       <br>
       <span style="color:var(--ok)"># a-Shell -- run Python inline:</span><br>
       python3 -c "print('SuperGrok bridge connected')"<br>
       <br>
-      <span style="color:var(--ok)"># Node.js -- bridge client on port 9898:</span><br>
-      const ws = new WebSocket('ws://localhost:9898');<br>
+      <span style="color:var(--ok)"># Node.js -- bridge client on port 9899:</span><br>
+      const ws = new WebSocket('ws://localhost:9899');<br>
       ws.onopen = () => ws.send(JSON.stringify({cmd:'STATUS',role:'L5'}));
     </div>
   </div>
@@ -2369,7 +2369,7 @@ function startMetrics(){
   var _lat=0,_tps=0,_err=0,_qd=0,_tick=0,_bridgeOnline=false,_lastBridgeOk=0;
   function _fetchLiveMetrics(){
     _tick++;
-    fetch('http://127.0.0.1:9898/api/metrics',{headers:{'X-Actor':S.u,'X-Role':S.role}})
+    fetch('http://127.0.0.1:9899/api/metrics',{headers:{'X-Actor':S.u,'X-Role':S.role}})
     .then(function(r){return r.json();})
     .then(function(d){
       _bridgeOnline=true;
@@ -2421,7 +2421,7 @@ function startMetrics(){
       if(_lat>360){var ct=document.getElementById('crittext');if(ct)ct.textContent='High latency: '+_lat+'ms -- watchdog armed'}
     } else {
       if(cb)cb.style.display='flex';
-      var ct=document.getElementById('crittext');if(ct)ct.textContent='Bridge offline -- connect port 9898 for live metrics';
+      var ct=document.getElementById('crittext');if(ct)ct.textContent='Bridge offline -- connect port 9899 for live metrics';
     }
   }
   _fetchLiveMetrics();
@@ -2441,7 +2441,7 @@ function vstep(n){
   if(el)el.classList.add('run');if(st)st.textContent='RUNNING...';
   vlog('Step '+n+' running...');
   var stepNames={1:'Keccak-256 chain',2:'Model registry',3:'Compliance',4:'Signatures',5:'TPM'};
-  fetch('http://127.0.0.1:9898/validate/step',{
+  fetch('http://127.0.0.1:9899/validate/step',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({step:n,name:stepNames[n],actor:S.u,chainHead:getPH(),ts:Date.now()})
@@ -2457,7 +2457,7 @@ function vstep(n){
       2:function(){return {pass:S.models.length>0,detail:S.models.length+' models loaded'};},
       3:function(){var ok=loadC().length>0||S.entries.length>0;return {pass:ok,detail:'Chain entries: '+(S.entries.length+S.offset)};},
       4:function(){return {pass:true,detail:'In-browser sig check: chain hash '+getPH().slice(0,12)+'...'};},
-      5:function(){return {pass:false,detail:'TPM requires hardware bridge on port 9898'};}
+      5:function(){return {pass:false,detail:'TPM requires hardware bridge on port 9899'};}
     };
     var r=(results[n]||function(){return {pass:false,detail:'Unknown step'};})();
     if(el){el.classList.remove('run');el.classList.add(r.pass?'done':'err');}
@@ -2504,7 +2504,7 @@ function valCompliance(){
 function tpmTest(){
   vlog('TPM 2.0 attestation request sent to bridge...');
   log('TPM test by '+S.u);
-  fetch('http://127.0.0.1:9898/tpm/attest',{
+  fetch('http://127.0.0.1:9899/tpm/attest',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({actor:S.u,role:S.role,ts:Date.now()})
@@ -2522,15 +2522,15 @@ function tpmTest(){
       toast('TPM FAIL: '+(d.error||'rejected'));
     }
   }).catch(function(){
-    vlog('TPM bridge offline (port 9898) -- attest requires local bridge','warn');
+    vlog('TPM bridge offline (port 9899) -- attest requires local bridge','warn');
     log('TPM: bridge offline','warn');
-    toast('TPM: bridge required on port 9898');
+    toast('TPM: bridge required on port 9899');
   });
 }
 function sigVal(){
   vlog('Signature chain validation initiated -- '+S.models.length+' models');
   log('Sig validation by '+S.u);
-  fetch('http://127.0.0.1:9898/validate/signatures',{
+  fetch('http://127.0.0.1:9899/validate/signatures',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({actor:S.u,chainHead:getPH(),modelCount:S.models.length,ts:Date.now()})
@@ -2557,7 +2557,7 @@ function sigVal(){
 function threatFeed(){
   vlog('Threat feed sync initiated');
   log('Threat feed update by '+S.u);
-  fetch('http://127.0.0.1:9898/threats/feed',{
+  fetch('http://127.0.0.1:9899/threats/feed',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({actor:S.u,chainHead:getPH(),ts:Date.now()})
@@ -2567,7 +2567,7 @@ function threatFeed(){
     log('Threat feed: '+d.patterns+' patterns','ok');
     toast('Feed: '+d.patterns+' patterns');
   }).catch(function(){
-    vlog('Threat feed: bridge offline (port 9898)','warn');
+    vlog('Threat feed: bridge offline (port 9899)','warn');
     log('Threat feed: bridge offline','warn');
     toast('Feed: bridge required');
   });
@@ -2575,7 +2575,7 @@ function threatFeed(){
 function dirScan(){
   vlog('Directory scan initiated');
   log('Dir scan by '+S.u);
-  fetch('http://127.0.0.1:9898/scan/directory',{
+  fetch('http://127.0.0.1:9899/scan/directory',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({actor:S.u,role:S.role,ts:Date.now()})
@@ -2585,7 +2585,7 @@ function dirScan(){
     log('Scan: '+d.files+' files -- '+(d.threats>0?d.threats+' THREATS':'clean'),'ok');
     toast('Scan: '+d.files+' files, '+d.threats+' threats');
   }).catch(function(){
-    vlog('Dir scan: bridge offline (port 9898) -- connect bridge for filesystem scan','warn');
+    vlog('Dir scan: bridge offline (port 9899) -- connect bridge for filesystem scan','warn');
     log('Dir scan: bridge offline','warn');
     toast('Scan: bridge required');
   });
@@ -2611,7 +2611,7 @@ function stressStart(){
     var batchDone=0,batchErr=0,batchStart=Date.now();
     var batch=Math.min(rps,50); // cap at 50 concurrent per tick to avoid browser limits
     for(var i=0;i<batch;i++){
-      fetch('http://127.0.0.1:9898/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(5000):undefined})
+      fetch('http://127.0.0.1:9899/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(5000):undefined})
       .then(function(){batchDone++;totalReq++;})
       .catch(function(){batchDone++;batchErr++;totalErr++;totalReq++;})
       .finally(function(){
@@ -2649,7 +2649,7 @@ function poisonRun(){
   var r=document.getElementById('poisonres');
   if(r)r.innerHTML='<div style="color:var(--warn)">Running...</div>';
   var tc=document.getElementById('tc-poison');
-  fetch('http://127.0.0.1:9898/test/poison',{
+  fetch('http://127.0.0.1:9899/test/poison',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({model:tName,category:catName,actor:S.u,ts:Date.now()})
@@ -2662,8 +2662,8 @@ function poisonRun(){
     if(tc)tc.textContent=parseInt(tc.textContent)+d.flagCount;
     log('Poison test: '+d.flagCount+' flags on '+tName,'warn');
   }).catch(function(){
-    if(r)r.innerHTML='<div style="color:var(--warn)">Bridge offline (port 9898) -- poison tests require backend runner</div>'
-      +'<div style="color:var(--t2);font-size:10px;margin-top:4px;">Wire port 9898 bridge to run real adversarial injection tests</div>';
+    if(r)r.innerHTML='<div style="color:var(--warn)">Bridge offline (port 9899) -- poison tests require backend runner</div>'
+      +'<div style="color:var(--t2);font-size:10px;margin-top:4px;">Wire port 9899 bridge to run real adversarial injection tests</div>';
     log('Poison test: bridge offline','warn');
     toast('Poison test: bridge required');
   });
@@ -2707,12 +2707,12 @@ function initEventLog(){
     l.appendChild(d);
   });
   // Probe bridge to log real connectivity
-  fetch('http://127.0.0.1:9898/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
+  fetch('http://127.0.0.1:9899/health',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
   .then(function(r){return r.json();})
   .then(function(d){
-    appendEv('Bridge online: port 9898 -- uptime '+Math.round(d.uptime||0)+'s','ok');
+    appendEv('Bridge online: port 9899 -- uptime '+Math.round(d.uptime||0)+'s','ok');
   }).catch(function(){
-    appendEv('Bridge offline: port 9898 not reachable -- start node-bridge for live data','warn');
+    appendEv('Bridge offline: port 9899 not reachable -- start node-bridge for live data','warn');
   });
 }
 function initSysLog(){
@@ -2830,7 +2830,7 @@ function initTopoChart(){
   // Update from real /api/metrics when available
   setInterval(function(){
     if(!S.charts.topo)return;
-    fetch('http://127.0.0.1:9898/api/metrics',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
+    fetch('http://127.0.0.1:9899/api/metrics',{signal:typeof AbortSignal!=='undefined'&&AbortSignal.timeout?AbortSignal.timeout(3000):undefined})
     .then(function(r){return r.json();})
     .then(function(d){
       var sys=d.system||{};var mem=d.memory||{};
@@ -3475,7 +3475,7 @@ function bloadProxy(){
   log('Browser proxy load: '+url+' by '+S.u);
   S.bh.push(url);S.bi=S.bh.length-1;
   // Try bridge proxy first
-  fetch('http://127.0.0.1:9898/proxy/fetch',{
+  fetch('http://127.0.0.1:9899/proxy/fetch',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({url:url,actor:S.u})
@@ -3503,7 +3503,7 @@ function bloadProxy(){
     }
 
 }).catch(function(){
-_browserFallback(url, stat, wrap, frame, 'Bridge offline (port 9898)');
+_browserFallback(url, stat, wrap, frame, 'Bridge offline (port 9899)');
 });
 }
 function bloadText(){
@@ -3513,7 +3513,7 @@ if(!url.startsWith('https://'))url='https://'+url.replace(/^https?:\/\//,'');
 var wrap=document.getElementById('b-proxy-content');
 var stat=document.getElementById('bstat');
 if(stat)stat.textContent='Fetching text...';
-fetch('http://127.0.0.1:9898/proxy/text',{
+fetch('http://127.0.0.1:9899/proxy/text',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({url:url,actor:S.u})
@@ -3545,7 +3545,7 @@ sub.style.cssText='font-size:12px;margin-bottom:16px;color:#888;';
 sub.textContent='URL: '+url;
 var hint=document.createElement('div');
 hint.style.cssText='font-size:11px;color:#aaa;margin-bottom:16px;';
-hint.innerHTML='Tap <b>External Launch</b> to open in Safari<br>Or start the port 9898 bridge for inline browsing';
+hint.innerHTML='Tap <b>External Launch</b> to open in Safari<br>Or start the port 9899 bridge for inline browsing';
 var btn=document.createElement('button');
 btn.style.cssText='padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer;';
 btn.textContent='↗ Open in Safari';
@@ -3573,7 +3573,7 @@ bloadProxy();
 // ═══════════════════════════════════════════════════════════════
 // NOAA LIVE FEED -- api.weather.gov (no key required)
 // Dilithium3 command signing via Noble ML-DSA-65
-// Bridge proxy: ws://localhost:9898/noaa
+// Bridge proxy: ws://localhost:9899/noaa
 // ═══════════════════════════════════════════════════════════════
 var _noaaState = {keys:null, ws:null, cmdSeq:0};
 
@@ -3619,7 +3619,7 @@ log('NOAA cmd: '+cmd+' sig:'+shortSig+' by '+S.u,'ok');
 function noaaSignedCmd(cmd){
 var signed=noaaSignCmd(cmd);
 if(!signed)return;
-noaaLogCmd(cmd,'Signed & dispatched → bridge:9898/noaa',signed.sig);
+noaaLogCmd(cmd,'Signed & dispatched → bridge:9899/noaa',signed.sig);
 toast('Signed CMD sent: '+cmd);
 }
 
@@ -3760,11 +3760,11 @@ var dot=document.getElementById('noaa-bridge-dot');
 var status=document.getElementById('noaa-bridge-status');
 // Try WebSocket to bridge
 try{
-var ws=new WebSocket('ws://localhost:9898/noaa');
+var ws=new WebSocket('ws://localhost:9899/noaa');
 ws.onopen=function(){
 if(dot) dot.style.background='var(--ok)';
 if(status) status.textContent='BRIDGE CONNECTED';
-log('NOAA bridge connected: ws://localhost:9898/noaa','ok');
+log('NOAA bridge connected: ws://localhost:9899/noaa','ok');
 _noaaState.ws=ws;
 };
 ws.onerror=function(){
@@ -3794,7 +3794,7 @@ var imgW=document.getElementById('sat-goes-west');
 if(imgE){imgE.src=goesEastUrl+ts;imgE.style.display='block';document.getElementById('sat-goes-east-placeholder').style.display='none';}
 if(imgW){imgW.src=goesWestUrl+ts;imgW.style.display='block';document.getElementById('sat-goes-west-placeholder').style.display='none';}
 // Also try bridge for extra metadata
-fetch('http://127.0.0.1:9898/satellite/imagery').then(function(r){return r.json();}).then(function(d){
+fetch('http://127.0.0.1:9899/satellite/imagery').then(function(r){return r.json();}).then(function(d){
 if(d.eonet_events&&d.eonet_events.length>0){
 var el=document.getElementById('sat-eonet-list');
 if(el&&el.textContent.indexOf('No events')===0){
@@ -3813,7 +3813,7 @@ try{
 // Try bridge first
 var resp;
 try{
-resp=await fetch('http://127.0.0.1:9898/satellite/imagery');
+resp=await fetch('http://127.0.0.1:9899/satellite/imagery');
 var data=await resp.json();
 if(data.eonet_events&&data.eonet_events.length>0){
 satRenderEvents(data.eonet_events);
@@ -3867,8 +3867,8 @@ var _kmState = {env:'python', pyodide:null, savedScripts:[], pyodideLoaded:false
 var KM_SNIPPETS = {
 blake3: '# BLAKE3 Hash via js bridge\nimport js\nresult = js.blake3.hash(b"SuperGrok 4.2.0 audit chain")\nprint("BLAKE3:", result.hex())',
 keccak: '# Keccak-256 via bridge\n# In dashboard JS: k256("SuperGrok:chain:payload")\nprint("Call k256() in JS console for Keccak-256")',
-dilithium: '# Dilithium3 / ML-DSA-65 key gen (via Noble in JS)\n# Use sigGenKey() from PQ Signatures panel\n# Or via bridge:\n# import requests\n# r = requests.post("http://localhost:9898/pq/keygen", json={"algo":"ml_dsa65"})\n# print(r.json())',
-ws_bridge: '# WebSocket bridge client -- port 9898\nimport json\ntry:\n    import websocket\n    ws = websocket.create_connection("ws://localhost:9898")\n    ws.send(json.dumps({"cmd":"STATUS","role":"L5","user":"Appel420"}))\n    print("Bridge response:", ws.recv())\n    ws.close()\nexcept ImportError:\n    print("Install: pip3 install websocket-client")',
+dilithium: '# Dilithium3 / ML-DSA-65 key gen (via Noble in JS)\n# Use sigGenKey() from PQ Signatures panel\n# Or via bridge:\n# import requests\n# r = requests.post("http://localhost:9899/pq/keygen", json={"algo":"ml_dsa65"})\n# print(r.json())',
+ws_bridge: '# WebSocket bridge client -- port 9899\nimport json\ntry:\n    import websocket\n    ws = websocket.create_connection("ws://localhost:9899")\n    ws.send(json.dumps({"cmd":"STATUS","role":"L5","user":"Appel420"}))\n    print("Bridge response:", ws.recv())\n    ws.close()\nexcept ImportError:\n    print("Install: pip3 install websocket-client")',
 noaa_fetch: '# NOAA API -- live weather observation\nimport json\ntry:\n    import urllib.request\n    station = "KJFK"\n    url = f"https://api.weather.gov/stations/{station}/observations/latest"\n    req = urllib.request.Request(url, headers={"User-Agent": "SuperGrok/4.2", "Accept": "application/geo+json"})\n    with urllib.request.urlopen(req, timeout=10) as resp:\n        data = json.loads(resp.read())\n    props = data["properties"]\n    temp_c = props["temperature"]["value"]\n    temp_f = temp_c * 9/5 + 32 if temp_c is not None else None\n    wind = props["windSpeed"]["value"]\n    print(f"Station: {station}")\n    print(f"Temp: {temp_f:.1f}°F ({temp_c:.1f}°C)")\n    print(f"Wind: {wind} m/s")\nexcept Exception as e:\n    print(f"Error: {e}")',
 chain_verify: '# Keccak-256 chain integrity check\n# Paste chain entries from Audit Trail export\n# Each entry: {ts, u, msg, prevHash, hash}\nimport json, hashlib\n\ndef keccak256_python(data: str) -> str:\n    """Native keccak256 via pysha3 if available, else SHA3-256 fallback"""\n    try:\n        import sha3\n        h = hashlib.new("keccak_256")\n        h.update(data.encode())\n        return h.hexdigest()\n    except ImportError:\n        # SHA3-256 fallback (different from Keccak-256)\n        return hashlib.sha3_256(data.encode()).hexdigest()\n\nGENESIS = "0" * 64\nentries = []  # paste your chain entries here as list of dicts\nprint(f"Chain has {len(entries)} entries to verify")\nprint("Tip: export chain from Audit Trail panel → paste here")',
 argon2_kdf: '# Argon2id key derivation\ntry:\n    from argon2 import PasswordHasher\n    ph = PasswordHasher(time_cost=2, memory_cost=65536, parallelism=1, hash_len=32, type="ID")\n    password = "SuperGrok420!"\n    salt = b"SovereigntyAI42"\n    # Note: argon2-cffi handles salt internally\n    hash_result = ph.hash(password)\n    print("Argon2id hash:", hash_result[:40]+"...")\n    print("Verify:", ph.verify(hash_result, password))\nexcept ImportError:\n    print("Install: pip3 install argon2-cffi")',
@@ -3877,7 +3877,7 @@ system_info: '# System info\nimport sys, platform, os\nprint(f"Python: {sys.vers
 
 function kmSetEnv(env){
 _kmState.env=env;
-var envNames={python:'🐍 Python · Pyodide WASM · zero egress',node:'⬡ Node.js · Bridge port 9898',ish:'📱 iSH · Alpine Linux · on-device',ashell:'📟 a-Shell · iOS native · Lua/Python/Vim'};
+var envNames={python:'🐍 Python · Pyodide WASM · zero egress',node:'⬡ Node.js · Bridge port 9899',ish:'📱 iSH · Alpine Linux · on-device',ashell:'📟 a-Shell · iOS native · Lua/Python/Vim'};
 document.getElementById('km-env-banner').textContent='Active: '+(envNames[env]||env);
 document.getElementById('km-editor-label').textContent=env.charAt(0).toUpperCase()+env.slice(1)+' Editor';
 ['python','node','ish','ashell'].forEach(function(e){
@@ -3949,8 +3949,8 @@ log('CodeMaster Pyodide error: '+e.message,'err');
 } else if(env==='node'){
 // Node.js via bridge HTTP endpoint (primary) with WebSocket fallback
 try{
-out.textContent='Connecting to bridge :9898...\n';
-var execResp=await fetch('http://127.0.0.1:9898/exec/code',{
+out.textContent='Connecting to bridge :9899...\n';
+var execResp=await fetch('http://127.0.0.1:9899/exec/code',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({lang:'node',code:code,user:S.u})
@@ -3967,7 +3967,7 @@ log('CodeMaster Node.js executed via bridge','ok');
 // Fallback: try WebSocket
 try{
 out.textContent='HTTP failed, trying WebSocket...\n';
-var ws=new WebSocket('ws://localhost:9898/ws/alerts');
+var ws=new WebSocket('ws://localhost:9899/ws/alerts');
 var wsResult=await new Promise(function(resolve,reject){
 var timeout=setTimeout(function(){reject(new Error('Bridge timeout'))},5000);
 ws.onopen=function(){
@@ -3981,7 +3981,7 @@ var parsed=JSON.parse(wsResult);
 out.textContent=parsed.output||parsed.error||wsResult;
 log('CodeMaster Node.js executed via WS','ok');
 } catch(e2){
-out.textContent='Bridge error: '+e.message+'\n\nTo run Node.js:\n1. Start node-bridge: node node-bridge/server.js\n2. Ensure port 9898 is listening\n3. Re-run';
+out.textContent='Bridge error: '+e.message+'\n\nTo run Node.js:\n1. Start node-bridge: node node-bridge/server.js\n2. Ensure port 9899 is listening\n3. Re-run';
 log('CodeMaster bridge error: '+e.message,'err');
 }
 }
@@ -3989,7 +3989,7 @@ log('CodeMaster bridge error: '+e.message,'err');
 // iSH — execute via bridge Python (Alpine-like)
 try{
 out.textContent='Executing via bridge (iSH mode)...\n';
-var ishResp=await fetch('http://127.0.0.1:9898/exec/code',{
+var ishResp=await fetch('http://127.0.0.1:9899/exec/code',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({lang:'shell',code:code,user:S.u})
@@ -4010,7 +4010,7 @@ toast('iSH executed via bridge');
 // a-Shell — execute Python via bridge
 try{
 out.textContent='Executing via bridge (a-Shell mode)...\n';
-var ashResp=await fetch('http://127.0.0.1:9898/exec/code',{
+var ashResp=await fetch('http://127.0.0.1:9899/exec/code',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({lang:'python',code:code,user:S.u})
@@ -4233,9 +4233,9 @@ function il6GetToken(){
 var status=document.getElementById('kc-status');
 var realm=document.getElementById('kc-realm').value;
 var client=document.getElementById('kc-client').value;
-if(status)status.textContent='Attempting token exchange via bridge (port 9898)...';
-// Wire to port 9898 bridge -- real token from Keycloak
-fetch('http://127.0.0.1:9898/keycloak/token',{
+if(status)status.textContent='Attempting token exchange via bridge (port 9899)...';
+// Wire to port 9899 bridge -- real token from Keycloak
+fetch('http://127.0.0.1:9899/keycloak/token',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({realm:realm,client:client})
@@ -4253,8 +4253,8 @@ log('Keycloak token acquired from '+realm,'ok');
 if(status)status.textContent='Bridge returned no token: '+(d.error||'unknown');
 }
 }).catch(function(){
-if(status)status.innerHTML='Bridge not running on port 9898 -- start backend bridge for live tokens<br><span style="color:#4b5563;font-size:10px;">HTTPS deployment: wss/https only -- no fallback</span>';
-b3Append('KC-TOKEN','Bridge unavailable -- port 9898 offline');
+if(status)status.innerHTML='Bridge not running on port 9899 -- start backend bridge for live tokens<br><span style="color:#4b5563;font-size:10px;">HTTPS deployment: wss/https only -- no fallback</span>';
+b3Append('KC-TOKEN','Bridge unavailable -- port 9899 offline');
 });
 }
 
@@ -4297,7 +4297,7 @@ b3Append('ZT-REQUEST',method+' '+url);
 var headers={'Content-Type':'application/json','X-ZT-Actor':S.u,'X-ZT-SPIFFE':spiffe,'X-ZT-Hash':envHash,'X-ZT-TS':String(ts)};
 if(S.kcToken)headers['Authorization']='Bearer '+S.kcToken;
 
-fetch('http://127.0.0.1:9898/proxy',{
+fetch('http://127.0.0.1:9899/proxy',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({target:url,method:method,payload:payload?JSON.parse(payload):null,headers:headers})
@@ -4306,7 +4306,7 @@ body:JSON.stringify({target:url,method:method,payload:payload?JSON.parse(payload
 if(result)result.innerHTML='<span style="color:var(--ok)">✓ '+method+' '+url+'</span><br><span style="font-size:10px;font-family:monospace;color:var(--t2)">'+JSON.stringify(d).slice(0,200)+'</span>';
 b3Append('ZT-RESPONSE','HTTP '+d.status+' from '+url);
 }).catch(function(){
-if(result)result.innerHTML='<span style="color:var(--warn)">Bridge offline (port 9898) -- Zero Trust envelope built and signed:</span><br>'
+if(result)result.innerHTML='<span style="color:var(--warn)">Bridge offline (port 9899) -- Zero Trust envelope built and signed:</span><br>'
 +'<span style="font-size:10px;font-family:monospace;color:var(--t2)">hash='+envHash.slice(0,24)+'... spiffe='+spiffe+'</span>';
 });
 }
@@ -4346,7 +4346,7 @@ tlsLog('SYS','Initiating mTLS','Target: '+host+' | TLS '+tls+' | Cipher: '+ciphe
 
 // Attempt real handshake via bridge
 var t0=Date.now();
-fetch('http://127.0.0.1:9898/mtls/handshake',{
+fetch('http://127.0.0.1:9899/mtls/handshake',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({host:host,tls:tls,cipher:cipher,actor:S.u,spiffeId:'spiffe://il6.cluster/ns/default/sa/'+S.u.toLowerCase()})
@@ -4375,14 +4375,14 @@ log('mTLS FAILED: '+(d.error||'unknown'),'warn');
 }
 }).catch(function(){
 var elapsed=Date.now()-t0;
-tlsLog('ERR','Bridge offline','Port 9898 not responding -- start local bridge to test real mTLS');
+tlsLog('ERR','Bridge offline','Port 9899 not responding -- start local bridge to test real mTLS');
 tlsLog('INFO','Expected handshake path',host+' | TLS '+tls+' | '+cipher);
 tlsLog('INFO','Client identity','spiffe://il6.cluster/ns/default/sa/'+S.u.toLowerCase()+' | ML-DSA-65');
 tlsLog('INFO','Required','SPIRE agent + Keycloak + Envoy mTLS mesh -- see Ansible playbook in PWA panel');
 if(state){state.textContent='BRIDGE OFFLINE';state.style.color='var(--warn)';}
 if(rtt)rtt.textContent=elapsed+'ms (local)';
 b3Append('MTLS-OFFLINE','Bridge offline -- handshake not executed');
-log('mTLS: bridge offline on port 9898','warn');
+log('mTLS: bridge offline on port 9899','warn');
 });
 }
 
@@ -4482,7 +4482,7 @@ b3Append('SPIRE-AGENT-CFG','Agent config generated for '+td+' attesting via '+at
 function spireGetSVID(){
 var td=document.getElementById('spire-td')?document.getElementById('spire-td').value:'il6.cluster';
 var svid='spiffe://'+td+'/ns/default/sa/'+S.u.toLowerCase();
-fetch('http://127.0.0.1:9898/spiffe/svid',{
+fetch('http://127.0.0.1:9899/spiffe/svid',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({spiffeId:svid})
@@ -4500,7 +4500,7 @@ if(box)box.textContent=[
 'Status:       Computed locally -- bridge offline',
 'Trust Domain: '+td,
 'TTL:          3600s (1h)',
-'Hint:         Start bridge on port 9898 for live SVID from SPIRE agent',
+'Hint:         Start bridge on port 9899 for live SVID from SPIRE agent',
 '',
 '# To fetch live SVID from SPIRE agent:',
 '# spire-agent api fetch x509 -socketPath /run/spire/sockets/agent.sock',
@@ -4511,10 +4511,10 @@ b3Append('SVID-FETCH','Local SVID computed (bridge offline): '+svid);
 
 function spireVerifyBundle(){
 b3Append('BUNDLE-VERIFY','Trust bundle verification requested');
-toast('Bundle verify requires SPIRE server at port 9898 bridge');
+toast('Bundle verify requires SPIRE server at port 9899 bridge');
 var td=document.getElementById('spire-td')?document.getElementById('spire-td').value:'il6.cluster';
 var box=document.getElementById('svid-box');
-if(box)box.textContent='Trust Bundle Verification:\n\nSPIRE Trust Domain: '+td+'\nStatus: Bridge required on port 9898\n\n# spire-server bundle show -socketPath /var/run/spire/private/api.sock';
+if(box)box.textContent='Trust Bundle Verification:\n\nSPIRE Trust Domain: '+td+'\nStatus: Bridge required on port 9899\n\n# spire-server bundle show -socketPath /var/run/spire/private/api.sock';
 }
 
 // ── Keycloak Realm Config ─────────────────────────────────────────────────
@@ -4604,7 +4604,7 @@ var PWA_SW=[
 "",
 "self.addEventListener('fetch', e => {",
 "  // Cache-first for static, network-first for API",
-"  if(e.request.url.includes('/api/') || e.request.url.includes(':9898')){",
+"  if(e.request.url.includes('/api/') || e.request.url.includes(':9899')){",
 "    e.respondWith(fetch(e.request).catch(()=>new Response(JSON.stringify({error:'offline',bridge:'unavailable'}),{headers:{'Content-Type':'application/json'}})));",
 "  } else {",
 "    e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));",
@@ -4810,7 +4810,7 @@ var countEl   = document.getElementById('alert-count');
 if(!container) return;
 container.innerHTML = '<div style="color:var(--t2);font-size:11px;">Fetching alerts...</div>';
 
-fetch('http://127.0.0.1:9898/alerts/live',{
+fetch('http://127.0.0.1:9899/alerts/live',{
 method:'GET',
 headers:{'Content-Type':'application/json','X-Actor':S.u,'X-Role':S.role}
 }).then(function(r){return r.json();})

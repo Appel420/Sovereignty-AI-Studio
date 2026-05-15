@@ -496,7 +496,7 @@ process.on('SIGINT', () => {
 // ─── GITHUB OAUTH CODE EXCHANGE (added v6) ───────────────────────
 // Handles {type:'gh_exchange', code:'...'} from browser
 // Requires GH_CLIENT_SECRET env var — never in browser
-// Usage: GH_CLIENT_ID=xxx GH_CLIENT_SECRET=yyy node server_9898.js
+// Usage: GH_CLIENT_ID=xxx GH_CLIENT_SECRET=yyy node server_9899.js
 function handleGHExchange(data, ws) {
   var clientId = process.env.GH_CLIENT_ID || '';
   var clientSecret = process.env.GH_CLIENT_SECRET || '';
