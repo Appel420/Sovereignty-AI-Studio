@@ -569,7 +569,7 @@ RESPONSIVE BREAKPOINTS
     </div>
     <div class="rh-meta">
       <div>Session: <b id="hSess">-</b></div>
-      <div>Port 9898: <b id="bridgeStatus">CHECKING</b></div>
+      <div>Port 9899: <b id="bridgeStatus">CHECKING</b></div>
       <div id="hClk" style="color:var(--cy)">-</div>
     </div>
   </div>
@@ -734,7 +734,7 @@ RESPONSIVE BREAKPOINTS
       <div class="ft-hash" id="ftHash">Session: - · Chain: - · Sig: -</div>
     </div>
     <div style="font-family:var(--mono);font-size:6px;color:var(--mu);text-align:right;flex-shrink:0">
-      <div>Port 9898: <span id="ftBridge" style="color:var(--am)">CHECKING</span></div>
+      <div>Port 9899: <span id="ftBridge" style="color:var(--am)">CHECKING</span></div>
       <div id="ftMode" style="color:var(--gn)">ONLINE MODE</div>
     </div>
   </div>
@@ -789,8 +789,8 @@ const ROLES = {
   teacher:{label:'Teacher',icon:'📚',level:3,color:'#0891b2',cat:'edu',desc:'FERPA · Curriculum · Classroom AI',features:['Class Dashboard','Grades','Attendance','Lessons','IEP','AI Builder'],ranks:[{n:'Lead Teacher',l:'L3'},{n:'Teacher',l:'L2'},{n:'Substitute',l:'L1'}],nav:[{g:'Classroom',items:[{id:'classdash',ic:'📊',lb:'Class'},{id:'grades',ic:'✅',lb:'Grades'},{id:'attendance',ic:'📋',lb:'Attendance'},{id:'lessons',ic:'📖',lb:'Lessons'}]},{g:'Tools',items:[{id:'aibrief',ic:'🤖',lb:'AI Builder'}]}]},
   student:{label:'Student',icon:'🎒',level:1,color:'#7c3aed',cat:'edu',desc:'K-12 · COPPA/FERPA Safe',features:['Learning Hub','Math','Science','English','History','Coding','AI Tutor'],ranks:[{n:'College',l:'L1'},{n:'High School',l:'L1'},{n:'Middle School',l:'L1'},{n:'Elementary',l:'L0'}],nav:[{g:'Learn',items:[{id:'hub',ic:'🏠',lb:'Hub'},{id:'math',ic:'🔢',lb:'Math'},{id:'science',ic:'🔬',lb:'Science'},{id:'english',ic:'📝',lb:'English'},{id:'history',ic:'🌍',lb:'History'},{id:'coding',ic:'💻',lb:'Coding'}]},{g:'Tools',items:[{id:'aitutor',ic:'🤖',lb:'AI Tutor'},{id:'quiz',ic:'❓',lb:'Quiz'}]}]},
   // TECH
-  admin:{label:'Administrator',icon:'⚙️',level:5,color:'#dc2626',cat:'tech',desc:'Full System Access · Root · DevOps',features:['System Control','User Mgmt','Security Config','Audit Trail','Key Mgmt','UNC-AI-2026','Bridge Config','CI/CD'],ranks:[{n:'Root Admin',l:'L5 · Full Sudo'},{n:'Super Admin',l:'L4 · System Wide'},{n:'Admin',l:'L3 · Department'},{n:'Read-Only Admin',l:'L2 · Audit Only'}],nav:[{g:'System',items:[{id:'sysctl',ic:'⚙️',lb:'System Control'},{id:'usermgmt',ic:'👥',lb:'User Mgmt'},{id:'secconfig',ic:'🔒',lb:'Security Config'},{id:'keystore',ic:'🔑',lb:'Key Store'}]},{g:'Monitor',items:[{id:'audittrail',ic:'📋',lb:'Audit Trail'},{id:'bridgeconfig',ic:'🌐',lb:'Bridge Config'},{id:'cicd',ic:'🔄',lb:'CI/CD Port 9898'},{id:'compliance',ic:'✅',lb:'Compliance'}]}]},
-  developer:{label:'Developer',icon:'💻',level:4,color:'#7c3aed',cat:'tech',desc:'Engineering · API · Deploy · Code',features:['API Console','Test Suite','Deployments','Monitoring','Code Editor','Bridge API','Webhook Mgr','AI Code Assist'],ranks:[{n:'Principal Engineer',l:'L4 · Architect'},{n:'Senior Developer',l:'L3 · Senior'},{n:'Developer',l:'L2 · Mid Level'},{n:'Junior Dev',l:'L1 · Junior'}],nav:[{g:'Engineering',items:[{id:'apiconsole',ic:'🔌',lb:'API Console'},{id:'testsuite',ic:'🧪',lb:'Test Suite'},{id:'deployments',ic:'🚀',lb:'Deployments'},{id:'monitoring',ic:'📈',lb:'Monitoring'}]},{g:'Tools',items:[{id:'codeeditor',ic:'💻',lb:'Code Editor'},{id:'webhooks',ic:'🔗',lb:'Webhooks'},{id:'cicd',ic:'🔄',lb:'CI/CD Port 9898'},{id:'aibrief',ic:'🤖',lb:'AI Code Assist'}]}]},
+  admin:{label:'Administrator',icon:'⚙️',level:5,color:'#dc2626',cat:'tech',desc:'Full System Access · Root · DevOps',features:['System Control','User Mgmt','Security Config','Audit Trail','Key Mgmt','UNC-AI-2026','Bridge Config','CI/CD'],ranks:[{n:'Root Admin',l:'L5 · Full Sudo'},{n:'Super Admin',l:'L4 · System Wide'},{n:'Admin',l:'L3 · Department'},{n:'Read-Only Admin',l:'L2 · Audit Only'}],nav:[{g:'System',items:[{id:'sysctl',ic:'⚙️',lb:'System Control'},{id:'usermgmt',ic:'👥',lb:'User Mgmt'},{id:'secconfig',ic:'🔒',lb:'Security Config'},{id:'keystore',ic:'🔑',lb:'Key Store'}]},{g:'Monitor',items:[{id:'audittrail',ic:'📋',lb:'Audit Trail'},{id:'bridgeconfig',ic:'🌐',lb:'Bridge Config'},{id:'cicd',ic:'🔄',lb:'CI/CD Port 9899'},{id:'compliance',ic:'✅',lb:'Compliance'}]}]},
+  developer:{label:'Developer',icon:'💻',level:4,color:'#7c3aed',cat:'tech',desc:'Engineering · API · Deploy · Code',features:['API Console','Test Suite','Deployments','Monitoring','Code Editor','Bridge API','Webhook Mgr','AI Code Assist'],ranks:[{n:'Principal Engineer',l:'L4 · Architect'},{n:'Senior Developer',l:'L3 · Senior'},{n:'Developer',l:'L2 · Mid Level'},{n:'Junior Dev',l:'L1 · Junior'}],nav:[{g:'Engineering',items:[{id:'apiconsole',ic:'🔌',lb:'API Console'},{id:'testsuite',ic:'🧪',lb:'Test Suite'},{id:'deployments',ic:'🚀',lb:'Deployments'},{id:'monitoring',ic:'📈',lb:'Monitoring'}]},{g:'Tools',items:[{id:'codeeditor',ic:'💻',lb:'Code Editor'},{id:'webhooks',ic:'🔗',lb:'Webhooks'},{id:'cicd',ic:'🔄',lb:'CI/CD Port 9899'},{id:'aibrief',ic:'🤖',lb:'AI Code Assist'}]}]},
   // COMMERCIAL
   driver:{label:'Rideshare Driver',icon:'🚗',level:1,color:'#0891b2',cat:'civil',desc:'GPS · Earnings · Safety · SOS',features:['Active Ride','Navigation','Earnings','Trips','Vehicle','SOS'],ranks:[{n:'Diamond Driver',l:'L1 ⭐4.9+'},{n:'Platinum',l:'L1 ⭐4.7+'},{n:'Standard',l:'L1'},{n:'New Driver',l:'L1 Probation'}],nav:[{g:'Driving',items:[{id:'active',ic:'🗺️',lb:'Active Ride'},{id:'queue',ic:'📋',lb:'Queue'}]},{g:'Account',items:[{id:'earnings',ic:'💰',lb:'Earnings'},{id:'trips',ic:'🕒',lb:'Trips'},{id:'sos',ic:'🆘',lb:'SOS Safety'}]}]},
   passenger:{label:'Passenger',icon:'🧑‍💼',level:1,color:'#7c3aed',cat:'civil',desc:'Book Rides · Track · SOS',features:['Book Ride','Tracking','History','Payments','SOS'],ranks:[{n:'Passenger',l:'L1'}],nav:[{g:'Rides',items:[{id:'bookride',ic:'🚗',lb:'Book Ride'},{id:'tracking',ic:'📍',lb:'Tracking'},{id:'ridehistory',ic:'🕒',lb:'History'}]},{g:'Account',items:[{id:'payments',ic:'💳',lb:'Payments'},{id:'sos',ic:'🆘',lb:'SOS'}]}]},
@@ -975,24 +975,24 @@ speak('Sending to AI: '+cmd.slice(0,40));
 }
 
 // ═══════════════════════════════════════════════════
-// CICD - Port 9898
+// CICD - Port 9899
 // ═══════════════════════════════════════════════════
 async function checkCICD(){
 const el=document.getElementById('bridgeStatus'),fb=document.getElementById('ftBridge');
 if(el)el.textContent='CHECKING…';
 try{
-const r=await fetch('http://localhost:9898/health',{signal:AbortSignal.timeout(2500)});
+const r=await fetch('http://localhost:9899/health',{signal:AbortSignal.timeout(2500)});
 const ok=r.ok;
 ST.cicd.status=ok?'online':'error';
-if(el){el.textContent=ok?'PORT 9898 ✓':'ERROR';el.style.color=ok?'var(--gn)':'var(--rd)';}
+if(el){el.textContent=ok?'PORT 9899 ✓':'ERROR';el.style.color=ok?'var(--gn)':'var(--rd)';}
 if(fb){fb.textContent=ok?'✓ ONLINE':'ERROR';fb.style.color=ok?'var(--gn)':'var(--rd)';}
-if(ok)addCICDLog('ok','Health check OK - port 9898 responding');
-else addCICDLog('err','Health check failed - port 9898 not responding');
+if(ok)addCICDLog('ok','Health check OK - port 9899 responding');
+else addCICDLog('err','Health check failed - port 9899 not responding');
 } catch(e){
 ST.cicd.status='offline';
-if(el){el.textContent='PORT 9898 OFFLINE';el.style.color='var(--am)';}
+if(el){el.textContent='PORT 9899 OFFLINE';el.style.color='var(--am)';}
 if(fb){fb.textContent='OFFLINE';fb.style.color='var(--am)';}
-addCICDLog('warn','Port 9898 offline - start your local server');
+addCICDLog('warn','Port 9899 offline - start your local server');
 }
 }
 function addCICDLog(type,msg){
@@ -1005,28 +1005,28 @@ line.textContent=`[${ts}] ${msg}`;term.appendChild(line);term.scrollTop=term.scr
 }
 }
 async function triggerBuild(){
-addCICDLog('info','Triggering build on port 9898…');
+addCICDLog('info','Triggering build on port 9899…');
 try{
-const r=await fetch('http://localhost:9898/build',{method:'POST',signal:AbortSignal.timeout(5000),
+const r=await fetch('http://localhost:9899/build',{method:'POST',signal:AbortSignal.timeout(5000),
 headers:{'Content-Type':'application/json'},
 body:JSON.stringify({trigger:'manual',role:ST.role,user:ST.name,ts:new Date().toISOString()})});
-if(r.ok){addCICDLog('ok','Build triggered successfully');toast('Build triggered on port 9898','ok');}
+if(r.ok){addCICDLog('ok','Build triggered successfully');toast('Build triggered on port 9899','ok');}
 else{addCICDLog('err','Build trigger failed: HTTP '+r.status);toast('Build failed: HTTP '+r.status,'err');}
-} catch(e){addCICDLog('warn','Cannot reach port 9898 - is your server running?');toast('Port 9898 unreachable','warn');}
+} catch(e){addCICDLog('warn','Cannot reach port 9899 - is your server running?');toast('Port 9899 unreachable','warn');}
 addAudit('CICD_BUILD','Manual build triggered by '+ST.name);
 }
 async function runTests(){
 addCICDLog('info','Running test suite…');
 try{
-const r=await fetch('http://localhost:9898/test',{signal:AbortSignal.timeout(8000)});
+const r=await fetch('http://localhost:9899/test',{signal:AbortSignal.timeout(8000)});
 if(r.ok){const j=await r.json();addCICDLog('ok',`Tests: ${j.passed||0} passed, ${j.failed||0} failed`);}
 else{addCICDLog('err','Test runner returned HTTP '+r.status);}
 } catch(e){
-addCICDLog('warn','Port 9898 offline - running local validation…');
+addCICDLog('warn','Port 9899 offline - running local validation…');
 setTimeout(()=>{
 addCICDLog('ok','SHA3-512 module: PASS');addCICDLog('ok','Dilithium3 sig: PASS');
 addCICDLog('ok','Q-RAC ledger: PASS');addCICDLog('ok','Auth flow: PASS');
-addCICDLog('ok','Mode system: PASS');addCICDLog('warn','Port 9898: UNREACHABLE (start server)');
+addCICDLog('ok','Mode system: PASS');addCICDLog('warn','Port 9899: UNREACHABLE (start server)');
 },800);
 }
 }
@@ -1045,7 +1045,7 @@ const BOOT_MSGS=[
 'ESTABLISHING Q-RAC IMMUTABLE AUDIT LEDGER…',
 'LOADING 20 ROLE DEFINITIONS - ALL LEVELS 0-5…',
 'CHECKING UNC-AI-2026 GLOBAL COMPLIANCE…',
-'SCANNING PORT 9898 - LOCAL CICD BRIDGE…',
+'SCANNING PORT 9899 - LOCAL CICD BRIDGE…',
 'INITIALIZING GHOST/STEALTH MODE ENGINES…',
 'VOICE SUBSYSTEM - WEB SPEECH API…',
 'COURT ADMISSIBILITY LAYER - ACTIVATED…',
@@ -1346,10 +1346,10 @@ function getModelIcon(m){if(m.includes('claude'))return '🔵';if(m.includes('gp
 function getSmartFallback(q,model){
 const lo=q.toLowerCase();
 if(lo.includes('hello')||lo.includes('hi'))return `Hello from ${model} via SuperGrok Bridge! I'm running through the DDG privacy gateway. How can I help you?`;
-if(lo.includes('code')||lo.includes('python')||lo.includes('javascript')){const cq=q.replace(/['"`]/g,'').slice(0,40);const cr=ST.role||'admin';return '['+model+'] Here's a code snippet:\n`javascript\n// SuperGrok Bridge API call\nconst resp = await fetch(\'http://localhost:9898/api\', {\n  method: \'POST\',\n  headers: {\'Content-Type\':\'application/json\',\'X-Role\':\''+cr+'\'},\n  body: JSON.stringify({query: \''+cq+'\' })\n});\nconst data = await resp.json();\nconsole.log(data);\n`';}
+if(lo.includes('code')||lo.includes('python')||lo.includes('javascript')){const cq=q.replace(/['"`]/g,'').slice(0,40);const cr=ST.role||'admin';return '['+model+'] Here's a code snippet:\n`javascript\n// SuperGrok Bridge API call\nconst resp = await fetch(\'http://localhost:9899/api\', {\n  method: \'POST\',\n  headers: {\'Content-Type\':\'application/json\',\'X-Role\':\''+cr+'\'},\n  body: JSON.stringify({query: \''+cq+'\' })\n});\nconst data = await resp.json();\nconsole.log(data);\n`';}
 if(lo.includes('legal')||lo.includes('law')||lo.includes('court'))return `[${model} · Court Mode] This query relates to legal matters. All responses are logged to the Q-RAC immutable ledger and are court admissible. The session hash is: ${ST.sessionID?.slice(0,16)||'-'}…`;
 if(lo.includes('ghost')||lo.includes('stealth')||lo.includes('undercover'))return `[${model} · Secure Mode] Operational security note: In Ghost Mode, all AI queries are processed with no external logging. In Stealth Mode, TOR-advisory routing is suggested. Current mode: ${ST.mode.toUpperCase()}. Alias: ${ST.ghostAlias}.`;
-return `[${model} via DDG Bridge] Response to: "${q.slice(0,80)}${q.length>80?'…':''}"\n\nDDG gateway offline - using local fallback. In production, this routes through DuckDuckGo's zero-retention AI gateway. No Google, no Meta. Start your server on port 9898 for full bridge functionality.`;
+return `[${model} via DDG Bridge] Response to: "${q.slice(0,80)}${q.length>80?'…':''}"\n\nDDG gateway offline - using local fallback. In production, this routes through DuckDuckGo's zero-retention AI gateway. No Google, no Meta. Start your server on port 9899 for full bridge functionality.`;
 }
 function renderChatMsgs(){
 const msgs=document.getElementById('chatMsgs');if(!msgs)return;
@@ -1381,7 +1381,7 @@ function renderDash(){
     ${mc(ST.mode.toUpperCase(),'Operational Mode','Active','🔒',ST.mode==='ghost'?'#555':ST.mode==='stealth'?'var(--gn)':'var(--cy)')}
     ${mc(uptime,'Session Duration','Live','⏱️','var(--am)')}
     ${mc(String(ST.audit.length),'Audit Events','Q-RAC logged','📋','var(--vt)')}
-    ${mc(ST.cicd.status.toUpperCase(),'Port 9898',ST.cicd.status==='online'?'CI/CD live':'Start server','⚙️',ST.cicd.status==='online'?'var(--gn)':'var(--am)')}
+    ${mc(ST.cicd.status.toUpperCase(),'Port 9899',ST.cicd.status==='online'?'CI/CD live':'Start server','⚙️',ST.cicd.status==='online'?'var(--gn)':'var(--am)')}
   </div>
   <div class="g2">
     <div class="card"><div class="card-t"><div class="ctd"></div>IDENTITY CREDENTIALS</div>
@@ -1389,7 +1389,7 @@ function renderDash(){
     </div>
     <div class="card"><div class="card-t"><div class="ctd"></div>QUICK LAUNCH</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        ${[{id:'ddg',ic:'🦆',lb:'AI Chat'},{id:'browser',ic:'🌐',lb:'Browser'},{id:'voice',ic:'🎤',lb:'Voice'},{id:'cicd',ic:'⚙️',lb:'CI/CD 9898'},{id:'auditchain',ic:'📋',lb:'Audit Chain'},{id:r.nav[0]?.items[0]?.id||'dashboard',ic:r.nav[0]?.items[0]?.ic||'📊',lb:r.nav[0]?.items[0]?.lb||'Panel'}].map(p=>`<button style="background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:9px 7px;cursor:pointer;color:var(--tx);font-size:9px;transition:all .15s;text-align:center;font-family:var(--sans)" onmouseover="this.style.borderColor='var(--acc)'" onmouseout="this.style.borderColor='var(--bd2)'" onclick="loadPanel('${p.id}')">${p.ic}<br><span style="font-size:7px;color:var(--mu);font-family:var(--mono)">${p.lb}</span></button>`).join('')}
+        ${[{id:'ddg',ic:'🦆',lb:'AI Chat'},{id:'browser',ic:'🌐',lb:'Browser'},{id:'voice',ic:'🎤',lb:'Voice'},{id:'cicd',ic:'⚙️',lb:'CI/CD 9899'},{id:'auditchain',ic:'📋',lb:'Audit Chain'},{id:r.nav[0]?.items[0]?.id||'dashboard',ic:r.nav[0]?.items[0]?.ic||'📊',lb:r.nav[0]?.items[0]?.lb||'Panel'}].map(p=>`<button style="background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:9px 7px;cursor:pointer;color:var(--tx);font-size:9px;transition:all .15s;text-align:center;font-family:var(--sans)" onmouseover="this.style.borderColor='var(--acc)'" onmouseout="this.style.borderColor='var(--bd2)'" onclick="loadPanel('${p.id}')">${p.ic}<br><span style="font-size:7px;color:var(--mu);font-family:var(--mono)">${p.lb}</span></button>`).join('')}
       </div>
     </div>
   </div>
@@ -1714,7 +1714,7 @@ function auditLog(a,d){addAudit(a,d);}
 // ─── renderCICDLive - called by loadPanel after render ───
 function renderCICDLive(){
   setTimeout(()=>{
-    if(!ST.cicd.logs.length){addCICDLog('info','CICD bridge initialised - checking port 9898…');}
+    if(!ST.cicd.logs.length){addCICDLog('info','CICD bridge initialised - checking port 9899…');}
     checkCICD();
     const t=document.getElementById('cicdTerminal');
     if(t){
@@ -1810,14 +1810,14 @@ return `<div class="panel-hdr"><h2>🎤 Voice Control</h2>
 }
 
 function renderCICDPanel(){
-return `<div class="panel-hdr"><h2>⚙️ CI/CD - Port 9898</h2>
-<p>// Local Bridge · Real Fetch · Auto-Probe · Run: <code style="color:var(--cy);background:var(--sf2);padding:1px 5px;border-radius:3px">python -m uvicorn server:app -port 9898</code></p></div>
+return `<div class="panel-hdr"><h2>⚙️ CI/CD - Port 9899</h2>
+<p>// Local Bridge · Real Fetch · Auto-Probe · Run: <code style="color:var(--cy);background:var(--sf2);padding:1px 5px;border-radius:3px">python -m uvicorn server:app -port 9899</code></p></div>
 
   <div class="g4">
-    ${mc(ST.cicd.status.toUpperCase(),'Port 9898 Status',ST.cicd.status==='online'?'Responding':'Start server','⚙️',ST.cicd.status==='online'?'var(--gn)':ST.cicd.status==='error'?'var(--rd)':'var(--am)')}
+    ${mc(ST.cicd.status.toUpperCase(),'Port 9899 Status',ST.cicd.status==='online'?'Responding':'Start server','⚙️',ST.cicd.status==='online'?'var(--gn)':ST.cicd.status==='error'?'var(--rd)':'var(--am)')}
     ${mc(String(ST.cicd.logs.length),'Log Entries','Session total','📋','var(--vt)')}
     ${mc(ST.name||'-','Operator','Authenticated','👤','var(--cy)')}
-    ${mc('9898','Bridge Port','Localhost only','🔌','var(--am)')}
+    ${mc('9899','Bridge Port','Localhost only','🔌','var(--am)')}
   </div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
     <button class="btn-s" style="width:auto;padding:7px 12px" onclick="checkCICD();renderCICDLive()">🔍 Probe Health</button>
@@ -1839,13 +1839,13 @@ async function runCICDCommand(cmd){
     let method='GET',path=cmd;
     if(cmd.toUpperCase().startsWith('POST ')){method='POST';path=cmd.slice(5).trim();}
     else if(cmd.toUpperCase().startsWith('GET ')){path=cmd.slice(4).trim();}
-    const url='http://localhost:9898'+(path.startsWith('/')?path:'/'+path);
+    const url='http://localhost:9899'+(path.startsWith('/')?path:'/'+path);
     const r=await fetch(url,{method,signal:AbortSignal.timeout(5000),
       headers:{'Content-Type':'application/json'},
       ...(method==='POST'&&{body:JSON.stringify({user:ST.name,role:ST.role,ts:new Date().toISOString()})})});
     const txt=await r.text();
     addCICDLog(r.ok?'ok':'err',`HTTP ${r.status}: ${txt.slice(0,200)}`);
-  }catch(e){addCICDLog('warn','Cannot reach port 9898: '+e.message);}
+  }catch(e){addCICDLog('warn','Cannot reach port 9899: '+e.message);}
 }
 
 function renderAuditPanel(){
@@ -1954,13 +1954,13 @@ return `<div class="panel-hdr"><h2>📡 Communications - COMSEC</h2><p>// Encryp
 function renderSysCtl(){
 return `<div class="panel-hdr"><h2>⚙️ System Control</h2><p>// Root Access · L5 Required</p></div>
 
-  <div class="g4">${mc('ALL GREEN','System Health','All services','🟢','var(--gn)')}${mc('20','Roles Active','Authenticated','👥','var(--cy)')}${mc(ST.cicd.status.toUpperCase(),'Port 9898','Bridge','⚙️',ST.cicd.status==='online'?'var(--gn)':'var(--am)')}${mc('0','Threats','Detected','🛡️','var(--gn)')}</div>
+  <div class="g4">${mc('ALL GREEN','System Health','All services','🟢','var(--gn)')}${mc('20','Roles Active','Authenticated','👥','var(--cy)')}${mc(ST.cicd.status.toUpperCase(),'Port 9899','Bridge','⚙️',ST.cicd.status==='online'?'var(--gn)':'var(--am)')}${mc('0','Threats','Detected','🛡️','var(--gn)')}</div>
   <div class="g2">
     <div class="card"><div class="card-t"><div class="ctd"></div>SYSTEM SERVICES</div>
     ${tbl(['Service','Status','Uptime'],
-      [['Auth Engine',bdg('Running','bg'),'99.97%'],['Q-RAC Ledger',bdg('Running','bg'),'100%'],['DDG AI Bridge',bdg('Running','bg'),'99.8%'],['Port 9898',bdg(ST.cicd.status==='online'?'Online':'Offline',ST.cicd.status==='online'?'bg':'br'),'-'],['Voice Engine',bdg('Ready','bb'),'-'],['Mode System',bdg('Running','bg'),'100%']])}</div>
+      [['Auth Engine',bdg('Running','bg'),'99.97%'],['Q-RAC Ledger',bdg('Running','bg'),'100%'],['DDG AI Bridge',bdg('Running','bg'),'99.8%'],['Port 9899',bdg(ST.cicd.status==='online'?'Online':'Offline',ST.cicd.status==='online'?'bg':'br'),'-'],['Voice Engine',bdg('Ready','bb'),'-'],['Mode System',bdg('Running','bg'),'100%']])}</div>
     <div class="card"><div class="card-t"><div class="ctd"></div>CONTROLS</div>
-    ${[['🔍 Probe Port 9898','checkCICD()'],['📋 View Audit Chain','loadPanel(\'auditchain\')'],['👥 User Management','loadPanel(\'usermgmt\')'],['🔑 Key Store','loadPanel(\'keystore\')'],['🌐 Bridge Config','loadPanel(\'bridgeconfig\')'],['💣 Emergency Kill','killSwitch()']].map(([l,a])=>
+    ${[['🔍 Probe Port 9899','checkCICD()'],['📋 View Audit Chain','loadPanel(\'auditchain\')'],['👥 User Management','loadPanel(\'usermgmt\')'],['🔑 Key Store','loadPanel(\'keystore\')'],['🌐 Bridge Config','loadPanel(\'bridgeconfig\')'],['💣 Emergency Kill','killSwitch()']].map(([l,a])=>
       `<button style="display:flex;align-items:center;gap:8px;width:100%;background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:9px;cursor:pointer;color:${l.includes('Kill')?'var(--rd)':'var(--tx)'};font-size:9px;margin-bottom:5px;transition:border-color .15s;text-align:left;font-family:var(--sans)"
       onmouseover="this.style.borderColor='var(--acc)'" onmouseout="this.style.borderColor='var(--bd2)'"
       onclick="${a}">${l}</button>`).join('')}
@@ -2034,11 +2034,11 @@ return `<div class="panel-hdr"><h2>🧪 Test Suite</h2><p>// Unit · Integration
     ['Role System',bdg('14','bm'),bdg('14','bg'),bdg('0','bm'),'94%'],
     ['Audit Chain',bdg('9','bm'),bdg('9','bg'),bdg('0','bm'),'100%'],
     ['CICD Port',bdg('6','bm'),bdg(String(rnd(5,6)),'bg'),bdg(String(rnd(0,1)),'ba'),'82%']])}
-  <button class="btn-p" style="margin-top:10px" onclick="toast('Test run started on port 9898','ok');runTests()">▶ Run All Tests</button>`;
+  <button class="btn-p" style="margin-top:10px" onclick="toast('Test run started on port 9899','ok');runTests()">▶ Run All Tests</button>`;
 }
 
 function renderDeployments(){
-return `<div class="panel-hdr"><h2>🚀 Deployments</h2><p>// CI/CD History · Port 9898</p></div>
+return `<div class="panel-hdr"><h2>🚀 Deployments</h2><p>// CI/CD History · Port 9899</p></div>
 
   <div class="g4">${mc(String(rnd(12,20)),'Deployments','Total','🚀','var(--cy)')}${mc(String(rnd(10,18)),'Successful','Deployed','✅','var(--gn)')}${mc(String(rnd(0,2)),'Failed','Rollback','❌','var(--rd)')}${mc(today(),'Last Deploy','Date','📅','var(--am)')}</div>
   ${tbl(['Deploy ID','Branch','Triggered By','Status','Date'],
@@ -2046,7 +2046,7 @@ return `<div class="panel-hdr"><h2>🚀 Deployments</h2><p>// CI/CD History · P
     ['D-'+rnd(1000,9999),'main',ST.name||'system',bdg('Success','bg'),'Feb 26'],
     ['D-'+rnd(1000,9999),'feature/auth',ST.name||'system',bdg('Failed','br'),'Feb 25'],
     ['D-'+rnd(1000,9999),'main',ST.name||'system',bdg('Success','bg'),'Feb 24']])}
-  <button class="btn-p" style="margin-top:8px" onclick="triggerBuild();loadPanel('cicd')">⚙️ Trigger Deploy via Port 9898</button>`;
+  <button class="btn-p" style="margin-top:8px" onclick="triggerBuild();loadPanel('cicd')">⚙️ Trigger Deploy via Port 9899</button>`;
 }
 
 function renderMonitoring(){
@@ -2056,7 +2056,7 @@ return `<div class="panel-hdr"><h2>📈 Performance Monitoring</h2><p>// Real-Ti
   ${prog('DDG AI Bridge',rnd(60,85),'var(--cy)')}
   ${prog('Auth Service',rnd(85,98),'var(--gn)')}
   ${prog('Audit Ledger',rnd(70,90),'var(--am)')}
-  ${prog('CICD Port 9898',ST.cicd.status==='online'?rnd(70,95):5,ST.cicd.status==='online'?'var(--gn)':'var(--rd)')}`;
+  ${prog('CICD Port 9899',ST.cicd.status==='online'?rnd(70,95):5,ST.cicd.status==='online'?'var(--gn)':'var(--rd)')}`;
 }
 
 function renderWebhooks(){
@@ -2064,10 +2064,10 @@ return `<div class="panel-hdr"><h2>🔗 Webhook Manager</h2><p>// Outbound · HM
 
   <div class="g4">${mc(String(rnd(3,6)),'Webhooks','Configured','🔗','var(--cy)')}${mc(String(rnd(2,5)),'Active','Enabled','✅','var(--gn)')}${mc(String(rnd(40,80)),'Deliveries','24h','📊','var(--am)')}${mc('HMAC','Security','SHA-256','🔐','var(--vt)')}</div>
   ${tbl(['Name','URL','Events','Status'],
-    [['CI/CD Notify','localhost:9898/webhook','push, deploy',bdg('Active','bg')],
-    ['Audit Export','localhost:9898/audit','auth, kill',bdg('Active','bg')],
+    [['CI/CD Notify','localhost:9899/webhook','push, deploy',bdg('Active','bg')],
+    ['Audit Export','localhost:9899/audit','auth, kill',bdg('Active','bg')],
     ['Slack Notify','ngrok tunnel req.','errors',bdg('Inactive','bm')]])}<
-  <button class="btn-s" style="margin-top:8px;width:auto;padding:7px 12px" onclick="toast('Add webhook via CI/CD port 9898','ok')">+ Add Webhook</button>`;
+  <button class="btn-s" style="margin-top:8px;width:auto;padding:7px 12px" onclick="toast('Add webhook via CI/CD port 9899','ok')">+ Add Webhook</button>`;
 }
 
 function renderCodeEditor(){
@@ -2084,7 +2084,7 @@ ts: str = ""
 
 @app.get("/health")
 def health():
-return {"status": "ok", "port": 9898, "ts": datetime.datetime.now().isoformat()}
+return {"status": "ok", "port": 9899, "ts": datetime.datetime.now().isoformat()}
 
 @app.get("/status")
 def status():
@@ -2103,11 +2103,11 @@ def test_suite():
 return {"passed": 48, "failed": 0, "coverage": "94%"}
 
 if **name** == "**main**":
-uvicorn.run(app, host="0.0.0.0", port=9898)
+uvicorn.run(app, host="0.0.0.0", port=9899)
 
 # Run: pip install fastapi uvicorn && python server.py`;
 
-return `<div class="panel-hdr"><h2>💻 Code Editor</h2><p>// Port 9898 Server Template - Production FastAPI</p></div>
+return `<div class="panel-hdr"><h2>💻 Code Editor</h2><p>// Port 9899 Server Template - Production FastAPI</p></div>
 
   <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
     ${['Python','JavaScript','Bash','JSON','YAML'].map(l=>`<button style="padding:5px 10px;border-radius:5px;border:1px solid var(--bd2);background:var(--sf2);color:var(--cy);font-family:var(--mono);font-size:8px;cursor:pointer" onclick="toast('Language: ${l}','ok')">${l}</button>`).join('')}
@@ -2115,7 +2115,7 @@ return `<div class="panel-hdr"><h2>💻 Code Editor</h2><p>// Port 9898 Server T
   <textarea style="width:100%;height:380px;background:#0a0a0a;border:1px solid var(--bd2);border-radius:7px;color:#e5e7eb;font-family:var(--mono);font-size:9px;padding:12px;outline:none;resize:vertical;line-height:1.6;box-sizing:border-box">${sample}</textarea>
   <div style="display:flex;gap:7px;margin-top:8px">
     <button class="btn-s" style="width:auto;padding:8px 14px" onclick="toast('Saved to session buffer','ok')">💾 Save</button>
-    <button class="btn-p" style="width:auto;padding:8px 14px" onclick="triggerBuild();toast('Deploying to port 9898…','ok');loadPanel('cicd')">🚀 Deploy to Port 9898</button>
+    <button class="btn-p" style="width:auto;padding:8px 14px" onclick="triggerBuild();toast('Deploying to port 9899…','ok');loadPanel('cicd')">🚀 Deploy to Port 9899</button>
   </div>`;
 }
 
@@ -2126,7 +2126,7 @@ return `<div class="panel-hdr"><h2>🔌 API Console</h2><p>// Test Live Endpoint
     <select id="apiMethod" style="background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;padding:8px;color:var(--tx);font-family:var(--mono);font-size:10px;cursor:pointer">
       <option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option>
     </select>
-    <input id="apiUrl" class="fi-inp" value="http://localhost:9898/health" style="flex:1;font-size:10px;min-width:200px">
+    <input id="apiUrl" class="fi-inp" value="http://localhost:9899/health" style="flex:1;font-size:10px;min-width:200px">
     <button class="btn-p" style="width:auto;padding:9px 14px;flex-shrink:0" onclick="sendAPIReq()">Send</button>
   </div>
   <textarea id="apiBody" style="width:100%;height:80px;background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;color:var(--tx);font-family:var(--mono);font-size:9px;padding:9px;outline:none;resize:none;box-sizing:border-box;margin-bottom:8px" placeholder='{"key": "value"}'></textarea>
@@ -2362,7 +2362,7 @@ return `<div class="card gf" style="text-align:center;padding:40px">
 // - IndexedDB persistent user vault (never locked out)
 // - Role-specific credential verification (EMT cert, bar numbers, etc.)
 // - Real voice engine with all system voices + Piper TTS (on-device)
-// - Port 9898 WebSocket + auto-reconnect with exponential backoff
+// - Port 9899 WebSocket + auto-reconnect with exponential backoff
 // - ST sub-object initialization (ST.edu, ST.ride, ST.creds)
 // - Court-admissible credential audit chain
 // ═══════════════════════════════════════════════════════════════════════
@@ -2813,8 +2813,8 @@ window.speak = function(text){
 
 async function speakPiperTTS(text){
   try{
-    // Piper TTS - on-device via localhost:9898
-    const r = await fetch('http://localhost:9898/api/v1/voice/speak',{
+    // Piper TTS - on-device via localhost:9899
+    const r = await fetch('http://localhost:9899/api/v1/voice/speak',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({text:text,speed:1.0})
@@ -2893,7 +2893,7 @@ window.renderVoicePanel = function(){
       </div>
       <div class="fi" style="margin-bottom:8px">
         <label class="fl">Piper TTS Status</label>
-        <input id="piperStatusInp" type="text" class="fi-inp" value="On-Device · localhost:9898" placeholder="Piper TTS active" readonly>
+        <input id="piperStatusInp" type="text" class="fi-inp" value="On-Device · localhost:9899" placeholder="Piper TTS active" readonly>
       </div>
       <div style="color:var(--gn);font-family:var(--mono);font-size:8px;margin-bottom:8px">✅ Piper TTS active - on-device voice synthesis</div>
       <button class="btn-s" style="width:auto;padding:7px 12px;margin-right:6px" onclick="piperEnabled=true;saveVoicePrefs();speak('Piper TTS active')">🔊 Test Piper</button>
@@ -2915,7 +2915,7 @@ window.renderVoicePanel = function(){
   </div>`}`;
 };
 
-// ─── 6. Port 9898 WebSocket + Auto-Reconnect ────────────────────────
+// ─── 6. Port 9899 WebSocket + Auto-Reconnect ────────────────────────
 const BRIDGE = {
   ws:          null,
   wsRetries:   0,
@@ -2953,15 +2953,15 @@ const BRIDGE = {
   async tryWebSocket(){
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     try{
-      const ws = new WebSocket('ws://localhost:9898/ws');
+      const ws = new WebSocket('ws://localhost:9899/ws');
       this.ws = ws;
       ws.onopen = ()=>{
         this.connected=true; this.wsRetries=0;
         ST.cicd.status='online';
-        this.updateUI('PORT 9898 ✓ WS','var(--gn)');
-        this.log('ok','WebSocket connected to port 9898');
-        addAudit('CICD_WS','WebSocket connected to port 9898');
-        toast('⚡ Port 9898 connected via WebSocket','ok');
+        this.updateUI('PORT 9899 ✓ WS','var(--gn)');
+        this.log('ok','WebSocket connected to port 9899');
+        addAudit('CICD_WS','WebSocket connected to port 9899');
+        toast('⚡ Port 9899 connected via WebSocket','ok');
         if(this.polling){ clearInterval(this.polling); this.polling=null; }
       };
       ws.onmessage = (e)=>{
@@ -3001,22 +3001,22 @@ const BRIDGE = {
 
   async pollHealth(){
     try{
-      const r = await fetch('http://localhost:9898/health',{signal:AbortSignal.timeout(2500)});
+      const r = await fetch('http://localhost:9899/health',{signal:AbortSignal.timeout(2500)});
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         ST.cicd.status='online';
-        this.updateUI('PORT 9898 ✓','var(--gn)');
+        this.updateUI('PORT 9899 ✓','var(--gn)');
         if(this.wsRetries===0 || this.wsRetries>=this.maxRetries){
           this.wsRetries=0; this.tryWebSocket();
         }
       } else {
         this.connected=false; ST.cicd.status='error';
-        this.updateUI('PORT 9898 ERR','var(--rd)');
-        this.log('err','HTTP '+r.status+' from port 9898');
+        this.updateUI('PORT 9899 ERR','var(--rd)');
+        this.log('err','HTTP '+r.status+' from port 9899');
       }
     }catch(e){
       this.connected=false; ST.cicd.status='offline';
-      this.updateUI('PORT 9898 OFFLINE','var(--am)');
+      this.updateUI('PORT 9899 OFFLINE','var(--am)');
     }
   },
 
@@ -3066,7 +3066,7 @@ window.renderDash = function(){
         ${mc(ST.mode.toUpperCase(),'Mode','Active','🔒',ST.mode==='ghost'?'#555':ST.mode==='stealth'?'var(--gn)':'var(--cy)')}
         ${mc(uptime,'Uptime','Session','⏱️','var(--am)')}
         ${mc(String(ST.audit.length),'Audit Events','Q-RAC','📋','var(--vt)')}
-        ${mc(ST.cicd.status.toUpperCase(),'Port 9898',BRIDGE.connected?'Connected':'Offline','⚙️',BRIDGE.connected?'var(--gn)':'var(--am)')}
+        ${mc(ST.cicd.status.toUpperCase(),'Port 9899',BRIDGE.connected?'Connected':'Offline','⚙️',BRIDGE.connected?'var(--gn)':'var(--am)')}
       </div>
       <div class="g2">
         <div class="card"><div class="card-t"><div class="ctd"></div>IDENTITY</div>
@@ -3089,7 +3089,7 @@ window.renderDash = function(){
         </div>
       </div>
       <div class="g4" style="margin-top:8px">
-        ${mc(BRIDGE.connected?'CONNECTED':'OFFLINE','Bridge Status',BRIDGE.connected?'Port 9898 WS':'Start server','🌐',BRIDGE.connected?'var(--gn)':'var(--am)')}
+        ${mc(BRIDGE.connected?'CONNECTED':'OFFLINE','Bridge Status',BRIDGE.connected?'Port 9899 WS':'Start server','🌐',BRIDGE.connected?'var(--gn)':'var(--am)')}
         ${mc(String(ALL_VOICES.length),'Voice Engine',ALL_VOICES.length+' voices loaded','🎤',ALL_VOICES.length>0?'var(--gn)':'var(--am)')}
         ${mc('DIL3','Auth','Dilithium3 signed','🔐','var(--vt)')}
         ${mc('PERSISTED','Login Vault','Device storage','💾','var(--cy)')}
@@ -3133,7 +3133,7 @@ window.renderDash = function(){
   }, 30000);
 
   console.log('%c✅ SuperGrok Enterprise Patch v3.0 loaded','color:#00d4ff;font-weight:bold;font-size:12px');
-  console.log('%c📱 IndexedDB vault ready · 🎤 '+ALL_VOICES.length+' voices · ⚡ Port 9898 bridge active','color:#888;font-size:10px');
+  console.log('%c📱 IndexedDB vault ready · 🎤 '+ALL_VOICES.length+' voices · ⚡ Port 9899 bridge active','color:#888;font-size:10px');
 })();
 
 // Expose helpers for console debugging
@@ -4337,14 +4337,14 @@ console.log('%c🏥 HIPAA §164.308/310/312 · GrokMedical420 · All Roles · Ze
 var BridgeCFG = {
   protocol: 'ws',       // ws or wss
   host:     'localhost',
-  port:     9898,
+  port:     9899,
   path:     '',
   // AirPlay / Bonjour friendly alternate ports
   presets: {
-    local:    { host:'localhost',    port:9898 },
-    lan:      { host:'192.168.1.1',  port:9898 },  // user fills in
+    local:    { host:'localhost',    port:9899 },
+    lan:      { host:'192.168.1.1',  port:9899 },  // user fills in
     airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
-    tailscale:{ host:'100.x.x.x',   port:9898 },   // Tailscale mesh
+    tailscale:{ host:'100.x.x.x',   port:9899 },   // Tailscale mesh
     custom:   { host:'',             port:0    }
   },
   wsURL: function() {
@@ -4365,7 +4365,7 @@ var BridgeCFG = {
         var p = JSON.parse(s);
         BridgeCFG.protocol = p.protocol || 'ws';
         BridgeCFG.host = p.host || 'localhost';
-        BridgeCFG.port = p.port || 9898;
+        BridgeCFG.port = p.port || 9899;
         BridgeCFG.path = p.path || '';
       }
     } catch(e) {}
@@ -4790,7 +4790,7 @@ var GitHub = {
     if (PiperTTS.ws && PiperTTS.ws.readyState === 1) {
       PiperTTS.ws.send(JSON.stringify({ type: 'gh_exchange', code: code }));
     } else {
-      toast('Bridge offline - cannot exchange GitHub code. Start server_9898.js', 'err');
+      toast('Bridge offline - cannot exchange GitHub code. Start server_9899.js', 'err');
     }
     addAudit('GH_OAUTH_CALLBACK', 'Code received, exchanging via bridge');
   },
@@ -5153,7 +5153,7 @@ window.addEventListener('online', function() { if (DDQ.mode === 'hybrid') DDQ.fl
 var FileTransfer = {
   send: function(file, label) {
     if (!PiperTTS.ws || PiperTTS.ws.readyState !== 1) {
-      toast('Bridge offline - start server_9898.js', 'err'); return;
+      toast('Bridge offline - start server_9899.js', 'err'); return;
     }
     var reader = new FileReader();
     reader.onload = function(e) {
@@ -5213,7 +5213,7 @@ window.renderBridgeConfig = function() {
     '<div style="display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:8px">' +
     '<input id="cfgHost" placeholder="host (e.g. 192.168.1.5)" value="' + BridgeCFG.host + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
     '<input id="cfgPort" type="number" placeholder="port" value="' + BridgeCFG.port + '" style="padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px">' +
-    '<button class="btn-p" style="font-size:8px;padding:7px 10px" onclick="BridgeCFG.host=document.getElementById(\'cfgHost\').value;BridgeCFG.port=parseInt(document.getElementById(\'cfgPort\').value)||9898;BridgeCFG.save();PiperTTS.connect();toast(\'Connecting...\',\'\')">Connect</button>' +
+    '<button class="btn-p" style="font-size:8px;padding:7px 10px" onclick="BridgeCFG.host=document.getElementById(\'cfgHost\').value;BridgeCFG.port=parseInt(document.getElementById(\'cfgPort\').value)||9899;BridgeCFG.save();PiperTTS.connect();toast(\'Connecting...\',\'\')">Connect</button>' +
     '</div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
     '<select id="cfgProto" style="padding:7px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="BridgeCFG.protocol=this.value;BridgeCFG.save()">' +
@@ -5239,7 +5239,7 @@ window.renderBridgeConfig = function() {
     '<button class="btn-s" style="font-size:8px;padding:7px 12px" onclick="speak(\'Bridge test. SuperGrok voice is live.\')">Test Voice</button>' +
     '</div>' +
     '<div style="margin-top:8px;padding:6px;background:rgba(0,0,0,.3);border-radius:5px;font-family:var(--mono);font-size:6.5px;color:var(--mu)">' +
-    'AirPlay: set host to your Mac IP + port 7000  |  LAN: device IP + 9898  |  Tailscale: 100.x.x.x + 9898' +
+    'AirPlay: set host to your Mac IP + port 7000  |  LAN: device IP + 9899  |  Tailscale: 100.x.x.x + 9899' +
     '</div>';
 };
 
@@ -6467,10 +6467,10 @@ return '<div class="panel-hdr"><h2>iSH iOS Shell Integration</h2>' +
 '<div style="font-family:var(--mono);font-size:7px;color:var(--tx);line-height:2">' +
 '1. Download iSH from App Store (free, Alpine Linux on iOS)<br>' +
 '2. Inside iSH: apk add nodejs npm git<br>' +
-'3. git clone your repo OR scp the HTML + server_9898.js<br>' +
-'4. npm install ws && node server_9898.js<br>' +
-'5. Open Safari on iOS, navigate to localhost:9898 (WS) or open HTML file<br>' +
-'6. Bridge connects at ws://localhost:9898 - Piper runs in iSH process<br>' +
+'3. git clone your repo OR scp the HTML + server_9899.js<br>' +
+'4. npm install ws && node server_9899.js<br>' +
+'5. Open Safari on iOS, navigate to localhost:9899 (WS) or open HTML file<br>' +
+'6. Bridge connects at ws://localhost:9899 - Piper runs in iSH process<br>' +
 '7. For AirPlay bridge: set host to your Mac IP in Bridge Config panel' +
 '</div>' +
 '</div>' +
@@ -6678,7 +6678,7 @@ var UniversalFinance = {
     }
     // Create link token via bridge (server-side - secret never in browser)
     if (!PiperTTS.ws || PiperTTS.ws.readyState !== 1) {
-      toast('Bridge offline - start server_9898.js to use Plaid', 'err');
+      toast('Bridge offline - start server_9899.js to use Plaid', 'err');
       if (cb) cb({ ok: false, reason: 'bridge_offline' });
       return;
     }
@@ -8185,7 +8185,7 @@ var OfflineAI = {
       OfflineAI._pending = cb;
     } else {
       // Stub fallback - replace with WebLLM when loaded
-      var reply = 'Offline AI: Bridge offline. Start server_9898.js and connect a local model.';
+      var reply = 'Offline AI: Bridge offline. Start server_9899.js and connect a local model.';
       OfflineAI.history.push({ role: 'assistant', content: reply });
       if (cb) cb(reply);
     }
@@ -9203,7 +9203,7 @@ NavHistory.updateBackBtn = function() {
       // Back button
       '<button id="navBackBtn" title="Back (Alt+←)" onclick="NavHistory.goBack()" style="padding:4px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:8px;color:var(--mu);opacity:.3">←</button>' +
       // Bridge status + connect
-      '<button id="bridgeQuickBtn" title="Bridge: Port 9898" onclick="loadPanel(\'bridgeconfig\')" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">⚡ 9898</button>' +
+      '<button id="bridgeQuickBtn" title="Bridge: Port 9899" onclick="loadPanel(\'bridgeconfig\')" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">⚡ 9899</button>' +
       // AI Voice toggle
       '<button id="aiVoiceToggle" title="AI Voice On/Off (Ctrl+V)" onclick="toggleAIVoice()" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">🔇 AI</button>' +
       // Mic toggle
@@ -9226,7 +9226,7 @@ function updateBridgeBtn() {
   var online = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
   btn.style.color = online ? 'var(--gn)' : 'var(--rd)';
   btn.style.borderColor = online ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)';
-  btn.textContent = online ? '⚡ LIVE' : '⚡ 9898';
+  btn.textContent = online ? '⚡ LIVE' : '⚡ 9899';
 }
 setInterval(updateBridgeBtn, 3000);
 
@@ -9419,7 +9419,7 @@ window.renderSuperAudit = function() {
     mc(String(roles.length), 'Roles', 'Registered', 'ROLE', 'var(--cy)') +
     mc(String(errors.length), 'JS Errors', 'Caught', 'ERR', errors.length > 0 ? 'var(--rd)' : 'var(--gn)') +
     mc(String(auditChain.length), 'Audit Entries', 'This session', 'AUD', 'var(--am)') +
-    mc(typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port 9898', 'BRG', typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'var(--gn)' : 'var(--rd)') +
+    mc(typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port 9899', 'BRG', typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'var(--gn)' : 'var(--rd)') +
     '</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.sanitizeEnv()">🧹 Sanitize Environment</button>' +
@@ -10122,7 +10122,7 @@ var BridgeManager = {
     banner.id = 'bridgeBanner';
     banner.style.cssText = 'position:fixed;bottom:56px;left:0;right:0;z-index:8900;background:rgba(239,68,68,.1);border-top:1px solid rgba(239,68,68,.3);padding:6px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--mono);font-size:7px;color:var(--rd)';
     banner.innerHTML =
-      '<span>⚡ Bridge offline - start <code>node server_9898.js</code> for live AI, voice & memory</span>' +
+      '<span>⚡ Bridge offline - start <code>node server_9899.js</code> for live AI, voice & memory</span>' +
       '<div style="display:flex;gap:6px">' +
       '<button onclick="BridgeManager.connect();this.textContent=\'Connecting…\'" style="padding:3px 10px;background:rgba(239,68,68,.15);border:1px solid var(--rd);border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--rd)">Connect</button>' +
       '<button onclick="this.closest(\'#bridgeBanner\').remove()" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:4px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">✕</button>' +
@@ -10357,7 +10357,7 @@ NavHistory.updateBackBtn = function() {
       // Back button
       '<button id="navBackBtn" title="Back (Alt+←)" onclick="NavHistory.goBack()" style="padding:4px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:8px;color:var(--mu);opacity:.3">←</button>' +
       // Bridge status + connect
-      '<button id="bridgeQuickBtn" title="Bridge: Port 9898" onclick="loadPanel(\'bridgeconfig\')" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">⚡ 9898</button>' +
+      '<button id="bridgeQuickBtn" title="Bridge: Port 9899" onclick="loadPanel(\'bridgeconfig\')" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">⚡ 9899</button>' +
       // AI Voice toggle
       '<button id="aiVoiceToggle" title="AI Voice On/Off (Ctrl+V)" onclick="toggleAIVoice()" style="padding:3px 8px;background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:5px;cursor:pointer;font-family:var(--mono);font-size:7px;color:var(--mu)">🔇 AI</button>' +
       // Mic toggle
@@ -10380,7 +10380,7 @@ function updateBridgeBtn() {
   var online = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
   btn.style.color = online ? 'var(--gn)' : 'var(--rd)';
   btn.style.borderColor = online ? 'rgba(16,185,129,.3)' : 'rgba(239,68,68,.3)';
-  btn.textContent = online ? '⚡ LIVE' : '⚡ 9898';
+  btn.textContent = online ? '⚡ LIVE' : '⚡ 9899';
 }
 setInterval(updateBridgeBtn, 3000);
 
@@ -10573,7 +10573,7 @@ window.renderSuperAudit = function() {
     mc(String(roles.length), 'Roles', 'Registered', 'ROLE', 'var(--cy)') +
     mc(String(errors.length), 'JS Errors', 'Caught', 'ERR', errors.length > 0 ? 'var(--rd)' : 'var(--gn)') +
     mc(String(auditChain.length), 'Audit Entries', 'This session', 'AUD', 'var(--am)') +
-    mc(typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port 9898', 'BRG', typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'var(--gn)' : 'var(--rd)') +
+    mc(typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port 9899', 'BRG', typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1 ? 'var(--gn)' : 'var(--rd)') +
     '</div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">' +
     '<button class="btn-p" style="font-size:8px;padding:7px 12px" onclick="SuperAdmin.sanitizeEnv()">🧹 Sanitize Environment</button>' +
@@ -11199,7 +11199,7 @@ console.log('%c grantAccess freeze fix applied', 'color:#10b981');
 })();
 </script>
 
-<!-- PIPER TTS CLIENT - port 9898 only, no external calls -->
+<!-- PIPER TTS CLIENT - port 9899 only, no external calls -->
 
 <script>
 (function PiperClient() {

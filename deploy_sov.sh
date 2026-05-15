@@ -117,8 +117,8 @@ done" || echo "❌ CRSE Monitor failed"
 # Step 10: Verify services locally (offline only)
 # -----------------------------
 echo "🔍 Local service verification..."
-echo "🌐 Health check Node Bridge (port 9898, local only)"
-docker exec saas_node_bridge curl -fsS http://localhost:9898/health && echo "✅ Node Bridge OK" || echo "❌ Node Bridge failed"
+echo "🌐 Health check Node Bridge (port 9899, local only)"
+docker exec saas_node_bridge curl -fsS http://localhost:9899/health && echo "✅ Node Bridge OK" || echo "❌ Node Bridge failed"
 
 echo "🌐 Health check CRSE / Mesh WS (port 9899, local only)"
 docker exec saas_crse curl -fsS http://localhost:9899 || echo "❌ CRSE Mesh WS not reachable"
@@ -165,12 +165,12 @@ docker-compose up -d
 
 # Wait for node-bridge healthcheck
 echo "⏳ Waiting for node-bridge to be healthy..."
-until curl -sSf http://localhost:9898/health > /dev/null; do
+until curl -sSf http://localhost:9899/health > /dev/null; do
   echo "Waiting for node-bridge..."
   sleep 5
 done
 
-echo "✅ Node-bridge healthy on port 9898."
+echo "✅ Node-bridge healthy on port 9899."
 
 # Optional: check other critical services
 services=("backend" "db" "redis")
@@ -230,8 +230,8 @@ docker-compose up -d
 # ----------------------
 # Wait for node-bridge
 # ----------------------
-echo "⏳ Waiting for node-bridge on port 9898..."
-until curl -sSf http://localhost:9898/health > /dev/null; do
+echo "⏳ Waiting for node-bridge on port 9899..."
+until curl -sSf http://localhost:9899/health > /dev/null; do
   echo "Waiting..."
   sleep 5
 done
@@ -339,8 +339,8 @@ docker-compose up -d
 # ----------------------
 # Wait for node-bridge
 # ----------------------
-echo "⏳ Waiting for node-bridge on port 9898..."
-until curl -sSf http://localhost:9898/health > /dev/null; do
+echo "⏳ Waiting for node-bridge on port 9899..."
+until curl -sSf http://localhost:9899/health > /dev/null; do
   echo "Waiting..."
   sleep 5
 done
