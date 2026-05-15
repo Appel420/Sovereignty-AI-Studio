@@ -1,9 +1,35 @@
 name: Quart App CI
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "weather_dashboard.py"
+      - "**/*.py"
+      - "requirements*.txt"
+      - ".github/workflows/Quart.yml"
+      - "!docs/**"
+      - "!**/*.md"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "weather_dashboard.py"
+      - "**/*.py"
+      - "requirements*.txt"
+      - ".github/workflows/Quart.yml"
+      - "!docs/**"
+      - "!**/*.md"
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quart-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-linux:

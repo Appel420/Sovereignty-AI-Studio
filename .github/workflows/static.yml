@@ -2,10 +2,16 @@
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Only re-deploy when HTML/CSS/JS or docs content actually changes
   push:
     branches: ["main"]
-
+    paths:
+      - "docs/**"
+      - "*.html"
+      - "**/*.html"
+      - "**/*.css"
+      - "**/*.js"
+      - "!.github/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 

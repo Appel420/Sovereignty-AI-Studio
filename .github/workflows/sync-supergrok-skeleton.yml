@@ -3,7 +3,8 @@ name: Sync SuperGrok Heavy Skeleton
 on:
   workflow_dispatch:
   schedule:
-    - cron: '15 3 * * *'
+    # Weekly on Monday at 03:15 UTC (was daily — reduced to cut cost)
+    - cron: '15 3 * * 1'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'

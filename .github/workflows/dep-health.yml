@@ -21,6 +21,12 @@ on:
       - ".github/workflows/dep-health.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "requirements.txt"
+      - "requirements-extra.txt"
+      - "node-bridge/package.json"
+      - "node-bridge/package-lock.json"
+      - ".github/workflows/dep-health.yml"
   schedule:
     # Every Monday at 06:00 UTC
     - cron: "0 6 * * 1"
@@ -28,6 +34,10 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: dep-health-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ── Python CVE audit ─────────────────────────────────────────────────────

@@ -3,11 +3,37 @@ name: CI
 on:
   push:
     branches: [ main ]
+    paths:
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.ts"
+      - "**/*.json"
+      - "requirements*.txt"
+      - ".github/workflows/ci.yml"
+      - "!docs/**"
+      - "!**/*.md"
   pull_request:
     branches: [ main ]
+    paths:
+      - "**/*.py"
+      - "**/*.js"
+      - "**/*.ts"
+      - "**/*.json"
+      - "requirements*.txt"
+      - ".github/workflows/ci.yml"
+      - "!docs/**"
+      - "!**/*.md"
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
