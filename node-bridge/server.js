@@ -407,6 +407,7 @@ const PY_BRIDGE_MSG_TYPES = new Set([
   'set_model', 'gh_exchange',
   'stt_start', 'stt_stop',
   'collab_event', 'planet_task',
+  'ssh_connect', 'ssh_input', 'ssh_disconnect', 'ssh_resize',
 ]);
 
 const rootClients = new Set();
@@ -626,7 +627,7 @@ app.get('/api/bridge/status', async (_req, res) => {
 // ---------------------------------------------------------------------------
 // RAG proxy — ratchet-encrypted vector-store operations
 // ---------------------------------------------------------------------------
-app.all('/api/rag/*', (req, res) => proxyRequest(BACKEND_URL, req, res));
+app.all(/^\/api\/rag\/.*/, (req, res) => proxyRequest(BACKEND_URL, req, res));
 
 // ---------------------------------------------------------------------------
 // Chat HTTP fallback — proxied to gateway
@@ -1115,7 +1116,7 @@ app.post('/exec/code', rateLimit(60000, 10), (req, res) => {
     if (dangerousChars.test(code)) {
       return res.json({ output: '', error: 'Shell metacharacters not allowed (;|&`$(){}!<>#). Use single commands only.', lang: 'shell', user: user || 'anon', timestamp: ts });
     }
-    const allowed = /^(echo|printf|date|whoami|uname|ls|pwd|id|hostname|uptime|df|du|wc|head|tail|sort|uniq|grep|cut|tr|node|npm)\b/;
+    const allowed = /^(echo|printf|date|whoami|uname|ls|pwd|id|hostname|uptime|df|du|wc|head|tail|sort|uniq|grep|cut|tr|ps|free|cat|node|npm|python3|pip3|git|apk)\b/;
     const firstCmd = code.trim().split(/\s/)[0];
     if (!allowed.test(firstCmd)) {
       return res.json({ output: '', error: 'Command not allowed: ' + firstCmd, lang: 'shell', user: user || 'anon', timestamp: ts });
@@ -1128,8 +1129,10 @@ app.post('/exec/code', rateLimit(60000, 10), (req, res) => {
       uptime: '/usr/bin/uptime', df: '/bin/df', du: '/usr/bin/du',
       wc: '/usr/bin/wc', head: '/usr/bin/head', tail: '/usr/bin/tail',
       sort: '/usr/bin/sort', uniq: '/usr/bin/uniq', grep: '/bin/grep',
-      cut: '/usr/bin/cut', tr: '/usr/bin/tr',
-      node: process.execPath, npm: '/usr/bin/npm',
+      cut: '/usr/bin/cut', tr: '/usr/bin/tr', ps: '/bin/ps',
+      free: '/usr/bin/free', cat: '/bin/cat',
+      node: process.execPath, npm: '/usr/bin/npm', python3: '/usr/bin/python3',
+      pip3: '/usr/bin/pip3', git: '/usr/bin/git', apk: '/sbin/apk',
     };
     // Use execFile with absolute path and split args to avoid shell interpretation
     const parts = code.trim().split(/\s+/);
