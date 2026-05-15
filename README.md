@@ -38,7 +38,7 @@ Browser / iPhone
                                                    Python bridge.py (9897)
                                                           │
                                                           ▼
-                                                   backend (FastAPI 8002, internal)
+                                                   backend (FastAPI :8002, internal)
                                                        ┌──┴──────────────┐
                                                        ▼                 ▼
                                                PostgreSQL (5432)   Redis (6379)
