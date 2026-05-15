@@ -10,5 +10,5 @@
     "check":   "node --check unified_server.js && echo OK"
   },
   "engines": { "node": ">=25.0.0" },
-  "dependencies": { "ws": "^8.18.0" }
+  "dependencies": { "ws": "^8.20.1" }
 }
