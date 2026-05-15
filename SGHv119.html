@@ -5775,6 +5775,10 @@ function afterPanel(id){
   setTimeout(function(){
     if(id==='agents'&&window.SGOrchestrator&&window.SGOrchestrator.renderOrchPanel)window.SGOrchestrator.renderOrchPanel();
     if(id==='ecosystem'&&window.ecoRefresh) window.ecoRefresh();
+    if(id==='codemaster'){
+      try{ document.dispatchEvent(new CustomEvent('sg:panelLoaded',{detail:{id:id}})); }catch(_){}
+      if(typeof _initCM==='function') _initCM();
+    }
     if(id==="fortress"||id==="cloudenforcer"){
       setTimeout(function(){
         /* Fortress panel wiring */
