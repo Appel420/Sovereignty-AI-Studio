@@ -3424,12 +3424,16 @@ window.renderLinearCard = function() {
 if (typeof PANEL_MAP !== 'undefined') {
 PANEL_MAP.bridgecfg  = function() { return renderBridgeConfig(); };
 PANEL_MAP.pipertts   = function() { return renderPiperTTS(); };
+PANEL_MAP.codemaster = function() { return PANELS.codemaster(); };
 PANEL_MAP.github     = function() { return renderGitHub(); };
 PANEL_MAP.keycloak   = function() { return renderKeycloakPanel(); };
 PANEL_MAP.merkleaudit= function() { return renderMerklePanel(); };
 PANEL_MAP.killswitch = function() { return renderKillswitch(); };
 PANEL_MAP.ids        = function() { return renderIDSPanel(); };
 PANEL_MAP.linearcard = function() { return renderLinearCard(); };
+PANEL_MAP.terminal   = function() { return PANELS.terminal(); };
+PANEL_MAP.webssh     = function() { return PANELS.webssh(); };
+PANEL_MAP.selffix    = function() { return PANELS.selffix(); };
 PANEL_MAP.copilot_agent = function() { return renderCopilotAgent(); };
 }
 
@@ -17841,10 +17845,15 @@ _histIdx: -1,
 
 connect: function() {
 if (BridgeTerm._ws && BridgeTerm._ws.readyState < 2) return;
+if (window.SG_SSH && typeof SG_SSH.connectLocal === 'function') {
+  try { loadPanel('webssh'); } catch(e) {}
+  SG_SSH.connectLocal();
+  return;
+}
 try {
-BridgeTerm._ws = new WebSocket('ws://127.0.0.1:9899/terminal');
+BridgeTerm._ws = new WebSocket('ws://127.0.0.1:9899');
 BridgeTerm._ws.onopen = function() {
-BridgeTerm._log('CONNECTED to localhost:9899/terminal', 'var(--acid)');
+BridgeTerm._log('CONNECTED to localhost:9899', 'var(--acid)');
 window.auditLog && window.auditLog('BRIDGE_TERMINAL_OPEN', {});
 };
 BridgeTerm._ws.onmessage = function(e) {
@@ -17864,14 +17873,27 @@ BridgeTerm._log('WebSocket error: ' + e.message, 'var(--pulse)');
 
 send: function(cmd) {
 if (!cmd) return;
+if (window.SG_SSH && typeof SG_SSH.quickCmd === 'function') {
+  SG_SSH.quickCmd(cmd);
+  return;
+}
 BridgeTerm._history.unshift(cmd);
 if (BridgeTerm._history.length > 100) BridgeTerm._history.pop();
 BridgeTerm._histIdx = -1;
 BridgeTerm._log('> ' + cmd, 'var(--volt)');
 if (BridgeTerm._ws && BridgeTerm._ws.readyState === 1) {
-BridgeTerm._ws.send(JSON.stringify({type:'exec', cmd:cmd}));
+BridgeTerm._ws.send(JSON.stringify({cmd:'EXEC', lang:'shell', code:cmd, user:(window.ST && window.ST.name)||'terminal'}));
 } else {
-BridgeTerm._log('Bridge offline — start bridge.py first', 'var(--pulse)');
+BridgeTerm._log('Bridge offline — using /exec/code fallback', 'var(--pulse)');
+fetch('http://127.0.0.1:9899/exec/code', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ lang: 'shell', code: cmd, user: (window.ST && window.ST.name) || 'terminal' })
+}).then(function(r){ return r.json(); }).then(function(d){
+  BridgeTerm._log(d.output || d.result || d.text || '(no output)', 'var(--t1)');
+}).catch(function(e){
+  BridgeTerm._log('Exec error: ' + e.message, 'var(--pulse)');
+});
 }
 },
 
@@ -17958,13 +17980,20 @@ kc('ZERO',     'Cloud',         'var(--pulse)') +
 'Node.js commands exec via bridge. GitHub clone/pull/push routed through bridge.' +
 '</div>' +
 
+'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' +
+'<button class="btn btn-s" style="font-size:8px" onclick="sg(function(){loadPanel(\'webssh\');})">🔒 WebSSH</button>' +
+'<button class="btn btn-s" style="font-size:8px" onclick="sg(function(){if(window.sgOpenApp)sgOpenApp(\'ashell://\',\'a-Shell\');})">⚡ a-Shell</button>' +
+'<button class="btn btn-s" style="font-size:8px" onclick="sg(function(){if(window.sgOpenApp)sgOpenApp(\'ish://\',\'iSH Shell\');})">🐧 iSH</button>' +
+'<button class="btn btn-s" style="font-size:8px" onclick="sg(function(){if(window.sgOpenApp)sgOpenApp(\'github://\',\'GitHub\');})">🐙 GitHub</button>' +
+'</div>' +
+
 /* Quick connect buttons */
 '<div class="card" style="border-color:var(--acid)22">' +
 '<div class="card-title">\u26a1 Quick Connect</div>' +
 '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-bottom:12px">' +
 [
 {label:'Start Bridge (Python)',  cmd:'python3 bridge.py',         color:'var(--acid)'},
-{label:'Start Bridge (Node)',    cmd:'node bridge.js',             color:'var(--volt)'},
+{label:'Start Bridge (Node)',    cmd:'node node-bridge/server.js',  color:'var(--volt)'},
 {label:'Check Python',           cmd:'python3 --version',          color:'#00b894'},
 {label:'Check Node.js',          cmd:'node --version',             color:'#fdcb6e'},
 {label:'Check npm',              cmd:'npm --version',              color:'#e17055'},
@@ -22611,7 +22640,7 @@ return '<div style="background:var(--bg2);border:1px solid var(--wire);border-ra
 
 /* ══════════════════════════════════════════════════════════════════════════
 PANELS.webssh — Full WebSSH terminal with inline emulator
-Connects via bridge.py SSH proxy or direct WebSocket to :9899/terminal
+Connects via bridge.py SSH proxy or direct WebSocket to :9899
 ══════════════════════════════════════════════════════════════════════════ */
 PANELS.webssh = function(){
 return hdr('🔒 Secure Terminal','WebSSH · SSH Proxy · a-Shell · iSH · On-Device · Encrypted') +
@@ -22687,9 +22716,9 @@ return hdr('🔒 Secure Terminal','WebSSH · SSH Proxy · a-Shell · iSH · On-D
 '<div class="card-title">⚡ Quick Commands</div>' +
 '<div style="display:flex;flex-wrap:wrap;gap:5px">' +
 ['ls -la','pwd','whoami','python3 --version','node --version','git status',
-'git log --oneline -5','pip3 list','ps aux | head','df -h','free -h',
-'cat /etc/os-release','uname -a','python3 bridge.py','node Unified_Server.js',
-'git pull','npm install','pip3 install -r requirements.txt'].map(function(cmd){
+ 'git log --oneline -5','pip3 list','ps aux | head','df -h','free -h',
+ 'cat /etc/os-release','uname -a','python3 bridge.py','node unified_server.js',
+ 'git pull','npm install','pip3 install -r requirements.txt'].map(function(cmd){
 return '<button class="btn-s" style="font-size:8px;font-family:monospace;padding:3px 8px;border-radius:4px;background:#0d1117;border:1px solid #333;color:#8b949e;cursor:pointer" onclick="sg(function(){SG_SSH.quickCmd(\''+cmd+'\')})">'+cmd+'</button>';
 }).join('') +
 '</div>' +
@@ -24995,10 +25024,10 @@ document.removeEventListener('sg:bridgeMsg', handler);
 return;
 }
 
-/* Fallback: dedicated WebSocket to /terminal */
+/* Fallback: dedicated WebSocket to root bridge */
 _mode = 'bridge-ws';
 try{
-  _ws = new WebSocket('ws://127.0.0.1:9899/terminal');
+  _ws = new WebSocket('ws://127.0.0.1:9899');
   _ws.onopen = function(){
     _ws.send(JSON.stringify({type:'ssh_connect',host:host,port:parseInt(port)||22,username:user,password:pass}));
     _setStatus('connecting','SSH handshake...','');
@@ -25028,23 +25057,16 @@ try{
 /* ── Local command simulation (bridge shell commands) ── */
 function _localExec(cmd){
 _out(_prompt+cmd, '#b8ff00');
-/* Route via main bridge */
-if(window.bridgeSend){
-window.bridgeSend({type:'exec', cmd:cmd, ts:Date.now()});
-/* Response will come via sg:bridgeMsg handler */
-var handler = function(ev){
-var d=ev&&ev.detail;
-if(!d) return;
-if(d.type==='exec_result'||d.type==='shell_result'||d.type==='result'||d.type==='output'){
-_out(d.output||d.result||d.text||'(no output)', '#c9d1d9');
-document.removeEventListener('sg:bridgeMsg', handler);
-}
-};
-document.addEventListener('sg:bridgeMsg', handler);
-setTimeout(function(){ document.removeEventListener('sg:bridgeMsg', handler); }, 10000);
-} else {
-_out('Bridge offline — commands execute when bridge.py is running', '#ff9800');
-}
+var payload = { lang:'shell', code:cmd, user:(window.ST&&window.ST.name)||'terminal' };
+fetch('http://127.0.0.1:9899/exec/code', {
+  method:'POST',
+  headers:{'Content-Type':'application/json'},
+  body:JSON.stringify(payload)
+}).then(function(r){ return r.json(); }).then(function(d){
+  _out(d.output||d.result||d.text||'(no output)', '#c9d1d9');
+}).catch(function(e){
+  _out('⚠ '+e.message, '#ff6b6b');
+});
 }
 
 /* ── Public API ── */
@@ -25072,7 +25094,8 @@ connectISH: function(){
   _setStatus('connected','iSH Alpine Linux','on-device');
   _prompt = 'root@iSH:~# ';
   var p=document.getElementById('ssh-prompt');if(p)p.textContent='root@iSH:~# ';
-  _out('iSH shell — run bridge.py first:\n  cp bridge.py /root/\n  python3 /root/bridge.py', '#00ffc8');
+  if (typeof sgOpenApp === 'function') try { sgOpenApp('ish://', 'iSH Shell'); } catch(e) {}
+  _out('iSH app launch requested.\nUse the native shell for Alpine commands + bridge.py live access.', '#00ffc8');
 },
 
 connectAShell: function(){
@@ -25080,7 +25103,8 @@ connectAShell: function(){
   _setStatus('connected','a-Shell','on-device');
   _prompt = 'a-Shell$ ';
   var p=document.getElementById('ssh-prompt');if(p)p.textContent='a-Shell$ ';
-  _out('a-Shell mode — execute commands via bridge.py\n  python3 bridge.py', '#00ffc8');
+  if (typeof sgOpenApp === 'function') try { sgOpenApp('ashell://', 'a-Shell'); } catch(e) {}
+  _out('a-Shell app launch requested.\nUse the native shell for Python / Node / GitHub live access.', '#00ffc8');
 },
 
 disconnect: function(){
