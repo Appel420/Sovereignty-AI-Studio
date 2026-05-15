@@ -21,6 +21,12 @@ on:
       - ".github/workflows/dep-health.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "requirements.txt"
+      - "requirements-extra.txt"
+      - "node-bridge/package.json"
+      - "node-bridge/package-lock.json"
+      - ".github/workflows/dep-health.yml"
   schedule:
     # Every Monday at 06:00 UTC
     - cron: "0 6 * * 1"
@@ -28,6 +34,10 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: dep-health-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # ── Python CVE audit ─────────────────────────────────────────────────────
@@ -42,7 +52,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
@@ -117,7 +127,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
           cache: "pip"
@@ -176,7 +186,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Node.js 25
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: "25"
           cache: "npm"
@@ -228,7 +238,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 

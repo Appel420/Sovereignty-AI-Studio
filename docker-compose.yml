@@ -86,7 +86,7 @@ services:
     environment:
       NODE_BRIDGE_PORT: "9899"
       BACKEND_URL: http://backend:8002
-      WEATHER_URL: http://backend:8001
+      WEATHER_URL: http://backend:8002
       GATEWAY_URL: http://gateway:9001
       SOVEREIGN_API_URL: http://backend:8002/api/ai
       CORS_ORIGIN: ${CORS_ORIGIN:-*}
@@ -128,9 +128,9 @@ services:
       dockerfile: agents/judge_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "9001"
+      - "9002"
     environment:
-      - JUDGE_METRICS_PORT=9001
+      - JUDGE_METRICS_PORT=9002
       - REDIS_URL=redis://redis:6379
     depends_on:
       - redis
@@ -141,8 +141,9 @@ services:
       dockerfile: agents/ai_router_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "8001"
+      - "9004"
     environment:
+      - AI_ROUTER_PORT=9004
       - REDIS_URL=redis://redis:6379
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
@@ -157,8 +158,9 @@ services:
       dockerfile: agents/plugin_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "8002"
+      - "9005"
     environment:
+      - PLUGIN_AGENT_PORT=9005
       - REDIS_URL=redis://redis:6379
       - PLUGIN_SDK_DIR=/app/plugin_sdk
     depends_on:
@@ -171,8 +173,9 @@ services:
       dockerfile: agents/platform_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "8003"
+      - "9006"
     environment:
+      - PLATFORM_AGENT_PORT=9006
       - REDIS_URL=redis://redis:6379
       - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
       - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
@@ -191,8 +194,9 @@ services:
       dockerfile: agents/voice_assist_agent/Dockerfile
     restart: unless-stopped
     expose:
-      - "8004"
+      - "9007"
     environment:
+      - VOICE_ASSIST_PORT=9007
       - REDIS_URL=redis://redis:6379
     depends_on:
       - judge_agent
