@@ -7,11 +7,8 @@ if [ -f "SecureEnclaveHelper.swift" ]; then
 fi
 ./secure-enclave-helper generate || true
 # launchd + newsyslog setup here
-sudo tee /Library/LaunchDaemons/com.sovereignty.bridge.plist > /dev/null << 'PLIST'
-... (full plist)
-PLIST
-sudo tee /etc/newsyslog.d/sovereignty-bridge.conf > /dev/null << 'EOF'
-... log rotation
-EOF
-sudo launchctl load /Library/LaunchDaemons/com.sovereignty.bridge.plist || true
+echo "ERROR: install-sovereignty.sh is missing the real LaunchDaemon plist and newsyslog configuration contents." >&2
+echo "Refusing to install placeholder configuration into /Library/LaunchDaemons or /etc/newsyslog.d." >&2
+echo "Please replace the placeholder heredocs with the full com.sovereignty.bridge.plist and sovereignty-bridge.conf contents, then rerun this installer." >&2
+exit 1
 echo "Installation complete"
