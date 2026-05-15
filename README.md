@@ -38,7 +38,7 @@ Browser / iPhone
                                                    Python bridge.py (9897)
                                                           │
                                                           ▼
-                                                   backend (FastAPI 8000, internal)
+                                                   backend (FastAPI :8002, internal)
                                                        ┌──┴──────────────┐
                                                        ▼                 ▼
                                                PostgreSQL (5432)   Redis (6379)
@@ -292,7 +292,7 @@ GH_CLIENT_ID=your_github_client_id
 GH_CLIENT_SECRET=your_github_client_secret
 
 # Optional: Server Configuration
-PORT_UNIFIED=9000                  # Unified server port
+PORT_UNIFIED=9001                  # Unified server port
 PORT_BRIDGE=9899                   # Bridge server port
 LOG_DIR=./logs                     # Audit log directory
 VERBOSE=1                          # Enable verbose logging

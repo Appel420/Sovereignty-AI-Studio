@@ -2,10 +2,16 @@
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Only re-deploy when HTML/CSS/JS or docs content actually changes
   push:
     branches: ["main"]
-
+    paths:
+      - "docs/**"
+      - "*.html"
+      - "**/*.html"
+      - "**/*.css"
+      - "**/*.js"
+      - "!.github/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -33,11 +39,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v6
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           # Upload entire repository
           path: '.'

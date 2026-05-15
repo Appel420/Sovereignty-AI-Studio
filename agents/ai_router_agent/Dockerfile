@@ -9,6 +9,6 @@ COPY agents/__init__.py ./agents/
 COPY agents/judge_agent/ ./agents/judge_agent/
 COPY event_bus/ ./event_bus/
 
-EXPOSE 8001
+EXPOSE 9897
 
 CMD ["python", "-c", "import asyncio; from agents.ai_router_agent.router import AIRouterAgent; print('AI Router Agent ready')"]

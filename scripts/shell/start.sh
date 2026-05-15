@@ -21,9 +21,9 @@ else
   echo "  ⚠️  Backend not responding (check port 8443)"
 fi
 
-# 4. Start bridge on 9898 (if server_9898.js exists)
+# 4. Start legacy dev bridge (server_9898.js is a legacy filename; canonical bridge is node-bridge/server.js on :9899)
 if [ -f "../server_9898.js" ]; then
-  echo "► Starting Piper bridge on :9898"
+  echo "► Starting legacy dev bridge (server_9898.js) — canonical bridge is node-bridge on :9899"
   node ../server_9898.js &
   BRIDGE_PID=$!
   echo "  PID: $BRIDGE_PID"

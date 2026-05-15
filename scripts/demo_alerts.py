@@ -136,7 +136,7 @@ def demo_create_alerts():
         print("  2. Start the frontend: cd frontend && npm start")
         print("  3. Open http://localhost:9898 and click the bell icon")
         print("\nOr query via API:")
-        print("  curl http://localhost:9898/api/v1/alerts/")
+        print("  curl http://localhost:9899/api/v1/alerts/")
         
         return created_alerts
         

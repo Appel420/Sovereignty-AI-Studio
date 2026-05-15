@@ -1,18 +1,44 @@
 name: Quart App CI
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "weather_dashboard.py"
+      - "**/*.py"
+      - "requirements*.txt"
+      - ".github/workflows/Quart.yml"
+      - "!docs/**"
+      - "!**/*.md"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "weather_dashboard.py"
+      - "**/*.py"
+      - "requirements*.txt"
+      - ".github/workflows/Quart.yml"
+      - "!docs/**"
+      - "!**/*.md"
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quart-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-linux:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v4
     - name: Set up Python 3.11
-      uses: actions/setup-python@v6
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
     - name: Install dependencies
@@ -29,7 +55,7 @@ jobs:
         # Install hypercorn for running Quart apps
         pip install hypercorn
         # Start the Quart app in the background using hypercorn
-        hypercorn weather_dashboard:app --bind 0.0.0.0:9898 &
+        hypercorn weather_dashboard:app --bind 0.0.0.0:8001 &
         APP_PID=$!
         echo "Started hypercorn with PID: $APP_PID"
         # Wait for the app to start and verify it's running
@@ -39,6 +65,6 @@ jobs:
           exit 1
         fi
         # Test the endpoint
-        curl -f http://localhost:9898/api/weather?city=London || exit 1
+        curl -f http://localhost:8001/api/weather?city=London || exit 1
         # Kill the background process using specific PID
         kill $APP_PID

@@ -5,7 +5,7 @@ Exposes three counters:
 - ``tasks_rejected_total``
 - ``tasks_released_total``
 
-A lightweight HTTP server is started on ``JUDGE_METRICS_PORT`` (default 9898)
+A lightweight HTTP server is started on ``JUDGE_METRICS_PORT`` (default 9002)
 so Prometheus can scrape the ``/metrics`` endpoint.
 """
 
@@ -15,7 +15,7 @@ import threading
 
 logger = logging.getLogger(__name__)
 
-_METRICS_PORT = int(os.getenv("JUDGE_METRICS_PORT", "8000"))
+_METRICS_PORT = int(os.getenv("JUDGE_METRICS_PORT", "9002"))
 
 # ---------------------------------------------------------------------------
 # Metric objects — created lazily so the import doesn't fail when
