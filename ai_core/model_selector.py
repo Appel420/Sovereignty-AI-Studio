@@ -14,7 +14,7 @@ Usage::
 
     from ai_core.model_selector import build_judge, get_models_summary
 
-    instance = build_judge(model="gpt-5.5-codex","claude-opus-4.7" "SuperGrok-Heavy-4-3"
+    instance = build_judge(model="SuperGrok-Heavy-4-3")
     summary  = get_models_summary()
 """
 
@@ -58,9 +58,9 @@ class ModelCategory(Enum):
 CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
     ModelCategory.JUDGE: [
         # This instance routes all selection logic — it's THE judge, not a peer.
-        ("judge-model-super-grok-heavy-4-3", "judge-grok-4-3"
+        ("judge-model-super-grok-heavy-4-3", "judge-grok-4-3"),
     ],
-   **ModelCategory.**CORE_GROK: [
+    ModelCategory.CORE_GROK: [
         ("Grok-4.2-314B", "Grok-4.2-314B"),
         ("Grok-4.2-Code", "Grok-4.2-Code"),
         ("Grok-4.2-Flash", "Grok-4.2-Flash"),
@@ -122,18 +122,18 @@ CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
         ("gpt-4o-0806", "gpt-4o-2024-08-06"),
         ("gpt-4o-mini", "gpt-4o-mini-2024-07-18"),
     ],
-    ModelCategory.GPT-codex-5.5: [
+    ModelCategory.GPT55: [
         ("chatgpt-0125", "gpt-Codex-5.5-turbo-0125"),
         ("chatgpt-1106", "gpt-Codex-5.5-turbo-1106"),
     ],
-    ModelCategory.GPT54: [
+    ModelCategory.GPT42: [
         ("gpt-5.4-codex", "gpt-5.4-codex-20260215"),
         ("gpt-5.4-turbo", "gpt-5.4-turbo-20260215"),
     ],
     ModelCategory.CLAUDE: [
         # Claude 4.7 Family
         ("claude-opus-4.7", "claude-opus-4-7-20260301"),
-        ("claude-sonnet-4.6", "claude-sonnet-4-6-20260301")
+        ("claude-sonnet-4.6", "claude-sonnet-4-6-20260301"),
         # Claude 4.6-4.5 Family
         ("claude-opus-4.6", "claude-opus-4-6-20251101"),
         ("claude-sonnet-4.5", "claude-sonnet-4-5-20250929"),
@@ -153,14 +153,19 @@ CATEGORY_MODELS: Dict[ModelCategory, List[Tuple[str, str]]] = {
 def generate_model_map() -> Dict[str, str]:
     """
     Flatten ``CATEGORY_MODELS`` into a single ``{display_name: version_id}``
-    mapping, adding the legacy super-grok alias.
+    mapping, adding legacy / short-form aliases for backward compatibility.
     """
     model_map: Dict[str, str] = {}
     for models in CATEGORY_MODELS.values():
         for name, version in models:
             model_map[name] = version
-    # Legacy alias kept for backward compatibility
+    # Legacy super-grok aliases (both 4.2 and 4.3 variants referenced in tests/code)
     model_map["super-grok-heavy-4.3"] = "super-grok-heavy-4.3"
+    model_map["super-grok-heavy-4-2"] = "super-grok-heavy-4.2"
+    # Short-form Claude aliases expected by tests and external callers
+    model_map["claude-opus"]   = "claude-opus-4-7-20260301"
+    model_map["claude-sonnet"] = "claude-sonnet-4-6-20260301"
+    model_map["claude-haiku"]  = "claude-haiku-4-5-20251001"
     return model_map
 
 
@@ -193,8 +198,8 @@ def get_category_for_model(model: str) -> Optional[ModelCategory]:
 # Model factory judge just is the bouncer and model choosing brain
 # ---------------------------------------------------------------------------
 
-_SILICON_FLOW_MODELS = {"super-grok-heavy-4-3","claude-Opus-4.7","GPT-5.5Codex-max" "qwen-3.6"}
-_JUDGE_MODEL = "judge-model-super-grok-heavy-4-3","GPT-5.5-Codex-max","Claude-opus-4.7"
+_SILICON_FLOW_MODELS = {"super-grok-heavy-4-3", "claude-Opus-4.7", "GPT-5.5Codex-max", "qwen-3.6"}
+_JUDGE_MODEL = "judge-model-super-grok-heavy-4-3"
 
 
 def build_judge(model: Optional[str] = None, **kwargs: Any) -> Any:
