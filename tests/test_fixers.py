@@ -122,9 +122,15 @@ class TestDatabaseFixer:
         temp_dir = Path(tempfile.mkdtemp())
         db_path = temp_dir / "test.db"
         schema = """
-        CREATE TABLE IF NOT EXISTS test (
-            id INTEGER PRIMARY KEY,
-            data TEXT
+        CREATE TABLE IF NOT EXISTS conversations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT
+        );
+        CREATE TABLE IF NOT EXISTS kv (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        );
+        CREATE TABLE IF NOT EXISTS events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT
         );
         """
 
@@ -141,6 +147,7 @@ class TestDatabaseFixer:
             # Check integrity
             is_healthy, issues = fixer.check_integrity()
             assert is_healthy is True
+            assert issues == []
 
         finally:
             # Cleanup
