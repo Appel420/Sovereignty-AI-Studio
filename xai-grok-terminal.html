@@ -195,25 +195,32 @@ async function sendCommand() {
 }
 
 // Package installer
-function installPackages() {
+async function installPackages() {
   const payload = {
-    action: 'install-packages',
     packages: ['rust', 'python3', 'nodejs'],
     autoUpdate: true
   };
 
   addOutput('📦 Triggering package installation...');
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(payload));
-    log('Package install command sent via gateway', 'success');
-  } else {
-    // Fallback to direct backend
-    fetch(`${BACKEND}/terminal`, {
+  try {
+    const res = await fetch(`${BACKEND}/install-packages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
-    }).then(r => r.text()).then(t => addOutput(t));
+    });
+
+    const text = await res.text();
+
+    if (!res.ok) {
+      throw new Error(text || `Install request failed with status ${res.status}`);
+    }
+
+    addOutput(text || 'Package installation started.');
+    log('Package install request sent to backend', 'success');
+  } catch (e) {
+    addOutput('Failed to trigger package installation.', 'danger');
+    log('Package installation failed: ' + e.message, 'error');
   }
 }
 
