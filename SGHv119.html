@@ -6,8 +6,35 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9899 ws://127.0.0.1:9899/ ws://127.0.0.1:9899/terminal ws://127.0.0.1:9899/agent ws://127.0.0.1:9899/chat ws://127.0.0.1:9899/bridge wss://127.0.0.1:9899 wss://127.0.0.1:9899/ wss://127.0.0.1:9899/terminal wss://127.0.0.1:9899/agent wss://127.0.0.1:9899/chat wss://127.0.0.1:9899/bridge ws://localhost:9899 wss://localhost:9899 http://127.0.0.1:9899 http://127.0.0.1:9898 https://api.anthropic.com https://api.openai.com https://api.x.ai https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: http://127.0.0.1:9899 http://127.0.0.1:9898; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://proton.me https://protonmail.com https://protonvpn.com https://signal.org https://localhost:* http://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src blob: blob-request:;">
+<meta name="theme-color" content="#<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; 
+connect-src 'self' 
+    ws://127.0.0.1:9897 
+    ws://127.0.0.1:9899 
+    ws://localhost:9897 
+    ws://localhost:9899 
+    wss://127.0.0.1:9897 
+    wss://127.0.0.1:9899 
+    wss://localhost:9897 
+    wss://localhost:9899 
+    http://127.0.0.1:9897 
+    http://127.0.0.1:9898 
+    http://127.0.0.1:9899 
+    https://api.anthropic.com 
+    https://api.openai.com 
+    https://api.x.ai 
+    https://eonet.gsfc.nasa.gov 
+    https://api.weather.gov 
+    https://cdn.star.nesdis.noaa.gov;
+script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: 
+    http://127.0.0.1:9897 
+    http://127.0.0.1:9898 
+    http://127.0.0.1:9899;
+style-src 'self' 'unsafe-inline'; 
+font-src 'self' data:; 
+img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; 
+media-src 'self' blob:; 
+frame-src https://duckduckgo.com https://www.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; 
+worker-src blob: blob-request:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -6673,16 +6700,17 @@ PANELS.chat=function(){
   var wsOk=(window._wsState==='connected')||(window.BRIDGE&&window.BRIDGE.connected);
   var statusColor=wsOk?'var(--gn)':'var(--am)';
   var statusText=wsOk?'Bridge LIVE ✓':'Bridge offline — direct API mode';
-  return hdr('💬 AI Chat','Claude · GPT-4o · Grok · Copilot — sovereign bridge :9899')+
+  return hdr('💬 AI Chat','Local bridge :9897 · Claude · GPT-4o · Grok — speak or type')+
   /* Status bar */
   '<div style="background:rgba(0,0,0,.4);border:1px solid var(--wire);border-radius:8px;padding:8px 12px;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+
   '<span style="width:8px;height:8px;border-radius:50%;background:'+statusColor+';display:inline-block;flex-shrink:0"></span>'+
   '<span style="font-family:var(--mono);font-size:9px;color:'+statusColor+'">'+statusText+'</span>'+
   (hasKey?'<span style="font-family:var(--mono);font-size:8px;color:var(--gn);margin-left:auto">🔑 API keys loaded</span>':
-          '<span style="font-family:var(--mono);font-size:8px;color:var(--am);margin-left:auto">⚠ No API keys — set below or start bridge</span>')+
+          '<span style="font-family:var(--mono);font-size:8px;color:var(--am);margin-left:auto">⚠ No API keys — ⚔️ Local uses bridge only</span>')+
   '</div>'+
   /* Agent selector */
   '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'+
+  '<button class="btn btn-s btn-sm ca on" data-ag="sovereign" onclick="window._chatAg=\'sovereign\';document.querySelectorAll(\'.ca\').forEach(function(b){b.classList.toggle(\'on\',b.getAttribute(\'data-ag\')===\'sovereign\')})">⚔️ Local</button>'+
   '<button class="btn btn-s btn-sm ca" data-ag="claude" onclick="window._chatAg=\'claude\';document.querySelectorAll(\'.ca\').forEach(function(b){b.classList.toggle(\'on\',b.getAttribute(\'data-ag\')===\'claude\')})">🟣 Claude</button>'+
   '<button class="btn btn-s btn-sm ca" data-ag="gpt"    onclick="window._chatAg=\'gpt\';document.querySelectorAll(\'.ca\').forEach(function(b){b.classList.toggle(\'on\',b.getAttribute(\'data-ag\')===\'gpt\')})">🟢 GPT-4o</button>'+
   '<button class="btn btn-s btn-sm ca" data-ag="grok"   onclick="window._chatAg=\'grok\';document.querySelectorAll(\'.ca\').forEach(function(b){b.classList.toggle(\'on\',b.getAttribute(\'data-ag\')===\'grok\')})">⚡ Grok</button>'+
@@ -6690,11 +6718,13 @@ PANELS.chat=function(){
   '<button class="btn btn-s" style="font-size:9px;margin-left:auto" onclick="window._chatHistory=[];var m=gi(\'chatMsgs\');if(m)m.innerHTML=\'<div class=\\"chat-placeholder\\">History cleared</div>\';toast(\'Chat cleared\',\'\')">🗑 Clear</button>'+
   '</div>'+
   /* Chat messages */
-  '<div class="chat-msgs" id="chatMsgs" style="min-height:220px;max-height:380px"><div class="chat-placeholder">Select an agent above and start talking — works with bridge or direct API key</div></div>'+
-  /* Input row */
-  '<div style="display:flex;gap:8px;margin-top:8px">'+
-  '<input class="sg-in" id="chatIn" placeholder="Message your AI..." style="flex:1" autocomplete="off" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendChat();}">'+
-  '<button class="btn btn-p" id="chatSend" onclick="sendChat()">Send →</button>'+
+  '<div class="chat-msgs" id="chatMsgs" style="min-height:220px;max-height:380px"><div class="chat-placeholder">⚔️ Local routes straight to bridge.py :9897 — no API key needed. Tap 🎤 to speak.</div></div>'+
+  /* Input row — mic button, text input, TTS toggle, send */
+  '<div style="display:flex;gap:8px;margin-top:8px;align-items:center">'+
+  '<button id="chatMic" title="Voice input — speak your message" onclick="(function(){var btn=gi(\'chatMic\');if(window._voiceActive){if(window._voiceRec){try{window._voiceRec.stop();}catch(e){}}window._voiceActive=false;btn.textContent=\'🎤\';btn.style.opacity=\'1\';btn.style.color=\'\';toast(\'Mic off\',\'\');}else{var SR=window.SpeechRecognition||window.webkitSpeechRecognition;if(!SR){toast(\'Voice not supported in this browser\',\'err\');return;}var rec=new SR();rec.continuous=false;rec.interimResults=false;rec.lang=\'en-US\';rec.onresult=function(e){var t=Array.from(e.results).map(function(r){return r[0].transcript;}).join(\' \');var inp=gi(\'chatIn\');if(inp){inp.value=t;}window._voiceActive=false;btn.textContent=\'🎤\';btn.style.opacity=\'1\';btn.style.color=\'\';sendChat&&sendChat();};rec.onerror=function(e){toast(\'Voice error: \'+e.error,\'err\');window._voiceActive=false;btn.textContent=\'🎤\';btn.style.opacity=\'1\';btn.style.color=\'\';};rec.onend=function(){if(window._voiceActive){window._voiceActive=false;btn.textContent=\'🎤\';btn.style.opacity=\'1\';btn.style.color=\'\';}};rec.start();window._voiceRec=rec;window._voiceActive=true;btn.textContent=\'🔴\';btn.style.opacity=\'0.7\';btn.style.color=\'var(--pulse)\';toast(\'🎤 Listening — speak now\',\'ok\');}})();" style="background:var(--bg2);border:1px solid var(--wire);color:var(--t1);font-size:16px;padding:0 10px;height:36px;border-radius:var(--r);cursor:pointer;flex-shrink:0">🎤</button>'+
+  '<input class="sg-in" id="chatIn" placeholder="Type or tap 🎤 to speak..." style="flex:1" autocomplete="off" onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendChat();}">'+
+  '<button id="chatTTS" title="Speak AI responses aloud (TTS)" onclick="window._chatTTS=!window._chatTTS;this.style.opacity=window._chatTTS?\'1\':\'0.35\';this.title=window._chatTTS?\'TTS on — AI responses spoken\':\'TTS off\';toast(window._chatTTS?\'🔊 Voice responses ON\':\'\uD83D\uDD07 Voice responses OFF\',\'\');" style="background:var(--bg2);border:1px solid var(--wire);color:var(--t1);font-size:16px;padding:0 10px;height:36px;border-radius:var(--r);cursor:pointer;flex-shrink:0;opacity:0.35" title="TTS off">🔊</button>'+
+  '<button class="btn btn-p" id="chatSend" onclick="sendChat()" style="flex-shrink:0">Send →</button>'+
   '</div>'+
   /* API key section - collapsed by default */
   '<details style="margin-top:10px">'+
@@ -13648,18 +13678,19 @@ if(document.activeElement&&document.activeElement.id==='brUrl'){var fr=gi('brFra
 ACTION HANDLERS
 ───────────────────────────────────────────────────────────────── */
 var _chatHistory=[];
-window._chatAg='claude';
+window._chatAg='sovereign';
 
 /* ══ AGENT COMMUNICATION ENGINE ══════════════════════════════════════════════
 Priority chain:
 
-1. WebSocket bridge (ws://127.0.0.1:9899) — real-time, all agents
-1. Direct Anthropic API — Claude only, works without bridge
-1. Error card with actionable fix instructions
+1. WebSocket bridge (ws://127.0.0.1:9899) → Python bridge.py (9897) — sovereign local AI
+2. Direct Anthropic API — Claude only, works without bridge
+3. Error card with actionable fix instructions
    ══════════════════════════════════════════════════════════════════════════ */
 
 window._chatHistory   = window._chatHistory   || [];
-window._chatAg        = window._chatAg        || 'claude';
+window._chatAg        = window._chatAg        || 'sovereign';
+window._chatTTS       = window._chatTTS       || false;   /* voice output toggle */
 window._agentApiKeys  = window._agentApiKeys  || {};   /* {claude:'sk-ant-...', gpt:'sk-...', grok:'xai-...'} */
 
 /* Store API key from user input */
@@ -23435,6 +23466,7 @@ SG_MEMORY.load();
 /* ── Agent registry ── */
 window.SG_AGENTS = {
 registry: {
+sovereign:  {name:'Local AI (Sovereign)', icon:'⚔️', status:'online', app:'', web:'http://localhost:9897', store:null, bridgeOnly:true},
 claude:     {name:'Claude',      icon:'🟣', status:'device', app:'claude://',      web:'https://claude.ai',               store:'https://apps.apple.com/app/claude-ai-by-anthropic/id6473753684'},
 gpt:        {name:'ChatGPT',     icon:'🟢', status:'device', app:'chatgpt://',     web:'https://chatgpt.com',             store:'https://apps.apple.com/app/chatgpt/id6448311069'},
 grok:       {name:'Grok',        icon:'⚡', status:'device', app:'grok://',        web:'https://grok.com',                store:'https://apps.apple.com/app/grok/id6670324846'},
@@ -23501,6 +23533,30 @@ _renderDots: function(){
 },
 
 _queryDirect: function(agentId, message, history, cb){
+  /* ── Sovereign / Local: bridge-only, never calls external APIs ── */
+  if(agentId === 'sovereign'){
+    if(window.ws && window.ws.readyState === 1){
+      var sid = 'sv_'+Date.now();
+      try{ window.ws.send(JSON.stringify({type:'ai_chat',agent:'sovereign',message:message,history:history||[],context:sid,request_id:sid})); }
+      catch(e){ if(cb) cb({error:'Bridge send error: '+e.message, agent:agentId}); return; }
+      var sh = function(ev){
+        var d=ev&&ev.detail||{};
+        if(d.context===sid||d.request_id===sid||(d.type==='ai_response'&&d.agent==='sovereign')){
+          document.removeEventListener('sg:bridgeMsg',sh);
+          if(d.error) cb({error:d.error,agent:agentId}); else cb({response:d.text||d.response||'',agent:agentId});
+        }
+      };
+      document.addEventListener('sg:bridgeMsg',sh);
+      setTimeout(function(){
+        document.removeEventListener('sg:bridgeMsg',sh);
+        if(cb) cb({error:'Local AI bridge timeout — run: python3 bridge.py  then: node node-bridge/server.js', agent:agentId});
+      },15000);
+    } else {
+      if(cb) cb({error:'Local AI offline — start bridge: python3 bridge.py  then: node node-bridge/server.js', agent:agentId});
+    }
+    return;
+  }
+
   /* ── Key resolution ── */
   var _lsk = {};
   try{ _lsk = JSON.parse(localStorage.getItem('sg_apikeys') || '{}'); }catch(_){} 
@@ -24163,6 +24219,8 @@ ab.style.color  = d.error ? 'var(--am)' : '';
 window._chatHistory.push({role:'assistant', content:text});
 if(window._chatHistory.length > 40) window._chatHistory = window._chatHistory.slice(-40);
 if(msgs) msgs.scrollTop = msgs.scrollHeight;
+/* Speak response aloud when TTS toggle is on */
+if(!d.error && window._chatTTS && typeof window.speak === 'function') window.speak(text);
 }, window._chatHistory.slice(-8));
 };
 
