@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>xAI Grok Live Terminal — Sovereign</title>
+<style>
+  :root {
+    --bg: #0a0f23;
+    --card: #161b2e;
+    --accent: #00a8ff;
+    --green: #00e676;
+    --red: #ff1744;
+    --text: #e0e0e0;
+    --muted: #64748b;
+  }
+  body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: 'SF Mono', 'Menlo', monospace; height:100vh; display:flex; flex-direction:column; }
+  header { background:#111827; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #1f2937; }
+  .status { display:flex; gap:12px; align-items:center; font-size:13px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#ef4444; }
+  .dot.connected { background:#22c55e; }
+  main { flex:1; display:flex; flex-direction:column; padding:16px; gap:12px; overflow:hidden; }
+  .panels { display:flex; flex-direction:column; flex:1; gap:12px; }
+  .panel { background:var(--card); border:1px solid #1f2937; border-radius:8px; display:flex; flex-direction:column; overflow:hidden; }
+  .panel-header { padding:8px 14px; background:#111827; font-size:13px; display:flex; justify-content:space-between; align-items:center; }
+  .panel-body { flex:1; padding:12px; overflow:auto; font-size:14px; white-space:pre-wrap; }
+  .logs { color:#22c55e; }
+  .output { color:#e0e0e0; }
+  .input-row { display:flex; gap:8px; padding:12px; background:#111827; border-top:1px solid #1f2937; }
+  input, button { background:#0f172a; color:var(--text); border:1px solid #334155; padding:10px 14px; border-radius:6px; font-family:inherit; font-size:14px; }
+  button { cursor:pointer; }
+  button:hover { background:#1e2937; }
+  .danger { color:#ef4444; }
+  .command { color:#60a5fa; }
+</style>
+</head>
+<body>
+<header>
+  <div><strong>xAI Grok Live Terminal</strong> <span style="color:#64748b">— Sovereign</span></div>
+  <div class="status">
+    <div><span id="dot-backend" class="dot"></span> Python 9897</div>
+    <div><span id="dot-gateway" class="dot"></span> Gateway 9899</div>
+    <button onclick="testConnection()">Test Connection</button>
+  </div>
+</header>
+
+<main>
+  <div class="panels">
+    <!-- Logs Panel -->
+    <div class="panel" style="flex:1">
+      <div class="panel-header">
+        <span>📜 Logs</span>
+        <button onclick="clearLogs()">Clear</button>
+      </div>
+      <div id="logs" class="panel-body logs"></div>
+    </div>
+
+    <!-- Output Panel -->
+    <div class="panel" style="flex:2">
+      <div class="panel-header">
+        <span>🖥️ Output</span>
+        <button onclick="clearOutput()">Clear</button>
+      </div>
+      <div id="output" class="panel-body output"></div>
+    </div>
+  </div>
+
+  <!-- Command Input -->
+  <div class="input-row">
+    <input type="text" id="cmd" placeholder="Enter command..." style="flex:1" onkeypress="if(event.key==='Enter') sendCommand()">
+    <button onclick="sendCommand()">Run</button>
+    <button id="installBtn" onclick="installPackages()">📦 Install Packages</button>
+    <button onclick="clearAll()">Clear All</button>
+  </div>
+</main>
+
+<script>
+const BACKEND = 'http://127.0.0.1:9897';
+const GATEWAY = 'ws://127.0.0.1:9899';
+
+let ws = null;
+
+function log(msg, type = 'info') {
+  const el = document.getElementById('logs');
+  const line = document.createElement('div');
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  if (type === 'error') line.style.color = '#ef4444';
+  if (type === 'success') line.style.color = '#22c55e';
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function addOutput(text, cls = '') {
+  const el = document.getElementById('output');
+  const line = document.createElement('div');
+  line.textContent = text;
+  if (cls) line.className = cls;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLogs() { document.getElementById('logs').innerHTML = ''; }
+function clearOutput() { document.getElementById('output').innerHTML = ''; }
+function clearAll() { clearLogs(); clearOutput(); }
+
+function updateDot(id, connected) {
+  const dot = document.getElementById(id);
+  dot.classList.toggle('connected', connected);
+}
+
+// Connect to WebSocket gateway
+async function connectWS() {
+  try {
+    ws = new WebSocket(GATEWAY);
+    ws.onopen = () => {
+      log('Connected to gateway on 9899', 'success');
+      updateDot('dot-gateway', true);
+    };
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        if (data.output) addOutput(data.output);
+        if (data.log) log(data.log);
+      } catch {
+        addOutput(e.data);
+      }
+    };
+    ws.onclose = () => {
+      log('Gateway connection closed', 'error');
+      updateDot('dot-gateway', false);
+      setTimeout(connectWS, 3000);
+    };
+    ws.onerror = () => {
+      log('Gateway WebSocket error', 'error');
+      updateDot('dot-gateway', false);
+    };
+  } catch (e) {
+    log('Failed to connect to gateway: ' + e.message, 'error');
+  }
+}
+
+async function testConnection() {
+  try {
+    const res = await fetch(`${BACKEND}/health`);
+    if (res.ok) {
+      log('Python backend 9897 is reachable', 'success');
+      updateDot('dot-backend', true);
+    } else {
+      log('Backend responded but not healthy', 'error');
+    }
+  } catch (e) {
+    log('Cannot reach Python backend on 9897 — is it running?', 'error');
+    updateDot('dot-backend', false);
+  }
+}
+
+// Danger detection
+const DANGEROUS = ['rm -rf', 'sudo rm', 'dd if=', 'mkfs', 'shutdown', 'reboot', ':(){ :|:& };:'];
+
+function isDangerous(cmd) {
+  return DANGEROUS.some(d => cmd.toLowerCase().includes(d));
+}
+
+async function sendCommand() {
+  const input = document.getElementById('cmd');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+
+  addOutput(`$ ${cmd}`, 'command');
+
+  if (isDangerous(cmd)) {
+    if (!confirm('⚠️ DANGEROUS COMMAND DETECTED\n\nThis command can destroy data.\nType YES to confirm execution.')) {
+      addOutput('Command cancelled for safety.', 'danger');
+      input.value = '';
+      return;
+    }
+  }
+
+  try {
+    const res = await fetch(`${BACKEND}/terminal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd })
+    });
+
+    const text = await res.text();
+    addOutput(text);
+    log(`Command sent to 9897: ${cmd}`, 'success');
+  } catch (e) {
+    addOutput('Failed to reach backend on 9897', 'danger');
+    log('Backend connection failed: ' + e.message, 'error');
+  }
+
+  input.value = '';
+}
+
+// Package installer
+function installPackages() {
+  const payload = {
+    action: 'install-packages',
+    packages: ['rust', 'python3', 'nodejs'],
+    autoUpdate: true
+  };
+
+  addOutput('📦 Triggering package installation...');
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(payload));
+    log('Package install command sent via gateway', 'success');
+  } else {
+    // Fallback to direct backend
+    fetch(`${BACKEND}/terminal`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(r => r.text()).then(t => addOutput(t));
+  }
+}
+
+// Boot
+window.onload = () => {
+  log('xAI Grok Live Terminal initialized — Sovereign mode');
+  connectWS();
+  updateDot('dot-backend', false);
+  updateDot('dot-gateway', false);
+  setTimeout(testConnection, 800);
+};
+</script>
+</body>
+</html>
