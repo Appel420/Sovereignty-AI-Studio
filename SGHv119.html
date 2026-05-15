@@ -15661,6 +15661,7 @@ if (output) {
 }
 
 }
+window.aiAnalyze = aiAnalyze;
 
 /* Listen for AI response from bridge */
 if (typeof PiperTTS !== 'undefined' && PiperTTS.ws) {
@@ -20740,6 +20741,7 @@ if (output) {
 }
 
 }
+window.aiAnalyze = aiAnalyze;
 
 /* Listen for AI response from bridge */
 if (typeof PiperTTS !== 'undefined' && PiperTTS.ws) {
@@ -26268,7 +26270,7 @@ if(aiBtn && !aiBtn._cm){
 aiBtn._cm = true;
 aiBtn.addEventListener('click', function(e){
 if(e){ e.preventDefault(); e.stopPropagation(); }
-if(typeof window.aiAnalyze === 'function') window.aiAnalyze();
+if(typeof aiAnalyze === 'function') aiAnalyze();
 });
 }
 
