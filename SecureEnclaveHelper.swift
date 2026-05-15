@@ -88,4 +88,55 @@ struct SecureEnclaveHelper {
     }
 }
 
-// CLI handling omitted for brevity
+@main
+struct SecureEnclaveHelperCLI {
+    static func main() {
+        do {
+            let arguments = CommandLine.arguments
+            guard arguments.count >= 2 else {
+                printUsageAndExit()
+            }
+
+            switch arguments[1] {
+            case "generate":
+                guard arguments.count == 2 else {
+                    printUsageAndExit()
+                }
+                try SecureEnclaveHelper.generateKey()
+                print("OK")
+
+            case "sign":
+                guard arguments.count == 3 else {
+                    printUsageAndExit()
+                }
+                guard let data = Data(base64Encoded: arguments[2]) else {
+                    fputs("Invalid base64 input for sign command.\n", stderr)
+                    exit(EXIT_FAILURE)
+                }
+                let signature = try SecureEnclaveHelper.sign(data: data)
+                print(signature.base64EncodedString())
+
+            case "public-key":
+                guard arguments.count == 2 else {
+                    printUsageAndExit()
+                }
+                print(try SecureEnclaveHelper.getPublicKey())
+
+            default:
+                printUsageAndExit()
+            }
+        } catch {
+            fputs("secure-enclave-helper error: \(error)\n", stderr)
+            exit(EXIT_FAILURE)
+        }
+    }
+
+    private static func printUsageAndExit() -> Never {
+        let executable = (CommandLine.arguments.first as NSString?)?.lastPathComponent ?? "secure-enclave-helper"
+        fputs("Usage:\n", stderr)
+        fputs("  \(executable) generate\n", stderr)
+        fputs("  \(executable) sign <base64-data>\n", stderr)
+        fputs("  \(executable) public-key\n", stderr)
+        exit(EXIT_FAILURE)
+    }
+}
