@@ -71,7 +71,7 @@ start_services() {
   # Health check
   local max_attempts=12
   local attempt=1
-  until curl -sf http://localhost:9898/health >/dev/null 2>&1; do
+  until curl -sf http://localhost:9899/health >/dev/null 2>&1; do
     attempt=$((attempt + 1))
     [[ $attempt -gt $max_attempts ]] && {
       log "Health check failed. Showing logs:"
@@ -91,8 +91,8 @@ show_status() {
   echo "══════════════════════════════════════════════════"
   echo "  Sovereignty AI Studio — Running"
   echo "══════════════════════════════════════════════════"
-  echo "  API Gateway:  http://localhost:9898"
-  echo "  Health:       http://localhost:9898/health"
+  echo "  API Gateway:  http://localhost:9899"
+  echo "  Health:       http://localhost:9899/health"
   echo "══════════════════════════════════════════════════"
   ${COMPOSE} ps
 }

@@ -112,10 +112,10 @@ The following files should remain in the root directory:
 - `PORT_ALLOCATION.md` - Port allocation guide
 
 ### Server Files
-- `bridge.py` - Python bridge server
-- `unified_server.js` - Unified JavaScript server
-- `server_9898.js` - Port 9898 server
-- `server_9898.py` - Python version of 9898 server
+- `bridge.py` - Python bridge server on port 9897
+- `unified_server.js` - Unified JavaScript server on port 9899
+- `server_9899.js` - Node bridge server on port 9899
+- `server_9898.py` - Legacy Python bridge/server reference
 - `security_backend.py` - Security backend service
 - `security_layer.js` - Security layer implementation
 - `weather_dashboard.py` - Weather dashboard service
