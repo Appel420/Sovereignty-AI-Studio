@@ -183,14 +183,19 @@ class BridgeServer:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = json.loads(r.read())
-                return (
-                    data.get("text")
-                    or data.get("response")
-                    or (data.get("choices", [{}])[0].get("message", {}).get("content", ""))
-                    or "[no response]"
-                )
+
+            def _read_sovereign_response():
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    return r.read()
+
+            raw_response = await asyncio.to_thread(_read_sovereign_response)
+            data = json.loads(raw_response)
+            return (
+                data.get("text")
+                or data.get("response")
+                or (data.get("choices", [{}])[0].get("message", {}).get("content", ""))
+                or "[no response]"
+            )
         except Exception as e:  # noqa: BLE001
             log.error("Sovereign API error: %s", e)
             return f"[Sovereign bridge error: {e}]"
