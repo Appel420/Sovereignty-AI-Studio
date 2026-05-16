@@ -364,13 +364,53 @@ class BridgeServer:
             "ts": int(time.time() * 1000),
         })
 
+    def _get_expected_sovereign_key(self) -> str:
+        """Return the configured sovereign key, if any."""
+        return (
+            getattr(self, "sovereign_key", None)
+            or os.environ.get("SOVEREIGN_KEY")
+            or os.environ.get("SOVEREIGN_BRIDGE_KEY")
+            or ""
+        )
+
+    def _is_authorized_client(self, ws) -> bool:
+        """Validate the incoming WebSocket request against the sovereign key."""
+        expected_key = self._get_expected_sovereign_key()
+        if not expected_key:
+            log.error("Bridge connection rejected: sovereign key is not configured")
+            return False
+
+        headers = getattr(ws, "request_headers", {}) or {}
+        provided_key = headers.get("X-Sovereign-Key", "")
+        if not provided_key:
+            auth_header = headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                provided_key = auth_header[7:].strip()
+
+        provided_digest = hashlib.sha256(provided_key.encode("utf-8")).hexdigest()
+        expected_digest = hashlib.sha256(expected_key.encode("utf-8")).hexdigest()
+        return hashlib.compare_digest(provided_digest, expected_digest)
+
     # ------------------------------------------------------------------
     # Client handler
     # ------------------------------------------------------------------
 
     async def handle_client(self, ws):
-        self.clients.add(ws)
         addr = ws.remote_address
+        if not self._is_authorized_client(ws):
+            log.warning("Rejected unauthorized client: %s", addr)
+            try:
+                await self.send(ws, {
+                    "type": "auth_error",
+                    "error": "invalid sovereign key",
+                    "ts": int(time.time() * 1000),
+                })
+            except Exception:
+                pass
+            await ws.close(code=1008, reason="invalid sovereign key")
+            return
+
+        self.clients.add(ws)
         log.info("Client connected: %s | total=%s", addr, len(self.clients))
 
         # Send handshake with memory hydration on connect
