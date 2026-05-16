@@ -3,7 +3,7 @@ uvicorn[standard]==0.44.0
 sqlalchemy==2.0.29
 alembic==1.13.1
 psycopg2-binary==2.9.9
-redis==5.0.4
+redis==7.4.0
 python-multipart==0.0.27
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
