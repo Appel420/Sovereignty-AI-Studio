@@ -1,0 +1,1 @@
+full chroma_wrapper.py (ChromaRAG with QuadRatchetSession seal/unseal) as pasted
