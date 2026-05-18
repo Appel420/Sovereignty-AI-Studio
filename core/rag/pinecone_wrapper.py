@@ -1,0 +1,1 @@
+full pinecone_wrapper.py as pasted
