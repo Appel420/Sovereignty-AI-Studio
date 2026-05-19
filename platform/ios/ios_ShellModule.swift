@@ -1,0 +1,1 @@
+full ios_ShellModule.swift as pasted

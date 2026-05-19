@@ -1,0 +1,1 @@
+full media_generator_service.py as pasted

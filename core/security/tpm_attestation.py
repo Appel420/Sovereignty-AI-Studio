@@ -1,0 +1,1 @@
+full tpm_attestation.py + enhanced with TPM 2.0 details (ESAPI, PCR, quote verification) as pasted and expanded

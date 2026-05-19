@@ -1,0 +1,1 @@
+full hardened google-citadel.sh (systemd, UFW/iptables, cert rotation, watcher) as last revised version
