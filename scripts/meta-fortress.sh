@@ -1,0 +1,1 @@
+full meta-fortress.sh as provided

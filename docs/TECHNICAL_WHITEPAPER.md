@@ -1,0 +1,1 @@
+Updated whitepaper v2.4

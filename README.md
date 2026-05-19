@@ -1,5 +1,4 @@
 # Sovereignty AI Studio ⚔️
-
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
@@ -9,7 +8,7 @@
 **Private Sovereign AI Research and Development Platform**
 **Core Model:** Super Grok Heavy 4.2 (xAI) – Locked, Sealed, Sovereign
 **Authority:** Derek Appel
-**Last Updated:** May 15, 2026
+**Last Updated:** May 18, 2026
 
 ---
 
