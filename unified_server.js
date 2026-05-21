@@ -6,6 +6,25 @@
  */
 'use strict';
 
+// ─── INLINE .ENV LOADER ───────────────────────────────────────────────
+// Reads .env before anything else so MASTER_KEY_B64 and other vars are available.
+// .env is gitignored — safe to store MASTER_KEY_B64 there for local/server deploys.
+// For ephemeral containers, inject MASTER_KEY_B64 as a platform secret instead.
+(function loadDotEnv() {
+  const _fs = require('fs');
+  if (!_fs.existsSync('.env')) return;
+  try {
+    _fs.readFileSync('.env', 'utf8').split('\n').forEach(line => {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) return;
+      const eq = t.indexOf('=');
+      if (eq < 1) return;
+      const k = t.slice(0, eq).trim(), v = t.slice(eq + 1).trim();
+      if (k && !(k in process.env)) process.env[k] = v;
+    });
+  } catch(_) {}
+})();
+
 const http    = require('http');
 const https   = require('https');
 const ws_mod  = require('ws');
@@ -25,7 +44,7 @@ const LOG_DIR      = process.env.LOG_DIR      || './logs';
 const KEY_FILE     = process.env.KEY_FILE     || '.sg_master_key';
 const VERBOSE      = process.env.VERBOSE      === '1';
 const TLS_CERT     = process.env.TLS_CERT     || '';
-const TLS_KEY      = process.env.TLS_KEY      || '';
+const TLS_KEY_PATH = process.env.TLS_KEY      || '';
 
 if (!fs.existsSync(LOG_DIR)) fs.mkdirSync(LOG_DIR, { recursive: true });
 
@@ -33,12 +52,28 @@ const ACCESS_LOG  = path.join(LOG_DIR, 'access.jsonl');
 const piperReady  = fs.existsSync(PIPER_BIN) && fs.existsSync(PIPER_MODEL);
 
 // ─── MASTER KEY ───────────────────────────────────────────────────────
+// Priority: MASTER_KEY_B64 env var (from .env or platform secret) → KEY_FILE → generate
+// Set MASTER_KEY_B64 in .env to keep sessions alive across restarts.
+// Generate a key: npm run keygen
 let MASTER_KEY;
-if (fs.existsSync(KEY_FILE)) {
+const _keyB64 = process.env.MASTER_KEY_B64 || '';
+if (_keyB64.length >= 88) {
+  MASTER_KEY = Buffer.from(_keyB64, 'base64');
+  if (MASTER_KEY.length !== 64) {
+    process.stderr.write('[FATAL] MASTER_KEY_B64 decoded to ' + MASTER_KEY.length + ' bytes (need 64). Run: npm run keygen\n');
+    process.exit(1);
+  }
+  if (VERBOSE) process.stdout.write('[KEY] Loaded MASTER_KEY from MASTER_KEY_B64 env var\n');
+} else if (fs.existsSync(KEY_FILE)) {
   MASTER_KEY = fs.readFileSync(KEY_FILE);
+  process.stdout.write('[KEY] Loaded from ' + KEY_FILE + '. To persist across restarts, add to .env:\n');
+  process.stdout.write('[KEY] MASTER_KEY_B64=' + MASTER_KEY.toString('base64') + '\n');
 } else {
   MASTER_KEY = crypto.randomBytes(64);
   fs.writeFileSync(KEY_FILE, MASTER_KEY, { mode: 0o600 });
+  process.stdout.write('[KEY] Generated new key → ' + KEY_FILE + '\n');
+  process.stdout.write('[KEY] Add to .env to persist sessions across restarts:\n');
+  process.stdout.write('[KEY] MASTER_KEY_B64=' + MASTER_KEY.toString('base64') + '\n');
 }
 
 // ─── AUDIT CHAIN ─────────────────────────────────────────────────────
@@ -117,8 +152,8 @@ const CHILD_BLOCKED = new Set(['president','prime_minister','root','superadmin',
   'cyber_cmd','judge','military','attorney_general','gov_official','supreme_court',
   'surgeon_general','un_sg','ambassador','foreign_minister','interpol']);
 
-// Passphrase hashes (SHA-256 of 'PASSPHRASE:ROLE:passphrase') — matches security_layer.js
-// Generated at deploy time. Rotate with: node gen_passphrases.js
+// Static passphrase hashes (SHA-256, independent of MASTER_KEY — do not change)
+// Rotate with: node gen_passphrases.js
 const PP_HASHES = {
   "root": "6ae10cb5367f0aaa9d9690543c763c76ebd0e31b30daad2b634bd8acb615fa95",
   "superadmin": "a19d7785bbc4b320d38a0cde455dc2227589cd5f4d6504f70ee181bee924d990",
@@ -266,7 +301,7 @@ function aiProxy(model, text, system, apiKey, cb) {
 
 // ─── PIPER TTS ────────────────────────────────────────────────────────
 function piperSpeak(text, wsId) {
-  const safe = text.replace(/[`$\\'";|<>(){}[\]!#*?\n\r]/g,' ').slice(0,800);
+  const safe = text.replace(/[`$\\'";<>(){}[\]!#*?\n\r]/g,' ').slice(0,800);
   return new Promise(resolve => {
     if (!piperReady) { resolve({ type:'piper_done', fallback:true }); return; }
     const wav = path.join(os.tmpdir(),'piper_'+wsId+'_'+Date.now()+'.wav');
@@ -363,7 +398,7 @@ function readBody(req) {
 }
 
 // ─── HTTP(S) SERVER ──────────────────────────────────────────────────────
-const useTLS = TLS_CERT && TLS_KEY && fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY);
+const useTLS = TLS_CERT && TLS_KEY_PATH && fs.existsSync(TLS_CERT) && fs.existsSync(TLS_KEY_PATH);
 const serverHandler = async (req, res) => {
   const ip  = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
   const url = req.url.split('?')[0];
@@ -378,13 +413,11 @@ const serverHandler = async (req, res) => {
 
   function json(status, data) { res.writeHead(status,{'Content-Type':'application/json'}); res.end(JSON.stringify(data)); }
 
-  // ── Health ─────────────────────────────────────────────────────────
   if (url === '/health' || url === '/api/health') {
     json(200, { status:'ok', ts:new Date().toISOString(), piper:piperReady, uptime:Math.floor(process.uptime()) });
     return;
   }
 
-  // ── POST routes ────────────────────────────────────────────────────
   if (req.method === 'POST') {
     let body;
     try { body = await readBody(req); }
@@ -446,7 +479,6 @@ const serverHandler = async (req, res) => {
     }
   }
 
-  // ── GET routes ─────────────────────────────────────────────────────
   if (req.method === 'GET') {
     if (url === '/api/logs/access') {
       const tok = req.headers['x-admin-token']||'';
@@ -471,13 +503,35 @@ const serverHandler = async (req, res) => {
 };
 
 const httpServer = useTLS
-  ? https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY) }, serverHandler)
+  ? https.createServer({ cert: fs.readFileSync(TLS_CERT), key: fs.readFileSync(TLS_KEY_PATH) }, serverHandler)
   : http.createServer(serverHandler);
+
+// ─── PERSISTENT MEM STORE ─────────────────────────────────────────────
+// Survives server restarts. Set MEM_STORE_FILE in .env to override path.
+// Add data/memory/node_mem.json to .gitignore — contains session data.
+const MEM_STORE_FILE = process.env.MEM_STORE_FILE || './data/memory/node_mem.json';
+try { fs.mkdirSync(path.dirname(MEM_STORE_FILE), { recursive: true }); } catch(_) {}
+let memStore = {};
+try {
+  if (fs.existsSync(MEM_STORE_FILE)) {
+    memStore = JSON.parse(fs.readFileSync(MEM_STORE_FILE, 'utf8'));
+    if (VERBOSE) process.stdout.write('[MEM] Loaded memStore from ' + MEM_STORE_FILE + '\n');
+  }
+} catch(e) { process.stderr.write('[MEM] Load error: ' + e.message + ', starting fresh\n'); memStore = {}; }
+
+let _memSaveTimer = null;
+function saveMem() {
+  if (_memSaveTimer) return;
+  _memSaveTimer = setTimeout(() => {
+    _memSaveTimer = null;
+    try { fs.writeFileSync(MEM_STORE_FILE, JSON.stringify(memStore), { mode: 0o600 }); }
+    catch(e) { process.stderr.write('[MEM] Save error: ' + e.message + '\n'); }
+  }, 500);
+}
 
 // ─── WEBSOCKET ────────────────────────────────────────────────────────
 const wss = new ws_mod.WebSocketServer({ server: httpServer });
 const clients = new Map();
-const memStore = {};
 
 wss.on('connection', (ws, req) => {
   const ip   = (req.headers['x-forwarded-for']||req.socket.remoteAddress||'?').split(',')[0].trim();
@@ -529,6 +583,7 @@ wss.on('connection', (ws, req) => {
       memStore[k] = (memStore[k]||[]);
       memStore[k].unshift({ts:Date.now(),...(msg.card||{})});
       if (memStore[k].length > 50) memStore[k].length = 50;
+      saveMem();
       ws.send(JSON.stringify({type:'memory_saved',key:k})); return;
     }
     if (type === 'memory_get') {
@@ -571,7 +626,13 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
-    if (type === 'kc_save') { const sessions = (memStore['__kc']||{}); sessions[wsId]=msg.data; memStore['__kc']=sessions; ws.send(JSON.stringify({type:'kc_saved',wsId})); return; }
+    if (type === 'kc_save') {
+      const sessions = (memStore['__kc']||{});
+      sessions[wsId] = msg.data;
+      memStore['__kc'] = sessions;
+      saveMem();
+      ws.send(JSON.stringify({type:'kc_saved',wsId})); return;
+    }
     if (type === 'kc_load') { const sessions = (memStore['__kc']||{}); ws.send(JSON.stringify({type:'kc_session',session:sessions[wsId]||null})); return; }
 
     ws.send(JSON.stringify({type:'error',code:'UNKNOWN',received:type}));
