@@ -57,23 +57,21 @@ const piperReady  = fs.existsSync(PIPER_BIN) && fs.existsSync(PIPER_MODEL);
 // Generate a key: npm run keygen
 let MASTER_KEY;
 const _keyB64 = process.env.MASTER_KEY_B64 || '';
-if (_keyB64.length >= 88) {
+// 64 bytes base64: padded = 88 chars, unpadded = 86 chars — accept both
+if (_keyB64.length >= 86) {
   MASTER_KEY = Buffer.from(_keyB64, 'base64');
   if (MASTER_KEY.length !== 64) {
     process.stderr.write('[FATAL] MASTER_KEY_B64 decoded to ' + MASTER_KEY.length + ' bytes (need 64). Run: npm run keygen\n');
     process.exit(1);
   }
-  if (VERBOSE) process.stdout.write('[KEY] Loaded MASTER_KEY from MASTER_KEY_B64 env var\n');
+  if (VERBOSE) process.stderr.write('[KEY] Loaded MASTER_KEY from env\n');
 } else if (fs.existsSync(KEY_FILE)) {
   MASTER_KEY = fs.readFileSync(KEY_FILE);
-  process.stdout.write('[KEY] Loaded from ' + KEY_FILE + '. To persist across restarts, add to .env:\n');
-  process.stdout.write('[KEY] MASTER_KEY_B64=' + MASTER_KEY.toString('base64') + '\n');
+  process.stderr.write('[KEY] Loaded from ' + KEY_FILE + '. To persist across restarts, set MASTER_KEY_B64 in .env (run: npm run keygen)\n');
 } else {
   MASTER_KEY = crypto.randomBytes(64);
   fs.writeFileSync(KEY_FILE, MASTER_KEY, { mode: 0o600 });
-  process.stdout.write('[KEY] Generated new key → ' + KEY_FILE + '\n');
-  process.stdout.write('[KEY] Add to .env to persist sessions across restarts:\n');
-  process.stdout.write('[KEY] MASTER_KEY_B64=' + MASTER_KEY.toString('base64') + '\n');
+  process.stderr.write('[KEY] New key generated → ' + KEY_FILE + '. Set MASTER_KEY_B64 in .env (run: npm run keygen)\n');
 }
 
 // ─── AUDIT CHAIN ─────────────────────────────────────────────────────
@@ -301,7 +299,7 @@ function aiProxy(model, text, system, apiKey, cb) {
 
 // ─── PIPER TTS ────────────────────────────────────────────────────────
 function piperSpeak(text, wsId) {
-  const safe = text.replace(/[`$\\'";<>(){}[\]!#*?\n\r]/g,' ').slice(0,800);
+  const safe = text.replace(/[`$\\'";|<>(){}[\]!#*?\n\r]/g,' ').slice(0,800);
   return new Promise(resolve => {
     if (!piperReady) { resolve({ type:'piper_done', fallback:true }); return; }
     const wav = path.join(os.tmpdir(),'piper_'+wsId+'_'+Date.now()+'.wav');
