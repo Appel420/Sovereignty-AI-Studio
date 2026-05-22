@@ -2,24 +2,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - "**/*.py"
-      - "**/*.js"
-      - "requirements*.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "!docs/**"
-      - "!**/*.md"
     tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ main ]
-    paths:
-      - "**/*.py"
-      - "**/*.js"
-      - "requirements*.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "!docs/**"
-      - "!**/*.md"
   release:
     types: [published]
   workflow_dispatch:
