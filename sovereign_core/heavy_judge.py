@@ -38,9 +38,10 @@ class HeavyJudge:
     - Produces cryptographically verifiable verdicts
     """
 
-    def __init__(self, model_name: str = "grok-5.5-heavy", repmhl=None):
+    def __init__(self, model_name: str = "grok-5.5-heavy", repmhl=None, token_manager=None):
         self.model_name = model_name
         self.repmhl = repmhl
+        self.token_manager = token_manager   # For real council calls
 
         self.thresholds = {
             "medical": 0.60,
@@ -94,6 +95,7 @@ class HeavyJudge:
 
             if token_manager is not None:
                 try:
+                    # In real usage this would call the actual model via token_manager
                     if provider == "anthropic":
                         vote["supports"] = True
                         vote["confidence"] = 0.91
@@ -137,8 +139,9 @@ class HeavyJudge:
         council_result = None
 
         # Trigger council for medical or high-stakes education
+        effective_token_manager = token_manager or self.token_manager
         if context in ["medical", "education"] and (risk_score > self.thresholds[context] or force_judge):
-            council_result = self._run_council(original_output, context, token_manager)
+            council_result = self._run_council(original_output, context, effective_token_manager)
             triggered_council = True
 
         # Decide action

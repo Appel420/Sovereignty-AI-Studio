@@ -39,7 +39,7 @@ class SmartProviderRouter:
         self.token_manager = token_manager
         self.repmhl = repmhl
         self.config = token_manager.config
-        self.judge = HeavyJudge(repmhl=repmhl)
+        self.judge = HeavyJudge(repmhl=repmhl, token_manager=token_manager)
 
         self.priority_rules = {
             "medical": ["anthropic", "xai", "openai"],
@@ -110,7 +110,8 @@ class SmartProviderRouter:
             judge_result = self.judge.review(
                 original_output=original_output,
                 context=context,
-                force_judge=use_judge
+                force_judge=use_judge,
+                token_manager=self.token_manager
             )
             used_judge = True
             model_result["output"] = judge_result["final_output"]
