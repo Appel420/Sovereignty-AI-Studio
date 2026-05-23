@@ -10,7 +10,7 @@ class EnterpriseLogger {
     logFile = 'sanitizer.log',
     maxSizeMB = 5,
     syslogHost = '127.0.0.1',
-    syslogPort = 6514,
+    syslogPort = 9898,
     syslogSecure = true,
     syslogRetries = 3,
     syslogBackoffMs = 500,
