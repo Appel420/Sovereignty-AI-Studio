@@ -128,7 +128,7 @@ async def websocket_endpoint(ws: WebSocket):
                 elif msg.get("type") == "ping":
                     await ws.send_json({"type":"pong","ts":datetime.datetime.now().isoformat()})
                 else:
-                    await manager.broadcast({"type":"log","level":"info","msg":f"WS: {str(msg)[:80]}"})
+                    await manager.broadcast({"type":"log","level":"info","msg":f"WS: {str(msg)[:1000]}"})
             except json.JSONDecodeError:
                 await ws.send_json({"type":"error","msg":"Invalid JSON"})
     except WebSocketDisconnect:
