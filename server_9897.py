@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-SuperGrok 4.2 CI/CD Bridge — Port 9898
-Run: pip install fastapi uvicorn websockets && python server_9898.py
+SuperGrok 4.2 CI/CD Bridge — Port 9897
+Run: pip install fastapi uvicorn websockets && python server_9897.py
 """
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,7 +48,7 @@ async def health():
     uptime = (datetime.datetime.now() - start_time).seconds
     return {
         "status": "ok", "version": "4.2.0",
-        "port": 9898, "uptime_seconds": uptime,
+        "port": 9897, "uptime_seconds": uptime,
         "connections": len(manager.active),
         "ts": datetime.datetime.now().isoformat()
     }
@@ -128,7 +128,7 @@ async def websocket_endpoint(ws: WebSocket):
                 elif msg.get("type") == "ping":
                     await ws.send_json({"type":"pong","ts":datetime.datetime.now().isoformat()})
                 else:
-                    await manager.broadcast({"type":"log","level":"info","msg":f"WS: {str(msg)[:80]}"})
+                    await manager.broadcast({"type":"log","level":"info","msg":f"WS: {str(msg)[:1000]}"})
             except json.JSONDecodeError:
                 await ws.send_json({"type":"error","msg":"Invalid JSON"})
     except WebSocketDisconnect:
@@ -137,8 +137,8 @@ async def websocket_endpoint(ws: WebSocket):
 
 if __name__ == "__main__":
     print("╔══════════════════════════════════════════╗")
-    print("║  SuperGrok 4.2 CI/CD Bridge — Port 9898 ║")
-    print("║  WebSocket: ws://localhost:9898/ws       ║")
-    print("║  Health:    http://localhost:9898/health ║")
+    print("║  SuperGrok 4.2 CI/CD Bridge — Port 9897 ║")
+    print("║  WebSocket: ws://localhost:9897/ws       ║")
+    print("║  Health:    http://localhost:9897/health ║")
     print("╚══════════════════════════════════════════╝")
-    uvicorn.run(app, host="0.0.0.0", port=9898, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=9897, log_level="info")

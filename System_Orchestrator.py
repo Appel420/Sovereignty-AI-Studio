@@ -71,4 +71,4 @@ class SystemOrchestrator:
         print("Starting execution phase...")
         for text in inputs:
             print(f"IN:  {text}")
-            print(f"OUT: {text[:30]}... (cleaned)\n")
+            print(f"OUT: {text[:1000]}... (cleaned)\n")

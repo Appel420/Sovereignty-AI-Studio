@@ -33,7 +33,7 @@ except ImportError:
 PORT = int(os.environ.get("SG_PORT", 9897))
 HOST = os.environ.get("SG_HOST", "localhost")
 SOVEREIGN_API_URL = os.environ.get(
-    "SOVEREIGN_API_URL", "http://localhost:9899/api/ai"
+    "SOVEREIGN_API_URL", "http://localhost:9897/api/ai"
 ).rstrip("/")
 
 ROOT_DIR = pathlib.Path(__file__).parent
