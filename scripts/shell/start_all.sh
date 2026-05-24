@@ -38,7 +38,7 @@ echo "  PID: $SERVER_PID"
 # ── Wait for health ───────────────────────────────────
 echo "  Waiting for server..."
 for i in $(seq 1 10); do
-  if curl -sf http://127.0.0.1:9001/health >/dev/null 2>&1; then
+  if curl -sf http://127.0.0.1:9899/health >/dev/null 2>&1; then
     echo "  Health: OK"
     break
   fi
@@ -47,7 +47,7 @@ done
 
 echo ""
 echo "  Open SuperGrok_v13_COMPLETE.html in your browser"
-echo "  Ports: 9001 (gateway) 9899 (bridge) 8443 (auth)"
+echo "  Ports: 9899:9898:9897 (gateway) 9899 (bridge) 8443 (auth)"
 echo "  Logs:  ./logs/access.jsonl"
 echo ""
 echo "  Press Ctrl+C to stop"

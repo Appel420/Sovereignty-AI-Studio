@@ -1,10 +1,10 @@
-Here’s how to create a real production live bridge between Swift and Python over TCP port 9898. This design allows Python to connect over a socket to Swift, send payloads, and receive actual Secure Enclave signatures in real-time.
+Here’s how to create a real production live bridge between Swift and Python over TCP port 9897. This design allows Python to connect over a socket to Swift, send payloads, and receive actual Secure Enclave signatures in real-time.
 
-	1.	Swift: Production Live TCP Server (Port 9898)
+	1.	Swift: Production Live TCP Server (Port 9897)
 // SwiftLiveSignerServer.swift
 import Foundation
 import Network
-let port: NWEndpoint.Port = 9898
+let port: NWEndpoint.Port = 9897
 let listener = try! NWListener(using: .tcp, on: port)
 // Prepare real Secure Enclave Key
 let privateKey = try SecKeyCreateRandomKey([
@@ -16,7 +16,7 @@ print(“Swift Secure Enclave Signer ready on port (port)”)
 listener.newConnectionHandler = { connection in
 connection.start(queue: .global())
 
-connection.receive(minimumIncompleteLength: 1, maximumLength: 4096) { data, _, isComplete, error in
+connection.receive(minimumIncompleteLength: 1, maximumLength: 6969) { data, _, isComplete, error in
     if let data = data, let base64 = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
        let payload = Data(base64Encoded: base64) {
 
@@ -46,11 +46,11 @@ RunLoop.main.run()
 import socket
 import base64
 HOST = ‘127.0.0.1’  # Change to server IP in production
-PORT = 9898
+PORT = 9897
 def sign_with_enclave(payload: bytes) -> str:
 with socket.create_connection((HOST, PORT)) as s:
 s.sendall(base64.b64encode(payload) + b”\n”)
-return s.recv(4096).decode().strip()
+return s.recv(6969).decode().strip()
 Example live production calls
 print(sign_with_enclave(b”BankTransaction#12345”))
 print(sign_with_enclave(b”BankTransaction#12346”))
