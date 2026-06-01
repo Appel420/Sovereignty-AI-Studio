@@ -4111,7 +4111,8 @@ function bridgeConnect(){
       }, 500);
     } else {
       log('warn', 'Bridge WS init failed: ' + e.message);
-      if (_wsRetry <= 5) setTimeout(bridgeConnect, 3000);
+      _wsRetry++;
+      if (_wsRetry <= 5) setTimeout(bridgeConnect, Math.min(3000 * _wsRetry, 30000));
     }
   }
 }
@@ -4166,7 +4167,7 @@ var REPAIRS={
   addAudit:{priority:1,desc:'addAudit() missing',check:function(){return typeof window.addAudit!=='function';},fix:function(){window.addAudit=function(ev,d){console.log('[audit]',ev,d||'');};log('warn','addAudit() restored');}},
   tnow:{priority:1,desc:'tnow() missing',check:function(){return typeof window.tnow!=='function';},fix:function(){window.tnow=function(){var d=new Date();return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0')+'.'+d.getMilliseconds().toString().padStart(3,'0');};log('warn','tnow() restored');}},
   stCicd:{priority:2,desc:'ST.cicd undefined (crash cascade)',check:function(){return!!(window.ST&&!window.ST.cicd);},fix:function(){if(window.ST)window.ST.cicd=window.ST.cicd||{status:'offline',logs:[],connected:false,wsRetries:0};log('warn','ST.cicd initialized');}},
-  blankPanel:{priority:2,desc:'Panel area blank',check:function(){var pa=document.getElementById('pa');return!!(pa&&pa.innerHTML.trim().length<20&&window.ST&&window.ST.role&&window._currentPanel);},fix:function(){if(typeof window.loadPanel==='function')try{window.loadPanel(window._currentPanel||'dashboard');log('warn','Panel reloaded');}catch(e){}}},
+  blankPanel:{priority:2,desc:'Panel area blank',check:function(){var pa=document.getElementById('pa');if(!pa||pa.innerHTML.trim().length>=20||!window.ST||!window.ST.role||!window._currentPanel)return false;var ae=document.activeElement;if(ae&&pa.contains(ae))return false;if(window._lastLoadPanelTs&&(Date.now()-window._lastLoadPanelTs)<15000)return false;return true;},fix:function(){if(typeof window.loadPanel==='function')try{window.loadPanel(window._currentPanel||'dashboard');log('warn','Panel reloaded');}catch(e){}}},
   navEmpty:{priority:2,desc:'Sidebar nav empty',check:function(){var sb=document.getElementById('sbNav');return!!(sb&&sb.children.length===0&&window.ST&&window.ST.role);},fix:function(){if(typeof window.buildNav==='function')try{window.buildNav();log('warn','Nav rebuilt');}catch(e){}}},
   backBtn:{priority:3,desc:'Back button state wrong',check:function(){return false;},fix:function(){var b=document.getElementById('tbBack');if(b){var hist=window._hist||[];b.style.display=hist.length>1?'inline-flex':'none';}}},
   touchTargets:{priority:3,desc:'Touch targets <44px mobile',check:function(){
@@ -4368,8 +4369,8 @@ bridgeConnect();
 setTimeout(runAllRepairs, 300);
 setTimeout(runAllRepairs, 1200);
 setTimeout(runAllRepairs, 4000);
-// Steady-state loop — 5s
-setInterval(runAllRepairs, 5000);
+// Steady-state loop — 30s (reduced from 5s to stop interfering with active editor sessions)
+setInterval(runAllRepairs, 30000);
 // Seal verification — 30s
 setInterval(verifySeal, CFG.sealIntervalMs);
 
@@ -5797,7 +5798,7 @@ if(rsEl)rsEl.addEventListener('input',function(){buildRoles(this.value);});
 /* ─────────────────────────────────────────────────────────────────
    PANEL LOADER
    ───────────────────────────────────────────────────────────────── */
-function loadPanel(id,isBack){ window._currentPanel=id;
+function loadPanel(id,isBack){ window._currentPanel=id; window._lastLoadPanelTs=Date.now();
   if(id==='aipersonal'||id==='avatar'){
     setTimeout(function(){ if(window.oparInjectReal){ window._oparRealInjected=false; oparInjectReal(); } },300);
   }
