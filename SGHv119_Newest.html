@@ -521,6 +521,64 @@ window._sgWsProto = function(){ return location.protocol==='https:' ? 'wss://' :
 window._sgWsUrl = function(host){ return window._sgWsProto() + (host || '127.0.0.1:9897'); };
 // Guard: once the browser signals ws:// is insecure, stop all reconnect attempts.
 window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure; };
+window.GlobalHandlers = window.GlobalHandlers || (function(){
+  var errorHandlers = [];
+  var rejectionHandlers = [];
+  var errorPrev = null;
+  var rejectionPrev = null;
+  var errorInstalled = false;
+  var rejectionInstalled = false;
+  function runHandlers(list, args, ctx){
+    var result;
+    for(var i = 0; i < list.length; i++){
+      try {
+        var r = list[i].apply(ctx, args);
+        if(typeof result === 'undefined') result = r;
+      } catch(e) {}
+    }
+    return result;
+  }
+  function dispatchError(msg, src, line, col, err){
+    var result = runHandlers(errorHandlers, arguments, this);
+    if(typeof errorPrev === 'function'){
+      try {
+        var prevResult = errorPrev.apply(this, arguments);
+        if(typeof result === 'undefined') result = prevResult;
+      } catch(e) {}
+    }
+    return result;
+  }
+  function dispatchRejection(ev){
+    var result = runHandlers(rejectionHandlers, arguments, this);
+    if(typeof rejectionPrev === 'function'){
+      try {
+        var prevResult = rejectionPrev.apply(this, arguments);
+        if(typeof result === 'undefined') result = prevResult;
+      } catch(e) {}
+    }
+    return result;
+  }
+  return {
+    chainOnError: function(handler){
+      if(typeof handler === 'function') errorHandlers.push(handler);
+      if(!errorInstalled){
+        errorPrev = window.onerror;
+        window.onerror = dispatchError;
+        errorInstalled = true;
+      }
+      return window.onerror;
+    },
+    chainOnUnhandledRejection: function(handler){
+      if(typeof handler === 'function') rejectionHandlers.push(handler);
+      if(!rejectionInstalled){
+        rejectionPrev = window.onunhandledrejection;
+        window.onunhandledrejection = dispatchRejection;
+        rejectionInstalled = true;
+      }
+      return window.onunhandledrejection;
+    }
+  };
+})();
 // ────────────────────────────────────────────────────────────────────────────
 function setConnected(yes, msg) {
 _connected = yes;
@@ -770,18 +828,16 @@ var tnow = window.tnow;
   }
 
   /* ── window.onerror ── */
-  var _prevOnerror = window.onerror;
-  window.onerror = function(msg, src, line, col, err){
+  window.GlobalHandlers.chainOnError(function(msg, src, line, col, err){
     if (!msg) return true;
     var _ms = String(msg);
     if (_ms.indexOf('Script error') === 0) return true;
     pingError('UNCAUGHT_EXCEPTION', msg, src, line, col, fmtStack(err));
-    if(typeof _prevOnerror === 'function') _prevOnerror.apply(this, arguments);
     return false; // don't suppress — let DevTools still see it
-  };
+  });
 
   /* ── unhandledrejection ── */
-  window.addEventListener('unhandledrejection', function(ev){
+  window.GlobalHandlers.chainOnUnhandledRejection(function(ev){
     var reason = ev.reason;
     var msg = reason && reason.message ? reason.message : String(reason);
     var stack = fmtStack(reason);
@@ -834,12 +890,12 @@ var tnow = window.tnow;
         ||s.indexOf("[sg:catch] SecurityError")>=0;}
   console.error=function(){if(!_drop(arguments))_ce.apply(console,arguments);};
   console.warn= function(){if(!_drop(arguments))_cw.apply(console,arguments);};
-  window.onerror=function(msg,src){var s=String(msg||"");
+  window.GlobalHandlers.chainOnError(function(msg,src){var s=String(msg||"");
     if(s.indexOf("Script error")===0)return true;
     if(!src||src.indexOf("about:")===0||src.indexOf("blob:")===0)return true;
-    return false;};
-  window.onunhandledrejection=function(ev){var r=ev&&ev.reason;
-    if(r&&String(r).indexOf("Script error")>=0)ev.preventDefault();};
+    return false;});
+  window.GlobalHandlers.chainOnUnhandledRejection(function(ev){var r=ev&&ev.reason;
+    if(r&&String(r).indexOf("Script error")>=0)ev.preventDefault();});
 })();
 /* Emergency sg stub — available before main IIFE parses */
 if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){console.error('[sg]',e);}  };
@@ -1978,6 +2034,7 @@ const BRIDGE = {
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     var self = this;
     try{
+      if (_sgWsBlocked()) return;
       var wsUrl = _sgWsUrl(); /* Python WS bridge :9897 — protocol auto-detected */
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
@@ -2313,6 +2370,7 @@ var PiperTTS = {
   connect: function() {
     if (PiperTTS.ws && PiperTTS.ws.readyState < 2) return;
     try {
+      if (_sgWsBlocked()) return;
       var url = BridgeCFG.wsURL();
       var ws = new WebSocket(url);
       PiperTTS.ws = ws;
@@ -4290,18 +4348,15 @@ a.download='sg_errors_'+Date.now()+'.json'; a.click();
 };
 
 /* ── Wire into global error trap ── */
-var _origOnerror=window.onerror;
-window.onerror=function(msg,src,line,col,err){
+window.GlobalHandlers.chainOnError(function(msg,src,line,col,err){
 var m=msg||'';
 /* Swallow cross-origin noise completely — never crash boot */
 if(m==='Script error.'||m==='Script error'||(!src&&!line)){return true;}
 if(m.indexOf('ResizeObserver')!==-1||m.indexOf('Non-Error')!==-1){return true;}
 watchError('ONERROR',m,src,line,err?err.stack:'');
-if(_origOnerror)return _origOnerror(msg,src,line,col,err);
 return false;
-};
-var _origReject=window.onunhandledrejection;
-window.addEventListener('unhandledrejection',function(ev){
+});
+window.GlobalHandlers.chainOnUnhandledRejection(function(ev){
 var r=ev.reason;
 watchError('UNHANDLED_REJECTION',r&&r.message?r.message:String(r),'',0,r&&r.stack?r.stack:'');
 });
@@ -5975,6 +6030,7 @@ function afterPanel(id){
         if(bWS&&!bWS._vw){bWS._vw=true;bWS.addEventListener('click',function(){
           if(bOut)bOut.textContent='Testing '+_sgWsUrl()+'...';
           try{
+            if(_sgWsBlocked()){if(bOut)bOut.textContent='⚠ WebSocket blocked — open via http://127.0.0.1:9898';return;}
             var t=new WebSocket(_sgWsUrl());
             t.onopen=function(){if(bOut){bOut.textContent='✅ WebSocket connected';bOut.style.color='var(--gn)';}t.close();};
             t.onerror=function(){if(bOut){bOut.textContent='❌ WS failed — bridge not running or wrong origin';bOut.style.color='var(--pulse)';}};
@@ -12175,7 +12231,7 @@ out += row('Agent bridge', agentBridge==='connected'?true:'warn', 'SG_AGENT brid
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-p" style="font-size:9px" onclick="sg(function(){if(typeof BRIDGE!==\'undefined\'&&BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();if(typeof PiperTTS!==\'undefined\'&&PiperTTS.connect)PiperTTS.connect();if(window.SG_AGENT)SG_AGENT.reconnectBridge();toast(\'All bridges reconnecting...\',\'\');setTimeout(function(){loadPanel(\'diag\');},1500)})">🔌 Reconnect All Bridges</button>';
 out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9899/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){if(window._sgWsBlocked&&window._sgWsBlocked()){toast(\'WS blocked — open via http://127.0.0.1:9898\',\'err\');return;}var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -12314,7 +12370,7 @@ out += '</div>';
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9899/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){if(window._sgWsBlocked&&window._sgWsBlocked()){toast(\'WS blocked — open via http://127.0.0.1:9898\',\'err\');return;}var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -17904,6 +17960,8 @@ _histIdx: -1,
 connect: function() {
 if (BridgeTerm._ws && BridgeTerm._ws.readyState < 2) return;
 try {
+BridgeTerm._ws && BridgeTerm._ws.close && BridgeTerm._ws.close();
+if (_sgWsBlocked()) return;
 BridgeTerm._ws = new WebSocket(_sgWsUrl('127.0.0.1:9897/terminal'));
 BridgeTerm._ws.onopen = function() {
 BridgeTerm._log('CONNECTED to ' + _sgWsUrl('127.0.0.1:9897/terminal'), 'var(--acid)');
@@ -24201,6 +24259,7 @@ window.initBridge = function initBridge(){
 if(window.ws && window.ws.readyState <= 1) return;
 window._bridgeGaveUp = false;
 try{
+if(_sgWsBlocked()) return;
 /* WS always on Python bridge :9897 — never derive from location.host
    (page is served from KODER :9898 which is HTTP-only, not a WS server) */
 var _wsURL = _sgWsUrl();
@@ -24319,15 +24378,14 @@ document.querySelectorAll('.ca').forEach(function(x){ x.classList.toggle('on', x
 
 /* ─── Suppress all srcdoc/cross-origin Script error spam ─── */
 (function suppressScriptErrors(){
-var _orig = window.onerror;
-window.onerror = function(msg, src, line, col, err){
+window.GlobalHandlers.chainOnError(function(msg, src, line, col, err){
 if(!msg) return false;
 var s = String(msg);
 if(s === 'Script error.' || s === 'Script error' || !src) return true;
 if(src && src.indexOf('about:srcdoc') !== -1) return true;
 if(src && src.indexOf('about:blank') !== -1) return true;
-return _orig ? _orig(msg,src,line,col,err) : false;
-};
+return false;
+});
 })();
 
 /* ─── Bridge dot live update ─── */
@@ -25071,6 +25129,7 @@ return;
 /* Fallback: dedicated WebSocket to /terminal */
 _mode = 'bridge-ws';
 try{
+  if(_sgWsBlocked()) return;
   _ws = new WebSocket(_sgWsUrl('127.0.0.1:9897/terminal'));
   _ws.onopen = function(){
     _ws.send(JSON.stringify({type:'ssh_connect',host:host,port:parseInt(port)||22,username:user,password:pass}));
@@ -26927,7 +26986,7 @@ if(d.type==='cicd_result'){
 if(d.type==='ai_code_review_result'||d.context==='codemaster'){var panel=$('cm-ai-panel'),ed=$('cm-editor'),text=d.review||d.text||'',fx=d.fixed_code||_sgExtractCodeFence(text);if(panel&&ed)panel._cmSource=ed.value||'';_sgUpdateAiFixPanel((panel&&panel._cmSource)||((ed||{}).value||''),fx,text,'✅ APPLY FIX',function(){setCode(fx);});}};ws.onerror=function(){};ws.onclose=function(){_ok=false;_ws=null;window.ws=null;_dot(false);_br();};}
 function _br(){clearTimeout(window._arbR);window._arbR=setTimeout(_bc,Math.min(2000*Math.pow(1.5,Math.min(_at,8)),20000)|0);}
 function _dot(on){window._SGH_BRIDGE_CONNECTED=on;var c=on?'#00ffc8':'#ff3d6e';['rs-bridge-dot','sgh-pill-dot','_ad'].forEach(function(id){var el=$(id);if(el)el.style.background=c;});['bridgeStatus','ftBridge'].forEach(function(id){var el=$(id);if(el){el.textContent=on?'LIVE':'OFFLINE';el.style.color=on?'#00e676':'#ff3d6e';}});try{document.dispatchEvent(new CustomEvent(on?'sg:bridgeConnected':'sg:bridgeDisconnected',{detail:{url:'ws://127.0.0.1:9897'}}));}catch(_){}}
-window.bridgeConnect=_bc;window.bridgeReconnect=_bc;window._SG_BRIDGE_STATUS={reconnect:_bc};window.SG_AGENT=window.SG_AGENT||{reconnectBridge:_bc};
+window.bridgeConnect=_bc;window.bridgeReconnect=_bc;window._SG_BRIDGE_STATUS=window._SG_BRIDGE_STATUS||{};window._SG_BRIDGE_STATUS.reconnect=_bc;window.SG_AGENT=window.SG_AGENT||{reconnectBridge:_bc};
 function _send(){
   var inp=$('ag-inp')||$('sgh-ag-inp');
   if(!inp||!inp.value.trim())return;
