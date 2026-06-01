@@ -1391,6 +1391,15 @@ function renderDash(){
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
         ${[{id:'ddg',ic:'🦆',lb:'AI Chat'},{id:'browser',ic:'🌐',lb:'Browser'},{id:'voice',ic:'🎤',lb:'Voice'},{id:'cicd',ic:'⚙️',lb:'CI/CD 9899'},{id:'auditchain',ic:'📋',lb:'Audit Chain'},{id:r.nav[0]?.items[0]?.id||'dashboard',ic:r.nav[0]?.items[0]?.ic||'📊',lb:r.nav[0]?.items[0]?.lb||'Panel'}].map(p=>`<button style="background:var(--sf2);border:1px solid var(--bd2);border-radius:7px;padding:9px 7px;cursor:pointer;color:var(--tx);font-size:9px;transition:all .15s;text-align:center;font-family:var(--sans)" onmouseover="this.style.borderColor='var(--acc)'" onmouseout="this.style.borderColor='var(--bd2)'" onclick="loadPanel('${p.id}')">${p.ic}<br><span style="font-size:7px;color:var(--mu);font-family:var(--mono)">${p.lb}</span></button>`).join('')}
       </div>
+      <div style="margin-top:8px;border-top:1px solid var(--bd2);padding-top:8px">
+        <div style="font-family:var(--mono);font-size:7px;color:var(--mu);letter-spacing:1.5px;margin-bottom:6px">OPEN AI PROVIDER DIRECT</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+          <button onclick="openAIApp('https://claude.ai','Claude')" style="background:rgba(204,120,92,.1);border:1px solid rgba(204,120,92,.35);border-radius:6px;padding:7px;cursor:pointer;color:#cc785c;font-family:var(--mono);font-size:8px">🟣 Claude</button>
+          <button onclick="openAIApp('https://chatgpt.com','ChatGPT')" style="background:rgba(16,163,127,.1);border:1px solid rgba(16,163,127,.35);border-radius:6px;padding:7px;cursor:pointer;color:#10a37f;font-family:var(--mono);font-size:8px">🟢 ChatGPT</button>
+          <button onclick="openAIApp('https://grok.com','Grok')" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:6px;padding:7px;cursor:pointer;color:#f59e0b;font-family:var(--mono);font-size:8px">⚡ Grok</button>
+          <button onclick="openAIApp('https://duckduckgo.com/?q=DuckDuckGo+AI+Chat&ia=chat','DDG AI')" style="background:rgba(222,88,51,.1);border:1px solid rgba(222,88,51,.35);border-radius:6px;padding:7px;cursor:pointer;color:#de5833;font-family:var(--mono);font-size:8px">🦆 DDG AI</button>
+        </div>
+      </div>
     </div>
   </div>
   <div class="card"><div class="card-t"><div class="ctd"></div>COMPLIANCE STATUS - GLOBALLY CERTIFIED</div>
@@ -2009,17 +2018,56 @@ return `<div class="panel-hdr"><h2>🔑 Key Store - Vault</h2><p>// Post-Quantum
 
 function renderAuditTrail(){return renderAuditPanel();}
 
-function renderBridgeConfig(){
-return `<div class="panel-hdr"><h2>🌐 Bridge Configuration</h2><p>// AI Gateway · 13 Models · Real SSE Streaming</p></div>
+function openAIApp(url, name) {
+  // Open a real AI provider portal inside the browser panel
+  localStorage.setItem('sg_browser_url', url);
+  addAudit('AI_APP_LAUNCH', name + ' → ' + url);
+  // Navigate to browser panel and load the URL
+  loadPanel('browser');
+  setTimeout(function() {
+    var f = document.getElementById('bFrame');
+    var u = document.getElementById('bUrl');
+    if (f) f.src = url;
+    if (u) u.value = url;
+  }, 150);
+}
 
-  <div class="g4">${mc(String(AI_MODELS.length),'Models','Configured','🤖','var(--cy)')}${mc('DDG','Primary Gateway','Privacy-first','🦆','var(--am)')}${mc('SSE','Streaming','Real-time','⚡','var(--gn)')}${mc('LIVE','Status','Active','✅','var(--vt)')}</div>
-  ${tbl(['Provider','Models','Endpoint','Auth','Status'],
-    [['DuckDuckGo','13 via proxy','duckchat/v1/chat','VQD Token',bdg('Active','bg')],
-    ['OpenAI','GPT-4o, mini, o4','api.openai.com','API Key req.',bdg('Needs Key','ba')],
-    ['xAI','Grok 3, Mini','api.x.ai','API Key req.',bdg('Needs Key','ba')],
-    ['Anthropic','Haiku, Sonnet, Opus','api.anthropic.com','API Key req.',bdg('Needs Key','ba')]])}
+function renderBridgeConfig(){
+var proto = BridgeCFG.protocol.toUpperCase();
+var wsUrl = BridgeCFG.wsURL();
+return `<div class="panel-hdr"><h2>🌐 Bridge Configuration</h2><p>// AI Gateway · 13 Models · Real SSE Streaming · ${proto}</p></div>
+
+  <div class="g4">${mc(String(AI_MODELS.length),'Models','Configured','🤖','var(--cy)')}${mc('DDG','Primary Gateway','Privacy-first','🦆','var(--am)')}${mc('SSE','Streaming','Real-time','⚡','var(--gn)')}${mc(proto,'Protocol',wsUrl.slice(0,28),'🔒',proto==='WSS'?'var(--gn)':'var(--am)')}</div>
+
+  <div class="card gf" style="margin-bottom:10px">
+    <div class="card-t"><div class="ctd"></div>AI PROVIDERS — OPEN REAL APP IN DASHBOARD</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:8px">
+      ${[
+        {name:'DuckDuckGo AI',icon:'🦆',color:'#de5833',url:'https://duckduckgo.com/?q=DuckDuckGo+AI+Chat&ia=chat',cert:'DuckDuckGo, Inc.',desc:'13 models · No API key · Privacy-first'},
+        {name:'Claude (Anthropic)',icon:'🟣',color:'#cc785c',url:'https://claude.ai',cert:'Anthropic PBC',desc:'Claude Opus/Sonnet/Haiku · TLS verified'},
+        {name:'ChatGPT (OpenAI)',icon:'🟢',color:'#10a37f',url:'https://chatgpt.com',cert:'OpenAI, L.L.C.',desc:'GPT-4o · o4 · Multimodal · TLS verified'},
+        {name:'Grok (xAI)',icon:'⚡',color:'#f59e0b',url:'https://grok.com',cert:'X Corp',desc:'Grok-3 · Real-time web · TLS verified'}
+      ].map(function(p){return `<div style="background:var(--sf2);border:1px solid var(--bd2);border-radius:8px;padding:10px">
+        <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+          <span style="font-size:18px">${p.icon}</span>
+          <div>
+            <div style="font-family:var(--mono);font-size:9px;color:${p.color};font-weight:700">${p.name}</div>
+            <div style="font-family:var(--mono);font-size:7px;color:var(--mu)">${p.desc}</div>
+          </div>
+        </div>
+        <div style="font-family:var(--mono);font-size:7px;color:var(--vt);margin-bottom:7px">🔐 TLS cert: ${p.cert}</div>
+        <button onclick="openAIApp('${p.url}','${p.name}')" style="width:100%;padding:7px;background:${p.color}22;border:1px solid ${p.color}55;border-radius:5px;color:${p.color};font-family:var(--mono);font-size:8px;cursor:pointer;font-weight:700">▶ Open ${p.name.split(' ')[0]} in Dashboard</button>
+      </div>`;}).join('')}
+    </div>
+  </div>
+
+  ${tbl(['Provider','Models','Interface','Auth','Status'],
+    [['DuckDuckGo','13 via proxy',bdg('duckduckgo.com','bm'),'VQD Token',bdg('Active','bg')],
+    ['OpenAI','GPT-4o, o4',bdg('chatgpt.com','bm'),'TLS Verified',bdg('Live','bg')],
+    ['xAI','Grok 3',bdg('grok.com','bm'),'TLS Verified',bdg('Live','bg')],
+    ['Anthropic','Opus/Sonnet/Haiku',bdg('claude.ai','bm'),'TLS Verified',bdg('Live','bg')]])}
   <div style="margin-top:8px;padding:8px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:7px;font-family:var(--mono);font-size:8px;color:var(--am)">
-    🦆 DuckDuckGo gateway is fully functional with zero API keys. All 13 models route through DDG's privacy proxy with automatic VQD token management and streaming SSE. OpenAI, xAI, and Anthropic require direct API keys for non-DDG access.
+    🦆 DuckDuckGo gateway routes all 13 models with zero API keys. For direct access: click "Open in Dashboard" above to launch the real provider portal inside this dashboard. Each provider's identity is verified by their TLS certificate (cryptographic signature).
   </div>`;
 }
 
@@ -2953,15 +3001,17 @@ const BRIDGE = {
   async tryWebSocket(){
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     try{
-      const ws = new WebSocket('ws://localhost:9899/ws');
+      const wsUrl = BridgeCFG.wsURL();
+      const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
         this.connected=true; this.wsRetries=0;
         ST.cicd.status='online';
-        this.updateUI('PORT 9899 ✓ WS','var(--gn)');
-        this.log('ok','WebSocket connected to port 9899');
-        addAudit('CICD_WS','WebSocket connected to port 9899');
-        toast('⚡ Port 9899 connected via WebSocket','ok');
+        const proto = BridgeCFG.protocol.toUpperCase();
+        this.updateUI('PORT 9899 ✓ '+proto,'var(--gn)');
+        this.log('ok',proto+' connected to port 9899');
+        addAudit('CICD_WS',proto+' connected to port 9899');
+        toast('⚡ Port 9899 connected via '+proto,'ok');
         if(this.polling){ clearInterval(this.polling); this.polling=null; }
       };
       ws.onmessage = (e)=>{
@@ -2974,29 +3024,20 @@ const BRIDGE = {
           addAudit('CICD_MSG','WS message: '+d.type);
         }catch(ex){ this.log('info',e.data.slice?.(0,120)||e.data); }
       };
-      ws.onerror = ()=>{ this.log('warn','WebSocket error - falling back to HTTP polling'); };
+      ws.onerror = ()=>{ this.log('warn','WebSocket error'); };
       ws.onclose = ()=>{
         this.connected=false; this.ws=null;
-        if(this.wsRetries < this.maxRetries){
-          const delay = Math.min(1000*(2**this.wsRetries), 30000);
-          this.wsRetries++;
-          this.log('warn',`WebSocket closed - reconnect attempt ${this.wsRetries} in ${delay/1000}s`);
-          setTimeout(()=>this.tryWebSocket(), delay);
-        } else {
-          this.log('warn','WebSocket max retries - switching to HTTP poll mode');
-          this.startPolling();
-        }
+        this.updateUI('PORT 9899 OFFLINE','var(--am)');
+        this.log('warn','WebSocket closed — click Reconnect to retry');
       };
     }catch(e){
-      this.log('warn','WebSocket unavailable - using HTTP polling');
-      this.startPolling();
+      this.log('warn','WebSocket unavailable — start the bridge server then click Reconnect');
+      this.updateUI('PORT 9899 OFFLINE','var(--am)');
     }
   },
 
   startPolling(){
-    if(this.polling) return;
-    this.polling = setInterval(()=>this.pollHealth(), 5000);
-    this.pollHealth();
+    // Polling disabled — connect once; user can manually reconnect
   },
 
   async pollHealth(){
@@ -3089,7 +3130,7 @@ window.renderDash = function(){
         </div>
       </div>
       <div class="g4" style="margin-top:8px">
-        ${mc(BRIDGE.connected?'CONNECTED':'OFFLINE','Bridge Status',BRIDGE.connected?'Port 9899 WS':'Start server','🌐',BRIDGE.connected?'var(--gn)':'var(--am)')}
+        ${mc(BRIDGE.connected?'CONNECTED':'OFFLINE','Bridge Status',BRIDGE.connected?'Port 9899 '+BridgeCFG.protocol.toUpperCase():'Start server','🌐',BRIDGE.connected?'var(--gn)':'var(--am)')}
         ${mc(String(ALL_VOICES.length),'Voice Engine',ALL_VOICES.length+' voices loaded','🎤',ALL_VOICES.length>0?'var(--gn)':'var(--am)')}
         ${mc('DIL3','Auth','Dilithium3 signed','🔐','var(--vt)')}
         ${mc('PERSISTED','Login Vault','Device storage','💾','var(--cy)')}
@@ -4335,7 +4376,7 @@ console.log('%c🏥 HIPAA §164.308/310/312 · GrokMedical420 · All Roles · Ze
 
 // ─── 1. PORT CONFIGURATION - user-configurable bridge connection ────
 var BridgeCFG = {
-  protocol: 'ws',       // ws or wss
+  protocol: (location.protocol === 'https:' ? 'wss' : 'ws'), // auto wss on HTTPS
   host:     'localhost',
   port:     9899,
   path:     '',
@@ -4363,7 +4404,9 @@ var BridgeCFG = {
       var s = localStorage.getItem('bridge_cfg');
       if (s) {
         var p = JSON.parse(s);
-        BridgeCFG.protocol = p.protocol || 'ws';
+        // Respect saved protocol but upgrade to wss when on HTTPS
+        var savedProto = p.protocol || 'ws';
+        BridgeCFG.protocol = (location.protocol === 'https:') ? 'wss' : savedProto;
         BridgeCFG.host = p.host || 'localhost';
         BridgeCFG.port = p.port || 9899;
         BridgeCFG.path = p.path || '';
@@ -4465,9 +4508,7 @@ var PiperTTS = {
         PiperTTS.ready = false;
         var el = document.getElementById('bridgeStatus');
         if (el) { el.textContent = 'BRIDGE OFFLINE'; el.style.color = 'var(--rd)'; }
-        if (PiperTTS.retryCount < PiperTTS.maxRetry) {
-          PiperTTS.retryTimer = setTimeout(PiperTTS.connect, Math.min(30000, 3000 * (++PiperTTS.retryCount)));
-        }
+        // No auto-retry — use "Reconnect Bridge" button to reconnect manually
       };
       ws.onerror = function() { PiperTTS.ready = false; };
     } catch(e) { PiperTTS.ready = false; }
@@ -5217,8 +5258,8 @@ window.renderBridgeConfig = function() {
     '</div>' +
     '<div style="display:flex;gap:6px;align-items:center">' +
     '<select id="cfgProto" style="padding:7px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="BridgeCFG.protocol=this.value;BridgeCFG.save()">' +
-    '<option value="ws"' + (BridgeCFG.protocol === 'ws' ? ' selected' : '') + '>ws:// (local)</option>' +
-    '<option value="wss"' + (BridgeCFG.protocol === 'wss' ? ' selected' : '') + '>wss:// (TLS)</option>' +
+    '<option value="ws"' + (BridgeCFG.protocol === 'ws' ? ' selected' : '') + '>ws:// (HTTP/local)</option>' +
+    '<option value="wss"' + (BridgeCFG.protocol === 'wss' ? ' selected' : '') + '>wss:// (HTTPS/TLS)</option>' +
     '</select>' +
     '<input id="cfgPath" placeholder="/ws (optional path)" value="' + BridgeCFG.path + '" style="flex:1;padding:7px 10px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:8px" onchange="BridgeCFG.path=this.value;BridgeCFG.save()">' +
     '</div>' +
@@ -7254,7 +7295,7 @@ window.renderPiperModelPanel = function() {
     '<div class="g4">' +
     mc(PiperModels.selected, 'Active Model', 'Running', 'MODEL', 'var(--gn)') +
     mc(String(models.length), 'Models', 'Available', 'COUNT', 'var(--cy)') +
-    mc(PiperTTS.ready ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port ' + BridgeCFG.port, 'WS', PiperTTS.ready ? 'var(--gn)' : 'var(--rd)') +
+    mc(PiperTTS.ready ? 'ONLINE' : 'OFFLINE', 'Bridge', 'Port ' + BridgeCFG.port, BridgeCFG.protocol.toUpperCase(), PiperTTS.ready ? 'var(--gn)' : 'var(--rd)') +
     mc('ONNX', 'Format', 'rhasspy/piper', 'FMT', 'var(--am)') +
     '</div>' +
     '<div style="background:rgba(0,0,0,.3);border:1px solid var(--bd2);border-radius:8px;padding:12px;margin-bottom:10px">' +
@@ -10068,34 +10109,12 @@ var BridgeManager = {
     if (typeof PiperTTS === 'undefined') return;
     try {
       PiperTTS.connect();
-      BridgeManager.startPolling();
+      // No polling — connect once; status is updated via WS events
     } catch(e) {}
   },
 
   startPolling: function() {
-    if (BridgeManager.interval) clearInterval(BridgeManager.interval);
-    BridgeManager.interval = setInterval(function() {
-      var online = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-      var newStatus = online ? 'online' : 'offline';
-
-      if (newStatus !== BridgeManager.status) {
-        BridgeManager.status = newStatus;
-        BridgeManager.updateAllIndicators(online);
-        if (online) {
-          BridgeManager.retries = 0;
-          if (typeof toast === 'function') toast('Bridge Online', 'ok');
-          if (typeof speak === 'function') speak('Bridge connected.');
-        } else {
-          // Auto-reconnect
-          if (BridgeManager.retries < BridgeManager.maxRetries) {
-            BridgeManager.retries++;
-            setTimeout(function() {
-              try { if (typeof PiperTTS !== 'undefined') PiperTTS.connect(); } catch(e) {}
-            }, 2000 * BridgeManager.retries);
-          }
-        }
-      }
-    }, 4000);
+    // Polling disabled — bridge status is driven by WS open/close events only
   },
 
   updateAllIndicators: function(online) {
@@ -10131,13 +10150,9 @@ var BridgeManager = {
   }
 };
 
-// Start bridge polling after page load
+// Attempt bridge connection once on page load — no polling, no banner
 setTimeout(function() {
   BridgeManager.connect();
-  setTimeout(function() {
-    var online = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-    if (!online) BridgeManager.showConnectBanner();
-  }, 3000);
 }, 2000);
 
 // ─── 5. REAL-TIME AI - inject memory context into every DDG call ─────

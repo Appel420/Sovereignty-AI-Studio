@@ -982,6 +982,22 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
 })();
 </script>
 
+<script>
+/* ── Crypto-secure random helpers — NO Math.random() anywhere in this app ── */
+/* cryptoRandFloat(): CSPRNG float [0,1) — replaces Math.random()              */
+function cryptoRandFloat() {
+  var buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] / 4294967296; /* 2^32 */
+}
+/* cryptoRandHex(len): returns len uppercase hex chars from CSPRNG             */
+function cryptoRandHex(len) {
+  var buf = new Uint8Array(Math.ceil(len / 2));
+  crypto.getRandomValues(buf);
+  return Array.from(buf, function(b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, len).toUpperCase();
+}
+</script>
+
 <div id="roleScreen" class="screen">
   <div class="rs-bar">
     <div class="rs-bar-inner">
@@ -2806,7 +2822,7 @@ var GitHub = {
     if (!GitHub.clientId) {
       toast('Set GitHub Client ID in Settings first', 'err'); return;
     }
-    var state = Math.random().toString(36).slice(2);
+    var state = cryptoRandHex(32).toLowerCase();
     localStorage.setItem('gh_state', state);
     var url = 'https://github.com/login/oauth/authorize?client_id=' + GitHub.clientId +
       '&scope=repo,read:user&state=' + state;
@@ -3048,7 +3064,7 @@ var LinearCard = {
   cards: {},
 
   create: function(role, data, pin, cb) {
-    var id = 'lc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    var id = 'lc_' + Date.now() + '_' + cryptoRandHex(6);
     var payload = JSON.stringify({ id: id, role: role, data: data, ts: Date.now(), creator: ST.name });
     // AES-GCM encrypt
     var keyMat = new TextEncoder().encode(pin.padEnd(32, '0').slice(0, 32));
@@ -5564,7 +5580,7 @@ gi('authCta').addEventListener('click', function(){
 /* ── GRANT ACCESS ── */
 function grant(name,badge,roleKey,rd,rank){
   var lv=rank?parseInt((rank.l||'L1').replace('L',''),10):(rd.level||1);
-  var sid='SG_'+Date.now()+'_'+Math.random().toString(36).slice(2,8).toUpperCase();
+  var sid='SG_'+Date.now()+'_'+cryptoRandHex(6);
   window.ST={name:name,badge:badge,role:roleKey,roleLabel:rd.label||roleKey,
     roleIcon:rd.icon||'🔐',rankLabel:rank?rank.n:'Officer',
     level:lv,levelLabel:rank?rank.l:'L1',color:rd.color||'#00ffc8',
@@ -13604,25 +13620,36 @@ mode: RS.mode, growthWeeks: RS.growthWeeks,
 careScore: RS.careScore, vitals: RS.vitals,
 modeHistory: RS.modeHistory,
 compliance: ['FedRAMP','HIPAA','GDPR','COPPA','NIST SP 800-57'],
-signature: 'FALCON-1024-SIM:' + Math.random().toString(36).slice(2,18).toUpperCase(),
-merkleRoot: 'SHA3-512:' + Math.random().toString(36).slice(2,34).toUpperCase(),
 };
-var blob = new Blob([JSON.stringify(log,null,2)], {type:'application/json'});
-var a = document.createElement('a');
-a.href = URL.createObjectURL(blob);
-a.download = 'robot-audit-'+Date.now()+'.json';
-document.body.appendChild(a); a.click(); document.body.removeChild(a);
-URL.revokeObjectURL(a.href);
-if(typeof toast==='function') toast('\uD83D\uDCE4 Falcon-signed audit exported','ok');
+var canonical = JSON.stringify(log, null, 2);
+var enc = new TextEncoder().encode(canonical);
+Promise.all([
+  crypto.subtle.digest('SHA-512', enc),
+  crypto.subtle.generateKey({name:'HMAC',hash:'SHA-256'}, false, ['sign'])
+    .then(function(k){ return crypto.subtle.sign('HMAC', k, enc); })
+]).then(function(results) {
+  var merkleBytes = new Uint8Array(results[0]);
+  var sigBytes    = new Uint8Array(results[1]);
+  var toHex = function(buf){ return Array.from(buf,function(b){return b.toString(16).padStart(2,'0');}).join('').toUpperCase(); };
+  log.merkleRoot = 'SHA-512:' + toHex(merkleBytes);
+  log.signature  = 'HMAC-SHA256:' + toHex(sigBytes);
+  var blob = new Blob([JSON.stringify(log, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'robot-audit-'+Date.now()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  if(typeof toast==='function') toast('\uD83D\uDCE4 Audit exported — SHA-512 merkle + HMAC-SHA256 signed','ok');
+  if(typeof addAudit==='function') addAudit('ROBOT_AUDIT_EXPORT',{ts:Date.now(),algo:'HMAC-SHA256+SHA-512'});
+}).catch(function(e){
+  if(typeof toast==='function') toast('\u274C Audit export failed: '+e.message,'err');
+});
 };
 
 window._robotVitalsUpdate = function() {
-var RS = window._robotState;
-RS.vitals.hr   = Math.round(60 + Math.random()*40);
-RS.vitals.temp = parseFloat((97+Math.random()*3).toFixed(1));
-RS.vitals.o2   = Math.round(95+Math.random()*4);
-if(typeof toast==='function') toast('\uD83D\uDCCA Vitals updated','ok');
-if(typeof addAudit==='function') addAudit('ROBOT_VITALS',RS.vitals);
+/* Vitals require a live hardware sensor connection — no mock data permitted */
+if(typeof toast==='function') toast('\u26A0\uFE0F No sensor connected — real vitals require a hardware medical link','err');
+if(typeof addAudit==='function') addAudit('ROBOT_VITALS_NO_SENSOR',{ts:Date.now(),status:'sensor_disconnected'});
 if(typeof loadPanel==='function') loadPanel('robot');
 };
 
@@ -14630,9 +14657,9 @@ naniteRegen: function() {
   /* Build swarm dots */
   var html = '';
   for (var i = 0; i < 40; i++) {
-    var x = Math.random()*100, y = Math.random()*100;
-    var delay = (Math.random()*0.5).toFixed(2);
-    var size = 2 + Math.round(Math.random()*3);
+    var x = cryptoRandFloat()*100, y = cryptoRandFloat()*100;
+    var delay = (cryptoRandFloat()*0.5).toFixed(2);
+    var size = 2 + Math.round(cryptoRandFloat()*3);
     html += '<div style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+size+'px;height:'+size+'px;background:#00ffc8;border-radius:50%;animation:oparNaniteSwarm .8s ease-out '+delay+'s both;box-shadow:0 0 4px #00ffc8"></div>';
   }
   /* Crack line */
@@ -17321,10 +17348,10 @@ CICD.log('\u25b6 Build triggered — branch: ' + (cfg.branch||'main'), 'var(--ac
 var stageOrder = ['checkout','install','build','test','sign','deploy'];
 var delay = 0;
 stageOrder.forEach(function(stage, i) {
-  delay += 400 + Math.random()*300;
+  delay += 400 + cryptoRandFloat()*300;
   setTimeout(function() {
     stages[stage].status = 'running';
-    stages[stage].duration = Math.round(200 + Math.random()*800);
+    stages[stage].duration = Math.round(200 + cryptoRandFloat()*800);
     CICD.log('\u23f3 ' + stage.toUpperCase() + '...', 'var(--sun)');
     setTimeout(function() {
       /* Check bridge for real execution */
@@ -17518,23 +17545,19 @@ var prompt = 'You are a council judge. Question: "' + q + '"\nVote type: ' + vty
 
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 
+if (!bridgeOk) {
+  /* Bridge required — no fake votes permitted */
+  if (card) card.style.display = 'none';
+  window.toast && window.toast('\u26A0\uFE0F Bridge disconnected — live AI connection required for council votes. Connect bridge first.','err');
+  return;
+}
+
 judges.forEach(function(judge) {
-  if (bridgeOk) {
-    try {
-      PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
-      return;
-    } catch(e) {}
+  try {
+    PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
+  } catch(e) {
+    window.toast && window.toast('\u274C Failed to reach ' + judge.name + ' — bridge error','err');
   }
-  /* Offline: simulate vote */
-  setTimeout(function() {
-    var offlineVotes = { binary:['Yes','No'], score:['7','8','6'], analysis:['Supported','Opposed','Neutral'] };
-    var picks = offlineVotes[vtype]||['Yes','No'];
-    var vote  = picks[Math.floor(Math.random()*picks.length)];
-    results[judge.id] = {vote:vote, reasoning:'Offline simulation. Connect bridge for real AI votes.', confidence:0.5+Math.random()*0.4};
-    CouncilVote._updateJudge(judge, results[judge.id]);
-    done++;
-    if (done === judges.length) CouncilVote._showVerdict(q, results, judges, doArb, doSign);
-  }, 600 + Math.random()*800);
 });
 
 /* Listen for bridge responses */
@@ -18564,8 +18587,8 @@ if (style === 'buzz' || style === 'short_tight') {
   /* Grain */
   ctx.fillStyle = AvatarBuilder._shade(hair, -0.1) + '77';
   for (var i = 0; i < 120; i++) {
-    var bx = cx - fW*0.46 + Math.random()*fW*0.92;
-    var by = cy - fH*0.58 + Math.random()*fH*0.32;
+    var bx = cx - fW*0.46 + cryptoRandFloat()*fW*0.92;
+    var by = cy - fH*0.58 + cryptoRandFloat()*fH*0.32;
     ctx.beginPath();
     ctx.arc(bx, by, 0.7, 0, Math.PI*2);
     ctx.fill();
@@ -18594,10 +18617,10 @@ if (style === 'buzz' || style === 'short_tight') {
   ctx.strokeStyle = AvatarBuilder._shade(hair, -0.15) + 'aa';
   ctx.lineWidth = 1.2;
   for (var j = 0; j < 45; j++) {
-    var ax = cx - fW*0.62 + Math.random()*fW*1.24;
-    var ay = cy - fH*0.68 + Math.random()*fH*0.56;
+    var ax = cx - fW*0.62 + cryptoRandFloat()*fW*1.24;
+    var ay = cy - fH*0.68 + cryptoRandFloat()*fH*0.56;
     ctx.beginPath();
-    ctx.arc(ax, ay, 3 + Math.random()*5, 0, Math.PI*1.75);
+    ctx.arc(ax, ay, 3 + cryptoRandFloat()*5, 0, Math.PI*1.75);
     ctx.stroke();
   }
 } else if (style === 'curly') {
@@ -18614,7 +18637,7 @@ if (style === 'buzz' || style === 'short_tight') {
   ctx.lineWidth = 1.2;
   for (var k = 0; k < 22; k++) {
     ctx.beginPath();
-    ctx.arc(cx - fW*0.5 + Math.random()*fW, cy - fH*0.62 + Math.random()*fH*0.52, 4+Math.random()*6, 0, Math.PI*1.6);
+    ctx.arc(cx - fW*0.5 + cryptoRandFloat()*fW, cy - fH*0.62 + cryptoRandFloat()*fH*0.52, 4+cryptoRandFloat()*6, 0, Math.PI*1.6);
     ctx.stroke();
   }
 } else if (style === 'bun') {
@@ -18649,9 +18672,9 @@ if (style === 'buzz' || style === 'short_tight') {
     ctx.fillStyle = l%2===0 ? hair : AvatarBuilder._shade(hair, -0.1);
     ctx.beginPath();
     ctx.moveTo(lx, cy - fH*0.28);
-    var dropY = cy + fH*(0.18 + Math.random()*0.28);
-    ctx.quadraticCurveTo(lx + (Math.random()-0.5)*10, dropY - 20, lx + (Math.random()-0.5)*8, dropY);
-    ctx.lineTo(lx + 5 + (Math.random()-0.5)*4, dropY);
+    var dropY = cy + fH*(0.18 + cryptoRandFloat()*0.28);
+    ctx.quadraticCurveTo(lx + (cryptoRandFloat()-0.5)*10, dropY - 20, lx + (cryptoRandFloat()-0.5)*8, dropY);
+    ctx.lineTo(lx + 5 + (cryptoRandFloat()-0.5)*4, dropY);
     ctx.quadraticCurveTo(lx + 5, dropY-20, lx+5, cy - fH*0.28);
     ctx.fill();
   }
@@ -18972,8 +18995,8 @@ if (style === 'stubble') {
   for (var i = 0; i < 200; i++) {
     ctx.beginPath();
     ctx.arc(
-      cx - fW*0.32 + Math.random()*fW*0.64,
-      cy + fH*0.19 + Math.random()*fH*0.28,
+      cx - fW*0.32 + cryptoRandFloat()*fW*0.64,
+      cy + fH*0.19 + cryptoRandFloat()*fH*0.28,
       0.65, 0, Math.PI*2
     );
     ctx.fill();
@@ -19054,7 +19077,7 @@ _grain: function(ctx, W, H, intensity) {
 var imgd = ctx.getImageData(0,0,W,H);
 var data = imgd.data;
 for (var i = 0; i < data.length; i += 4) {
-var n = (Math.random()-0.5) * intensity * 255;
+var n = (cryptoRandFloat()-0.5) * intensity * 255;
 data[i]   = Math.max(0,Math.min(255,data[i]  +n));
 data[i+1] = Math.max(0,Math.min(255,data[i+1]+n));
 data[i+2] = Math.max(0,Math.min(255,data[i+2]+n));
@@ -19794,9 +19817,9 @@ naniteRegen: function() {
   /* Build swarm dots */
   var html = '';
   for (var i = 0; i < 40; i++) {
-    var x = Math.random()*100, y = Math.random()*100;
-    var delay = (Math.random()*0.5).toFixed(2);
-    var size = 2 + Math.round(Math.random()*3);
+    var x = cryptoRandFloat()*100, y = cryptoRandFloat()*100;
+    var delay = (cryptoRandFloat()*0.5).toFixed(2);
+    var size = 2 + Math.round(cryptoRandFloat()*3);
     html += '<div style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+size+'px;height:'+size+'px;background:#00ffc8;border-radius:50%;animation:oparNaniteSwarm .8s ease-out '+delay+'s both;box-shadow:0 0 4px #00ffc8"></div>';
   }
   /* Crack line */
@@ -21852,10 +21875,10 @@ CICD.log('\u25b6 Build triggered — branch: ' + (cfg.branch||'main'), 'var(--ac
 var stageOrder = ['checkout','install','build','test','sign','deploy'];
 var delay = 0;
 stageOrder.forEach(function(stage, i) {
-  delay += 400 + Math.random()*300;
+  delay += 400 + cryptoRandFloat()*300;
   setTimeout(function() {
     stages[stage].status = 'running';
-    stages[stage].duration = Math.round(200 + Math.random()*800);
+    stages[stage].duration = Math.round(200 + cryptoRandFloat()*800);
     CICD.log('\u23f3 ' + stage.toUpperCase() + '...', 'var(--sun)');
     setTimeout(function() {
       /* Check bridge for real execution */
@@ -22049,23 +22072,19 @@ var prompt = 'You are a council judge. Question: "' + q + '"\nVote type: ' + vty
 
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 
+if (!bridgeOk) {
+  /* Bridge required — no fake votes permitted */
+  if (card) card.style.display = 'none';
+  window.toast && window.toast('\u26A0\uFE0F Bridge disconnected — live AI connection required for council votes. Connect bridge first.','err');
+  return;
+}
+
 judges.forEach(function(judge) {
-  if (bridgeOk) {
-    try {
-      PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
-      return;
-    } catch(e) {}
+  try {
+    PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
+  } catch(e) {
+    window.toast && window.toast('\u274C Failed to reach ' + judge.name + ' — bridge error','err');
   }
-  /* Offline: simulate vote */
-  setTimeout(function() {
-    var offlineVotes = { binary:['Yes','No'], score:['7','8','6'], analysis:['Supported','Opposed','Neutral'] };
-    var picks = offlineVotes[vtype]||['Yes','No'];
-    var vote  = picks[Math.floor(Math.random()*picks.length)];
-    results[judge.id] = {vote:vote, reasoning:'Offline simulation. Connect bridge for real AI votes.', confidence:0.5+Math.random()*0.4};
-    CouncilVote._updateJudge(judge, results[judge.id]);
-    done++;
-    if (done === judges.length) CouncilVote._showVerdict(q, results, judges, doArb, doSign);
-  }, 600 + Math.random()*800);
 });
 
 /* Listen for bridge responses */
@@ -23670,7 +23689,7 @@ save: function(){
 add: function(type, data){
   if(!this._cards) this.load();
   var card = {
-    id: 'mc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    id: 'mc_'+Date.now()+'_'+cryptoRandHex(4),
     type: type,
     data: data,
     ts: Date.now(),
