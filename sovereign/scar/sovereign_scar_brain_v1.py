@@ -1,5 +1,3 @@
-     copilot/fix-flake8-syntax-error
-copilot/fix-flake8-syntax-error
 """Minimal, importable SCAR brain v1 stub."""
 
 from __future__ import annotations
@@ -7,22 +5,6 @@ from __future__ import annotations
 
 class SovereignScarBrainV1:
     """Temporary placeholder implementation."""
-
-"""
-SovereignSCARBrain v1.1
-=======
-"""SovereignSCARBrain v1.1
-     main
-
-Guardian attestation engine with:
-- PQC ML-DSA-65 signature strategy
-- TPM PCR-based measurement strategy
-- Merkle proof verification
-
-This module is a work-in-progress stub. Full implementation pending.
-"""
-
-from __future__ import annotations
 
 
 class SovereignSCARBrain:
@@ -61,4 +43,3 @@ class MerkleProofStrategy:
 
     def verify(self, payload: dict) -> dict:
         raise NotImplementedError("Merkle proof verification not yet implemented")
- main
