@@ -1,15 +1,6 @@
-"""SovereignSCARBrain v1.1
-
-Guardian attestation engine with:
-- PQC ML-DSA-65 signature strategy
-- TPM PCR-based measurement strategy
-- Merkle proof verification
-
-This module is a work-in-progress stub. Full implementation pending.
-"""
+"""SovereignSCARBrain v1 stub."""
 
 from __future__ import annotations
-
 
 class SovereignSCARBrain:
     """Placeholder for the SovereignSCARBrain v1.1 guardian + attestation engine."""
