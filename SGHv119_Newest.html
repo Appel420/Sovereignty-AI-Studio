@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9897 ws://localhost:9897 wss://127.0.0.1:9897 wss://localhost:9897 http://127.0.0.1:9897 http://127.0.0.1:9898 http://127.0.0.1:9899 http://localhost:9897 http://localhost:9898 http://localhost:9899 http://127.0.0.1:8080 http://localhost:8080 https://127.0.0.1:8443 https://localhost:8443 https://api.anthropic.com https://api.openai.com https://api.x.ai https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9897 ws://localhost:9897 wss://127.0.0.1:9897 wss://localhost:9897 http://127.0.0.1:9897 http://127.0.0.1:9898 http://127.0.0.1:9899 http://localhost:9897 http://localhost:9898 http://localhost:9899 http://127.0.0.1:8080 http://localhost:8080 https://127.0.0.1:8443 https://localhost:8443 https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -213,6 +213,20 @@ transition:all .2s;background:transparent;color:var(--t3);touch-action:manipulat
 #presencePill .pm-online.pm-active{background:var(--acid);color:#000}
 #presencePill .pm-stealth.pm-active{background:#22c55e;color:#000}
 #presencePill .pm-ghost.pm-active{background:#333;color:#666}
+#presencePill .pm-offline.pm-active{background:#c0392b;color:#fff}
+
+/* OFFLINE MODE */
+body.offline-mode{--acid:#c0392b;--volt:#922b21;--bg:#080808;--bg1:#0a0a0a;--bg2:#0d0d0d;
+--bg3:#111;--t0:#888;--t1:#666;--t2:#444;--t3:#333;--wire:#1c1c1c}
+body.offline-mode #presencePill{background:#0d0d0d;border-color:#2a1a1a}
+body.offline-mode .tb-live .tb-dot{background:#c0392b;box-shadow:none}
+body.offline-mode .tb-live{color:#c0392b;border-color:#2a1a1a}
+#offlineBanner{position:fixed;top:0;left:0;right:0;z-index:9800;display:none;
+background:rgba(30,0,0,.94);border-bottom:1px solid #c0392b44;
+font-family:var(--mono);font-size:8px;color:#c0392b;
+padding:5px 16px;letter-spacing:2px;align-items:center;justify-content:space-between}
+body.offline-mode #offlineBanner{display:flex}
+body.offline-mode #topBar{margin-top:27px}
 
 /* GHOST MODE */
 body.ghost-mode{--acid:#555;--volt:#444;--bg:#000;--bg1:#050505;--bg2:#0a0a0a;--bg3:#0f0f0f;
@@ -521,6 +535,9 @@ window._sgWsProto = function(){ return location.protocol==='https:' ? 'wss://' :
 window._sgWsUrl = function(host){ return window._sgWsProto() + (host || '127.0.0.1:9897'); };
 // Guard: once the browser signals ws:// is insecure, stop all reconnect attempts.
 window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure; };
+// Offline-mode guard — set true when mode='offline', stops all socket connect loops.
+window._sgOfflineMode = (function(){ try{ return sessionStorage.getItem('sg_mode')==='offline'; }catch(e){ return false; } })();
+window._sgIsOffline = function(){ return !!window._sgOfflineMode; };
 window.GlobalHandlers = window.GlobalHandlers || (function(){
   var errorHandlers = [];
   var rejectionHandlers = [];
@@ -596,6 +613,11 @@ setTimeout(function(){ if(toast) toast.style.display='none'; }, 3500);
 }
 
 function tryAll() {
+/* Never attempt connections in offline mode */
+if (window._sgIsOffline && window._sgIsOffline()) {
+  if (!_connected) setConnected(false, '📴 Offline mode — sockets disabled');
+  return;
+}
 var ptOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 var brOk = typeof BRIDGE   !== 'undefined' && BRIDGE.connected;
 
@@ -1047,9 +1069,13 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
 <!-- PRESENCE MODE CONTROLS -->
 
 <div id="presencePill">
+  <button class="pm-offline" data-mode="offline">📴 Offline</button>
+  <button class="pm-stealth" data-mode="stealth">🔀 Hybrid</button>
   <button class="pm-online pm-active" data-mode="online">🌐 Online</button>
-  <button class="pm-stealth" data-mode="stealth">🕵️ Stealth</button>
-  <button class="pm-ghost" data-mode="ghost">👻 Ghost</button>
+</div>
+<div id="offlineBanner">
+  <span>📴 OFFLINE MODE · NO SOCKET CONNECTIONS · CODEMASTER LOCAL-ONLY</span>
+  <button onclick="SG.setMode('online')" style="background:none;border:1px solid #c0392b;color:#c0392b;font-family:var(--mono);font-size:7px;padding:3px 8px;border-radius:10px;cursor:pointer;letter-spacing:1px">GO ONLINE</button>
 </div>
 <div id="ghostBanner">
   <span>👻 GHOST MODE ACTIVE · IDENTITY MASKED · TELEMETRY SUPPRESSED</span>
@@ -2031,6 +2057,7 @@ const BRIDGE = {
 
   tryWebSocket(){
     if(this.ws && this.ws.readyState < 2){ return; }
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     var self = this;
     try{
@@ -2225,17 +2252,20 @@ window.renderDash = function(){
     loadAllVoices();
   }
 
-  // Auto-start bridge — immediate + aggressive retry every 4s until connected
+  // Auto-start bridge — only when not in offline mode
   BRIDGE.log('info','Bridge auto-connect starting...');
   (function _bridgeAutoConnect(){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
     BRIDGE.pollHealth().then(function(){
-      if(!BRIDGE.connected) setTimeout(_bridgeAutoConnect, 2000);
-    }).catch(function(){ setTimeout(_bridgeAutoConnect, 2000); });
+      if(!BRIDGE.connected && !(window._sgIsOffline&&window._sgIsOffline())) setTimeout(_bridgeAutoConnect, 8000);
+    }).catch(function(){
+      if(!(window._sgIsOffline&&window._sgIsOffline())) setTimeout(_bridgeAutoConnect, 8000);
+    });
   })();
-  // Also try WS after short delay
-  setTimeout(function(){ BRIDGE.tryWebSocket(); }, 2000);
-  // Keep polling every 8s regardless
-  setInterval(function(){ if(!BRIDGE.connected) BRIDGE.pollHealth(); }, 8000);
+  // Also try WS after short delay — skip if offline
+  setTimeout(function(){ if(!(window._sgIsOffline&&window._sgIsOffline())) BRIDGE.tryWebSocket(); }, 2000);
+  // Keep polling every 30s — skip if offline
+  setInterval(function(){ if(!BRIDGE.connected && !(window._sgIsOffline&&window._sgIsOffline())) BRIDGE.pollHealth(); }, 30000);
 
   // Open vault
   openVault().then(()=>{
@@ -2336,9 +2366,10 @@ var BridgeCFG = {
 BridgeCFG.load();
 if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protocol='wss'; }
 
-// Force-connect immediately — SuperGrok requires port 9897 live
+// Connect bridge — only when not in offline mode
 (function _forceConnect(){
   function _tryConnect(){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
     if(typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
       if(!PiperTTS.ws || PiperTTS.ws.readyState > 1) PiperTTS.connect();
     }
@@ -2347,14 +2378,17 @@ if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protoco
       if(!BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
     }
   }
-  // Hit immediately, then 500ms, 1s, 2s, 5s, 10s, 20s, 30s — until connected
-  var _delays = [0, 500, 1000, 2000, 5000, 10000, 20000, 30000];
-  _delays.forEach(function(d){ setTimeout(_tryConnect, d); });
-  // Then every 15s forever
+  // Try at startup delays — skipped entirely if offline mode is saved
+  if(!(window._sgIsOffline&&window._sgIsOffline())){
+    var _delays = [0, 1000, 3000, 8000, 20000];
+    _delays.forEach(function(d){ setTimeout(_tryConnect, d); });
+  }
+  // Keep alive every 30s — skips if offline
   setInterval(function(){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
     var bOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
     if(!bOk) _tryConnect();
-  }, 15000);
+  }, 30000);
 })();
 
 
@@ -2369,6 +2403,7 @@ var PiperTTS = {
 
   connect: function() {
     if (PiperTTS.ws && PiperTTS.ws.readyState < 2) return;
+    if (window._sgIsOffline && window._sgIsOffline()) return;
     try {
       if (_sgWsBlocked()) return;
       var url = BridgeCFG.wsURL();
@@ -2451,7 +2486,7 @@ var PiperTTS = {
         PiperTTS.ready = false;
         var el = document.getElementById('bridgeStatus');
         if (el) { el.textContent = 'BRIDGE OFFLINE'; el.style.color = 'var(--rd)'; }
-        if (PiperTTS.retryCount < PiperTTS.maxRetry) {
+        if (PiperTTS.retryCount < PiperTTS.maxRetry && !(window._sgIsOffline && window._sgIsOffline())) {
           PiperTTS.retryTimer = setTimeout(PiperTTS.connect, Math.min(30000, 3000 * (++PiperTTS.retryCount)));
         }
       };
@@ -6596,9 +6631,10 @@ function agCard(ic,name,desc,st,clr){return '<div class="ag-card"><span class="a
 PANELS.dashboard=function(){
   var ST=window.ST||{};
   var priv=window.SGPrivacy;var ps=priv&&priv.stats?priv.stats:{blocked:0,allowed:0,fingerprint_attempts:0};
-  /* Bridge force-connect on dashboard load */
+  /* Bridge force-connect on dashboard load — skipped in offline mode */
   (function(){
     function _sgConnect(){
+      if(window._sgIsOffline&&window._sgIsOffline()) return;
       /* PiperTTS */
       if(typeof PiperTTS!=='undefined'){
         if(!PiperTTS.ws||PiperTTS.ws.readyState>=2){
@@ -6618,10 +6654,9 @@ PANELS.dashboard=function(){
         window._SG_BRIDGE_STATUS.reconnect();
       }
     }
-    setTimeout(_sgConnect, 200);
-    setTimeout(_sgConnect, 1500);
-    setTimeout(_sgConnect, 5000);
+    setTimeout(_sgConnect, 1000);
     setInterval(function(){
+      if(window._sgIsOffline&&window._sgIsOffline()) return;
       var ok=(typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
              (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
       if(!ok) _sgConnect();
@@ -15729,6 +15764,7 @@ if (lang === 'html') {
 
 /* ── AI FIX ───────────────────────────────────── */
 function aiAnalyze() {
+/* CodeMaster AI FIX — fully offline, no external API calls */
 var code = getCode();
 var lang = getLang();
 if (!code.trim()) { window.toast && window.toast('Write some code first','err'); return; }
@@ -15736,21 +15772,48 @@ var panel = document.getElementById('cm-ai-panel');
 var output = document.getElementById('cm-ai-output');
 var applyBtn = document.getElementById('cm-apply-fix');
 if (panel) panel.style.display = 'block';
-if (output) output.textContent = '\u23f3 Analyzing ' + lang + ' code via bridge...';
+if (output) output.textContent = '⏳ Analyzing ' + lang + ' code (offline)...';
 if (applyBtn) applyBtn.style.display = 'none';
 panel && panel.scrollIntoView({behavior:'smooth'});
 
-var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-if (bridgeOk) {
-  try {
-    PiperTTS.ws.send(JSON.stringify({
-      type: 'ai_code_review',
-      lang: lang,
-      code: code.slice(0, 4000),
-      prompt: 'Review this ' + lang + ' code. List errors with line numbers. For each error provide exact fix code. Be concise and precise.'
-    }));
-    return;
-  } catch(e) {}
+/* If SGH helper offline function is available, use it */
+if (typeof window.aiAnalyzeOrFix === 'function') {
+  window.aiAnalyzeOrFix(code, 'fix').then(function(fixed){
+    if(output) output.textContent = fixed;
+    if(fixed && fixed !== code && applyBtn){
+      applyBtn.style.display = 'block';
+      applyBtn._fixFn = function(){ setCode(fixed); };
+    }
+  }).catch(function(){ _runLocalAnalysis(); });
+  return;
+}
+_runLocalAnalysis();
+function _runLocalAnalysis(){
+  var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
+  if (output) {
+    output.textContent = '# CodeMaster Analysis (Offline)
+# Language: ' + lang.toUpperCase() + '
+
+' +
+      'Errors: ' + results.errCount + '
+Warnings: ' + results.warnCount + '
+
+' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('
+') || 'No auto-fixes available.');
+    if (results.fixes.some(function(f){ return f.fix; })) {
+      if (applyBtn) {
+        applyBtn.style.display = 'block';
+        applyBtn._fixFn = function() {
+          var c = getCode();
+          results.fixes.forEach(function(f){ if(f.fix) c = f.fix(c) || c; });
+          setCode(c);
+        };
+      }
+    }
+  }
+}
+
 }
 /* Offline fallback: use local lint results as AI output */
 var results = runLint();
@@ -18023,13 +18086,14 @@ init: function() {
 /* Patch BRIDGE.tryWebSocket to also connect PiperTTS WS */
 var origTWS = (typeof BRIDGE !== 'undefined') ? BRIDGE.tryWebSocket.bind(BRIDGE) : null;
 
-/* Auto-connect PiperTTS immediately */
-if (typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function') {
+/* Auto-connect PiperTTS immediately — only if not offline */
+if (!window._sgIsOffline() && typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function') {
   PiperTTS.connect();
 }
 
-/* Aggressive retry: connect every 3s until online */
+/* Retry: connect every 10s until online — stops immediately in offline mode */
 var _connInterval = setInterval(function() {
+  if (window._sgIsOffline()) { clearInterval(_connInterval); return; }
   var bOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
   if (bOk) {
     clearInterval(_connInterval);
@@ -18041,13 +18105,11 @@ var _connInterval = setInterval(function() {
     BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
   }
   if (typeof PiperTTS !== 'undefined') PiperTTS.connect();
-}, 3000);
+}, 10000);
 
-/* Also try immediately */
+/* Also try once after a short delay — skipped in offline mode */
 setTimeout(function() {
-  if (typeof BRIDGE !== 'undefined') BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
-}, 500);
-setTimeout(function() {
+  if (window._sgIsOffline()) return;
   if (typeof BRIDGE !== 'undefined') BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
 }, 1500);
 
@@ -19086,10 +19148,8 @@ if (ev.detail && ev.detail.id === 'avatar') { setTimeout(function(){ AvatarBuild
 });
 
 /* ══ PRESENCE MODE SYSTEM ══ */
-/* Online · Stealth · Ghost — operational security for field roles */
+/* Offline · Hybrid · Online — sovereignty operational modes */
 (function(){
-// Generate ghost alias once per session
-var _alias = 'SHADOW-' + Math.floor(Math.random()*9000+1000);
 window.ST = window.ST || {};
 
 function setMode(m) {
@@ -19097,7 +19157,10 @@ var ST = window.ST || {};
 ST.mode = m;
 window.ST = ST;
 var body = document.body;
-body.classList.remove('ghost-mode','stealth-mode');
+body.classList.remove('ghost-mode','stealth-mode','offline-mode');
+
+// Update offline guard flag
+window._sgOfflineMode = (m === 'offline');
 
 // Update pill buttons
 document.querySelectorAll('#presencePill button').forEach(function(btn){
@@ -19106,22 +19169,29 @@ document.querySelectorAll('#presencePill button').forEach(function(btn){
 });
 
 var stealthEl = document.getElementById('stealthTime');
-var aliasEl   = document.getElementById('ghostAliasBanner');
 
-if(m === 'ghost') {
-  body.classList.add('ghost-mode');
-  if(aliasEl) aliasEl.textContent = 'ALIAS: ' + _alias;
-  /* Suppress voice in ghost */
+if(m === 'offline') {
+  body.classList.add('offline-mode');
   window._ghostMode = true;
-  window.auditLog && window.auditLog('MODE_GHOST', {alias:_alias});
-  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
+  /* Close all open sockets immediately */
+  if(typeof PiperTTS !== 'undefined' && PiperTTS.ws) { try{ PiperTTS.ws.close(); }catch(e){} PiperTTS.ws=null; }
+  if(typeof BRIDGE !== 'undefined' && BRIDGE.ws) { try{ BRIDGE.ws.close(); }catch(e){} BRIDGE.ws=null; BRIDGE.connected=false; }
+  if(window.ws) { try{ window.ws.close(); }catch(e){} window.ws=null; }
+  window.auditLog && window.auditLog('MODE_OFFLINE', {ts:Date.now()});
+  window.toast && window.toast('📴 Offline Mode — All sockets closed. CodeMaster local-only.','ok');
 
-} else if(m === 'stealth') {
+} else if(m === 'stealth' || m === 'hybrid') {
   body.classList.add('stealth-mode');
   if(stealthEl) stealthEl.textContent = new Date().toLocaleTimeString();
   window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_STEALTH', {ts:Date.now()});
-  window.toast && window.toast('🕵️ Stealth Mode — Encrypted routing. Minimal exposure.','ok');
+  window.auditLog && window.auditLog('MODE_HYBRID', {ts:Date.now()});
+  window.toast && window.toast('🔀 Hybrid Mode — Local APIs active. External optional.','ok');
+
+} else if(m === 'ghost') {
+  body.classList.add('ghost-mode');
+  window._ghostMode = true;
+  window.auditLog && window.auditLog('MODE_GHOST', {ts:Date.now()});
+  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
 
 } else {
   window._ghostMode = false;
@@ -20821,6 +20891,7 @@ if (lang === 'html') {
 
 /* ── AI FIX ───────────────────────────────────── */
 function aiAnalyze() {
+/* CodeMaster AI FIX — fully offline, no external API calls */
 var code = getCode();
 var lang = getLang();
 if (!code.trim()) { window.toast && window.toast('Write some code first','err'); return; }
@@ -20828,21 +20899,48 @@ var panel = document.getElementById('cm-ai-panel');
 var output = document.getElementById('cm-ai-output');
 var applyBtn = document.getElementById('cm-apply-fix');
 if (panel) panel.style.display = 'block';
-if (output) output.textContent = '\u23f3 Analyzing ' + lang + ' code via bridge...';
+if (output) output.textContent = '⏳ Analyzing ' + lang + ' code (offline)...';
 if (applyBtn) applyBtn.style.display = 'none';
 panel && panel.scrollIntoView({behavior:'smooth'});
 
-var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-if (bridgeOk) {
-  try {
-    PiperTTS.ws.send(JSON.stringify({
-      type: 'ai_code_review',
-      lang: lang,
-      code: code.slice(0, 4000),
-      prompt: 'Review this ' + lang + ' code. List errors with line numbers. For each error provide exact fix code. Be concise and precise.'
-    }));
-    return;
-  } catch(e) {}
+/* If SGH helper offline function is available, use it */
+if (typeof window.aiAnalyzeOrFix === 'function') {
+  window.aiAnalyzeOrFix(code, 'fix').then(function(fixed){
+    if(output) output.textContent = fixed;
+    if(fixed && fixed !== code && applyBtn){
+      applyBtn.style.display = 'block';
+      applyBtn._fixFn = function(){ setCode(fixed); };
+    }
+  }).catch(function(){ _runLocalAnalysis(); });
+  return;
+}
+_runLocalAnalysis();
+function _runLocalAnalysis(){
+  var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
+  if (output) {
+    output.textContent = '# CodeMaster Analysis (Offline)
+# Language: ' + lang.toUpperCase() + '
+
+' +
+      'Errors: ' + results.errCount + '
+Warnings: ' + results.warnCount + '
+
+' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('
+') || 'No auto-fixes available.');
+    if (results.fixes.some(function(f){ return f.fix; })) {
+      if (applyBtn) {
+        applyBtn.style.display = 'block';
+        applyBtn._fixFn = function() {
+          var c = getCode();
+          results.fixes.forEach(function(f){ if(f.fix) c = f.fix(c) || c; });
+          setCode(c);
+        };
+      }
+    }
+  }
+}
+
 }
 /* Offline fallback: use local lint results as AI output */
 var results = runLint();
@@ -22072,53 +22170,40 @@ return;
 }
 });
 
-/* ══ PRESENCE MODE SYSTEM ══ */
-/* Online · Stealth · Ghost — operational security for field roles */
+/* ══ PRESENCE MODE SYSTEM (duplicate block — defers to first) ══ */
 (function(){
-// Generate ghost alias once per session
-var _alias = 'SHADOW-' + Math.floor(Math.random()*9000+1000);
 window.ST = window.ST || {};
 
 function setMode(m) {
-var ST = window.ST || {};
-ST.mode = m;
-window.ST = ST;
-var body = document.body;
-body.classList.remove('ghost-mode','stealth-mode');
-
-// Update pill buttons
-document.querySelectorAll('#presencePill button').forEach(function(btn){
-  btn.classList.remove('pm-active');
-  if(btn.getAttribute('data-mode') === m) btn.classList.add('pm-active');
-});
-
-var stealthEl = document.getElementById('stealthTime');
-var aliasEl   = document.getElementById('ghostAliasBanner');
-
-if(m === 'ghost') {
-  body.classList.add('ghost-mode');
-  if(aliasEl) aliasEl.textContent = 'ALIAS: ' + _alias;
-  /* Suppress voice in ghost */
-  window._ghostMode = true;
-  window.auditLog && window.auditLog('MODE_GHOST', {alias:_alias});
-  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
-
-} else if(m === 'stealth') {
-  body.classList.add('stealth-mode');
-  if(stealthEl) stealthEl.textContent = new Date().toLocaleTimeString();
-  window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_STEALTH', {ts:Date.now()});
-  window.toast && window.toast('🕵️ Stealth Mode — Encrypted routing. Minimal exposure.','ok');
-
-} else {
-  window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_ONLINE', {ts:Date.now()});
-  window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
-}
-
-// Persist mode
-try { sessionStorage.setItem('sg_mode', m); } catch(e) {}
-
+  /* Always defer to the canonical setMode registered by the first block */
+  if(window.setMode && window.setMode !== setMode) { window.setMode(m); return; }
+  var body = document.body;
+  var ST = window.ST || {};
+  ST.mode = m; window.ST = ST;
+  window._sgOfflineMode = (m === 'offline');
+  body.classList.remove('ghost-mode','stealth-mode','offline-mode');
+  document.querySelectorAll('#presencePill button').forEach(function(btn){
+    btn.classList.remove('pm-active');
+    if(btn.getAttribute('data-mode') === m) btn.classList.add('pm-active');
+  });
+  if(m === 'offline') {
+    body.classList.add('offline-mode');
+    window._ghostMode = true;
+    if(typeof PiperTTS !== 'undefined' && PiperTTS.ws){ try{PiperTTS.ws.close();}catch(e){} PiperTTS.ws=null; }
+    if(typeof BRIDGE !== 'undefined' && BRIDGE.ws){ try{BRIDGE.ws.close();}catch(e){} BRIDGE.ws=null; BRIDGE.connected=false; }
+    if(window.ws){ try{window.ws.close();}catch(e){} window.ws=null; }
+    window.toast && window.toast('📴 Offline Mode — All sockets closed. CodeMaster local-only.','ok');
+  } else if(m === 'stealth' || m === 'hybrid') {
+    body.classList.add('stealth-mode'); window._ghostMode = false;
+    window.toast && window.toast('🔀 Hybrid Mode — Local APIs active. External optional.','ok');
+  } else if(m === 'ghost') {
+    body.classList.add('ghost-mode'); window._ghostMode = true;
+    window.toast && window.toast('👻 Ghost Mode — Identity masked.','ok');
+  } else {
+    window._ghostMode = false;
+    window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
+  }
+  try { sessionStorage.setItem('sg_mode', m); } catch(e) {}
 }
 
 // Wire presence pill buttons
@@ -24258,6 +24343,7 @@ rec.start(); window._voiceRec=rec; window._voiceActive=true; toast('🎤 Listeni
 /* ── initBridge: real WebSocket connection with backoff ── */
 window.initBridge = function initBridge(){
 if(window.ws && window.ws.readyState <= 1) return;
+if(window._sgIsOffline && window._sgIsOffline()) return;
 window._bridgeGaveUp = false;
 try{
 if(_sgWsBlocked()) return;
@@ -25688,9 +25774,10 @@ document.addEventListener('sg:bridgeMsg', function(ev){
   }
 });
 
-/* ── Watcher: periodic ping to bridge for keepalive ── */
+/* ── Watcher: periodic ping to bridge for keepalive — skipped in offline mode ── */
 function _startBridgePingWatcher(){
   _watcherTimers.bridgePing = setInterval(function(){
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     var ws=window.ws||window.BRIDGE_WS;
     if(ws && ws.readyState===1){
       try{ ws.send(JSON.stringify({type:'ping',ts:Date.now()})); }catch(e){}
@@ -25698,9 +25785,10 @@ function _startBridgePingWatcher(){
   }, 30000);
 }
 
-/* ── Watcher: detect bridge disconnect and attempt reconnect ── */
+/* ── Watcher: detect bridge disconnect and attempt reconnect — skipped in offline mode ── */
 function _startBridgeHealthWatcher(){
   _watcherTimers.bridgeHealth = setInterval(function(){
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     var ws=window.ws||window.BRIDGE_WS;
     var connected = ws && ws.readyState===1;
     var prev = _mem.get('bridge_connected', null);
