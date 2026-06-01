@@ -1,3 +1,4 @@
+     copilot/fix-flake8-syntax-error
 copilot/fix-flake8-syntax-error
 """Minimal, importable SCAR brain v1 stub."""
 
@@ -9,6 +10,9 @@ class SovereignScarBrainV1:
 
 """
 SovereignSCARBrain v1.1
+=======
+"""SovereignSCARBrain v1.1
+     main
 
 Guardian attestation engine with:
 - PQC ML-DSA-65 signature strategy
@@ -17,6 +21,7 @@ Guardian attestation engine with:
 
 This module is a work-in-progress stub. Full implementation pending.
 """
+
 from __future__ import annotations
 
 
