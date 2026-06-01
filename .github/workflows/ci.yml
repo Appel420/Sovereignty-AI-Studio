@@ -52,9 +52,10 @@ jobs:
     - name: Install project dependencies
       run: |
         pip install --upgrade pip
-        pip install -r .github/workflows/Requirements.txt
+        pip install -r requirements.txt
+        pip install -r requirements-extra.txt || true
     - name: Install test dependencies
-      run: pip install flake8
+      run: pip install pytest pytest-cov pytest-asyncio flake8
     - name: Lint with flake8
       run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Run tests
