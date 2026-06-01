@@ -618,6 +618,12 @@ if (window._sgIsOffline && window._sgIsOffline()) {
   if (!_connected) setConnected(false, '📴 Offline mode — sockets disabled');
   return;
 }
+/* WS permanently blocked by browser (file:// or https:// mixed-content) — stop all retry loops */
+if (window._sgWsBlocked && window._sgWsBlocked()) {
+  if (_timer) { clearTimeout(_timer); _timer = null; }
+  if (!_connected) setConnected(false, '🔒 WS blocked — serve via http://127.0.0.1:9898');
+  return;
+}
 var ptOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 var brOk = typeof BRIDGE   !== 'undefined' && BRIDGE.connected;
 
@@ -656,8 +662,9 @@ document.addEventListener('sg:bridgeConnected', function(ev){
 setConnected(true, '⚡ Bridge LIVE — ' + ((ev.detail && ev.detail.url) || 'Port 9897'));
 _retries = 0;
 if (_timer) { clearTimeout(_timer); _timer = null; }
-/* Restart keepalive ping every 20s */
+/* Restart keepalive ping every 20s — skip if WS is permanently blocked */
 setInterval(function(){
+if (window._sgWsBlocked && window._sgWsBlocked()) return;
 var ok = (typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
 (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
 if (!ok) { _connected=false; tryAll(); }
@@ -829,8 +836,8 @@ var tnow = window.tnow;
       } catch(e2){}
     }
 
-    /* ── 5. HTTP fallback — fire-and-forget ── */
-    if(!sent){
+    /* ── 5. HTTP fallback — fire-and-forget (skip when bridge permanently blocked) ── */
+    if(!sent && !window._sgBridgeInsecure){
       try {
         fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9899/error_ping' : 'http://127.0.0.1:9899/error_ping'), {
           method: 'POST',
@@ -2381,11 +2388,12 @@ if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protoco
   // Try at startup delays — skipped entirely if offline mode is saved
   if(!(window._sgIsOffline&&window._sgIsOffline())){
     var _delays = [0, 1000, 3000, 8000, 20000];
-    _delays.forEach(function(d){ setTimeout(_tryConnect, d); });
+    _delays.forEach(function(d){ setTimeout(function(){ if(!(window._sgWsBlocked&&window._sgWsBlocked())) _tryConnect(); }, d); });
   }
-  // Keep alive every 30s — skips if offline
+  // Keep alive every 30s — skips if offline or WS permanently blocked
   setInterval(function(){
     if(window._sgIsOffline&&window._sgIsOffline()) return;
+    if(window._sgWsBlocked&&window._sgWsBlocked()) return;
     var bOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
     if(!bOk) _tryConnect();
   }, 30000);
@@ -4127,24 +4135,26 @@ function bridgeConnect(){
       log('warn', 'Bridge WS ws://9897 blocked on file:// — load from http://127.0.0.1:9898 (file server)');
       window._sgBridgeInsecure = true;
       _wsRetry = 999; /* stop retry loop */
-      /* Show banner on screen */
-      setTimeout(function() {
-        try {
-          var pa = document.getElementById('pa') || document.body;
-          if (pa && !document.getElementById('sg-insecure-banner')) {
-            var b = document.createElement('div');
-            b.id = 'sg-insecure-banner';
-            b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#7c4dff,#ff3d6e);color:#fff;padding:10px 16px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:10px';
-            b.innerHTML = '<span style="font-size:18px">⚠️</span>' +
-              '<span><strong>WebSocket blocked by browser security</strong> &mdash; serve via Node server: ' +
-              '<a href="http://127.0.0.1:9898" style="color:#fff;font-weight:bold">http://127.0.0.1:9898</a>' +
-              ' &nbsp;(run: <code>python3 python3_bridge.py</code>)</span>' +
-              '<button onclick="this.parentNode.remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer">✕</button>';
-            document.body.insertBefore(b, document.body.firstChild);
-          }
-        } catch(ex) {}
-      }, 500);
-    } else {
+      /* Show banner on screen — only once; dismissed banner stays gone */
+      if (!window._sgInsecureBannerShown) {
+        window._sgInsecureBannerShown = true;
+        setTimeout(function() {
+          try {
+            var pa = document.getElementById('pa') || document.body;
+            if (pa && !document.getElementById('sg-insecure-banner')) {
+              var b = document.createElement('div');
+              b.id = 'sg-insecure-banner';
+              b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#7c4dff,#ff3d6e);color:#fff;padding:10px 16px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:10px';
+              b.innerHTML = '<span style="font-size:18px">⚠️</span>' +
+                '<span><strong>WebSocket blocked by browser security</strong> &mdash; serve via Node server: ' +
+                '<a href="http://127.0.0.1:9898" style="color:#fff;font-weight:bold">http://127.0.0.1:9898</a>' +
+                ' &nbsp;(run: <code>python3 python3_bridge.py</code>)</span>' +
+                '<button onclick="this.parentNode.remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer">✕</button>';
+              document.body.insertBefore(b, document.body.firstChild);
+            }
+          } catch(ex) {}
+        }, 500);
+      } else {
       log('warn', 'Bridge WS init failed: ' + e.message);
       _wsRetry++;
       if (_wsRetry <= 5) setTimeout(bridgeConnect, Math.min(3000 * _wsRetry, 30000));
@@ -6657,6 +6667,7 @@ PANELS.dashboard=function(){
     setTimeout(_sgConnect, 1000);
     setInterval(function(){
       if(window._sgIsOffline&&window._sgIsOffline()) return;
+      if(window._sgWsBlocked&&window._sgWsBlocked()) return;
       var ok=(typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
              (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
       if(!ok) _sgConnect();
@@ -18091,9 +18102,10 @@ if (!window._sgIsOffline() && typeof PiperTTS !== 'undefined' && typeof PiperTTS
   PiperTTS.connect();
 }
 
-/* Retry: connect every 10s until online — stops immediately in offline mode */
+/* Retry: connect every 10s until online — stops immediately in offline or WS-blocked mode */
 var _connInterval = setInterval(function() {
   if (window._sgIsOffline()) { clearInterval(_connInterval); return; }
+  if (window._sgWsBlocked && window._sgWsBlocked()) { clearInterval(_connInterval); return; }
   var bOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
   if (bOk) {
     clearInterval(_connInterval);
