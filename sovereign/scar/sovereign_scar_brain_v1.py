@@ -1,11 +1,6 @@
-"""Minimal, importable SCAR brain v1 stub."""
+"""SovereignSCARBrain v1 stub."""
 
 from __future__ import annotations
-
-
-class SovereignScarBrainV1:
-    """Temporary placeholder implementation."""
-
 
 class SovereignSCARBrain:
     """Placeholder for the SovereignSCARBrain v1.1 guardian + attestation engine."""
