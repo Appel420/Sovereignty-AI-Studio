@@ -1,5 +1,4 @@
-"""
-SovereignSCARBrain v1.1
+"""SovereignSCARBrain v1.1
 
 Guardian attestation engine with:
 - PQC ML-DSA-65 signature strategy
@@ -8,6 +7,7 @@ Guardian attestation engine with:
 
 This module is a work-in-progress stub. Full implementation pending.
 """
+
 from __future__ import annotations
 
 
