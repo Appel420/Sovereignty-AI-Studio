@@ -1170,7 +1170,7 @@ h+='<button class="btn bp btn-w" onclick="saveAIKeys()" style="margin-top:4px">S
 // Bridge
 h+='<div class="card"><div class="ct">⚡ Port 9899 Bridge</div>';
 h+=kv('Status',tag(STATE.bridgeOnline?'ONLINE':'OFFLINE',STATE.bridgeOnline?'tg':'tr2'));
-h+=kv('URL','ws://localhost:9899');
+h+=kv('URL',((window.__SG_CONFIG&&window.__SG_CONFIG.bridgeHealth)||'/api/node/health'));
 h+=kv('Piper TTS',tag(STATE.piperActive?'Active':'Inactive',STATE.piperActive?'tg':'ta2'));
 h+='<div class="btn-row" style="margin-top:10px"><button class="btn bp" onclick="Bridge.connect()">Reconnect Bridge</button><button class="btn bs" onclick="Bridge.pingHealth()">Ping Health</button></div>';
 h+='<div class="banner-i" style="margin-top:8px">Run: <code>node server_9899.js</code> for local TTS & AI proxy</div></div>';
@@ -1903,7 +1903,7 @@ var Bridge={
   ws:null,
   connect:function(){
     try{
-      this.ws=new WebSocket('ws://localhost:9899');
+      throw new Error('WebSocket disabled: HTTP bridge mode');
       this.ws.onopen=function(){STATE.bridgeOnline=true;STATE.piperActive=true;el('tbbBridge').textContent='⚡ LIVE';el('tbbBridge').classList.add('on');el('liveLabel').textContent='LIVE';addAudit('BRIDGE','Port 9899 connected');};
       this.ws.onclose=function(){STATE.bridgeOnline=false;STATE.piperActive=false;el('tbbBridge').textContent='⚡ 9899';el('tbbBridge').classList.remove('on');};
       this.ws.onerror=function(){STATE.bridgeOnline=false;};
@@ -1918,7 +1918,7 @@ var Bridge={
     }catch(e){STATE.bridgeOnline=false;}
   },
   pingHealth:function(){
-    fetch('http://localhost:9899/health').then(function(r){return r.json();}).then(function(d){toast('Bridge: '+JSON.stringify(d),'ok');}).catch(function(){toast('Bridge offline','err');});
+    fetch((window.__SG_CONFIG&&window.__SG_CONFIG.bridgeHealth)||'/api/node/health').then(function(r){return r.json();}).then(function(d){toast('Bridge: '+JSON.stringify(d),'ok');}).catch(function(){toast('Bridge offline','err');});
   },
   speak:function(text){
     if(!text)return;
@@ -2128,14 +2128,14 @@ var Term={
   cmdSession:function(){if(!STATE.user){this.line('No session','w');return;}this.line('User: '+STATE.user.name,'i');this.line('Role: '+(STATE.role?STATE.role.lbl:'-'),'i');this.line('Level: L'+(STATE.role?STATE.role.lvl:1),'i');this.line('Uptime: '+this.uptime(),'i');this.line('Audit: '+STATE.auditLog.length+' entries','i');this.line('Memory: '+STATE.memory.length+' cards','i');},
   cmdAlgo:function(){[['ML-KEM-768','NIST FIPS 203'],['Dilithium3','NIST FIPS 204'],['BLAKE3','BLAKE3 2020'],['ChaCha20-Poly1305','RFC 8439']].forEach(function(a){Term.line('  '+a[0].padEnd(20)+a[1],'s');});},
   cmdAudit:function(){this.line('── Last 10 ──','i');(this.audit.length?this.audit:STATE.auditLog).slice(-10).forEach(function(e){Term.line('  '+(e.allowed!==false?'✓':'⛔')+' '+(e.cmd||e.msg||''),'i');});},
-  cmdPing:function(){var self=this;this.line('Pinging 9899…','d');fetch('http://localhost:9899/health').then(function(r){return r.json();}).then(function(d){self.line('PONG ✓ '+JSON.stringify(d),'s');}).catch(function(){self.line('Bridge offline. Run: node server_9899.js','w');});},
+  cmdPing:function(){var self=this;this.line('Pinging bridge…','d');fetch((window.__SG_CONFIG&&window.__SG_CONFIG.bridgeHealth)||'/api/node/health').then(function(r){return r.json();}).then(function(d){self.line('PONG ✓ '+JSON.stringify(d),'s');}).catch(function(){self.line('Bridge offline. Check /api/node/health','w');});},
   cmdWhoami:function(){this.line((STATE.user?STATE.user.name:'SYSTEM')+' · '+(STATE.roleKey||'-'),'i');},
   cmdLs:function(){Object.keys(PANELS).slice(0,20).forEach(function(p){Term.line('  '+p,'d');});this.line('  … '+(Math.max(0,Object.keys(PANELS).length-20))+' more','d');},
   cmdHash:function(text){if(!text){this.line('Usage: hash <text>','w');return;}this.line('Hash: '+sha256str(text),'s');},
   cmdMemory:function(){this.line('── Memory ('+STATE.memory.length+') ──','i');STATE.memory.slice(0,5).forEach(function(m,i){Term.line('  #'+(i+1)+' '+(m.title||'').slice(0,50),'i');});},
   async cmdGitHub(rest){var p=rest.split(/\s+/),s=p[0]||'';if(s==='list'||s==='repos'){await GH.myRepos();this.line('Repos loaded','s');}else if(s==='create'&&p[1]){var nm=el('ghNewName');if(nm)nm.value=p.slice(1).join('-');await GH.createRepo();}else if(s==='open'&&p[1]){await GH.openRepo(p[1],'main');this.line('Repo opened','s');}else this.line('github list | github create <n> | github open <user/repo>','d');},
   cmdAI:function(text){if(!text){this.line('Usage: ai <question>','w');return;}var inp=el('chatInput');if(inp)inp.value=text;this.line('Sending to AI…','d');sendChat().then(function(){Term.line('Response in AI Chat panel','s');});},
-  cmdServer:function(cmd){var self=this;this.line('→ Bridge…','d');fetch('http://localhost:9899/api/execute-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd,sessionId:Date.now().toString(36),role:STATE.roleKey})}).then(function(r){return r.json();}).then(function(d){(d.output||JSON.stringify(d)).split('\n').forEach(function(l){self.line(l,'i');});}).catch(function(){self.line('Bridge offline','w');});},
+  cmdServer:function(cmd){var self=this;this.line('→ Bridge…','d');fetch(((window.__SG_CONFIG&&window.__SG_CONFIG.nodeBase)||'/api/node')+'/api/execute-command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({command:cmd,sessionId:Date.now().toString(36),role:STATE.roleKey})}).then(function(r){return r.json();}).then(function(d){(d.output||JSON.stringify(d)).split('\n').forEach(function(l){self.line(l,'i');});}).catch(function(){self.line('Bridge offline','w');});},
   addAuditEntry:function(cmd,allowed,reason){var prev=this.audit.length?this.audit[this.audit.length-1].hash:'0';var hash=sha256str(cmd+Date.now()+prev);var entry={ts:Date.now(),cmd:cmd,allowed:allowed,reason:reason,hash:hash};this.audit.push(entry);this.saveAudit();this.renderAuditRow(entry);},
   renderAuditRow:function(e){var log=el('termAuditLog'),empty=el('termAuditEmpty');if(!log)return;if(empty)empty.style.display='none';var row=document.createElement('div');row.style.cssText='display:flex;align-items:center;gap:6px;padding:3px 6px;background:'+(e.allowed?'rgba(0,232,122,.04)':'rgba(255,61,90,.06)')+';border:1px solid '+(e.allowed?'rgba(0,232,122,.1)':'rgba(255,61,90,.15)')+';border-radius:4px;margin-bottom:3px';row.innerHTML='<span style="font-size:9px;color:'+(e.allowed?'var(--gn)':'var(--rd)')+'>'+(e.allowed?'✓':'⛔')+'</span><span style="font-family:var(--mono);font-size:7.5px;color:var(--mu2);flex-shrink:0">'+new Date(e.ts).toLocaleTimeString()+'</span><span style="font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.cmd)+'</span><span style="font-family:var(--mono);font-size:7px;color:var(--mu2)">'+e.hash.slice(0,8)+'…</span>';log.appendChild(row);log.scrollTop=log.scrollHeight;},
   saveAudit:function(){try{localStorage.setItem('sg_term_audit',JSON.stringify(this.audit.slice(-200)));}catch(e){}},

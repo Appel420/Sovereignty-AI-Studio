@@ -1,6 +1,6 @@
 /**
  * SuperGrok Enterprise 5.0 — Production Backend + DDG Proxy
- * localhost:9899
+ * Runtime-configurable host/port bridge
  *
  * Combines:
  *   1. DuckDuckGo AI Chat proxy (VQD token rotation, SSE streaming)
@@ -17,7 +17,7 @@ import crypto from 'crypto';
 
 // ── CONFIG ──────────────────────────────────────────────────────────────────
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const HOST = 'localhost';
+const HOST = process.env.NODE_BRIDGE_HOST || '0.0.0.0';
 const DDG_BASE = 'duckduckgo.com';
 const DDG_CHAT_PATH = '/duckchat/v1/chat';
 const DDG_STATUS_PATH = '/duckchat/v1/status';

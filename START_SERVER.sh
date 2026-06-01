@@ -3,8 +3,8 @@
 # SOVEREIGNTY AI STUDIO — STARTUP
 # Port architecture:
 #   9898 — KODER frontend (SGHv119.html static file server)
-#   9897 — Python AI backend (bridge.py WebSocket server)
-#   9899 — Node bridge proxy (server.js — WS/API proxy)
+#   9897 — Python AI backend (bridge.py)
+#   9899 — Node bridge proxy (server.js — HTTP/API bridge; optional WS)
 # Zero Meta · Zero Google · Zero LLaMA · Zero Ollama
 # All AI: DDG Privacy Bridge + Piper TTS (local only)
 # ═══════════════════════════════════════════════════════
@@ -27,7 +27,7 @@ fi
 
 echo "Starting Python AI backend (bridge.py) on port 9897..."
 echo "Piper model: $PIPER_MODEL"
-echo "Network: localhost only — nothing leaves device without user permission"
+echo "Network: local-only by default — override with env vars for hosted deployments"
 echo ""
 
 # Start Python backend in background
@@ -35,7 +35,11 @@ SG_PORT=9897 python bridge.py &
 BRIDGE_PID=$!
 
 echo "Starting node-bridge proxy on port 9899..."
-SG_BRIDGE_URL=ws://localhost:9897 NODE_BRIDGE_PORT=9899 node "$NODE_BRIDGE_DIR/server.js" &
+NODE_BRIDGE_PORT=9899 \
+SG_BRIDGE_URL="${SG_BRIDGE_URL:-}" \
+SG_BRIDGE_HTTP_URL="${SG_BRIDGE_HTTP_URL:-http://127.0.0.1:9897}" \
+CORS_ORIGIN="${CORS_ORIGIN:-*}" \
+node "$NODE_BRIDGE_DIR/server.js" &
 NODE_PID=$!
 
 echo "Starting KODER frontend static server on port 9898..."
@@ -48,9 +52,9 @@ trap 'echo "Stopping services..."; kill "$BRIDGE_PID" "$NODE_PID" "$STATIC_PID" 
 
 echo ""
 echo "Services running:"
-echo "  bridge.py   PID=$BRIDGE_PID   → ws://localhost:9897  (Python AI backend)"
-echo "  node-bridge PID=$NODE_PID     → ws://localhost:9899  (node bridge proxy)"
-echo "  static srv  PID=$STATIC_PID  → http://localhost:9898 (KODER frontend)"
+echo "  bridge.py   PID=$BRIDGE_PID   → http://127.0.0.1:9897 (Python backend)"
+echo "  node-bridge PID=$NODE_PID     → http://127.0.0.1:9899 (HTTP bridge/API proxy)"
+echo "  static srv  PID=$STATIC_PID   → http://127.0.0.1:9898 (KODER frontend)"
 echo ""
 echo "Open KODER at: http://127.0.0.1:9898/SGHv119.html"
 echo "Press Ctrl+C to stop all services."
