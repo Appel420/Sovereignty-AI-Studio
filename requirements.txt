@@ -63,7 +63,8 @@ openai==2.37.0
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 pytest==9.0.3
-pytest-asyncio==0.23.8
+# pytest-asyncio <0.24 requires pytest<9; use >=0.24 to stay compatible with pytest 9.x
+pytest-asyncio>=0.24.0
 
 # ── Keycloak (self-hosted auth) ────────────────────────────────────────────────
 # python-keycloak is included in Sovereignty_python-keycloak-master/
