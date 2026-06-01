@@ -57,7 +57,7 @@ PIPER_DIR=/path/to/piper-tts
 When creating an alert via the API, add the `speak=true` query parameter:
 
 ```bash
-curl -X POST "http://localhost:9898/api/v1/alerts/?speak=true" \
+curl -X POST "/api/node/api/v1/alerts/?speak=true" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

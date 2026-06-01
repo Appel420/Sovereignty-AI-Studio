@@ -1,6 +1,35 @@
 import { Alert, AlertStats } from '../types/alert';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:9898/api/v1';
+type RuntimeConfig = {
+  apiBaseUrl?: string;
+  nodeBase?: string;
+};
+
+const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+
+const readRuntimeConfig = (): RuntimeConfig => {
+  const fromWindow =
+    typeof window !== 'undefined' && (window as any).__SG_CONFIG && typeof (window as any).__SG_CONFIG === 'object'
+      ? ((window as any).__SG_CONFIG as RuntimeConfig)
+      : {};
+  let fromStorage: RuntimeConfig = {};
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem('sg_config');
+      if (raw) fromStorage = JSON.parse(raw) as RuntimeConfig;
+    } catch {
+      fromStorage = {};
+    }
+  }
+  return { ...fromStorage, ...fromWindow };
+};
+
+const runtimeConfig = readRuntimeConfig();
+const API_BASE_URL = trimTrailingSlash(
+  process.env.REACT_APP_API_URL ||
+    runtimeConfig.apiBaseUrl ||
+    `${trimTrailingSlash(runtimeConfig.nodeBase || '/api/node')}/api/v1`
+);
 
 export class AlertAPI {
   private static async request<T>(
