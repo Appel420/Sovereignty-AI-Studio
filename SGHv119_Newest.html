@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9897 ws://localhost:9897 wss://127.0.0.1:9897 wss://localhost:9897 http://127.0.0.1:9897 http://127.0.0.1:9898 http://127.0.0.1:9899 http://localhost:9897 http://localhost:9898 http://localhost:9899 http://127.0.0.1:8080 http://localhost:8080 https://127.0.0.1:8443 https://localhost:8443 https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' https: http: https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -510,7 +510,7 @@ if(location.protocol==='file:'){
 
  window._sgWsPatch = { active: false, fileOrigin: _isFileOrigin };
  console.log(
-   '%c[SG_WS] Native WebSocket retained' + (_isFileOrigin ? ' — file:// origin: open via HTTP on :9898' : ' — HTTP origin: ws:// allowed'),
+   '%c[SG_BRIDGE] HTTP bridge mode active' + (_isFileOrigin ? ' — file:// origin: open via HTTP server' : ''),
    'color:#00ffc8;font-size:9px'
  );
 })();
@@ -528,13 +528,87 @@ var _retries   = 0;
 var _timer     = null;
 
 
-// ─── PROTOCOL-AWARE WS HELPERS (global) ────────────────────────────────────
+// ─── RUNTIME CONFIG + BACKEND BRIDGE HELPERS (global) ──────────────────────
 // Exposed on window so every script block can call them without ReferenceError.
-// Local function declarations inside this IIFE are invisible to outer scopes.
+function _sgReadRuntimeConfig(){
+  var fromWindow = (window.__SG_CONFIG && typeof window.__SG_CONFIG === 'object') ? window.__SG_CONFIG : {};
+  var fromStorage = {};
+  try {
+    var raw = localStorage.getItem('sg_config');
+    if (raw) fromStorage = JSON.parse(raw) || {};
+  } catch(_) {}
+  var cfg = Object.assign({
+    pythonBase: '/api/python',
+    nodeBase: '/api/node',
+    bridgeHealth: '/api/node/health',
+    bridgeChat: '/api/node/chat',
+    wsBridgeUrl: '',
+    disableWebSocket: true
+  }, fromStorage, fromWindow);
+  cfg.pythonBase = String(cfg.pythonBase || '/api/python').replace(/\/+$/,'');
+  cfg.nodeBase = String(cfg.nodeBase || '/api/node').replace(/\/+$/,'');
+  cfg.bridgeHealth = String(cfg.bridgeHealth || (cfg.nodeBase + '/health'));
+  cfg.bridgeChat = String(cfg.bridgeChat || (cfg.nodeBase + '/chat'));
+  cfg.wsBridgeUrl = String(cfg.wsBridgeUrl || '').trim();
+  return cfg;
+}
+window.SG_CONFIG = _sgReadRuntimeConfig();
+window.Backend = window.Backend || {
+  config: window.SG_CONFIG,
+  health: function(){ return this.config.bridgeHealth || (this.config.nodeBase + '/health'); },
+  chat: function(){ return this.config.bridgeChat || (this.config.nodeBase + '/chat'); },
+  node: function(path){ return this.config.nodeBase + (path || ''); },
+  python: function(path){ return this.config.pythonBase + (path || ''); }
+};
+if (window.SG_CONFIG.disableWebSocket) {
+  function DisabledWebSocket(){
+    this.readyState = DisabledWebSocket.CLOSED;
+    this.onopen = null; this.onclose = null; this.onerror = null; this.onmessage = null;
+    var self = this;
+    setTimeout(function(){ if (typeof self.onclose === 'function') self.onclose({ code: 1000, reason: 'disabled' }); }, 0);
+  }
+  DisabledWebSocket.CONNECTING = 0;
+  DisabledWebSocket.OPEN = 1;
+  DisabledWebSocket.CLOSING = 2;
+  DisabledWebSocket.CLOSED = 3;
+  DisabledWebSocket.prototype.send = function(){};
+  DisabledWebSocket.prototype.close = function(){ this.readyState = DisabledWebSocket.CLOSED; };
+  window.WebSocket = DisabledWebSocket;
+}
+if (location.protocol === 'https:') {
+  var _bh = window.Backend.health();
+  var _bc = window.Backend.chat();
+  if (/^http:\/\//i.test(_bh) || /^http:\/\//i.test(_bc)) {
+    console.warn('[SG_CONFIG] HTTPS page detected; bridge endpoints should be HTTPS or same-origin relative paths.');
+  }
+}
+// Optional URL remap for legacy hardcoded local bridge URLs → runtime config.
+(function(){
+  if (!window.fetch) return;
+  var _origFetch = window.fetch.bind(window);
+  function _map(url){
+    if (typeof url !== 'string') return url;
+    return url
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/health\b/i, window.Backend.health())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/chat\b/i, window.Backend.chat())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/api\/?/i, window.Backend.node('/api/'))
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9897\b/i, window.Backend.python(''));
+  }
+  window.fetch = function(input, init){
+    if (typeof input === 'string') return _origFetch(_map(input), init);
+    if (input && input.url && typeof input.url === 'string') {
+      try { return _origFetch(new Request(_map(input.url), input), init); } catch(_) {}
+    }
+    return _origFetch(input, init);
+  };
+})();
 window._sgWsProto = function(){ return location.protocol==='https:' ? 'wss://' : 'ws://'; };
-window._sgWsUrl = function(host){ return window._sgWsProto() + (host || '127.0.0.1:9897'); };
+window._sgWsUrl = function(){
+  var u = (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '';
+  return u || '';
+};
 // Guard: once the browser signals ws:// is insecure, stop all reconnect attempts.
-window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure; };
+window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure || !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket); };
 // Offline-mode guard — set true when mode='offline', stops all socket connect loops.
 window._sgOfflineMode = (function(){ try{ return sessionStorage.getItem('sg_mode')==='offline'; }catch(e){ return false; } })();
 window._sgIsOffline = function(){ return !!window._sgOfflineMode; };
@@ -621,7 +695,7 @@ if (window._sgIsOffline && window._sgIsOffline()) {
 /* WS permanently blocked by browser (file:// or https:// mixed-content) — stop all retry loops */
 if (window._sgWsBlocked && window._sgWsBlocked()) {
   if (_timer) { clearTimeout(_timer); _timer = null; }
-  if (!_connected) setConnected(false, '🔒 WS blocked — serve via http://127.0.0.1:9898');
+  if (!_connected) setConnected(false, '🔒 WS blocked — using HTTP bridge mode');
   return;
 }
 var ptOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
@@ -689,7 +763,7 @@ try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sen
 }
 if (!sent) {
 /* HTTP fallback */
-fetch('http://127.0.0.1:9899/chat', {
+fetch(window.Backend.chat(), {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
 }).then(function(r){return r.json();}).then(function(d){
@@ -2079,6 +2153,10 @@ const BRIDGE = {
   },
 
   tryWebSocket(){
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) {
+      this.startPolling();
+      return;
+    }
     if(this.ws && this.ws.readyState < 2){ return; }
     if(window._sgIsOffline && window._sgIsOffline()) return;
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
@@ -2086,6 +2164,7 @@ const BRIDGE = {
     try{
       if (_sgWsBlocked()) return;
       var wsUrl = _sgWsUrl(); /* Python WS bridge :9897 — protocol auto-detected */
+      if (!wsUrl) { this.startPolling(); return; }
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
@@ -2138,7 +2217,7 @@ const BRIDGE = {
       ws.onclose = ()=>{
         self.connected=false; self.ws=null;
         /* Stop retrying if browser has flagged ws:// as insecure */
-        if (window._sgBridgeInsecure) return;
+        if (window._sgBridgeInsecure || (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket)) return;
         /* Cap retries at 5 */
         if (self.wsRetries >= 5) {
           self.updateUI('PORT 9897 OFFLINE','var(--pulse)');
@@ -2153,7 +2232,7 @@ const BRIDGE = {
       };
     }catch(e){
       var isIns = e && (e.name==='SecurityError' || (e.message&&(e.message.indexOf('insecure')!==-1||e.message.indexOf('secure')!==-1)));
-      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://127.0.0.1:9898'); return; }
+      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','WebSocket blocked — HTTP bridge mode active'); return; }
       this.log('warn','WebSocket unavailable — using HTTP polling');
       this.startPolling();
     }
@@ -2167,25 +2246,21 @@ const BRIDGE = {
 
   async pollHealth(){
     try{
-      // Try Python :9897 health (internal backend)
       let r;
-      try { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
-      catch(e2) { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
+      try { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
+      catch(e2) { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         if(ST && ST.cicd) ST.cicd.status = 'online';
-        this.updateUI('PORT 9897 ✓','var(--gn)');
-        if(this.wsRetries===0 || this.wsRetries>=this.maxRetries){
-          this.wsRetries=0; this.tryWebSocket();
-        }
+        this.updateUI('HTTP BRIDGE ✓','var(--gn)');
       } else {
         this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'error';
-        this.updateUI('PORT 9897 ERR','var(--rd)');
-        this.log('err','HTTP '+r.status+' from port 9897');
+        this.updateUI('HTTP BRIDGE ERR','var(--rd)');
+        this.log('err','HTTP '+r.status+' from bridge endpoint');
       }
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
-      this.updateUI('PORT 9897 OFFLINE','var(--am)');
+      this.updateUI('HTTP BRIDGE OFFLINE','var(--am)');
     }
   },
 
@@ -2349,56 +2424,48 @@ try {
 
 // ─── 1. PORT CONFIGURATION — user-configurable bridge connection ────
 var BridgeCFG = {
-  protocol: 'ws',       // ws or wss
-  host:     '127.0.0.1', // Safari fix: use IPv4 literal, not 'localhost'
-  port:     9897,
+  protocol: 'https',
+  host:     '',
+  port:     0,
   path:     '',
-  // AirPlay / Bonjour friendly alternate ports
+  wsBridgeUrl: (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '',
+  disableWebSocket: !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket),
   presets: {
-    local:    { host:'127.0.0.1',    port:9897 }, // Python WS internal — primary
-    lan:      { host:'192.168.1.1',  port:9897 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
-    tailscale:{ host:'100.x.x.x',   port:9897 },   // Tailscale mesh
-    custom:   { host:'',             port:0    }
+    same_origin: { wsBridgeUrl:'' },
+    custom:      { wsBridgeUrl:'' }
   },
   wsURL: function() {
-    var proto = BridgeCFG.protocol || 'ws';
-    return proto + '://' + (BridgeCFG.host || '127.0.0.1') + ':' + (BridgeCFG.port || 9897) + (BridgeCFG.path || '');
+    return BridgeCFG.disableWebSocket ? '' : (BridgeCFG.wsBridgeUrl || '');
   },
   save: function() {
-    try { localStorage.setItem('bridge_cfg', JSON.stringify({
-      protocol: BridgeCFG.protocol,
-      host: BridgeCFG.host,
-      port: BridgeCFG.port,
-      path: BridgeCFG.path
-    })); } catch(e) {}
+    try {
+      var current = {};
+      try { current = JSON.parse(localStorage.getItem('sg_config')||'{}') || {}; } catch(_){}
+      current.wsBridgeUrl = BridgeCFG.wsBridgeUrl || '';
+      current.disableWebSocket = !!BridgeCFG.disableWebSocket;
+      localStorage.setItem('sg_config', JSON.stringify(current));
+    } catch(e) {}
   },
   load: function() {
     try {
-      var s = localStorage.getItem('bridge_cfg');
-      if (s) {
-        var p = JSON.parse(s);
-        BridgeCFG.protocol = p.protocol || 'ws';
-        BridgeCFG.host = p.host || '127.0.0.1';
-        BridgeCFG.port = p.port || 9897;
-        BridgeCFG.path = p.path || '';
-      }
+      var p = window.SG_CONFIG || {};
+      BridgeCFG.wsBridgeUrl = String(p.wsBridgeUrl || '');
+      BridgeCFG.disableWebSocket = !!p.disableWebSocket;
     } catch(e) {}
   }
 };
 BridgeCFG.load();
-if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protocol='wss'; }
 
 // Connect bridge — only when not in offline mode
 (function _forceConnect(){
   function _tryConnect(){
     if(window._sgIsOffline&&window._sgIsOffline()) return;
-    if(typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
+    if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
       if(!PiperTTS.ws || PiperTTS.ws.readyState > 1) PiperTTS.connect();
     }
     if(typeof BRIDGE !== 'undefined'){
       BRIDGE.pollHealth && BRIDGE.pollHealth();
-      if(!BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
+      if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && !BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
     }
   }
   // Try at startup delays — skipped entirely if offline mode is saved
@@ -2426,6 +2493,7 @@ var PiperTTS = {
   maxRetry: 9999,
 
   connect: function() {
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) return;
     if (PiperTTS.ws && PiperTTS.ws.readyState < 2) return;
     if (window._sgIsOffline && window._sgIsOffline()) return;
     try {

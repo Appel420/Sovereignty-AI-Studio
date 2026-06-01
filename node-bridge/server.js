@@ -49,12 +49,12 @@ const { WebSocket: WsClient, WebSocketServer } = require('ws');
 // Config from environment (sensible defaults for local / iSH)
 // ---------------------------------------------------------------------------
 const PORT = parseInt(process.env.NODE_BRIDGE_PORT || '9899', 10);
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8002';
-const WEATHER_URL = process.env.WEATHER_URL || 'http://localhost:8001';
-const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:9001';
-const SG_BRIDGE_URL = process.env.SG_BRIDGE_URL || 'ws://localhost:9897';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8002';
+const WEATHER_URL = process.env.WEATHER_URL || 'http://127.0.0.1:8001';
+const GATEWAY_URL = process.env.GATEWAY_URL || 'http://127.0.0.1:9001';
+const SG_BRIDGE_URL = (process.env.SG_BRIDGE_URL || '').trim();
 // Derived HTTP base URL for health-check probes against the Python backend bridge
-const SG_BRIDGE_HTTP_URL = SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://');
+const SG_BRIDGE_HTTP_URL = (process.env.SG_BRIDGE_HTTP_URL || (SG_BRIDGE_URL ? SG_BRIDGE_URL.replace(/^ws(s?):\/\//, 'http$1://') : '')).trim();
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
@@ -70,7 +70,7 @@ app.use(express.json());
 // CORS — default to bridge origin
 // ---------------------------------------------------------------------------
 app.use((_req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || `http://localhost:${PORT}`;
+  const origin = process.env.CORS_ORIGIN || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -432,6 +432,7 @@ wssRoot.on('connection', (browserWs) => {
   let pyBridgeRetry = 0;
 
   function connectPyBridge() {
+    if (!SG_BRIDGE_URL) return;
     if (browserWs.readyState > WsClient.OPEN) return;     // CLOSING or CLOSED
     if (pyBridgeWs && pyBridgeWs.readyState < WsClient.CLOSING) return; // CONNECTING or OPEN
 
@@ -477,7 +478,7 @@ wssRoot.on('connection', (browserWs) => {
     }
   }
 
-  // Eagerly connect so the first ai_chat has a live upstream
+  // Eagerly connect so the first ai_chat has a live upstream (if configured)
   connectPyBridge();
 
   browserWs.on('message', (raw) => {
@@ -595,6 +596,7 @@ app.get('/api/bridge/status', async (_req, res) => {
     checkService(GATEWAY_URL, 'gateway'),
     // Python backend (bridge.py) uses WebSocket; check via HTTP health if available, else mark by WS state
     new Promise((resolve) => {
+      if (!SG_BRIDGE_HTTP_URL) return resolve();
       try {
         const target = new URL('/health', SG_BRIDGE_HTTP_URL);
         const client = requestClientFor(target);
@@ -1281,8 +1283,8 @@ if (require.main === module) {
   server.listen(PORT, () => {
     const proto = useTLS ? 'https' : 'http';
     const wsproto = useTLS ? 'wss' : 'ws';
-    console.log(`[node-bridge] listening on ${proto}://localhost:${PORT}${useTLS ? ' (TLS)' : ''}`);
-    console.log(`[node-bridge] WebSocket   ${wsproto}://localhost:${PORT}/ws/alerts`);
+    console.log(`[node-bridge] listening on ${proto}://0.0.0.0:${PORT}${useTLS ? ' (TLS)' : ''}`);
+    console.log(`[node-bridge] WebSocket   ${wsproto}://0.0.0.0:${PORT}/ws/alerts (optional)`);
     console.log(`[node-bridge] proxy /api/v1/*      → ${BACKEND_URL}`);
     console.log(`[node-bridge] proxy /api/weather/*  → ${WEATHER_URL}`);
     console.log(`[node-bridge] proxy /api/forecast/* → ${WEATHER_URL}`);
