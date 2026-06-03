@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9897 ws://localhost:9897 wss://127.0.0.1:9897 wss://localhost:9897 http://127.0.0.1:9897 http://127.0.0.1:9898 http://127.0.0.1:9899 http://localhost:9897 http://localhost:9898 http://localhost:9899 http://127.0.0.1:8080 http://localhost:8080 https://127.0.0.1:8443 https://localhost:8443 https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' https: http: https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -510,7 +510,7 @@ if(location.protocol==='file:'){
 
  window._sgWsPatch = { active: false, fileOrigin: _isFileOrigin };
  console.log(
-   '%c[SG_WS] Native WebSocket retained' + (_isFileOrigin ? ' — file:// origin: open via HTTP on :9898' : ' — HTTP origin: ws:// allowed'),
+   '%c[SG_BRIDGE] HTTP bridge mode active' + (_isFileOrigin ? ' — file:// origin: open via HTTP server' : ''),
    'color:#00ffc8;font-size:9px'
  );
 })();
@@ -528,13 +528,87 @@ var _retries   = 0;
 var _timer     = null;
 
 
-// ─── PROTOCOL-AWARE WS HELPERS (global) ────────────────────────────────────
+// ─── RUNTIME CONFIG + BACKEND BRIDGE HELPERS (global) ──────────────────────
 // Exposed on window so every script block can call them without ReferenceError.
-// Local function declarations inside this IIFE are invisible to outer scopes.
+function _sgReadRuntimeConfig(){
+  var fromWindow = (window.__SG_CONFIG && typeof window.__SG_CONFIG === 'object') ? window.__SG_CONFIG : {};
+  var fromStorage = {};
+  try {
+    var raw = localStorage.getItem('sg_config');
+    if (raw) fromStorage = JSON.parse(raw) || {};
+  } catch(_) {}
+  var cfg = Object.assign({
+    pythonBase: '/api/python',
+    nodeBase: '/api/node',
+    bridgeHealth: '/api/node/health',
+    bridgeChat: '/api/node/chat',
+    wsBridgeUrl: '',
+    disableWebSocket: true
+  }, fromStorage, fromWindow);
+  cfg.pythonBase = String(cfg.pythonBase || '/api/python').replace(/\/+$/,'');
+  cfg.nodeBase = String(cfg.nodeBase || '/api/node').replace(/\/+$/,'');
+  cfg.bridgeHealth = String(cfg.bridgeHealth || (cfg.nodeBase + '/health'));
+  cfg.bridgeChat = String(cfg.bridgeChat || (cfg.nodeBase + '/chat'));
+  cfg.wsBridgeUrl = String(cfg.wsBridgeUrl || '').trim();
+  return cfg;
+}
+window.SG_CONFIG = _sgReadRuntimeConfig();
+window.Backend = window.Backend || {
+  config: window.SG_CONFIG,
+  health: function(){ return this.config.bridgeHealth || (this.config.nodeBase + '/health'); },
+  chat: function(){ return this.config.bridgeChat || (this.config.nodeBase + '/chat'); },
+  node: function(path){ return this.config.nodeBase + (path || ''); },
+  python: function(path){ return this.config.pythonBase + (path || ''); }
+};
+if (window.SG_CONFIG.disableWebSocket) {
+  function DisabledWebSocket(){
+    this.readyState = DisabledWebSocket.CLOSED;
+    this.onopen = null; this.onclose = null; this.onerror = null; this.onmessage = null;
+    var self = this;
+    setTimeout(function(){ if (typeof self.onclose === 'function') self.onclose({ code: 1000, reason: 'disabled' }); }, 0);
+  }
+  DisabledWebSocket.CONNECTING = 0;
+  DisabledWebSocket.OPEN = 1;
+  DisabledWebSocket.CLOSING = 2;
+  DisabledWebSocket.CLOSED = 3;
+  DisabledWebSocket.prototype.send = function(){};
+  DisabledWebSocket.prototype.close = function(){ this.readyState = DisabledWebSocket.CLOSED; };
+  window.WebSocket = DisabledWebSocket;
+}
+if (location.protocol === 'https:') {
+  var _bh = window.Backend.health();
+  var _bc = window.Backend.chat();
+  if (/^http:\/\//i.test(_bh) || /^http:\/\//i.test(_bc)) {
+    console.warn('[SG_CONFIG] HTTPS page detected; bridge endpoints should be HTTPS or same-origin relative paths.');
+  }
+}
+// Optional URL remap for legacy hardcoded local bridge URLs → runtime config.
+(function(){
+  if (!window.fetch) return;
+  var _origFetch = window.fetch.bind(window);
+  function _map(url){
+    if (typeof url !== 'string') return url;
+    return url
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/health\b/i, window.Backend.health())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/chat\b/i, window.Backend.chat())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/api\/?/i, window.Backend.node('/api/'))
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9897\b/i, window.Backend.python(''));
+  }
+  window.fetch = function(input, init){
+    if (typeof input === 'string') return _origFetch(_map(input), init);
+    if (input && input.url && typeof input.url === 'string') {
+      try { return _origFetch(new Request(_map(input.url), input), init); } catch(_) {}
+    }
+    return _origFetch(input, init);
+  };
+})();
 window._sgWsProto = function(){ return location.protocol==='https:' ? 'wss://' : 'ws://'; };
-window._sgWsUrl = function(host){ return window._sgWsProto() + (host || '127.0.0.1:9897'); };
+window._sgWsUrl = function(){
+  var u = (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '';
+  return u || '';
+};
 // Guard: once the browser signals ws:// is insecure, stop all reconnect attempts.
-window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure; };
+window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure || !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket); };
 // Offline-mode guard — set true when mode='offline', stops all socket connect loops.
 window._sgOfflineMode = (function(){ try{ return sessionStorage.getItem('sg_mode')==='offline'; }catch(e){ return false; } })();
 window._sgIsOffline = function(){ return !!window._sgOfflineMode; };
@@ -621,7 +695,7 @@ if (window._sgIsOffline && window._sgIsOffline()) {
 /* WS permanently blocked by browser (file:// or https:// mixed-content) — stop all retry loops */
 if (window._sgWsBlocked && window._sgWsBlocked()) {
   if (_timer) { clearTimeout(_timer); _timer = null; }
-  if (!_connected) setConnected(false, '🔒 WS blocked — serve via http://127.0.0.1:9898');
+  if (!_connected) setConnected(false, '🔒 WS blocked — using HTTP bridge mode');
   return;
 }
 var ptOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
@@ -689,7 +763,7 @@ try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sen
 }
 if (!sent) {
 /* HTTP fallback */
-fetch('http://127.0.0.1:9899/chat', {
+fetch(window.Backend.chat(), {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
 }).then(function(r){return r.json();}).then(function(d){
@@ -2079,6 +2153,10 @@ const BRIDGE = {
   },
 
   tryWebSocket(){
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) {
+      this.startPolling();
+      return;
+    }
     if(this.ws && this.ws.readyState < 2){ return; }
     if(window._sgIsOffline && window._sgIsOffline()) return;
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
@@ -2086,6 +2164,7 @@ const BRIDGE = {
     try{
       if (_sgWsBlocked()) return;
       var wsUrl = _sgWsUrl(); /* Python WS bridge :9897 — protocol auto-detected */
+      if (!wsUrl) { this.startPolling(); return; }
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
@@ -2138,7 +2217,7 @@ const BRIDGE = {
       ws.onclose = ()=>{
         self.connected=false; self.ws=null;
         /* Stop retrying if browser has flagged ws:// as insecure */
-        if (window._sgBridgeInsecure) return;
+        if (window._sgBridgeInsecure || (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket)) return;
         /* Cap retries at 5 */
         if (self.wsRetries >= 5) {
           self.updateUI('PORT 9897 OFFLINE','var(--pulse)');
@@ -2153,7 +2232,7 @@ const BRIDGE = {
       };
     }catch(e){
       var isIns = e && (e.name==='SecurityError' || (e.message&&(e.message.indexOf('insecure')!==-1||e.message.indexOf('secure')!==-1)));
-      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://127.0.0.1:9898'); return; }
+      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','WebSocket blocked — HTTP bridge mode active'); return; }
       this.log('warn','WebSocket unavailable — using HTTP polling');
       this.startPolling();
     }
@@ -2167,25 +2246,21 @@ const BRIDGE = {
 
   async pollHealth(){
     try{
-      // Try Python :9897 health (internal backend)
       let r;
-      try { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
-      catch(e2) { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
+      try { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
+      catch(e2) { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         if(ST && ST.cicd) ST.cicd.status = 'online';
-        this.updateUI('PORT 9897 ✓','var(--gn)');
-        if(this.wsRetries===0 || this.wsRetries>=this.maxRetries){
-          this.wsRetries=0; this.tryWebSocket();
-        }
+        this.updateUI('HTTP BRIDGE ✓','var(--gn)');
       } else {
         this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'error';
-        this.updateUI('PORT 9897 ERR','var(--rd)');
-        this.log('err','HTTP '+r.status+' from port 9897');
+        this.updateUI('HTTP BRIDGE ERR','var(--rd)');
+        this.log('err','HTTP '+r.status+' from bridge endpoint');
       }
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
-      this.updateUI('PORT 9897 OFFLINE','var(--am)');
+      this.updateUI('HTTP BRIDGE OFFLINE','var(--am)');
     }
   },
 
@@ -2349,56 +2424,48 @@ try {
 
 // ─── 1. PORT CONFIGURATION — user-configurable bridge connection ────
 var BridgeCFG = {
-  protocol: 'ws',       // ws or wss
-  host:     '127.0.0.1', // Safari fix: use IPv4 literal, not 'localhost'
-  port:     9897,
+  protocol: 'https',
+  host:     '',
+  port:     0,
   path:     '',
-  // AirPlay / Bonjour friendly alternate ports
+  wsBridgeUrl: (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '',
+  disableWebSocket: !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket),
   presets: {
-    local:    { host:'127.0.0.1',    port:9897 }, // Python WS internal — primary
-    lan:      { host:'192.168.1.1',  port:9897 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
-    tailscale:{ host:'100.x.x.x',   port:9897 },   // Tailscale mesh
-    custom:   { host:'',             port:0    }
+    same_origin: { wsBridgeUrl:'' },
+    custom:      { wsBridgeUrl:'' }
   },
   wsURL: function() {
-    var proto = BridgeCFG.protocol || 'ws';
-    return proto + '://' + (BridgeCFG.host || '127.0.0.1') + ':' + (BridgeCFG.port || 9897) + (BridgeCFG.path || '');
+    return BridgeCFG.disableWebSocket ? '' : (BridgeCFG.wsBridgeUrl || '');
   },
   save: function() {
-    try { localStorage.setItem('bridge_cfg', JSON.stringify({
-      protocol: BridgeCFG.protocol,
-      host: BridgeCFG.host,
-      port: BridgeCFG.port,
-      path: BridgeCFG.path
-    })); } catch(e) {}
+    try {
+      var current = {};
+      try { current = JSON.parse(localStorage.getItem('sg_config')||'{}') || {}; } catch(_){}
+      current.wsBridgeUrl = BridgeCFG.wsBridgeUrl || '';
+      current.disableWebSocket = !!BridgeCFG.disableWebSocket;
+      localStorage.setItem('sg_config', JSON.stringify(current));
+    } catch(e) {}
   },
   load: function() {
     try {
-      var s = localStorage.getItem('bridge_cfg');
-      if (s) {
-        var p = JSON.parse(s);
-        BridgeCFG.protocol = p.protocol || 'ws';
-        BridgeCFG.host = p.host || '127.0.0.1';
-        BridgeCFG.port = p.port || 9897;
-        BridgeCFG.path = p.path || '';
-      }
+      var p = window.SG_CONFIG || {};
+      BridgeCFG.wsBridgeUrl = String(p.wsBridgeUrl || '');
+      BridgeCFG.disableWebSocket = !!p.disableWebSocket;
     } catch(e) {}
   }
 };
 BridgeCFG.load();
-if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protocol='wss'; }
 
 // Connect bridge — only when not in offline mode
 (function _forceConnect(){
   function _tryConnect(){
     if(window._sgIsOffline&&window._sgIsOffline()) return;
-    if(typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
+    if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
       if(!PiperTTS.ws || PiperTTS.ws.readyState > 1) PiperTTS.connect();
     }
     if(typeof BRIDGE !== 'undefined'){
       BRIDGE.pollHealth && BRIDGE.pollHealth();
-      if(!BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
+      if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && !BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
     }
   }
   // Try at startup delays — skipped entirely if offline mode is saved
@@ -2426,6 +2493,7 @@ var PiperTTS = {
   maxRetry: 9999,
 
   connect: function() {
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) return;
     if (PiperTTS.ws && PiperTTS.ws.readyState < 2) return;
     if (window._sgIsOffline && window._sgIsOffline()) return;
     try {
@@ -15829,16 +15897,9 @@ _runLocalAnalysis();
 function _runLocalAnalysis(){
   var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
   if (output) {
-    output.textContent = '# CodeMaster Analysis (Offline)
-# Language: ' + lang.toUpperCase() + '
-
-' +
-      'Errors: ' + results.errCount + '
-Warnings: ' + results.warnCount + '
-
-' +
-      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('
-') || 'No auto-fixes available.');
+    output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
+      'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.');
     if (results.fixes.some(function(f){ return f.fix; })) {
       if (applyBtn) {
         applyBtn.style.display = 'block';
@@ -20953,16 +21014,9 @@ _runLocalAnalysis();
 function _runLocalAnalysis(){
   var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
   if (output) {
-    output.textContent = '# CodeMaster Analysis (Offline)
-# Language: ' + lang.toUpperCase() + '
-
-' +
-      'Errors: ' + results.errCount + '
-Warnings: ' + results.warnCount + '
-
-' +
-      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('
-') || 'No auto-fixes available.');
+    output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
+      'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.');
     if (results.fixes.some(function(f){ return f.fix; })) {
       if (applyBtn) {
         applyBtn.style.display = 'block';
@@ -26887,6 +26941,35 @@ async function aiAnalyzeOrFix(code, mode = 'fix') {
 window.aiAnalyzeOrFix = aiAnalyzeOrFix;
 window.aiAnalyze = function(code){ return aiAnalyzeOrFix(typeof code === 'string' ? code : (document.getElementById('cm-editor')||{}).value||'', 'analyze'); };
 window.aiFixAll = function(code){ return aiAnalyzeOrFix(typeof code === 'string' ? code : (document.getElementById('cm-editor')||{}).value||'', 'fix'); };
+function _sgUpdateAiFixPanel(source, fixed, text, label, applyFn){
+  var panel = $('cm-ai-panel');
+  var out = $('cm-ai-output');
+  var diff = $('cm-ai-diff');
+  var ap = $('cm-apply-fix');
+  if (panel) panel.style.display = 'block';
+  if (out) {
+    out.textContent = text || '';
+    out.style.display = 'block';
+  }
+  if (diff) {
+    var src = String(source || '');
+    var fx = String(fixed || '');
+    if (fx && fx !== src) {
+      diff.style.display = 'block';
+      _sgRenderCodeMasterDiff(diff, _sgCodeMasterDiff(src, fx));
+    } else {
+      diff.style.display = 'none';
+      while (diff.firstChild) diff.removeChild(diff.firstChild);
+    }
+  }
+  if (ap) {
+    ap.style.display = 'block';
+    ap.textContent = label || '✅ APPLY FIX';
+    ap._fixFn = typeof applyFn === 'function' ? applyFn : function(){ if (fixed) setCode(fixed); };
+  }
+  if (panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  return {panel:panel,out:out,diff:diff,ap:ap};
+}
 function _t(m,k){var c=k==='err'?'#ff3d6e':k==='ok'?'#00ffc8':'#7ca3c8';var el=$('_at');if(!el){el=document.createElement('div');el.id='_at';el.style.cssText='position:fixed;bottom:24px;right:20px;z-index:2147483647;padding:10px 16px;border-radius:8px;font:bold 11px monospace;max-width:320px;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(el);}el.style.background='#07101f';el.style.border='1px solid '+c;el.style.color=c;el.textContent=m;el.style.display='block';clearTimeout(el._x);el._x=setTimeout(function(){el.style.display='none';},4000);}
 window._sghToast=_t;
 function _run(){var ed=$('cm-editor'),fr=$('cm-preview-frame');if(!ed||!fr)return;var c=ed.value||'',l=($('cm-lang')||{}).value||'html';if(window.CM&&typeof window.CM.updatePreview==='function'){try{window.CM.updatePreview();return;}catch(_){}}if(l==='html')fr.srcdoc=c;else if(l==='js'||l==='javascript')fr.srcdoc='<!DOCTYPE html><body><sc'+'ript>\n'+c+'\n<\/sc'+'ript></body>';else if(l==='css')fr.srcdoc='<!DOCTYPE html><head><style>'+c+'</style></head><body style="padding:20px;font-family:sans-serif"><p>CSS preview</p></body>';else if(l==='json'){try{fr.srcdoc='<pre style="font:11px monospace;padding:20px;background:#0d0d1a;color:#00ffc8;margin:0">'+JSON.stringify(JSON.parse(c),null,2).replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];})+'</pre>';}catch(e){fr.srcdoc='<pre style="color:red;padding:20px">'+e.message+'</pre>';}}else fr.srcdoc='<pre style="font:11px monospace;padding:20px;background:#0d0d1a;color:#00ffc8;margin:0">'+c.replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];})+'</pre>';}
@@ -27084,26 +27167,70 @@ function _keys(){
 }
 window.showKeys=_keys;window.showKeyModal=_keys;
 var _ws=null,_ok=false,_at=0;
-function _bc(){if(location.protocol==='file:'){_dot(false);return;}if(_sgWsBlocked()){_dot(false);return;}if(_ws&&_ws.readyState<=1)return;_at++;var ws;try{ws=new WebSocket(_sgWsUrl());}catch(e){_br();return;}_ws=ws;window.ws=ws;ws.onopen=function(){_ok=true;_at=0;_dot(true);try{ws.send(JSON.stringify({type:'handshake',client:'arbiter'}));}catch(_){}_t('⚡ Bridge :9897 connected','ok');};ws.onmessage=function(e){var d;try{d=JSON.parse(e.data);}catch(_){return;}try{document.dispatchEvent(new CustomEvent('sg:bridgeMsg',{detail:d}));}catch(_){}if(d.type==='agent_response'||d.type==='chat_response'){
-  var th=$('ag-thread')||$('sgh-ag-thread');
-  if(th){
-    var tk=th.querySelector('._ath');if(tk)tk.remove();
-    var b=document.createElement('div');b.style.cssText='margin-bottom:8px';
-    var text=d.text||(d.payload&&d.payload.text)||d.response||'';
-    var span=document.createElement('span');
-    span.style.cssText='background:#152440;border:1px solid #254868;border-radius:8px;padding:7px 10px;display:inline-block;color:#eaf0ff;max-width:85%;white-space:pre-wrap;font:11px monospace';
-    span.textContent=text;
-    b.appendChild(span);
-    th.appendChild(b);th.scrollTop=th.scrollHeight;
+function _bc(){
+  if(location.protocol==='file:'){_dot(false);return;}
+  if(_sgWsBlocked()){_dot(false);return;}
+  if(_ws&&_ws.readyState<=1)return;
+  _at++;
+  var ws;
+  try{
+    ws=new WebSocket(_sgWsUrl());
+  }catch(e){
+    _br();
+    return;
   }
+  _ws=ws;
+  window.ws=ws;
+  ws.onopen=function(){
+    _ok=true;
+    _at=0;
+    _dot(true);
+    try{ws.send(JSON.stringify({type:'handshake',client:'arbiter'}));}catch(_){}
+    _t('⚡ Bridge :9897 connected','ok');
+  };
+  ws.onmessage=function(e){
+    var d;
+    try{d=JSON.parse(e.data);}catch(_){return;}
+    try{document.dispatchEvent(new CustomEvent('sg:bridgeMsg',{detail:d}));}catch(_){}
+    if(d.type==='agent_response'||d.type==='chat_response'){
+      var th=$('ag-thread')||$('sgh-ag-thread');
+      if(th){
+        var tk=th.querySelector('._ath');if(tk)tk.remove();
+        var b=document.createElement('div');
+        b.style.cssText='margin-bottom:8px';
+        var text=d.text||(d.payload&&d.payload.text)||d.response||'';
+        var span=document.createElement('span');
+        span.style.cssText='background:#152440;border:1px solid #254868;border-radius:8px;padding:7px 10px;display:inline-block;color:#eaf0ff;max-width:85%;white-space:pre-wrap;font:11px monospace';
+        span.textContent=text;
+        b.appendChild(span);
+        th.appendChild(b);
+        th.scrollTop=th.scrollHeight;
+      }
+    }
+    if(d.type==='key_saved'){_t(d.agent+' key synced to bridge','ok');}
+    if(d.type==='tool_result'){document.dispatchEvent(new CustomEvent('sg:toolResult',{detail:d}));}
+    if(d.type==='cicd_result'){
+      var issues=d.sanitizer&&d.sanitizer.total_issues||0;
+      _t('CI/CD: '+(issues===0?'✅ Clean':'⚠ '+issues+' issue(s)')+(d.result&&d.result.status==='success'?'':''),issues===0?'ok':'err');
+    }
+    if(d.type==='ai_code_review_result'||d.context==='codemaster'){
+      var panel=$('cm-ai-panel');
+      var ed=$('cm-editor');
+      var text=d.review||d.text||'';
+      var fx=d.fixed_code||_sgExtractCodeFence(text);
+      if(panel&&ed)panel._cmSource=ed.value||'';
+      _sgUpdateAiFixPanel((panel&&panel._cmSource)||((ed||{}).value||''),fx,text,'✅ APPLY FIX',function(){setCode(fx);});
+    }
+  };
+  ws.onerror=function(){};
+  ws.onclose=function(){
+    _ok=false;
+    _ws=null;
+    window.ws=null;
+    _dot(false);
+    _br();
+  };
 }
-if(d.type==='key_saved'){_t(d.agent+' key synced to bridge','ok');}
-if(d.type==='tool_result'){document.dispatchEvent(new CustomEvent('sg:toolResult',{detail:d}));}
-if(d.type==='cicd_result'){
-  var issues=d.sanitizer&&d.sanitizer.total_issues||0;
-  _t('CI/CD: '+(issues===0?'✅ Clean':'⚠ '+issues+' issue(s)')+(d.result&&d.result.status==='success'?'':''),issues===0?'ok':'err');
-}
-if(d.type==='ai_code_review_result'||d.context==='codemaster'){var panel=$('cm-ai-panel'),ed=$('cm-editor'),text=d.review||d.text||'',fx=d.fixed_code||_sgExtractCodeFence(text);if(panel&&ed)panel._cmSource=ed.value||'';_sgUpdateAiFixPanel((panel&&panel._cmSource)||((ed||{}).value||''),fx,text,'✅ APPLY FIX',function(){setCode(fx);});}};ws.onerror=function(){};ws.onclose=function(){_ok=false;_ws=null;window.ws=null;_dot(false);_br();};}
 function _br(){clearTimeout(window._arbR);window._arbR=setTimeout(_bc,Math.min(2000*Math.pow(1.5,Math.min(_at,8)),20000)|0);}
 function _dot(on){window._SGH_BRIDGE_CONNECTED=on;var c=on?'#00ffc8':'#ff3d6e';['rs-bridge-dot','sgh-pill-dot','_ad'].forEach(function(id){var el=$(id);if(el)el.style.background=c;});['bridgeStatus','ftBridge'].forEach(function(id){var el=$(id);if(el){el.textContent=on?'LIVE':'OFFLINE';el.style.color=on?'#00e676':'#ff3d6e';}});try{document.dispatchEvent(new CustomEvent(on?'sg:bridgeConnected':'sg:bridgeDisconnected',{detail:{url:'ws://127.0.0.1:9897'}}));}catch(_){}}
 window.bridgeConnect=_bc;window.bridgeReconnect=_bc;window._SG_BRIDGE_STATUS=window._SG_BRIDGE_STATUS||{};window._SG_BRIDGE_STATUS.reconnect=_bc;window.SG_AGENT=window.SG_AGENT||{reconnectBridge:_bc};
@@ -27151,6 +27278,165 @@ function _pill(){if($('_apill'))return;var p=document.createElement('div');p.id=
 function _css(){if($('_acss'))return;var s=document.createElement('style');s.id='_acss';s.textContent='button,[data-panel],[data-p]{cursor:pointer!important}#pa{pointer-events:auto!important}.screen:not(.active){pointer-events:none!important}#cm-apply-fix{background:#00ffc8;color:#000;border:none;border-radius:8px;padding:12px 20px;font:700 13px monospace;cursor:pointer;margin-top:10px;width:100%;display:none}button{-webkit-tap-highlight-color:rgba(0,255,200,.2);touch-action:manipulation}';document.head.appendChild(s);}
 function boot(){_css();_pill();_bc();setInterval(function(){if(!_ok)_bc();},30000);document.addEventListener('sg:panelLoaded',function(ev){var id=ev&&ev.detail&&ev.detail.id;if(id==='codemaster'){var ed=$('cm-editor');if(ed&&!ed._aw){ed._aw=true;ed.addEventListener('input',function(){clearTimeout(ed._at);ed._at=setTimeout(_run,700);});setTimeout(_run,300);}}});window.arbiter={aiFix:_ai,run:_run,keys:_keys,bridge:{connect:_bc,ok:function(){return _ok;}}};console.log('[Arbiter v1] online · ws:9897 · claude-sonnet-4-5');}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else setTimeout(boot,0);
+})();
+</script>
+
+<script>
+(function(){
+'use strict';
+function $(id){return document.getElementById(id);}
+function _sgLocalText(code){
+  return String(code || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function _sgCodeMasterDiff(before, after){
+  var a = String(before || '').split('\n');
+  var b = String(after || '').split('\n');
+  var out = ['--- codemaster://before', '+++ codemaster://after'];
+  var max = Math.max(a.length, b.length);
+  for (var i = 0; i < max; i++) {
+    if (a[i] === b[i]) {
+      if (a[i] !== undefined) out.push(' ' + a[i]);
+    } else {
+      if (a[i] !== undefined) out.push('-' + a[i]);
+      if (b[i] !== undefined) out.push('+' + b[i]);
+    }
+  }
+  return out.join('\n');
+}
+function _sgRenderCodeMasterDiff(target, diffText){
+  if (!target) return;
+  while (target.firstChild) target.removeChild(target.firstChild);
+  String(diffText || '').split('\n').forEach(function(line){
+    var row=document.createElement('div');
+    row.textContent=line;
+    row.style.whiteSpace='pre-wrap';
+    row.style.wordBreak='break-word';
+    row.style.color=/^\+/.test(line)?'#4ec9b0':/^-/.test(line)?'#f44747':/^@@/.test(line)?'#4fc1ff':/^(diff --git |index |--- |\+\+\+ )/.test(line)?'#c586c0':'var(--t0)';
+    target.appendChild(row);
+  });
+}
+function _sgLocalAnalyze(code){
+  var text=String(code || '');
+  var issues=[];
+  if (/<b>/i.test(text) || /<\/b>/i.test(text)) issues.push('Replace <b> with <strong>.');
+  if (/javascript:/i.test(text)) issues.push('Remove javascript: URLs.');
+  if (/\sonclick\s*=/.test(text)) issues.push('Avoid inline onclick handlers.');
+  return issues.length ? issues.join(' ') : 'No obvious local issues found.';
+}
+function _sgLocalFix(code){
+  var fixed=String(code || '');
+  fixed=fixed.replace(/<b>/gi,'<strong>').replace(/<\/b>/gi,'</strong>');
+  fixed=fixed.replace(/\s+onclick\s*=\s*("|\').*?\1/gi,'');
+  fixed=fixed.replace(/javascript:/gi,'');
+  return fixed;
+}
+window._sgCodeMasterDiff = window._sgCodeMasterDiff || _sgCodeMasterDiff;
+window._sgRenderCodeMasterDiff = window._sgRenderCodeMasterDiff || _sgRenderCodeMasterDiff;
+window._sgLocalAnalyze = window._sgLocalAnalyze || _sgLocalAnalyze;
+window._sgLocalFix = window._sgLocalFix || _sgLocalFix;
+function _sgAiPanelUpdate(source, fixed, text, label, applyFn){
+  var panel=$('cm-ai-panel'), out=$('cm-ai-output'), diff=$('cm-ai-diff'), ap=$('cm-apply-fix');
+  if(panel) panel.style.display='block';
+  if(out){ out.style.display='block'; out.textContent=text || ''; }
+  if(diff){
+    var src=String(source||''), fx=String(fixed||'');
+    if(fx && fx !== src && typeof window._sgCodeMasterDiff === 'function' && typeof window._sgRenderCodeMasterDiff === 'function'){
+      diff.style.display='block';
+      window._sgRenderCodeMasterDiff(diff, window._sgCodeMasterDiff(src, fx));
+    } else {
+      diff.style.display='none';
+      while(diff.firstChild) diff.removeChild(diff.firstChild);
+    }
+  }
+  if(ap){
+    ap.style.display='block';
+    ap.textContent = label || '✅ APPLY FIX';
+    ap._fixFn = typeof applyFn === 'function' ? applyFn : function(){ if (fixed && typeof window.setCode === 'function') window.setCode(fixed); };
+  }
+  if(panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+window._sgUpdateAiFixPanel = window._sgUpdateAiFixPanel || _sgAiPanelUpdate;
+
+window.aiAnalyzeOrFix = async function(code, mode){
+  var source=String(code || '');
+  if(mode === 'analyze') return window._sgLocalAnalyze(source);
+  return window._sgLocalFix(source);
+};
+window.aiAnalyze = function(code){ return window.aiAnalyzeOrFix(typeof code === 'string' ? code : (($('cm-editor')||{}).value||''), 'analyze'); };
+window.aiFixAll = function(code){ return window.aiAnalyzeOrFix(typeof code === 'string' ? code : (($('cm-editor')||{}).value||''), 'fix'); };
+
+var ws = null, retry = 0;
+function bridgeDot(on){
+  window._SGH_BRIDGE_CONNECTED = !!on;
+  var c = on ? '#00ffc8' : '#ff3d6e';
+  ['rs-bridge-dot','sgh-pill-dot','_ad'].forEach(function(id){ var el=$(id); if(el) el.style.background = c; });
+}
+function bridgeConnect(){
+  if (ws && ws.readyState <= 1) return ws;
+  try {
+    ws = new WebSocket((window._sgWsUrl && window._sgWsUrl()) || 'ws://127.0.0.1:9897');
+  } catch (e) {
+    bridgeDot(false);
+    return null;
+  }
+  window.ws = ws;
+  ws.onopen = function(){
+    retry = 0;
+    bridgeDot(true);
+    try { ws.send(JSON.stringify({type:'handshake',client:'arbiter'})); } catch(_){}
+  };
+  ws.onmessage = function(e){
+    var d;
+    try { d = JSON.parse(e.data); } catch(_) { return; }
+    if (d.type === 'ai_code_review_result' || d.context === 'codemaster') {
+      var text = d.review || d.text || '';
+      var fx = d.fixed_code || (window._sgExtractCodeFence ? window._sgExtractCodeFence(text) : '');
+      var ed = $('cm-editor');
+      var source = (ed && ed.value) || '';
+      if (window._sgUpdateAiFixPanel) window._sgUpdateAiFixPanel(source, fx, text, '✅ APPLY FIX', function(){ if (fx && typeof window.setCode === 'function') window.setCode(fx); });
+    }
+  };
+  ws.onclose = function(){
+    bridgeDot(false);
+    window.ws = null;
+    ws = null;
+    if (retry++ < 8) setTimeout(bridgeConnect, Math.min(1000 * Math.pow(1.5, retry), 15000));
+  };
+  ws.onerror = function(){ bridgeDot(false); };
+  return ws;
+}
+function bridgeSend(payload){
+  var s = JSON.stringify(Object.assign({source:'sg_ui',ts:Date.now()}, payload || {}));
+  var live = window.ws || ws;
+  if (live && live.readyState === 1) { try { live.send(s); return; } catch(_){} }
+  window._sgSendQ = window._sgSendQ || [];
+  if (window._sgSendQ.length < 100) window._sgSendQ.push(s);
+}
+window.bridgeConnect = window.bridgeConnect || bridgeConnect;
+window.bridgeReconnect = window.bridgeReconnect || bridgeConnect;
+window.bridgeSend = window.bridgeSend || bridgeSend;
+window.SG_AGENT = window.SG_AGENT || {
+  reconnectBridge: bridgeConnect,
+  runAllRepairs: function(){},
+  saveCFG: function(){},
+  reseal: function(){ return Promise.resolve(); },
+  applyPatch: function(code){ try { new Function(code); return true; } catch(_) { return false; } },
+  bridgeSend: bridgeSend,
+  getState: function(){ return {bridge: (window.ws && window.ws.readyState === 1) ? 'connected' : 'disconnected'}; },
+  flushQueue: function(){ var q = window._sgSendQ || []; var live = window.ws || ws; if (live && live.readyState === 1) { q.forEach(function(m){ try { live.send(m); } catch(_){} }); window._sgSendQ = []; } },
+  exportErrors: function(){}
+};
+
+function wireCodeMaster(){
+  var run = $('cm-run'), fix = $('cm-ai-fix'), apply = $('cm-apply-fix'), refresh = $('cm-preview-refresh');
+  if(run && !run._sg){ run._sg = true; run.addEventListener('click', function(){ if(typeof window._run === 'function') window._run(); }); }
+  if(fix && !fix._sg){ fix._sg = true; fix.addEventListener('click', function(e){ if(e){e.preventDefault();e.stopPropagation();} if(typeof window._ai === 'function') window._ai(); }); }
+  if(apply && !apply._sg){ apply._sg = true; apply.addEventListener('click', function(e){ if(e){e.preventDefault();e.stopPropagation();} if(typeof apply._fixFn === 'function') apply._fixFn(); }); }
+  if(refresh && !refresh._sg){ refresh._sg = true; refresh.addEventListener('click', function(){ if(typeof window._run === 'function') window._run(); }); }
+}
+document.addEventListener('sg:panelLoaded', function(ev){ if(ev && ev.detail && ev.detail.id === 'codemaster') wireCodeMaster(); });
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireCodeMaster); else wireCodeMaster();
+bridgeConnect();
 })();
 </script>
 

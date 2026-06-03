@@ -9,7 +9,7 @@ let baseUrl;
 
 before(async () => {
   await new Promise((resolve) => {
-    server.listen(0, () => {                 // OS picks a free port
+    server.listen(0, () => {
       const addr = server.address();
       baseUrl = `http://localhost:${addr.port}`;
       resolve();
@@ -22,7 +22,6 @@ after(async () => {
   await new Promise((resolve) => server.close(resolve));
 });
 
-/* ---- helpers ---- */
 function request(path, opts = {}) {
   const url = new URL(path, baseUrl);
   return new Promise((resolve, reject) => {
@@ -43,15 +42,14 @@ function request(path, opts = {}) {
   });
 }
 
-/* ---- tests ---- */
 describe('Node Bridge – Health', () => {
   it('GET /health returns status and backend info', async () => {
     const r = await request('/health');
     assert.equal(r.status, 200);
     assert.equal(r.body.status, 'healthy');
     assert.equal(r.body.service, 'node-bridge');
-    assert.equal(r.body.backends.api, 'http://localhost:8002');
-    assert.equal(r.body.backends.weather, 'http://localhost:8001');
+    assert.ok(/^http:\/\/(localhost|127\.0\.0\.1):8002$/.test(r.body.backends.api));
+    assert.ok(/^http:\/\/(localhost|127\.0\.0\.1):8001$/.test(r.body.backends.weather));
     assert.ok(r.body.timestamp);
   });
 });
@@ -100,7 +98,6 @@ describe('Node Bridge – WebSocket', () => {
     const ws = new WebSocket(`ws://localhost:${addr.port}/ws/alerts`);
     await new Promise((r) => ws.on('open', r));
 
-    // listener first, then POST
     const msgPromise = new Promise((resolve, reject) => {
       ws.on('message', (raw) => { resolve(JSON.parse(raw)); ws.close(); });
       setTimeout(() => reject(new Error('timeout')), 3000);

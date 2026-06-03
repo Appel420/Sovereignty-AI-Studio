@@ -4,11 +4,35 @@
 
 ### Overview
 
-**Sovereignty AI Studio uses three ports for local operation:**
+**Sovereignty AI Studio uses three service roles; browser clients should use runtime-configured HTTP endpoints:**
 
-- **9898** — KODER frontend (SGHv119.html) — browser/iPhone loads the UI here
-- **9899** — Node.js node-bridge — receives WebSocket and HTTP API traffic from the browser
-- **9897** — Python bridge.py — the primary AI/WS backend; node-bridge proxies messages here
+- **9898** — KODER frontend static host (local/dev convenience)
+- **9899** — Node.js node-bridge HTTP/API gateway
+- **9897** — Python bridge.py backend (internal to bridge path)
+
+### Runtime Bridge Configuration (public-safe / iPhone-safe)
+
+Browser-facing code should not hardcode `localhost`, `127.0.0.1`, or LAN literals.
+
+Use runtime config instead:
+
+```html
+<script>
+  window.__SG_CONFIG = {
+    pythonBase: '/api/python',
+    nodeBase: '/api/node',
+    bridgeHealth: '/api/node/health',
+    bridgeChat: '/api/node/chat',
+    disableWebSocket: true
+  };
+</script>
+```
+
+Or persist equivalent JSON in `localStorage.sg_config`.
+
+- Default recommended browser endpoints are relative (`/api/python`, `/api/node`) so HTTPS pages stay same-origin.
+- If the frontend is HTTPS, bridge targets must also be HTTPS (or same-origin reverse-proxied HTTPS paths).
+- WebSocket is optional; HTTP bridge path is the default and supported mode.
 
 ## Architecture Diagram
 
@@ -76,14 +100,13 @@
 
 ## Key Principle
 
-🎯 **UI loads from 9898 — all WS/API traffic goes through 9899 — Python AI backend is on 9897**
+🎯 **UI can load from any HTTPS origin — bridge traffic should use runtime-configured HTTP endpoints**
 
-- Load KODER dashboard: `http://localhost:9898/SGHv119.html`
-- WebSocket bridge: `ws://localhost:9899/`
-- API requests: `http://localhost:9899/api/v1/*`
-- Weather API: `http://localhost:9899/api/weather*`
-- WebSocket alerts: `ws://localhost:9899/ws/alerts`
-- Health check: `http://localhost:9899/health`
+- Load dashboard from your deployment origin (example): `https://your-domain.example/SGHv119_Newest.html`
+- Bridge health: `/api/node/health`
+- Bridge chat: `/api/node/chat`
+- API requests: `/api/node/api/v1/*`
+- Python bridge route (if exposed via proxy): `/api/python/*`
 
 ## Service Descriptions
 
@@ -91,16 +114,16 @@
 
 **Purpose**: KODER dashboard (SGHv119.html) — what iPhones and browsers load.
 
-**Technology**: Static HTML dashboard served by `python3 -m http.server` (bound to 127.0.0.1)
+**Technology**: Static HTML dashboard (local `python3 -m http.server` or production reverse proxy/CDN)
 
 **Features**:
 - Primary dashboard HTML served to all clients
-- Browser then connects WebSocket and HTTP API to node-bridge on port **9899**
+- Browser uses HTTP API routes through node-bridge (WebSocket optional)
 - node-bridge proxies AI/TTS/STT messages to Python bridge.py on port **9897**
 
 ### Port 9897 - Python bridge.py ⭐ (PRIMARY backend)
 
-**Purpose**: Main Python WebSocket backend. Handles AI chat, TTS, memory, STT.
+**Purpose**: Main Python backend. Handles AI chat, TTS, memory, STT.
 
 **Technology**: Python asyncio WebSocket server
 
