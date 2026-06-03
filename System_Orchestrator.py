@@ -5,7 +5,7 @@ import sys
 import json
 from pathlib import Path
 
-from loggingutils.immutablelogger import ImmutableLogger
+from logging_utils.immutable_logger import ImmutableLogger
 
 
 class SystemOrchestrator:

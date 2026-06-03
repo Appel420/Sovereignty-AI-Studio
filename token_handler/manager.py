@@ -1,8 +1,11 @@
 """
 TokenManager — API key management for all AI providers.
 
-Keys are stored in-memory only and never written to disk or logs.
-Provides normalisation, validation, and retrieval with aliases.
+Keys are stored in-memory and optionally persisted to an encrypted local file
+(.sg_token_store) so that user-entered keys survive bridge restarts.
+Encryption uses ChaCha20-Poly1305 with a per-install key stored in
+.sg_token_key (chmod 0600).  If the `cryptography` package is unavailable
+the manager falls back to in-memory-only mode gracefully.
 
 Usage:
     mgr = TokenManager()
@@ -12,11 +15,79 @@ Usage:
 """
 
 import logging
+import os
 import re
 import time
+from pathlib import Path
 from typing import Optional
 
 log = logging.getLogger("token_handler.manager")
+
+# ---------------------------------------------------------------------------
+# Encrypted persistence helpers
+# ---------------------------------------------------------------------------
+
+_TOKEN_KEY_FILE = Path(".sg_token_key")
+_TOKEN_STORE_FILE = Path(".sg_token_store")
+
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305 as _ChaCha
+    import json as _json
+    _CRYPTO_OK = True
+except ImportError:
+    _CRYPTO_OK = False
+
+
+def _get_or_create_token_key() -> bytes:
+    """Return the 32-byte encryption key for the token store, creating it once."""
+    if _TOKEN_KEY_FILE.exists():
+        raw = _TOKEN_KEY_FILE.read_text(encoding="utf-8").strip()
+        if raw:
+            return bytes.fromhex(raw)
+    key = os.urandom(32)
+    _TOKEN_KEY_FILE.write_text(key.hex(), encoding="utf-8")
+    try:
+        os.chmod(_TOKEN_KEY_FILE, 0o600)
+    except OSError:
+        pass
+    return key
+
+
+def _persist_tokens(store: dict) -> None:
+    """Encrypt and write *store* to .sg_token_store."""
+    if not _CRYPTO_OK:
+        return
+    try:
+        key = _get_or_create_token_key()
+        aead = _ChaCha(key)
+        nonce = os.urandom(12)
+        plaintext = _json.dumps(store).encode()
+        ciphertext = aead.encrypt(nonce, plaintext, None)
+        _TOKEN_STORE_FILE.write_bytes(nonce + ciphertext)
+        try:
+            os.chmod(_TOKEN_STORE_FILE, 0o600)
+        except OSError:
+            pass
+    except Exception as exc:
+        log.debug("token_store persist error: %s", exc)
+
+
+def _load_persisted_tokens() -> dict:
+    """Decrypt and return stored tokens, or {} on any error."""
+    if not _CRYPTO_OK or not _TOKEN_STORE_FILE.exists():
+        return {}
+    try:
+        key = _get_or_create_token_key()
+        raw = _TOKEN_STORE_FILE.read_bytes()
+        if len(raw) < 13:
+            return {}
+        nonce, ciphertext = raw[:12], raw[12:]
+        aead = _ChaCha(key)
+        plaintext = aead.decrypt(nonce, ciphertext, None)
+        return _json.loads(plaintext.decode())
+    except Exception as exc:
+        log.debug("token_store load error (returning empty): %s", exc)
+        return {}
 
 # Provider aliases — maps any alias to canonical provider name
 _ALIASES: dict[str, str] = {
@@ -72,11 +143,13 @@ def _detect_provider(key: str) -> Optional[str]:
 
 
 class TokenManager:
-    """In-memory API key store with provider normalisation and validation."""
+    """API key store with provider normalisation, validation, and encrypted persistence."""
 
     def __init__(self) -> None:
-        # Stores: {canonical_provider: {"key": str, "added": int, "valid": bool}}
-        self._store: dict[str, dict] = {}
+        # Restore keys that were persisted during a previous session.
+        self._store: dict[str, dict] = _load_persisted_tokens()
+        if self._store:
+            log.info("Loaded %d persisted provider key(s) from store", len(self._store))
 
     # ------------------------------------------------------------------
     # CRUD
@@ -102,6 +175,7 @@ class TokenManager:
             "provider": canonical,
         }
         log.info("Key set for provider=%s valid=%s", canonical, valid)
+        _persist_tokens(self._store)
         return canonical
 
     def get(self, provider: str) -> Optional[str]:
@@ -117,6 +191,7 @@ class TokenManager:
         self._store.pop(canonical, None)
         if existed:
             log.info("Key removed for provider=%s", canonical)
+            _persist_tokens(self._store)
         return existed
 
     def has(self, provider: str) -> bool:

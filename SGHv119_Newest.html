@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' ws://127.0.0.1:9897 ws://localhost:9897 wss://127.0.0.1:9897 wss://localhost:9897 http://127.0.0.1:9897 http://127.0.0.1:9898 http://127.0.0.1:9899 http://localhost:9897 http://localhost:9898 http://localhost:9899 http://127.0.0.1:8080 http://localhost:8080 https://127.0.0.1:8443 https://localhost:8443 https://api.anthropic.com https://api.openai.com https://api.x.ai https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://localhost:* http://127.0.0.1:* https://127.0.0.1:* https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' https: http: https://eonet.gsfc.nasa.gov https://api.weather.gov https://cdn.star.nesdis.noaa.gov; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https://cdn.star.nesdis.noaa.gov https://*.nasa.gov; media-src 'self' blob:; frame-src https://duckduckgo.com https://www.duckduckgo.com https://*.duckduckgo.com https://claude.ai https://chatgpt.com https://grok.com https://x.com https://github.com/features/copilot https://github.com https://app.tuta.com https://signal.org https://worldview.earthdata.nasa.gov https://apps.sentinel-hub.com https://rammb-slider.cira.colostate.edu https://www.star.nesdis.noaa.gov https://zoom.earth https://embed.windy.com https://openstreetmap.org https://www.openstreetmap.org https://player.vimeo.com https://www.youtube-nocookie.com blob: data:; worker-src 'self' blob:;">
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -213,6 +213,20 @@ transition:all .2s;background:transparent;color:var(--t3);touch-action:manipulat
 #presencePill .pm-online.pm-active{background:var(--acid);color:#000}
 #presencePill .pm-stealth.pm-active{background:#22c55e;color:#000}
 #presencePill .pm-ghost.pm-active{background:#333;color:#666}
+#presencePill .pm-offline.pm-active{background:#c0392b;color:#fff}
+
+/* OFFLINE MODE */
+body.offline-mode{--acid:#c0392b;--volt:#922b21;--bg:#080808;--bg1:#0a0a0a;--bg2:#0d0d0d;
+--bg3:#111;--t0:#888;--t1:#666;--t2:#444;--t3:#333;--wire:#1c1c1c}
+body.offline-mode #presencePill{background:#0d0d0d;border-color:#2a1a1a}
+body.offline-mode .tb-live .tb-dot{background:#c0392b;box-shadow:none}
+body.offline-mode .tb-live{color:#c0392b;border-color:#2a1a1a}
+#offlineBanner{position:fixed;top:0;left:0;right:0;z-index:9800;display:none;
+background:rgba(30,0,0,.94);border-bottom:1px solid #c0392b44;
+font-family:var(--mono);font-size:8px;color:#c0392b;
+padding:5px 16px;letter-spacing:2px;align-items:center;justify-content:space-between}
+body.offline-mode #offlineBanner{display:flex}
+body.offline-mode #topBar{margin-top:27px}
 
 /* GHOST MODE */
 body.ghost-mode{--acid:#555;--volt:#444;--bg:#000;--bg1:#050505;--bg2:#0a0a0a;--bg3:#0f0f0f;
@@ -496,7 +510,7 @@ if(location.protocol==='file:'){
 
  window._sgWsPatch = { active: false, fileOrigin: _isFileOrigin };
  console.log(
-   '%c[SG_WS] Native WebSocket retained' + (_isFileOrigin ? ' — file:// origin: open via HTTP on :9898' : ' — HTTP origin: ws:// allowed'),
+   '%c[SG_BRIDGE] HTTP bridge mode active' + (_isFileOrigin ? ' — file:// origin: open via HTTP server' : ''),
    'color:#00ffc8;font-size:9px'
  );
 })();
@@ -514,13 +528,148 @@ var _retries   = 0;
 var _timer     = null;
 
 
-// ─── PROTOCOL-AWARE WS HELPERS (global) ────────────────────────────────────
+// ─── RUNTIME CONFIG + BACKEND BRIDGE HELPERS (global) ──────────────────────
 // Exposed on window so every script block can call them without ReferenceError.
-// Local function declarations inside this IIFE are invisible to outer scopes.
+function _sgReadRuntimeConfig(){
+  var fromWindow = (window.__SG_CONFIG && typeof window.__SG_CONFIG === 'object') ? window.__SG_CONFIG : {};
+  var fromStorage = {};
+  try {
+    var raw = localStorage.getItem('sg_config');
+    if (raw) fromStorage = JSON.parse(raw) || {};
+  } catch(_) {}
+  var cfg = Object.assign({
+    pythonBase: '/api/python',
+    nodeBase: '/api/node',
+    bridgeHealth: '/api/node/health',
+    bridgeChat: '/api/node/chat',
+    wsBridgeUrl: '',
+    disableWebSocket: true
+  }, fromStorage, fromWindow);
+  cfg.pythonBase = String(cfg.pythonBase || '/api/python').replace(/\/+$/,'');
+  cfg.nodeBase = String(cfg.nodeBase || '/api/node').replace(/\/+$/,'');
+  cfg.bridgeHealth = String(cfg.bridgeHealth || (cfg.nodeBase + '/health'));
+  cfg.bridgeChat = String(cfg.bridgeChat || (cfg.nodeBase + '/chat'));
+  cfg.wsBridgeUrl = String(cfg.wsBridgeUrl || '').trim();
+  return cfg;
+}
+window.SG_CONFIG = _sgReadRuntimeConfig();
+window.Backend = window.Backend || {
+  config: window.SG_CONFIG,
+  health: function(){ return this.config.bridgeHealth || (this.config.nodeBase + '/health'); },
+  chat: function(){ return this.config.bridgeChat || (this.config.nodeBase + '/chat'); },
+  node: function(path){ return this.config.nodeBase + (path || ''); },
+  python: function(path){ return this.config.pythonBase + (path || ''); }
+};
+if (window.SG_CONFIG.disableWebSocket) {
+  function DisabledWebSocket(){
+    this.readyState = DisabledWebSocket.CLOSED;
+    this.onopen = null; this.onclose = null; this.onerror = null; this.onmessage = null;
+    var self = this;
+    setTimeout(function(){ if (typeof self.onclose === 'function') self.onclose({ code: 1000, reason: 'disabled' }); }, 0);
+  }
+  DisabledWebSocket.CONNECTING = 0;
+  DisabledWebSocket.OPEN = 1;
+  DisabledWebSocket.CLOSING = 2;
+  DisabledWebSocket.CLOSED = 3;
+  DisabledWebSocket.prototype.send = function(){};
+  DisabledWebSocket.prototype.close = function(){ this.readyState = DisabledWebSocket.CLOSED; };
+  window.WebSocket = DisabledWebSocket;
+}
+if (location.protocol === 'https:') {
+  var _bh = window.Backend.health();
+  var _bc = window.Backend.chat();
+  if (/^http:\/\//i.test(_bh) || /^http:\/\//i.test(_bc)) {
+    console.warn('[SG_CONFIG] HTTPS page detected; bridge endpoints should be HTTPS or same-origin relative paths.');
+  }
+}
+// Optional URL remap for legacy hardcoded local bridge URLs → runtime config.
+(function(){
+  if (!window.fetch) return;
+  var _origFetch = window.fetch.bind(window);
+  function _map(url){
+    if (typeof url !== 'string') return url;
+    return url
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/health\b/i, window.Backend.health())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/chat\b/i, window.Backend.chat())
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9899\/api\/?/i, window.Backend.node('/api/'))
+      .replace(/^https?:\/\/(?:127\.0\.0\.1|localhost):9897\b/i, window.Backend.python(''));
+  }
+  window.fetch = function(input, init){
+    if (typeof input === 'string') return _origFetch(_map(input), init);
+    if (input && input.url && typeof input.url === 'string') {
+      try { return _origFetch(new Request(_map(input.url), input), init); } catch(_) {}
+    }
+    return _origFetch(input, init);
+  };
+})();
 window._sgWsProto = function(){ return location.protocol==='https:' ? 'wss://' : 'ws://'; };
-window._sgWsUrl = function(host){ return window._sgWsProto() + (host || '127.0.0.1:9897'); };
+window._sgWsUrl = function(){
+  var u = (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '';
+  return u || '';
+};
 // Guard: once the browser signals ws:// is insecure, stop all reconnect attempts.
-window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure; };
+window._sgWsBlocked = function(){ return !!window._sgBridgeInsecure || !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket); };
+// Offline-mode guard — set true when mode='offline', stops all socket connect loops.
+window._sgOfflineMode = (function(){ try{ return sessionStorage.getItem('sg_mode')==='offline'; }catch(e){ return false; } })();
+window._sgIsOffline = function(){ return !!window._sgOfflineMode; };
+window.GlobalHandlers = window.GlobalHandlers || (function(){
+  var errorHandlers = [];
+  var rejectionHandlers = [];
+  var errorPrev = null;
+  var rejectionPrev = null;
+  var errorInstalled = false;
+  var rejectionInstalled = false;
+  function runHandlers(list, args, ctx){
+    var result;
+    for(var i = 0; i < list.length; i++){
+      try {
+        var r = list[i].apply(ctx, args);
+        if(typeof result === 'undefined') result = r;
+      } catch(e) {}
+    }
+    return result;
+  }
+  function dispatchError(msg, src, line, col, err){
+    var result = runHandlers(errorHandlers, arguments, this);
+    if(typeof errorPrev === 'function'){
+      try {
+        var prevResult = errorPrev.apply(this, arguments);
+        if(typeof result === 'undefined') result = prevResult;
+      } catch(e) {}
+    }
+    return result;
+  }
+  function dispatchRejection(ev){
+    var result = runHandlers(rejectionHandlers, arguments, this);
+    if(typeof rejectionPrev === 'function'){
+      try {
+        var prevResult = rejectionPrev.apply(this, arguments);
+        if(typeof result === 'undefined') result = prevResult;
+      } catch(e) {}
+    }
+    return result;
+  }
+  return {
+    chainOnError: function(handler){
+      if(typeof handler === 'function') errorHandlers.push(handler);
+      if(!errorInstalled){
+        errorPrev = window.onerror;
+        window.onerror = dispatchError;
+        errorInstalled = true;
+      }
+      return window.onerror;
+    },
+    chainOnUnhandledRejection: function(handler){
+      if(typeof handler === 'function') rejectionHandlers.push(handler);
+      if(!rejectionInstalled){
+        rejectionPrev = window.onunhandledrejection;
+        window.onunhandledrejection = dispatchRejection;
+        rejectionInstalled = true;
+      }
+      return window.onunhandledrejection;
+    }
+  };
+})();
 // ────────────────────────────────────────────────────────────────────────────
 function setConnected(yes, msg) {
 _connected = yes;
@@ -538,6 +687,17 @@ setTimeout(function(){ if(toast) toast.style.display='none'; }, 3500);
 }
 
 function tryAll() {
+/* Never attempt connections in offline mode */
+if (window._sgIsOffline && window._sgIsOffline()) {
+  if (!_connected) setConnected(false, '📴 Offline mode — sockets disabled');
+  return;
+}
+/* WS permanently blocked by browser (file:// or https:// mixed-content) — stop all retry loops */
+if (window._sgWsBlocked && window._sgWsBlocked()) {
+  if (_timer) { clearTimeout(_timer); _timer = null; }
+  if (!_connected) setConnected(false, '🔒 WS blocked — using HTTP bridge mode');
+  return;
+}
 var ptOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 var brOk = typeof BRIDGE   !== 'undefined' && BRIDGE.connected;
 
@@ -576,8 +736,9 @@ document.addEventListener('sg:bridgeConnected', function(ev){
 setConnected(true, '⚡ Bridge LIVE — ' + ((ev.detail && ev.detail.url) || 'Port 9897'));
 _retries = 0;
 if (_timer) { clearTimeout(_timer); _timer = null; }
-/* Restart keepalive ping every 20s */
+/* Restart keepalive ping every 20s — skip if WS is permanently blocked */
 setInterval(function(){
+if (window._sgWsBlocked && window._sgWsBlocked()) return;
 var ok = (typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
 (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
 if (!ok) { _connected=false; tryAll(); }
@@ -602,7 +763,7 @@ try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sen
 }
 if (!sent) {
 /* HTTP fallback */
-fetch('http://127.0.0.1:9899/chat', {
+fetch(window.Backend.chat(), {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
 }).then(function(r){return r.json();}).then(function(d){
@@ -749,8 +910,8 @@ var tnow = window.tnow;
       } catch(e2){}
     }
 
-    /* ── 5. HTTP fallback — fire-and-forget ── */
-    if(!sent){
+    /* ── 5. HTTP fallback — fire-and-forget (skip when bridge permanently blocked) ── */
+    if(!sent && !window._sgBridgeInsecure){
       try {
         fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9899/error_ping' : 'http://127.0.0.1:9899/error_ping'), {
           method: 'POST',
@@ -770,18 +931,16 @@ var tnow = window.tnow;
   }
 
   /* ── window.onerror ── */
-  var _prevOnerror = window.onerror;
-  window.onerror = function(msg, src, line, col, err){
+  window.GlobalHandlers.chainOnError(function(msg, src, line, col, err){
     if (!msg) return true;
     var _ms = String(msg);
     if (_ms.indexOf('Script error') === 0) return true;
     pingError('UNCAUGHT_EXCEPTION', msg, src, line, col, fmtStack(err));
-    if(typeof _prevOnerror === 'function') _prevOnerror.apply(this, arguments);
     return false; // don't suppress — let DevTools still see it
-  };
+  });
 
   /* ── unhandledrejection ── */
-  window.addEventListener('unhandledrejection', function(ev){
+  window.GlobalHandlers.chainOnUnhandledRejection(function(ev){
     var reason = ev.reason;
     var msg = reason && reason.message ? reason.message : String(reason);
     var stack = fmtStack(reason);
@@ -834,12 +993,12 @@ var tnow = window.tnow;
         ||s.indexOf("[sg:catch] SecurityError")>=0;}
   console.error=function(){if(!_drop(arguments))_ce.apply(console,arguments);};
   console.warn= function(){if(!_drop(arguments))_cw.apply(console,arguments);};
-  window.onerror=function(msg,src){var s=String(msg||"");
+  window.GlobalHandlers.chainOnError(function(msg,src){var s=String(msg||"");
     if(s.indexOf("Script error")===0)return true;
     if(!src||src.indexOf("about:")===0||src.indexOf("blob:")===0)return true;
-    return false;};
-  window.onunhandledrejection=function(ev){var r=ev&&ev.reason;
-    if(r&&String(r).indexOf("Script error")>=0)ev.preventDefault();};
+    return false;});
+  window.GlobalHandlers.chainOnUnhandledRejection(function(ev){var r=ev&&ev.reason;
+    if(r&&String(r).indexOf("Script error")>=0)ev.preventDefault();});
 })();
 /* Emergency sg stub — available before main IIFE parses */
 if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){console.error('[sg]',e);}  };
@@ -895,6 +1054,22 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
     }
   }catch(e){}
 })();
+</script>
+
+<script>
+/* ── Crypto-secure random helpers — NO Math.random() anywhere in this app ── */
+/* cryptoRandFloat(): CSPRNG float [0,1) — replaces Math.random()              */
+function cryptoRandFloat() {
+  var buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] / 4294967296; /* 2^32 */
+}
+/* cryptoRandHex(len): returns len uppercase hex chars from CSPRNG             */
+function cryptoRandHex(len) {
+  var buf = new Uint8Array(Math.ceil(len / 2));
+  crypto.getRandomValues(buf);
+  return Array.from(buf, function(b) { return b.toString(16).padStart(2, '0'); }).join('').slice(0, len).toUpperCase();
+}
 </script>
 
 <div id="roleScreen" class="screen">
@@ -991,9 +1166,13 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
 <!-- PRESENCE MODE CONTROLS -->
 
 <div id="presencePill">
+  <button class="pm-offline" data-mode="offline">📴 Offline</button>
+  <button class="pm-stealth" data-mode="stealth">🔀 Hybrid</button>
   <button class="pm-online pm-active" data-mode="online">🌐 Online</button>
-  <button class="pm-stealth" data-mode="stealth">🕵️ Stealth</button>
-  <button class="pm-ghost" data-mode="ghost">👻 Ghost</button>
+</div>
+<div id="offlineBanner">
+  <span>📴 OFFLINE MODE · NO SOCKET CONNECTIONS · CODEMASTER LOCAL-ONLY</span>
+  <button onclick="SG.setMode('online')" style="background:none;border:1px solid #c0392b;color:#c0392b;font-family:var(--mono);font-size:7px;padding:3px 8px;border-radius:10px;cursor:pointer;letter-spacing:1px">GO ONLINE</button>
 </div>
 <div id="ghostBanner">
   <span>👻 GHOST MODE ACTIVE · IDENTITY MASKED · TELEMETRY SUPPRESSED</span>
@@ -1974,11 +2153,18 @@ const BRIDGE = {
   },
 
   tryWebSocket(){
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) {
+      this.startPolling();
+      return;
+    }
     if(this.ws && this.ws.readyState < 2){ return; }
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     var self = this;
     try{
+      if (_sgWsBlocked()) return;
       var wsUrl = _sgWsUrl(); /* Python WS bridge :9897 — protocol auto-detected */
+      if (!wsUrl) { this.startPolling(); return; }
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
@@ -2031,7 +2217,7 @@ const BRIDGE = {
       ws.onclose = ()=>{
         self.connected=false; self.ws=null;
         /* Stop retrying if browser has flagged ws:// as insecure */
-        if (window._sgBridgeInsecure) return;
+        if (window._sgBridgeInsecure || (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket)) return;
         /* Cap retries at 5 */
         if (self.wsRetries >= 5) {
           self.updateUI('PORT 9897 OFFLINE','var(--pulse)');
@@ -2046,7 +2232,7 @@ const BRIDGE = {
       };
     }catch(e){
       var isIns = e && (e.name==='SecurityError' || (e.message&&(e.message.indexOf('insecure')!==-1||e.message.indexOf('secure')!==-1)));
-      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://127.0.0.1:9898'); return; }
+      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','WebSocket blocked — HTTP bridge mode active'); return; }
       this.log('warn','WebSocket unavailable — using HTTP polling');
       this.startPolling();
     }
@@ -2060,25 +2246,21 @@ const BRIDGE = {
 
   async pollHealth(){
     try{
-      // Try Python :9897 health (internal backend)
       let r;
-      try { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
-      catch(e2) { r = await fetch('http://127.0.0.1:9899/health',{signal:_safeAbort(2000)}); }
+      try { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
+      catch(e2) { r = await fetch(window.Backend.health(),{signal:_safeAbort(2000)}); }
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         if(ST && ST.cicd) ST.cicd.status = 'online';
-        this.updateUI('PORT 9897 ✓','var(--gn)');
-        if(this.wsRetries===0 || this.wsRetries>=this.maxRetries){
-          this.wsRetries=0; this.tryWebSocket();
-        }
+        this.updateUI('HTTP BRIDGE ✓','var(--gn)');
       } else {
         this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'error';
-        this.updateUI('PORT 9897 ERR','var(--rd)');
-        this.log('err','HTTP '+r.status+' from port 9897');
+        this.updateUI('HTTP BRIDGE ERR','var(--rd)');
+        this.log('err','HTTP '+r.status+' from bridge endpoint');
       }
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
-      this.updateUI('PORT 9897 OFFLINE','var(--am)');
+      this.updateUI('HTTP BRIDGE OFFLINE','var(--am)');
     }
   },
 
@@ -2168,17 +2350,20 @@ window.renderDash = function(){
     loadAllVoices();
   }
 
-  // Auto-start bridge — immediate + aggressive retry every 4s until connected
+  // Auto-start bridge — only when not in offline mode
   BRIDGE.log('info','Bridge auto-connect starting...');
   (function _bridgeAutoConnect(){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
     BRIDGE.pollHealth().then(function(){
-      if(!BRIDGE.connected) setTimeout(_bridgeAutoConnect, 2000);
-    }).catch(function(){ setTimeout(_bridgeAutoConnect, 2000); });
+      if(!BRIDGE.connected && !(window._sgIsOffline&&window._sgIsOffline())) setTimeout(_bridgeAutoConnect, 8000);
+    }).catch(function(){
+      if(!(window._sgIsOffline&&window._sgIsOffline())) setTimeout(_bridgeAutoConnect, 8000);
+    });
   })();
-  // Also try WS after short delay
-  setTimeout(function(){ BRIDGE.tryWebSocket(); }, 2000);
-  // Keep polling every 8s regardless
-  setInterval(function(){ if(!BRIDGE.connected) BRIDGE.pollHealth(); }, 8000);
+  // Also try WS after short delay — skip if offline
+  setTimeout(function(){ if(!(window._sgIsOffline&&window._sgIsOffline())) BRIDGE.tryWebSocket(); }, 2000);
+  // Keep polling every 30s — skip if offline
+  setInterval(function(){ if(!BRIDGE.connected && !(window._sgIsOffline&&window._sgIsOffline())) BRIDGE.pollHealth(); }, 30000);
 
   // Open vault
   openVault().then(()=>{
@@ -2239,65 +2424,62 @@ try {
 
 // ─── 1. PORT CONFIGURATION — user-configurable bridge connection ────
 var BridgeCFG = {
-  protocol: 'ws',       // ws or wss
-  host:     '127.0.0.1', // Safari fix: use IPv4 literal, not 'localhost'
-  port:     9897,
+  protocol: 'https',
+  host:     '',
+  port:     0,
   path:     '',
-  // AirPlay / Bonjour friendly alternate ports
+  wsBridgeUrl: (window.SG_CONFIG && window.SG_CONFIG.wsBridgeUrl) || '',
+  disableWebSocket: !!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket),
   presets: {
-    local:    { host:'127.0.0.1',    port:9897 }, // Python WS internal — primary
-    lan:      { host:'192.168.1.1',  port:9897 },  // user fills in
-    airplay:  { host:'localhost',    port:7000 },   // AirPlay bridge
-    tailscale:{ host:'100.x.x.x',   port:9897 },   // Tailscale mesh
-    custom:   { host:'',             port:0    }
+    same_origin: { wsBridgeUrl:'' },
+    custom:      { wsBridgeUrl:'' }
   },
   wsURL: function() {
-    var proto = BridgeCFG.protocol || 'ws';
-    return proto + '://' + (BridgeCFG.host || '127.0.0.1') + ':' + (BridgeCFG.port || 9897) + (BridgeCFG.path || '');
+    return BridgeCFG.disableWebSocket ? '' : (BridgeCFG.wsBridgeUrl || '');
   },
   save: function() {
-    try { localStorage.setItem('bridge_cfg', JSON.stringify({
-      protocol: BridgeCFG.protocol,
-      host: BridgeCFG.host,
-      port: BridgeCFG.port,
-      path: BridgeCFG.path
-    })); } catch(e) {}
+    try {
+      var current = {};
+      try { current = JSON.parse(localStorage.getItem('sg_config')||'{}') || {}; } catch(_){}
+      current.wsBridgeUrl = BridgeCFG.wsBridgeUrl || '';
+      current.disableWebSocket = !!BridgeCFG.disableWebSocket;
+      localStorage.setItem('sg_config', JSON.stringify(current));
+    } catch(e) {}
   },
   load: function() {
     try {
-      var s = localStorage.getItem('bridge_cfg');
-      if (s) {
-        var p = JSON.parse(s);
-        BridgeCFG.protocol = p.protocol || 'ws';
-        BridgeCFG.host = p.host || '127.0.0.1';
-        BridgeCFG.port = p.port || 9897;
-        BridgeCFG.path = p.path || '';
-      }
+      var p = window.SG_CONFIG || {};
+      BridgeCFG.wsBridgeUrl = String(p.wsBridgeUrl || '');
+      BridgeCFG.disableWebSocket = !!p.disableWebSocket;
     } catch(e) {}
   }
 };
 BridgeCFG.load();
-if(location.protocol==='https:' && BridgeCFG.protocol==='ws'){ BridgeCFG.protocol='wss'; }
 
-// Force-connect immediately — SuperGrok requires port 9897 live
+// Connect bridge — only when not in offline mode
 (function _forceConnect(){
   function _tryConnect(){
-    if(typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
+    if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function'){
       if(!PiperTTS.ws || PiperTTS.ws.readyState > 1) PiperTTS.connect();
     }
     if(typeof BRIDGE !== 'undefined'){
       BRIDGE.pollHealth && BRIDGE.pollHealth();
-      if(!BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
+      if(!(window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) && !BRIDGE.connected) BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
     }
   }
-  // Hit immediately, then 500ms, 1s, 2s, 5s, 10s, 20s, 30s — until connected
-  var _delays = [0, 500, 1000, 2000, 5000, 10000, 20000, 30000];
-  _delays.forEach(function(d){ setTimeout(_tryConnect, d); });
-  // Then every 15s forever
+  // Try at startup delays — skipped entirely if offline mode is saved
+  if(!(window._sgIsOffline&&window._sgIsOffline())){
+    var _delays = [0, 1000, 3000, 8000, 20000];
+    _delays.forEach(function(d){ setTimeout(function(){ if(!(window._sgWsBlocked&&window._sgWsBlocked())) _tryConnect(); }, d); });
+  }
+  // Keep alive every 30s — skips if offline or WS permanently blocked
   setInterval(function(){
+    if(window._sgIsOffline&&window._sgIsOffline()) return;
+    if(window._sgWsBlocked&&window._sgWsBlocked()) return;
     var bOk = typeof PiperTTS !== 'undefined' && PiperTTS.ws && PiperTTS.ws.readyState === 1;
     if(!bOk) _tryConnect();
-  }, 15000);
+  }, 30000);
 })();
 
 
@@ -2311,8 +2493,11 @@ var PiperTTS = {
   maxRetry: 9999,
 
   connect: function() {
+    if (window.SG_CONFIG && window.SG_CONFIG.disableWebSocket) return;
     if (PiperTTS.ws && PiperTTS.ws.readyState < 2) return;
+    if (window._sgIsOffline && window._sgIsOffline()) return;
     try {
+      if (_sgWsBlocked()) return;
       var url = BridgeCFG.wsURL();
       var ws = new WebSocket(url);
       PiperTTS.ws = ws;
@@ -2393,7 +2578,7 @@ var PiperTTS = {
         PiperTTS.ready = false;
         var el = document.getElementById('bridgeStatus');
         if (el) { el.textContent = 'BRIDGE OFFLINE'; el.style.color = 'var(--rd)'; }
-        if (PiperTTS.retryCount < PiperTTS.maxRetry) {
+        if (PiperTTS.retryCount < PiperTTS.maxRetry && !(window._sgIsOffline && window._sgIsOffline())) {
           PiperTTS.retryTimer = setTimeout(PiperTTS.connect, Math.min(30000, 3000 * (++PiperTTS.retryCount)));
         }
       };
@@ -2705,7 +2890,7 @@ var GitHub = {
     if (!GitHub.clientId) {
       toast('Set GitHub Client ID in Settings first', 'err'); return;
     }
-    var state = Math.random().toString(36).slice(2);
+    var state = cryptoRandHex(32).toLowerCase();
     localStorage.setItem('gh_state', state);
     var url = 'https://github.com/login/oauth/authorize?client_id=' + GitHub.clientId +
       '&scope=repo,read:user&state=' + state;
@@ -2947,7 +3132,7 @@ var LinearCard = {
   cards: {},
 
   create: function(role, data, pin, cb) {
-    var id = 'lc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+    var id = 'lc_' + Date.now() + '_' + cryptoRandHex(6);
     var payload = JSON.stringify({ id: id, role: role, data: data, ts: Date.now(), creator: ST.name });
     // AES-GCM encrypt
     var keyMat = new TextEncoder().encode(pin.padEnd(32, '0').slice(0, 32));
@@ -4034,26 +4219,29 @@ function bridgeConnect(){
       log('warn', 'Bridge WS ws://9897 blocked on file:// — load from http://127.0.0.1:9898 (file server)');
       window._sgBridgeInsecure = true;
       _wsRetry = 999; /* stop retry loop */
-      /* Show banner on screen */
-      setTimeout(function() {
-        try {
-          var pa = document.getElementById('pa') || document.body;
-          if (pa && !document.getElementById('sg-insecure-banner')) {
-            var b = document.createElement('div');
-            b.id = 'sg-insecure-banner';
-            b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#7c4dff,#ff3d6e);color:#fff;padding:10px 16px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:10px';
-            b.innerHTML = '<span style="font-size:18px">⚠️</span>' +
-              '<span><strong>WebSocket blocked by browser security</strong> &mdash; serve via Node server: ' +
-              '<a href="http://127.0.0.1:9898" style="color:#fff;font-weight:bold">http://127.0.0.1:9898</a>' +
-              ' &nbsp;(run: <code>python3 python3_bridge.py</code>)</span>' +
-              '<button onclick="this.parentNode.remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer">✕</button>';
-            document.body.insertBefore(b, document.body.firstChild);
-          }
-        } catch(ex) {}
-      }, 500);
-    } else {
+      /* Show banner on screen — only once; dismissed banner stays gone */
+      if (!window._sgInsecureBannerShown) {
+        window._sgInsecureBannerShown = true;
+        setTimeout(function() {
+          try {
+            var pa = document.getElementById('pa') || document.body;
+            if (pa && !document.getElementById('sg-insecure-banner')) {
+              var b = document.createElement('div');
+              b.id = 'sg-insecure-banner';
+              b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#7c4dff,#ff3d6e);color:#fff;padding:10px 16px;font-family:monospace;font-size:12px;display:flex;align-items:center;gap:10px';
+              b.innerHTML = '<span style="font-size:18px">⚠️</span>' +
+                '<span><strong>WebSocket blocked by browser security</strong> &mdash; serve via Node server: ' +
+                '<a href="http://127.0.0.1:9898" style="color:#fff;font-weight:bold">http://127.0.0.1:9898</a>' +
+                ' &nbsp;(run: <code>python3 python3_bridge.py</code>)</span>' +
+                '<button onclick="this.parentNode.remove()" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,.5);color:#fff;padding:2px 8px;border-radius:4px;cursor:pointer">✕</button>';
+              document.body.insertBefore(b, document.body.firstChild);
+            }
+          } catch(ex) {}
+        }, 500);
+      } else {
       log('warn', 'Bridge WS init failed: ' + e.message);
-      if (_wsRetry <= 5) setTimeout(bridgeConnect, 3000);
+      _wsRetry++;
+      if (_wsRetry <= 5) setTimeout(bridgeConnect, Math.min(3000 * _wsRetry, 30000));
     }
   }
 }
@@ -4108,7 +4296,7 @@ var REPAIRS={
   addAudit:{priority:1,desc:'addAudit() missing',check:function(){return typeof window.addAudit!=='function';},fix:function(){window.addAudit=function(ev,d){console.log('[audit]',ev,d||'');};log('warn','addAudit() restored');}},
   tnow:{priority:1,desc:'tnow() missing',check:function(){return typeof window.tnow!=='function';},fix:function(){window.tnow=function(){var d=new Date();return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0')+'.'+d.getMilliseconds().toString().padStart(3,'0');};log('warn','tnow() restored');}},
   stCicd:{priority:2,desc:'ST.cicd undefined (crash cascade)',check:function(){return!!(window.ST&&!window.ST.cicd);},fix:function(){if(window.ST)window.ST.cicd=window.ST.cicd||{status:'offline',logs:[],connected:false,wsRetries:0};log('warn','ST.cicd initialized');}},
-  blankPanel:{priority:2,desc:'Panel area blank',check:function(){var pa=document.getElementById('pa');return!!(pa&&pa.innerHTML.trim().length<20&&window.ST&&window.ST.role&&window._currentPanel);},fix:function(){if(typeof window.loadPanel==='function')try{window.loadPanel(window._currentPanel||'dashboard');log('warn','Panel reloaded');}catch(e){}}},
+  blankPanel:{priority:2,desc:'Panel area blank',check:function(){var pa=document.getElementById('pa');if(!pa||pa.innerHTML.trim().length>=20||!window.ST||!window.ST.role||!window._currentPanel)return false;var ae=document.activeElement;if(ae&&pa.contains(ae))return false;if(window._lastLoadPanelTs&&(Date.now()-window._lastLoadPanelTs)<15000)return false;return true;},fix:function(){if(typeof window.loadPanel==='function')try{window.loadPanel(window._currentPanel||'dashboard');log('warn','Panel reloaded');}catch(e){}}},
   navEmpty:{priority:2,desc:'Sidebar nav empty',check:function(){var sb=document.getElementById('sbNav');return!!(sb&&sb.children.length===0&&window.ST&&window.ST.role);},fix:function(){if(typeof window.buildNav==='function')try{window.buildNav();log('warn','Nav rebuilt');}catch(e){}}},
   backBtn:{priority:3,desc:'Back button state wrong',check:function(){return false;},fix:function(){var b=document.getElementById('tbBack');if(b){var hist=window._hist||[];b.style.display=hist.length>1?'inline-flex':'none';}}},
   touchTargets:{priority:3,desc:'Touch targets <44px mobile',check:function(){
@@ -4290,18 +4478,15 @@ a.download='sg_errors_'+Date.now()+'.json'; a.click();
 };
 
 /* ── Wire into global error trap ── */
-var _origOnerror=window.onerror;
-window.onerror=function(msg,src,line,col,err){
+window.GlobalHandlers.chainOnError(function(msg,src,line,col,err){
 var m=msg||'';
 /* Swallow cross-origin noise completely — never crash boot */
 if(m==='Script error.'||m==='Script error'||(!src&&!line)){return true;}
 if(m.indexOf('ResizeObserver')!==-1||m.indexOf('Non-Error')!==-1){return true;}
 watchError('ONERROR',m,src,line,err?err.stack:'');
-if(_origOnerror)return _origOnerror(msg,src,line,col,err);
 return false;
-};
-var _origReject=window.onunhandledrejection;
-window.addEventListener('unhandledrejection',function(ev){
+});
+window.GlobalHandlers.chainOnUnhandledRejection(function(ev){
 var r=ev.reason;
 watchError('UNHANDLED_REJECTION',r&&r.message?r.message:String(r),'',0,r&&r.stack?r.stack:'');
 });
@@ -4313,8 +4498,8 @@ bridgeConnect();
 setTimeout(runAllRepairs, 300);
 setTimeout(runAllRepairs, 1200);
 setTimeout(runAllRepairs, 4000);
-// Steady-state loop — 5s
-setInterval(runAllRepairs, 5000);
+// Steady-state loop — 30s (reduced from 5s to stop interfering with active editor sessions)
+setInterval(runAllRepairs, 30000);
 // Seal verification — 30s
 setInterval(verifySeal, CFG.sealIntervalMs);
 
@@ -5463,7 +5648,7 @@ gi('authCta').addEventListener('click', function(){
 /* ── GRANT ACCESS ── */
 function grant(name,badge,roleKey,rd,rank){
   var lv=rank?parseInt((rank.l||'L1').replace('L',''),10):(rd.level||1);
-  var sid='SG_'+Date.now()+'_'+Math.random().toString(36).slice(2,8).toUpperCase();
+  var sid='SG_'+Date.now()+'_'+cryptoRandHex(6);
   window.ST={name:name,badge:badge,role:roleKey,roleLabel:rd.label||roleKey,
     roleIcon:rd.icon||'🔐',rankLabel:rank?rank.n:'Officer',
     level:lv,levelLabel:rank?rank.l:'L1',color:rd.color||'#00ffc8',
@@ -5742,7 +5927,7 @@ if(rsEl)rsEl.addEventListener('input',function(){buildRoles(this.value);});
 /* ─────────────────────────────────────────────────────────────────
    PANEL LOADER
    ───────────────────────────────────────────────────────────────── */
-function loadPanel(id,isBack){ window._currentPanel=id;
+function loadPanel(id,isBack){ window._currentPanel=id; window._lastLoadPanelTs=Date.now();
   if(id==='aipersonal'||id==='avatar'){
     setTimeout(function(){ if(window.oparInjectReal){ window._oparRealInjected=false; oparInjectReal(); } },300);
   }
@@ -5975,6 +6160,7 @@ function afterPanel(id){
         if(bWS&&!bWS._vw){bWS._vw=true;bWS.addEventListener('click',function(){
           if(bOut)bOut.textContent='Testing '+_sgWsUrl()+'...';
           try{
+            if(_sgWsBlocked()){if(bOut)bOut.textContent='⚠ WebSocket blocked — open via http://127.0.0.1:9898';return;}
             var t=new WebSocket(_sgWsUrl());
             t.onopen=function(){if(bOut){bOut.textContent='✅ WebSocket connected';bOut.style.color='var(--gn)';}t.close();};
             t.onerror=function(){if(bOut){bOut.textContent='❌ WS failed — bridge not running or wrong origin';bOut.style.color='var(--pulse)';}};
@@ -6539,9 +6725,10 @@ function agCard(ic,name,desc,st,clr){return '<div class="ag-card"><span class="a
 PANELS.dashboard=function(){
   var ST=window.ST||{};
   var priv=window.SGPrivacy;var ps=priv&&priv.stats?priv.stats:{blocked:0,allowed:0,fingerprint_attempts:0};
-  /* Bridge force-connect on dashboard load */
+  /* Bridge force-connect on dashboard load — skipped in offline mode */
   (function(){
     function _sgConnect(){
+      if(window._sgIsOffline&&window._sgIsOffline()) return;
       /* PiperTTS */
       if(typeof PiperTTS!=='undefined'){
         if(!PiperTTS.ws||PiperTTS.ws.readyState>=2){
@@ -6561,10 +6748,10 @@ PANELS.dashboard=function(){
         window._SG_BRIDGE_STATUS.reconnect();
       }
     }
-    setTimeout(_sgConnect, 200);
-    setTimeout(_sgConnect, 1500);
-    setTimeout(_sgConnect, 5000);
+    setTimeout(_sgConnect, 1000);
     setInterval(function(){
+      if(window._sgIsOffline&&window._sgIsOffline()) return;
+      if(window._sgWsBlocked&&window._sgWsBlocked()) return;
       var ok=(typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
              (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
       if(!ok) _sgConnect();
@@ -12175,7 +12362,7 @@ out += row('Agent bridge', agentBridge==='connected'?true:'warn', 'SG_AGENT brid
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-p" style="font-size:9px" onclick="sg(function(){if(typeof BRIDGE!==\'undefined\'&&BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();if(typeof PiperTTS!==\'undefined\'&&PiperTTS.connect)PiperTTS.connect();if(window.SG_AGENT)SG_AGENT.reconnectBridge();toast(\'All bridges reconnecting...\',\'\');setTimeout(function(){loadPanel(\'diag\');},1500)})">🔌 Reconnect All Bridges</button>';
 out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9899/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){if(window._sgWsBlocked&&window._sgWsBlocked()){toast(\'WS blocked — open via http://127.0.0.1:9898\',\'err\');return;}var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -12314,7 +12501,7 @@ out += '</div>';
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9899/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){if(window._sgWsBlocked&&window._sgWsBlocked()){toast(\'WS blocked — open via http://127.0.0.1:9898\',\'err\');return;}var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -13501,25 +13688,36 @@ mode: RS.mode, growthWeeks: RS.growthWeeks,
 careScore: RS.careScore, vitals: RS.vitals,
 modeHistory: RS.modeHistory,
 compliance: ['FedRAMP','HIPAA','GDPR','COPPA','NIST SP 800-57'],
-signature: 'FALCON-1024-SIM:' + Math.random().toString(36).slice(2,18).toUpperCase(),
-merkleRoot: 'SHA3-512:' + Math.random().toString(36).slice(2,34).toUpperCase(),
 };
-var blob = new Blob([JSON.stringify(log,null,2)], {type:'application/json'});
-var a = document.createElement('a');
-a.href = URL.createObjectURL(blob);
-a.download = 'robot-audit-'+Date.now()+'.json';
-document.body.appendChild(a); a.click(); document.body.removeChild(a);
-URL.revokeObjectURL(a.href);
-if(typeof toast==='function') toast('\uD83D\uDCE4 Falcon-signed audit exported','ok');
+var canonical = JSON.stringify(log, null, 2);
+var enc = new TextEncoder().encode(canonical);
+Promise.all([
+  crypto.subtle.digest('SHA-512', enc),
+  crypto.subtle.generateKey({name:'HMAC',hash:'SHA-256'}, false, ['sign'])
+    .then(function(k){ return crypto.subtle.sign('HMAC', k, enc); })
+]).then(function(results) {
+  var merkleBytes = new Uint8Array(results[0]);
+  var sigBytes    = new Uint8Array(results[1]);
+  var toHex = function(buf){ return Array.from(buf,function(b){return b.toString(16).padStart(2,'0');}).join('').toUpperCase(); };
+  log.merkleRoot = 'SHA-512:' + toHex(merkleBytes);
+  log.signature  = 'HMAC-SHA256:' + toHex(sigBytes);
+  var blob = new Blob([JSON.stringify(log, null, 2)], {type:'application/json'});
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'robot-audit-'+Date.now()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  if(typeof toast==='function') toast('\uD83D\uDCE4 Audit exported — SHA-512 merkle + HMAC-SHA256 signed','ok');
+  if(typeof addAudit==='function') addAudit('ROBOT_AUDIT_EXPORT',{ts:Date.now(),algo:'HMAC-SHA256+SHA-512'});
+}).catch(function(e){
+  if(typeof toast==='function') toast('\u274C Audit export failed: '+e.message,'err');
+});
 };
 
 window._robotVitalsUpdate = function() {
-var RS = window._robotState;
-RS.vitals.hr   = Math.round(60 + Math.random()*40);
-RS.vitals.temp = parseFloat((97+Math.random()*3).toFixed(1));
-RS.vitals.o2   = Math.round(95+Math.random()*4);
-if(typeof toast==='function') toast('\uD83D\uDCCA Vitals updated','ok');
-if(typeof addAudit==='function') addAudit('ROBOT_VITALS',RS.vitals);
+/* Vitals require a live hardware sensor connection — no mock data permitted */
+if(typeof toast==='function') toast('\u26A0\uFE0F No sensor connected — real vitals require a hardware medical link','err');
+if(typeof addAudit==='function') addAudit('ROBOT_VITALS_NO_SENSOR',{ts:Date.now(),status:'sensor_disconnected'});
 if(typeof loadPanel==='function') loadPanel('robot');
 };
 
@@ -14527,9 +14725,9 @@ naniteRegen: function() {
   /* Build swarm dots */
   var html = '';
   for (var i = 0; i < 40; i++) {
-    var x = Math.random()*100, y = Math.random()*100;
-    var delay = (Math.random()*0.5).toFixed(2);
-    var size = 2 + Math.round(Math.random()*3);
+    var x = cryptoRandFloat()*100, y = cryptoRandFloat()*100;
+    var delay = (cryptoRandFloat()*0.5).toFixed(2);
+    var size = 2 + Math.round(cryptoRandFloat()*3);
     html += '<div style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+size+'px;height:'+size+'px;background:#00ffc8;border-radius:50%;animation:oparNaniteSwarm .8s ease-out '+delay+'s both;box-shadow:0 0 4px #00ffc8"></div>';
   }
   /* Crack line */
@@ -15672,6 +15870,7 @@ if (lang === 'html') {
 
 /* ── AI FIX ───────────────────────────────────── */
 function aiAnalyze() {
+/* CodeMaster AI FIX — fully offline, no external API calls */
 var code = getCode();
 var lang = getLang();
 if (!code.trim()) { window.toast && window.toast('Write some code first','err'); return; }
@@ -15679,21 +15878,41 @@ var panel = document.getElementById('cm-ai-panel');
 var output = document.getElementById('cm-ai-output');
 var applyBtn = document.getElementById('cm-apply-fix');
 if (panel) panel.style.display = 'block';
-if (output) output.textContent = '\u23f3 Analyzing ' + lang + ' code via bridge...';
+if (output) output.textContent = '⏳ Analyzing ' + lang + ' code (offline)...';
 if (applyBtn) applyBtn.style.display = 'none';
 panel && panel.scrollIntoView({behavior:'smooth'});
 
-var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-if (bridgeOk) {
-  try {
-    PiperTTS.ws.send(JSON.stringify({
-      type: 'ai_code_review',
-      lang: lang,
-      code: code.slice(0, 4000),
-      prompt: 'Review this ' + lang + ' code. List errors with line numbers. For each error provide exact fix code. Be concise and precise.'
-    }));
-    return;
-  } catch(e) {}
+/* If SGH helper offline function is available, use it */
+if (typeof window.aiAnalyzeOrFix === 'function') {
+  window.aiAnalyzeOrFix(code, 'fix').then(function(fixed){
+    if(output) output.textContent = fixed;
+    if(fixed && fixed !== code && applyBtn){
+      applyBtn.style.display = 'block';
+      applyBtn._fixFn = function(){ setCode(fixed); };
+    }
+  }).catch(function(){ _runLocalAnalysis(); });
+  return;
+}
+_runLocalAnalysis();
+function _runLocalAnalysis(){
+  var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
+  if (output) {
+    output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
+      'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.');
+    if (results.fixes.some(function(f){ return f.fix; })) {
+      if (applyBtn) {
+        applyBtn.style.display = 'block';
+        applyBtn._fixFn = function() {
+          var c = getCode();
+          results.fixes.forEach(function(f){ if(f.fix) c = f.fix(c) || c; });
+          setCode(c);
+        };
+      }
+    }
+  }
+}
+
 }
 /* Offline fallback: use local lint results as AI output */
 var results = runLint();
@@ -17190,10 +17409,10 @@ CICD.log('\u25b6 Build triggered — branch: ' + (cfg.branch||'main'), 'var(--ac
 var stageOrder = ['checkout','install','build','test','sign','deploy'];
 var delay = 0;
 stageOrder.forEach(function(stage, i) {
-  delay += 400 + Math.random()*300;
+  delay += 400 + cryptoRandFloat()*300;
   setTimeout(function() {
     stages[stage].status = 'running';
-    stages[stage].duration = Math.round(200 + Math.random()*800);
+    stages[stage].duration = Math.round(200 + cryptoRandFloat()*800);
     CICD.log('\u23f3 ' + stage.toUpperCase() + '...', 'var(--sun)');
     setTimeout(function() {
       /* Check bridge for real execution */
@@ -17387,23 +17606,19 @@ var prompt = 'You are a council judge. Question: "' + q + '"\nVote type: ' + vty
 
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 
+if (!bridgeOk) {
+  /* Bridge required — no fake votes permitted */
+  if (card) card.style.display = 'none';
+  window.toast && window.toast('\u26A0\uFE0F Bridge disconnected — live AI connection required for council votes. Connect bridge first.','err');
+  return;
+}
+
 judges.forEach(function(judge) {
-  if (bridgeOk) {
-    try {
-      PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
-      return;
-    } catch(e) {}
+  try {
+    PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
+  } catch(e) {
+    window.toast && window.toast('\u274C Failed to reach ' + judge.name + ' — bridge error','err');
   }
-  /* Offline: simulate vote */
-  setTimeout(function() {
-    var offlineVotes = { binary:['Yes','No'], score:['7','8','6'], analysis:['Supported','Opposed','Neutral'] };
-    var picks = offlineVotes[vtype]||['Yes','No'];
-    var vote  = picks[Math.floor(Math.random()*picks.length)];
-    results[judge.id] = {vote:vote, reasoning:'Offline simulation. Connect bridge for real AI votes.', confidence:0.5+Math.random()*0.4};
-    CouncilVote._updateJudge(judge, results[judge.id]);
-    done++;
-    if (done === judges.length) CouncilVote._showVerdict(q, results, judges, doArb, doSign);
-  }, 600 + Math.random()*800);
 });
 
 /* Listen for bridge responses */
@@ -17904,6 +18119,8 @@ _histIdx: -1,
 connect: function() {
 if (BridgeTerm._ws && BridgeTerm._ws.readyState < 2) return;
 try {
+BridgeTerm._ws && BridgeTerm._ws.close && BridgeTerm._ws.close();
+if (_sgWsBlocked()) return;
 BridgeTerm._ws = new WebSocket(_sgWsUrl('127.0.0.1:9897/terminal'));
 BridgeTerm._ws.onopen = function() {
 BridgeTerm._log('CONNECTED to ' + _sgWsUrl('127.0.0.1:9897/terminal'), 'var(--acid)');
@@ -17964,13 +18181,15 @@ init: function() {
 /* Patch BRIDGE.tryWebSocket to also connect PiperTTS WS */
 var origTWS = (typeof BRIDGE !== 'undefined') ? BRIDGE.tryWebSocket.bind(BRIDGE) : null;
 
-/* Auto-connect PiperTTS immediately */
-if (typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function') {
+/* Auto-connect PiperTTS immediately — only if not offline */
+if (!window._sgIsOffline() && typeof PiperTTS !== 'undefined' && typeof PiperTTS.connect === 'function') {
   PiperTTS.connect();
 }
 
-/* Aggressive retry: connect every 3s until online */
+/* Retry: connect every 10s until online — stops immediately in offline or WS-blocked mode */
 var _connInterval = setInterval(function() {
+  if (window._sgIsOffline()) { clearInterval(_connInterval); return; }
+  if (window._sgWsBlocked && window._sgWsBlocked()) { clearInterval(_connInterval); return; }
   var bOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
   if (bOk) {
     clearInterval(_connInterval);
@@ -17982,13 +18201,11 @@ var _connInterval = setInterval(function() {
     BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
   }
   if (typeof PiperTTS !== 'undefined') PiperTTS.connect();
-}, 3000);
+}, 10000);
 
-/* Also try immediately */
+/* Also try once after a short delay — skipped in offline mode */
 setTimeout(function() {
-  if (typeof BRIDGE !== 'undefined') BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
-}, 500);
-setTimeout(function() {
+  if (window._sgIsOffline()) return;
   if (typeof BRIDGE !== 'undefined') BRIDGE.tryWebSocket && BRIDGE.tryWebSocket();
 }, 1500);
 
@@ -18431,8 +18648,8 @@ if (style === 'buzz' || style === 'short_tight') {
   /* Grain */
   ctx.fillStyle = AvatarBuilder._shade(hair, -0.1) + '77';
   for (var i = 0; i < 120; i++) {
-    var bx = cx - fW*0.46 + Math.random()*fW*0.92;
-    var by = cy - fH*0.58 + Math.random()*fH*0.32;
+    var bx = cx - fW*0.46 + cryptoRandFloat()*fW*0.92;
+    var by = cy - fH*0.58 + cryptoRandFloat()*fH*0.32;
     ctx.beginPath();
     ctx.arc(bx, by, 0.7, 0, Math.PI*2);
     ctx.fill();
@@ -18461,10 +18678,10 @@ if (style === 'buzz' || style === 'short_tight') {
   ctx.strokeStyle = AvatarBuilder._shade(hair, -0.15) + 'aa';
   ctx.lineWidth = 1.2;
   for (var j = 0; j < 45; j++) {
-    var ax = cx - fW*0.62 + Math.random()*fW*1.24;
-    var ay = cy - fH*0.68 + Math.random()*fH*0.56;
+    var ax = cx - fW*0.62 + cryptoRandFloat()*fW*1.24;
+    var ay = cy - fH*0.68 + cryptoRandFloat()*fH*0.56;
     ctx.beginPath();
-    ctx.arc(ax, ay, 3 + Math.random()*5, 0, Math.PI*1.75);
+    ctx.arc(ax, ay, 3 + cryptoRandFloat()*5, 0, Math.PI*1.75);
     ctx.stroke();
   }
 } else if (style === 'curly') {
@@ -18481,7 +18698,7 @@ if (style === 'buzz' || style === 'short_tight') {
   ctx.lineWidth = 1.2;
   for (var k = 0; k < 22; k++) {
     ctx.beginPath();
-    ctx.arc(cx - fW*0.5 + Math.random()*fW, cy - fH*0.62 + Math.random()*fH*0.52, 4+Math.random()*6, 0, Math.PI*1.6);
+    ctx.arc(cx - fW*0.5 + cryptoRandFloat()*fW, cy - fH*0.62 + cryptoRandFloat()*fH*0.52, 4+cryptoRandFloat()*6, 0, Math.PI*1.6);
     ctx.stroke();
   }
 } else if (style === 'bun') {
@@ -18516,9 +18733,9 @@ if (style === 'buzz' || style === 'short_tight') {
     ctx.fillStyle = l%2===0 ? hair : AvatarBuilder._shade(hair, -0.1);
     ctx.beginPath();
     ctx.moveTo(lx, cy - fH*0.28);
-    var dropY = cy + fH*(0.18 + Math.random()*0.28);
-    ctx.quadraticCurveTo(lx + (Math.random()-0.5)*10, dropY - 20, lx + (Math.random()-0.5)*8, dropY);
-    ctx.lineTo(lx + 5 + (Math.random()-0.5)*4, dropY);
+    var dropY = cy + fH*(0.18 + cryptoRandFloat()*0.28);
+    ctx.quadraticCurveTo(lx + (cryptoRandFloat()-0.5)*10, dropY - 20, lx + (cryptoRandFloat()-0.5)*8, dropY);
+    ctx.lineTo(lx + 5 + (cryptoRandFloat()-0.5)*4, dropY);
     ctx.quadraticCurveTo(lx + 5, dropY-20, lx+5, cy - fH*0.28);
     ctx.fill();
   }
@@ -18839,8 +19056,8 @@ if (style === 'stubble') {
   for (var i = 0; i < 200; i++) {
     ctx.beginPath();
     ctx.arc(
-      cx - fW*0.32 + Math.random()*fW*0.64,
-      cy + fH*0.19 + Math.random()*fH*0.28,
+      cx - fW*0.32 + cryptoRandFloat()*fW*0.64,
+      cy + fH*0.19 + cryptoRandFloat()*fH*0.28,
       0.65, 0, Math.PI*2
     );
     ctx.fill();
@@ -18921,7 +19138,7 @@ _grain: function(ctx, W, H, intensity) {
 var imgd = ctx.getImageData(0,0,W,H);
 var data = imgd.data;
 for (var i = 0; i < data.length; i += 4) {
-var n = (Math.random()-0.5) * intensity * 255;
+var n = (cryptoRandFloat()-0.5) * intensity * 255;
 data[i]   = Math.max(0,Math.min(255,data[i]  +n));
 data[i+1] = Math.max(0,Math.min(255,data[i+1]+n));
 data[i+2] = Math.max(0,Math.min(255,data[i+2]+n));
@@ -19027,10 +19244,8 @@ if (ev.detail && ev.detail.id === 'avatar') { setTimeout(function(){ AvatarBuild
 });
 
 /* ══ PRESENCE MODE SYSTEM ══ */
-/* Online · Stealth · Ghost — operational security for field roles */
+/* Offline · Hybrid · Online — sovereignty operational modes */
 (function(){
-// Generate ghost alias once per session
-var _alias = 'SHADOW-' + Math.floor(Math.random()*9000+1000);
 window.ST = window.ST || {};
 
 function setMode(m) {
@@ -19038,7 +19253,10 @@ var ST = window.ST || {};
 ST.mode = m;
 window.ST = ST;
 var body = document.body;
-body.classList.remove('ghost-mode','stealth-mode');
+body.classList.remove('ghost-mode','stealth-mode','offline-mode');
+
+// Update offline guard flag
+window._sgOfflineMode = (m === 'offline');
 
 // Update pill buttons
 document.querySelectorAll('#presencePill button').forEach(function(btn){
@@ -19047,22 +19265,29 @@ document.querySelectorAll('#presencePill button').forEach(function(btn){
 });
 
 var stealthEl = document.getElementById('stealthTime');
-var aliasEl   = document.getElementById('ghostAliasBanner');
 
-if(m === 'ghost') {
-  body.classList.add('ghost-mode');
-  if(aliasEl) aliasEl.textContent = 'ALIAS: ' + _alias;
-  /* Suppress voice in ghost */
+if(m === 'offline') {
+  body.classList.add('offline-mode');
   window._ghostMode = true;
-  window.auditLog && window.auditLog('MODE_GHOST', {alias:_alias});
-  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
+  /* Close all open sockets immediately */
+  if(typeof PiperTTS !== 'undefined' && PiperTTS.ws) { try{ PiperTTS.ws.close(); }catch(e){} PiperTTS.ws=null; }
+  if(typeof BRIDGE !== 'undefined' && BRIDGE.ws) { try{ BRIDGE.ws.close(); }catch(e){} BRIDGE.ws=null; BRIDGE.connected=false; }
+  if(window.ws) { try{ window.ws.close(); }catch(e){} window.ws=null; }
+  window.auditLog && window.auditLog('MODE_OFFLINE', {ts:Date.now()});
+  window.toast && window.toast('📴 Offline Mode — All sockets closed. CodeMaster local-only.','ok');
 
-} else if(m === 'stealth') {
+} else if(m === 'stealth' || m === 'hybrid') {
   body.classList.add('stealth-mode');
   if(stealthEl) stealthEl.textContent = new Date().toLocaleTimeString();
   window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_STEALTH', {ts:Date.now()});
-  window.toast && window.toast('🕵️ Stealth Mode — Encrypted routing. Minimal exposure.','ok');
+  window.auditLog && window.auditLog('MODE_HYBRID', {ts:Date.now()});
+  window.toast && window.toast('🔀 Hybrid Mode — Local APIs active. External optional.','ok');
+
+} else if(m === 'ghost') {
+  body.classList.add('ghost-mode');
+  window._ghostMode = true;
+  window.auditLog && window.auditLog('MODE_GHOST', {ts:Date.now()});
+  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
 
 } else {
   window._ghostMode = false;
@@ -19653,9 +19878,9 @@ naniteRegen: function() {
   /* Build swarm dots */
   var html = '';
   for (var i = 0; i < 40; i++) {
-    var x = Math.random()*100, y = Math.random()*100;
-    var delay = (Math.random()*0.5).toFixed(2);
-    var size = 2 + Math.round(Math.random()*3);
+    var x = cryptoRandFloat()*100, y = cryptoRandFloat()*100;
+    var delay = (cryptoRandFloat()*0.5).toFixed(2);
+    var size = 2 + Math.round(cryptoRandFloat()*3);
     html += '<div style="position:absolute;left:'+x+'%;top:'+y+'%;width:'+size+'px;height:'+size+'px;background:#00ffc8;border-radius:50%;animation:oparNaniteSwarm .8s ease-out '+delay+'s both;box-shadow:0 0 4px #00ffc8"></div>';
   }
   /* Crack line */
@@ -20762,6 +20987,7 @@ if (lang === 'html') {
 
 /* ── AI FIX ───────────────────────────────────── */
 function aiAnalyze() {
+/* CodeMaster AI FIX — fully offline, no external API calls */
 var code = getCode();
 var lang = getLang();
 if (!code.trim()) { window.toast && window.toast('Write some code first','err'); return; }
@@ -20769,21 +20995,41 @@ var panel = document.getElementById('cm-ai-panel');
 var output = document.getElementById('cm-ai-output');
 var applyBtn = document.getElementById('cm-apply-fix');
 if (panel) panel.style.display = 'block';
-if (output) output.textContent = '\u23f3 Analyzing ' + lang + ' code via bridge...';
+if (output) output.textContent = '⏳ Analyzing ' + lang + ' code (offline)...';
 if (applyBtn) applyBtn.style.display = 'none';
 panel && panel.scrollIntoView({behavior:'smooth'});
 
-var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
-if (bridgeOk) {
-  try {
-    PiperTTS.ws.send(JSON.stringify({
-      type: 'ai_code_review',
-      lang: lang,
-      code: code.slice(0, 4000),
-      prompt: 'Review this ' + lang + ' code. List errors with line numbers. For each error provide exact fix code. Be concise and precise.'
-    }));
-    return;
-  } catch(e) {}
+/* If SGH helper offline function is available, use it */
+if (typeof window.aiAnalyzeOrFix === 'function') {
+  window.aiAnalyzeOrFix(code, 'fix').then(function(fixed){
+    if(output) output.textContent = fixed;
+    if(fixed && fixed !== code && applyBtn){
+      applyBtn.style.display = 'block';
+      applyBtn._fixFn = function(){ setCode(fixed); };
+    }
+  }).catch(function(){ _runLocalAnalysis(); });
+  return;
+}
+_runLocalAnalysis();
+function _runLocalAnalysis(){
+  var results = (typeof runLint === 'function') ? runLint() : {errCount:0,warnCount:0,fixes:[]};
+  if (output) {
+    output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
+      'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
+      (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.');
+    if (results.fixes.some(function(f){ return f.fix; })) {
+      if (applyBtn) {
+        applyBtn.style.display = 'block';
+        applyBtn._fixFn = function() {
+          var c = getCode();
+          results.fixes.forEach(function(f){ if(f.fix) c = f.fix(c) || c; });
+          setCode(c);
+        };
+      }
+    }
+  }
+}
+
 }
 /* Offline fallback: use local lint results as AI output */
 var results = runLint();
@@ -21683,10 +21929,10 @@ CICD.log('\u25b6 Build triggered — branch: ' + (cfg.branch||'main'), 'var(--ac
 var stageOrder = ['checkout','install','build','test','sign','deploy'];
 var delay = 0;
 stageOrder.forEach(function(stage, i) {
-  delay += 400 + Math.random()*300;
+  delay += 400 + cryptoRandFloat()*300;
   setTimeout(function() {
     stages[stage].status = 'running';
-    stages[stage].duration = Math.round(200 + Math.random()*800);
+    stages[stage].duration = Math.round(200 + cryptoRandFloat()*800);
     CICD.log('\u23f3 ' + stage.toUpperCase() + '...', 'var(--sun)');
     setTimeout(function() {
       /* Check bridge for real execution */
@@ -21880,23 +22126,19 @@ var prompt = 'You are a council judge. Question: "' + q + '"\nVote type: ' + vty
 
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 
+if (!bridgeOk) {
+  /* Bridge required — no fake votes permitted */
+  if (card) card.style.display = 'none';
+  window.toast && window.toast('\u26A0\uFE0F Bridge disconnected — live AI connection required for council votes. Connect bridge first.','err');
+  return;
+}
+
 judges.forEach(function(judge) {
-  if (bridgeOk) {
-    try {
-      PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
-      return;
-    } catch(e) {}
+  try {
+    PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:judge.id, message:prompt, context:'council_'+judge.id, judge:judge.id }));
+  } catch(e) {
+    window.toast && window.toast('\u274C Failed to reach ' + judge.name + ' — bridge error','err');
   }
-  /* Offline: simulate vote */
-  setTimeout(function() {
-    var offlineVotes = { binary:['Yes','No'], score:['7','8','6'], analysis:['Supported','Opposed','Neutral'] };
-    var picks = offlineVotes[vtype]||['Yes','No'];
-    var vote  = picks[Math.floor(Math.random()*picks.length)];
-    results[judge.id] = {vote:vote, reasoning:'Offline simulation. Connect bridge for real AI votes.', confidence:0.5+Math.random()*0.4};
-    CouncilVote._updateJudge(judge, results[judge.id]);
-    done++;
-    if (done === judges.length) CouncilVote._showVerdict(q, results, judges, doArb, doSign);
-  }, 600 + Math.random()*800);
 });
 
 /* Listen for bridge responses */
@@ -22013,53 +22255,40 @@ return;
 }
 });
 
-/* ══ PRESENCE MODE SYSTEM ══ */
-/* Online · Stealth · Ghost — operational security for field roles */
+/* ══ PRESENCE MODE SYSTEM (duplicate block — defers to first) ══ */
 (function(){
-// Generate ghost alias once per session
-var _alias = 'SHADOW-' + Math.floor(Math.random()*9000+1000);
 window.ST = window.ST || {};
 
 function setMode(m) {
-var ST = window.ST || {};
-ST.mode = m;
-window.ST = ST;
-var body = document.body;
-body.classList.remove('ghost-mode','stealth-mode');
-
-// Update pill buttons
-document.querySelectorAll('#presencePill button').forEach(function(btn){
-  btn.classList.remove('pm-active');
-  if(btn.getAttribute('data-mode') === m) btn.classList.add('pm-active');
-});
-
-var stealthEl = document.getElementById('stealthTime');
-var aliasEl   = document.getElementById('ghostAliasBanner');
-
-if(m === 'ghost') {
-  body.classList.add('ghost-mode');
-  if(aliasEl) aliasEl.textContent = 'ALIAS: ' + _alias;
-  /* Suppress voice in ghost */
-  window._ghostMode = true;
-  window.auditLog && window.auditLog('MODE_GHOST', {alias:_alias});
-  window.toast && window.toast('👻 Ghost Mode — Identity masked. Telemetry suppressed.','ok');
-
-} else if(m === 'stealth') {
-  body.classList.add('stealth-mode');
-  if(stealthEl) stealthEl.textContent = new Date().toLocaleTimeString();
-  window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_STEALTH', {ts:Date.now()});
-  window.toast && window.toast('🕵️ Stealth Mode — Encrypted routing. Minimal exposure.','ok');
-
-} else {
-  window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_ONLINE', {ts:Date.now()});
-  window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
-}
-
-// Persist mode
-try { sessionStorage.setItem('sg_mode', m); } catch(e) {}
-
+  /* Always defer to the canonical setMode registered by the first block */
+  if(window.setMode && window.setMode !== setMode) { window.setMode(m); return; }
+  var body = document.body;
+  var ST = window.ST || {};
+  ST.mode = m; window.ST = ST;
+  window._sgOfflineMode = (m === 'offline');
+  body.classList.remove('ghost-mode','stealth-mode','offline-mode');
+  document.querySelectorAll('#presencePill button').forEach(function(btn){
+    btn.classList.remove('pm-active');
+    if(btn.getAttribute('data-mode') === m) btn.classList.add('pm-active');
+  });
+  if(m === 'offline') {
+    body.classList.add('offline-mode');
+    window._ghostMode = true;
+    if(typeof PiperTTS !== 'undefined' && PiperTTS.ws){ try{PiperTTS.ws.close();}catch(e){} PiperTTS.ws=null; }
+    if(typeof BRIDGE !== 'undefined' && BRIDGE.ws){ try{BRIDGE.ws.close();}catch(e){} BRIDGE.ws=null; BRIDGE.connected=false; }
+    if(window.ws){ try{window.ws.close();}catch(e){} window.ws=null; }
+    window.toast && window.toast('📴 Offline Mode — All sockets closed. CodeMaster local-only.','ok');
+  } else if(m === 'stealth' || m === 'hybrid') {
+    body.classList.add('stealth-mode'); window._ghostMode = false;
+    window.toast && window.toast('🔀 Hybrid Mode — Local APIs active. External optional.','ok');
+  } else if(m === 'ghost') {
+    body.classList.add('ghost-mode'); window._ghostMode = true;
+    window.toast && window.toast('👻 Ghost Mode — Identity masked.','ok');
+  } else {
+    window._ghostMode = false;
+    window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
+  }
+  try { sessionStorage.setItem('sg_mode', m); } catch(e) {}
 }
 
 // Wire presence pill buttons
@@ -23514,7 +23743,7 @@ save: function(){
 add: function(type, data){
   if(!this._cards) this.load();
   var card = {
-    id: 'mc_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),
+    id: 'mc_'+Date.now()+'_'+cryptoRandHex(4),
     type: type,
     data: data,
     ts: Date.now(),
@@ -24199,8 +24428,10 @@ rec.start(); window._voiceRec=rec; window._voiceActive=true; toast('🎤 Listeni
 /* ── initBridge: real WebSocket connection with backoff ── */
 window.initBridge = function initBridge(){
 if(window.ws && window.ws.readyState <= 1) return;
+if(window._sgIsOffline && window._sgIsOffline()) return;
 window._bridgeGaveUp = false;
 try{
+if(_sgWsBlocked()) return;
 /* WS always on Python bridge :9897 — never derive from location.host
    (page is served from KODER :9898 which is HTTP-only, not a WS server) */
 var _wsURL = _sgWsUrl();
@@ -24319,15 +24550,14 @@ document.querySelectorAll('.ca').forEach(function(x){ x.classList.toggle('on', x
 
 /* ─── Suppress all srcdoc/cross-origin Script error spam ─── */
 (function suppressScriptErrors(){
-var _orig = window.onerror;
-window.onerror = function(msg, src, line, col, err){
+window.GlobalHandlers.chainOnError(function(msg, src, line, col, err){
 if(!msg) return false;
 var s = String(msg);
 if(s === 'Script error.' || s === 'Script error' || !src) return true;
 if(src && src.indexOf('about:srcdoc') !== -1) return true;
 if(src && src.indexOf('about:blank') !== -1) return true;
-return _orig ? _orig(msg,src,line,col,err) : false;
-};
+return false;
+});
 })();
 
 /* ─── Bridge dot live update ─── */
@@ -25071,6 +25301,7 @@ return;
 /* Fallback: dedicated WebSocket to /terminal */
 _mode = 'bridge-ws';
 try{
+  if(_sgWsBlocked()) return;
   _ws = new WebSocket(_sgWsUrl('127.0.0.1:9897/terminal'));
   _ws.onopen = function(){
     _ws.send(JSON.stringify({type:'ssh_connect',host:host,port:parseInt(port)||22,username:user,password:pass}));
@@ -25628,9 +25859,10 @@ document.addEventListener('sg:bridgeMsg', function(ev){
   }
 });
 
-/* ── Watcher: periodic ping to bridge for keepalive ── */
+/* ── Watcher: periodic ping to bridge for keepalive — skipped in offline mode ── */
 function _startBridgePingWatcher(){
   _watcherTimers.bridgePing = setInterval(function(){
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     var ws=window.ws||window.BRIDGE_WS;
     if(ws && ws.readyState===1){
       try{ ws.send(JSON.stringify({type:'ping',ts:Date.now()})); }catch(e){}
@@ -25638,9 +25870,10 @@ function _startBridgePingWatcher(){
   }, 30000);
 }
 
-/* ── Watcher: detect bridge disconnect and attempt reconnect ── */
+/* ── Watcher: detect bridge disconnect and attempt reconnect — skipped in offline mode ── */
 function _startBridgeHealthWatcher(){
   _watcherTimers.bridgeHealth = setInterval(function(){
+    if(window._sgIsOffline && window._sgIsOffline()) return;
     var ws=window.ws||window.BRIDGE_WS;
     var connected = ws && ws.readyState===1;
     var prev = _mem.get('bridge_connected', null);
@@ -26708,6 +26941,35 @@ async function aiAnalyzeOrFix(code, mode = 'fix') {
 window.aiAnalyzeOrFix = aiAnalyzeOrFix;
 window.aiAnalyze = function(code){ return aiAnalyzeOrFix(typeof code === 'string' ? code : (document.getElementById('cm-editor')||{}).value||'', 'analyze'); };
 window.aiFixAll = function(code){ return aiAnalyzeOrFix(typeof code === 'string' ? code : (document.getElementById('cm-editor')||{}).value||'', 'fix'); };
+function _sgUpdateAiFixPanel(source, fixed, text, label, applyFn){
+  var panel = $('cm-ai-panel');
+  var out = $('cm-ai-output');
+  var diff = $('cm-ai-diff');
+  var ap = $('cm-apply-fix');
+  if (panel) panel.style.display = 'block';
+  if (out) {
+    out.textContent = text || '';
+    out.style.display = 'block';
+  }
+  if (diff) {
+    var src = String(source || '');
+    var fx = String(fixed || '');
+    if (fx && fx !== src) {
+      diff.style.display = 'block';
+      _sgRenderCodeMasterDiff(diff, _sgCodeMasterDiff(src, fx));
+    } else {
+      diff.style.display = 'none';
+      while (diff.firstChild) diff.removeChild(diff.firstChild);
+    }
+  }
+  if (ap) {
+    ap.style.display = 'block';
+    ap.textContent = label || '✅ APPLY FIX';
+    ap._fixFn = typeof applyFn === 'function' ? applyFn : function(){ if (fixed) setCode(fixed); };
+  }
+  if (panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  return {panel:panel,out:out,diff:diff,ap:ap};
+}
 function _t(m,k){var c=k==='err'?'#ff3d6e':k==='ok'?'#00ffc8':'#7ca3c8';var el=$('_at');if(!el){el=document.createElement('div');el.id='_at';el.style.cssText='position:fixed;bottom:24px;right:20px;z-index:2147483647;padding:10px 16px;border-radius:8px;font:bold 11px monospace;max-width:320px;display:none;box-shadow:0 4px 20px rgba(0,0,0,.5)';document.body.appendChild(el);}el.style.background='#07101f';el.style.border='1px solid '+c;el.style.color=c;el.textContent=m;el.style.display='block';clearTimeout(el._x);el._x=setTimeout(function(){el.style.display='none';},4000);}
 window._sghToast=_t;
 function _run(){var ed=$('cm-editor'),fr=$('cm-preview-frame');if(!ed||!fr)return;var c=ed.value||'',l=($('cm-lang')||{}).value||'html';if(window.CM&&typeof window.CM.updatePreview==='function'){try{window.CM.updatePreview();return;}catch(_){}}if(l==='html')fr.srcdoc=c;else if(l==='js'||l==='javascript')fr.srcdoc='<!DOCTYPE html><body><sc'+'ript>\n'+c+'\n<\/sc'+'ript></body>';else if(l==='css')fr.srcdoc='<!DOCTYPE html><head><style>'+c+'</style></head><body style="padding:20px;font-family:sans-serif"><p>CSS preview</p></body>';else if(l==='json'){try{fr.srcdoc='<pre style="font:11px monospace;padding:20px;background:#0d0d1a;color:#00ffc8;margin:0">'+JSON.stringify(JSON.parse(c),null,2).replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];})+'</pre>';}catch(e){fr.srcdoc='<pre style="color:red;padding:20px">'+e.message+'</pre>';}}else fr.srcdoc='<pre style="font:11px monospace;padding:20px;background:#0d0d1a;color:#00ffc8;margin:0">'+c.replace(/[&<>]/g,function(x){return{'&':'&amp;','<':'&lt;','>':'&gt;'}[x];})+'</pre>';}
@@ -26905,29 +27167,73 @@ function _keys(){
 }
 window.showKeys=_keys;window.showKeyModal=_keys;
 var _ws=null,_ok=false,_at=0;
-function _bc(){if(location.protocol==='file:'){_dot(false);return;}if(_sgWsBlocked()){_dot(false);return;}if(_ws&&_ws.readyState<=1)return;_at++;var ws;try{ws=new WebSocket(_sgWsUrl());}catch(e){_br();return;}_ws=ws;window.ws=ws;ws.onopen=function(){_ok=true;_at=0;_dot(true);try{ws.send(JSON.stringify({type:'handshake',client:'arbiter'}));}catch(_){}_t('⚡ Bridge :9897 connected','ok');};ws.onmessage=function(e){var d;try{d=JSON.parse(e.data);}catch(_){return;}try{document.dispatchEvent(new CustomEvent('sg:bridgeMsg',{detail:d}));}catch(_){}if(d.type==='agent_response'||d.type==='chat_response'){
-  var th=$('ag-thread')||$('sgh-ag-thread');
-  if(th){
-    var tk=th.querySelector('._ath');if(tk)tk.remove();
-    var b=document.createElement('div');b.style.cssText='margin-bottom:8px';
-    var text=d.text||(d.payload&&d.payload.text)||d.response||'';
-    var span=document.createElement('span');
-    span.style.cssText='background:#152440;border:1px solid #254868;border-radius:8px;padding:7px 10px;display:inline-block;color:#eaf0ff;max-width:85%;white-space:pre-wrap;font:11px monospace';
-    span.textContent=text;
-    b.appendChild(span);
-    th.appendChild(b);th.scrollTop=th.scrollHeight;
+function _bc(){
+  if(location.protocol==='file:'){_dot(false);return;}
+  if(_sgWsBlocked()){_dot(false);return;}
+  if(_ws&&_ws.readyState<=1)return;
+  _at++;
+  var ws;
+  try{
+    ws=new WebSocket(_sgWsUrl());
+  }catch(e){
+    _br();
+    return;
   }
+  _ws=ws;
+  window.ws=ws;
+  ws.onopen=function(){
+    _ok=true;
+    _at=0;
+    _dot(true);
+    try{ws.send(JSON.stringify({type:'handshake',client:'arbiter'}));}catch(_){}
+    _t('⚡ Bridge :9897 connected','ok');
+  };
+  ws.onmessage=function(e){
+    var d;
+    try{d=JSON.parse(e.data);}catch(_){return;}
+    try{document.dispatchEvent(new CustomEvent('sg:bridgeMsg',{detail:d}));}catch(_){}
+    if(d.type==='agent_response'||d.type==='chat_response'){
+      var th=$('ag-thread')||$('sgh-ag-thread');
+      if(th){
+        var tk=th.querySelector('._ath');if(tk)tk.remove();
+        var b=document.createElement('div');
+        b.style.cssText='margin-bottom:8px';
+        var text=d.text||(d.payload&&d.payload.text)||d.response||'';
+        var span=document.createElement('span');
+        span.style.cssText='background:#152440;border:1px solid #254868;border-radius:8px;padding:7px 10px;display:inline-block;color:#eaf0ff;max-width:85%;white-space:pre-wrap;font:11px monospace';
+        span.textContent=text;
+        b.appendChild(span);
+        th.appendChild(b);
+        th.scrollTop=th.scrollHeight;
+      }
+    }
+    if(d.type==='key_saved'){_t(d.agent+' key synced to bridge','ok');}
+    if(d.type==='tool_result'){document.dispatchEvent(new CustomEvent('sg:toolResult',{detail:d}));}
+    if(d.type==='cicd_result'){
+      var issues=d.sanitizer&&d.sanitizer.total_issues||0;
+      _t('CI/CD: '+(issues===0?'✅ Clean':'⚠ '+issues+' issue(s)')+(d.result&&d.result.status==='success'?'':''),issues===0?'ok':'err');
+    }
+    if(d.type==='ai_code_review_result'||d.context==='codemaster'){
+      var panel=$('cm-ai-panel');
+      var ed=$('cm-editor');
+      var text=d.review||d.text||'';
+      var fx=d.fixed_code||_sgExtractCodeFence(text);
+      if(panel&&ed)panel._cmSource=ed.value||'';
+      _sgUpdateAiFixPanel((panel&&panel._cmSource)||((ed||{}).value||''),fx,text,'✅ APPLY FIX',function(){setCode(fx);});
+    }
+  };
+  ws.onerror=function(){};
+  ws.onclose=function(){
+    _ok=false;
+    _ws=null;
+    window.ws=null;
+    _dot(false);
+    _br();
+  };
 }
-if(d.type==='key_saved'){_t(d.agent+' key synced to bridge','ok');}
-if(d.type==='tool_result'){document.dispatchEvent(new CustomEvent('sg:toolResult',{detail:d}));}
-if(d.type==='cicd_result'){
-  var issues=d.sanitizer&&d.sanitizer.total_issues||0;
-  _t('CI/CD: '+(issues===0?'✅ Clean':'⚠ '+issues+' issue(s)')+(d.result&&d.result.status==='success'?'':''),issues===0?'ok':'err');
-}
-if(d.type==='ai_code_review_result'||d.context==='codemaster'){var panel=$('cm-ai-panel'),ed=$('cm-editor'),text=d.review||d.text||'',fx=d.fixed_code||_sgExtractCodeFence(text);if(panel&&ed)panel._cmSource=ed.value||'';_sgUpdateAiFixPanel((panel&&panel._cmSource)||((ed||{}).value||''),fx,text,'✅ APPLY FIX',function(){setCode(fx);});}};ws.onerror=function(){};ws.onclose=function(){_ok=false;_ws=null;window.ws=null;_dot(false);_br();};}
 function _br(){clearTimeout(window._arbR);window._arbR=setTimeout(_bc,Math.min(2000*Math.pow(1.5,Math.min(_at,8)),20000)|0);}
 function _dot(on){window._SGH_BRIDGE_CONNECTED=on;var c=on?'#00ffc8':'#ff3d6e';['rs-bridge-dot','sgh-pill-dot','_ad'].forEach(function(id){var el=$(id);if(el)el.style.background=c;});['bridgeStatus','ftBridge'].forEach(function(id){var el=$(id);if(el){el.textContent=on?'LIVE':'OFFLINE';el.style.color=on?'#00e676':'#ff3d6e';}});try{document.dispatchEvent(new CustomEvent(on?'sg:bridgeConnected':'sg:bridgeDisconnected',{detail:{url:'ws://127.0.0.1:9897'}}));}catch(_){}}
-window.bridgeConnect=_bc;window.bridgeReconnect=_bc;window._SG_BRIDGE_STATUS={reconnect:_bc};window.SG_AGENT=window.SG_AGENT||{reconnectBridge:_bc};
+window.bridgeConnect=_bc;window.bridgeReconnect=_bc;window._SG_BRIDGE_STATUS=window._SG_BRIDGE_STATUS||{};window._SG_BRIDGE_STATUS.reconnect=_bc;window.SG_AGENT=window.SG_AGENT||{reconnectBridge:_bc};
 function _send(){
   var inp=$('ag-inp')||$('sgh-ag-inp');
   if(!inp||!inp.value.trim())return;
@@ -26972,6 +27278,165 @@ function _pill(){if($('_apill'))return;var p=document.createElement('div');p.id=
 function _css(){if($('_acss'))return;var s=document.createElement('style');s.id='_acss';s.textContent='button,[data-panel],[data-p]{cursor:pointer!important}#pa{pointer-events:auto!important}.screen:not(.active){pointer-events:none!important}#cm-apply-fix{background:#00ffc8;color:#000;border:none;border-radius:8px;padding:12px 20px;font:700 13px monospace;cursor:pointer;margin-top:10px;width:100%;display:none}button{-webkit-tap-highlight-color:rgba(0,255,200,.2);touch-action:manipulation}';document.head.appendChild(s);}
 function boot(){_css();_pill();_bc();setInterval(function(){if(!_ok)_bc();},30000);document.addEventListener('sg:panelLoaded',function(ev){var id=ev&&ev.detail&&ev.detail.id;if(id==='codemaster'){var ed=$('cm-editor');if(ed&&!ed._aw){ed._aw=true;ed.addEventListener('input',function(){clearTimeout(ed._at);ed._at=setTimeout(_run,700);});setTimeout(_run,300);}}});window.arbiter={aiFix:_ai,run:_run,keys:_keys,bridge:{connect:_bc,ok:function(){return _ok;}}};console.log('[Arbiter v1] online · ws:9897 · claude-sonnet-4-5');}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else setTimeout(boot,0);
+})();
+</script>
+
+<script>
+(function(){
+'use strict';
+function $(id){return document.getElementById(id);}
+function _sgLocalText(code){
+  return String(code || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function _sgCodeMasterDiff(before, after){
+  var a = String(before || '').split('\n');
+  var b = String(after || '').split('\n');
+  var out = ['--- codemaster://before', '+++ codemaster://after'];
+  var max = Math.max(a.length, b.length);
+  for (var i = 0; i < max; i++) {
+    if (a[i] === b[i]) {
+      if (a[i] !== undefined) out.push(' ' + a[i]);
+    } else {
+      if (a[i] !== undefined) out.push('-' + a[i]);
+      if (b[i] !== undefined) out.push('+' + b[i]);
+    }
+  }
+  return out.join('\n');
+}
+function _sgRenderCodeMasterDiff(target, diffText){
+  if (!target) return;
+  while (target.firstChild) target.removeChild(target.firstChild);
+  String(diffText || '').split('\n').forEach(function(line){
+    var row=document.createElement('div');
+    row.textContent=line;
+    row.style.whiteSpace='pre-wrap';
+    row.style.wordBreak='break-word';
+    row.style.color=/^\+/.test(line)?'#4ec9b0':/^-/.test(line)?'#f44747':/^@@/.test(line)?'#4fc1ff':/^(diff --git |index |--- |\+\+\+ )/.test(line)?'#c586c0':'var(--t0)';
+    target.appendChild(row);
+  });
+}
+function _sgLocalAnalyze(code){
+  var text=String(code || '');
+  var issues=[];
+  if (/<b>/i.test(text) || /<\/b>/i.test(text)) issues.push('Replace <b> with <strong>.');
+  if (/javascript:/i.test(text)) issues.push('Remove javascript: URLs.');
+  if (/\sonclick\s*=/.test(text)) issues.push('Avoid inline onclick handlers.');
+  return issues.length ? issues.join(' ') : 'No obvious local issues found.';
+}
+function _sgLocalFix(code){
+  var fixed=String(code || '');
+  fixed=fixed.replace(/<b>/gi,'<strong>').replace(/<\/b>/gi,'</strong>');
+  fixed=fixed.replace(/\s+onclick\s*=\s*("|\').*?\1/gi,'');
+  fixed=fixed.replace(/javascript:/gi,'');
+  return fixed;
+}
+window._sgCodeMasterDiff = window._sgCodeMasterDiff || _sgCodeMasterDiff;
+window._sgRenderCodeMasterDiff = window._sgRenderCodeMasterDiff || _sgRenderCodeMasterDiff;
+window._sgLocalAnalyze = window._sgLocalAnalyze || _sgLocalAnalyze;
+window._sgLocalFix = window._sgLocalFix || _sgLocalFix;
+function _sgAiPanelUpdate(source, fixed, text, label, applyFn){
+  var panel=$('cm-ai-panel'), out=$('cm-ai-output'), diff=$('cm-ai-diff'), ap=$('cm-apply-fix');
+  if(panel) panel.style.display='block';
+  if(out){ out.style.display='block'; out.textContent=text || ''; }
+  if(diff){
+    var src=String(source||''), fx=String(fixed||'');
+    if(fx && fx !== src && typeof window._sgCodeMasterDiff === 'function' && typeof window._sgRenderCodeMasterDiff === 'function'){
+      diff.style.display='block';
+      window._sgRenderCodeMasterDiff(diff, window._sgCodeMasterDiff(src, fx));
+    } else {
+      diff.style.display='none';
+      while(diff.firstChild) diff.removeChild(diff.firstChild);
+    }
+  }
+  if(ap){
+    ap.style.display='block';
+    ap.textContent = label || '✅ APPLY FIX';
+    ap._fixFn = typeof applyFn === 'function' ? applyFn : function(){ if (fixed && typeof window.setCode === 'function') window.setCode(fixed); };
+  }
+  if(panel && panel.scrollIntoView) panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+window._sgUpdateAiFixPanel = window._sgUpdateAiFixPanel || _sgAiPanelUpdate;
+
+window.aiAnalyzeOrFix = async function(code, mode){
+  var source=String(code || '');
+  if(mode === 'analyze') return window._sgLocalAnalyze(source);
+  return window._sgLocalFix(source);
+};
+window.aiAnalyze = function(code){ return window.aiAnalyzeOrFix(typeof code === 'string' ? code : (($('cm-editor')||{}).value||''), 'analyze'); };
+window.aiFixAll = function(code){ return window.aiAnalyzeOrFix(typeof code === 'string' ? code : (($('cm-editor')||{}).value||''), 'fix'); };
+
+var ws = null, retry = 0;
+function bridgeDot(on){
+  window._SGH_BRIDGE_CONNECTED = !!on;
+  var c = on ? '#00ffc8' : '#ff3d6e';
+  ['rs-bridge-dot','sgh-pill-dot','_ad'].forEach(function(id){ var el=$(id); if(el) el.style.background = c; });
+}
+function bridgeConnect(){
+  if (ws && ws.readyState <= 1) return ws;
+  try {
+    ws = new WebSocket((window._sgWsUrl && window._sgWsUrl()) || 'ws://127.0.0.1:9897');
+  } catch (e) {
+    bridgeDot(false);
+    return null;
+  }
+  window.ws = ws;
+  ws.onopen = function(){
+    retry = 0;
+    bridgeDot(true);
+    try { ws.send(JSON.stringify({type:'handshake',client:'arbiter'})); } catch(_){}
+  };
+  ws.onmessage = function(e){
+    var d;
+    try { d = JSON.parse(e.data); } catch(_) { return; }
+    if (d.type === 'ai_code_review_result' || d.context === 'codemaster') {
+      var text = d.review || d.text || '';
+      var fx = d.fixed_code || (window._sgExtractCodeFence ? window._sgExtractCodeFence(text) : '');
+      var ed = $('cm-editor');
+      var source = (ed && ed.value) || '';
+      if (window._sgUpdateAiFixPanel) window._sgUpdateAiFixPanel(source, fx, text, '✅ APPLY FIX', function(){ if (fx && typeof window.setCode === 'function') window.setCode(fx); });
+    }
+  };
+  ws.onclose = function(){
+    bridgeDot(false);
+    window.ws = null;
+    ws = null;
+    if (retry++ < 8) setTimeout(bridgeConnect, Math.min(1000 * Math.pow(1.5, retry), 15000));
+  };
+  ws.onerror = function(){ bridgeDot(false); };
+  return ws;
+}
+function bridgeSend(payload){
+  var s = JSON.stringify(Object.assign({source:'sg_ui',ts:Date.now()}, payload || {}));
+  var live = window.ws || ws;
+  if (live && live.readyState === 1) { try { live.send(s); return; } catch(_){} }
+  window._sgSendQ = window._sgSendQ || [];
+  if (window._sgSendQ.length < 100) window._sgSendQ.push(s);
+}
+window.bridgeConnect = window.bridgeConnect || bridgeConnect;
+window.bridgeReconnect = window.bridgeReconnect || bridgeConnect;
+window.bridgeSend = window.bridgeSend || bridgeSend;
+window.SG_AGENT = window.SG_AGENT || {
+  reconnectBridge: bridgeConnect,
+  runAllRepairs: function(){},
+  saveCFG: function(){},
+  reseal: function(){ return Promise.resolve(); },
+  applyPatch: function(code){ try { new Function(code); return true; } catch(_) { return false; } },
+  bridgeSend: bridgeSend,
+  getState: function(){ return {bridge: (window.ws && window.ws.readyState === 1) ? 'connected' : 'disconnected'}; },
+  flushQueue: function(){ var q = window._sgSendQ || []; var live = window.ws || ws; if (live && live.readyState === 1) { q.forEach(function(m){ try { live.send(m); } catch(_){} }); window._sgSendQ = []; } },
+  exportErrors: function(){}
+};
+
+function wireCodeMaster(){
+  var run = $('cm-run'), fix = $('cm-ai-fix'), apply = $('cm-apply-fix'), refresh = $('cm-preview-refresh');
+  if(run && !run._sg){ run._sg = true; run.addEventListener('click', function(){ if(typeof window._run === 'function') window._run(); }); }
+  if(fix && !fix._sg){ fix._sg = true; fix.addEventListener('click', function(e){ if(e){e.preventDefault();e.stopPropagation();} if(typeof window._ai === 'function') window._ai(); }); }
+  if(apply && !apply._sg){ apply._sg = true; apply.addEventListener('click', function(e){ if(e){e.preventDefault();e.stopPropagation();} if(typeof apply._fixFn === 'function') apply._fixFn(); }); }
+  if(refresh && !refresh._sg){ refresh._sg = true; refresh.addEventListener('click', function(){ if(typeof window._run === 'function') window._run(); }); }
+}
+document.addEventListener('sg:panelLoaded', function(ev){ if(ev && ev.detail && ev.detail.id === 'codemaster') wireCodeMaster(); });
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireCodeMaster); else wireCodeMaster();
+bridgeConnect();
 })();
 </script>
 
