@@ -41,16 +41,21 @@ jobs:
     timeout-minutes: 20
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Python 3.11
+    - name: Set up Python 3.12
       uses: actions/setup-python@v6
       with:
-        python-version: '3.11'
+        python-version: '3.12'
+    - name: Set up Node 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
     - name: Install project dependencies
       run: |
         pip install --upgrade pip
-        pip install -r .github/workflows/Requirements.txt
+        pip install -r requirements.txt
+        pip install -r requirements-extra.txt || true
     - name: Install test dependencies
-      run: pip install flake8
+      run: pip install pytest pytest-cov pytest-asyncio flake8
     - name: Lint with flake8
       run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
     - name: Run tests
