@@ -2,7 +2,7 @@
 # Sovereignty AI Studio — Python Dependencies (self-hosted stack)
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── Core / Crypto ────────────────────────────────────────────────────────────
+# ── Core / Crypto ────────────────────────────────────────────────────────────────
 argon2-cffi==25.1.0
 bcrypt==4.1.3
 blake3==1.0.7
@@ -11,12 +11,12 @@ pyjwt==2.12.0
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 
-# ── Async HTTP ───────────────────────────────────────────────────────────────
+# ── Async HTTP ─────────────────────────────────────────────────────────────────
 anyio==3.7.1
 httpx==0.27.0
 requests==2.33.0
 
-# ── Database ─────────────────────────────────────────────────────────────────
+# ── Database ───────────────────────────────────────────────────────────────────
 psycopg2-binary==2.9.12
 asyncpg==0.30.0
 sqlalchemy[asyncio]==2.0.29
@@ -24,35 +24,35 @@ alembic==1.13.1
 # redis 4+ includes redis.asyncio — aioredis package removed (superseded)
 redis==7.4.0
 
-# ── Metrics / Telemetry ──────────────────────────────────────────────────────
+# ── Metrics / Telemetry ────────────────────────────────────────────────────────
 prometheus-client==0.21.0
 
-# ── Web Frameworks ────────────────────────────────────────────────────────────
+# ── Web Frameworks ─────────────────────────────────────────────────────────────
 fastapi==0.135.3
 uvicorn[standard]==0.44.0
 hypercorn==0.17.3
 quart==0.20.0
 Flask==3.1.3
 
-# ── Auth / Security ──────────────────────────────────────────────────────────
+# ── Auth / Security ────────────────────────────────────────────────────────────
 python-multipart==0.0.27
 
-# ── AI / Inference (local only) ──────────────────────────────────────────────
+# ── AI / Inference (local only) ────────────────────────────────────────────────
 numpy==1.26.4
 torch==2.12.0
 # torch 2.12.0 is the first pinned release in this repo that clears current pip-audit advisories
 pennylane==0.44.1
 
-# ── Voice / TTS / STT (self-hosted) ─────────────────────────────────────────
+# ── Voice / TTS / STT (self-hosted) ───────────────────────────────────────────
 pyttsx3==2.90
 piper-tts==1.4.2
 onnx-asr==0.11.0
 
-# ── WebSocket ────────────────────────────────────────────────────────────────
+# ── WebSocket ─────────────────────────────────────────────────────────────────
 websockets==13.1
 h11==0.16.0
 
-# ── Utilities ────────────────────────────────────────────────────────────────
+# ── Utilities ─────────────────────────────────────────────────────────────────
 python-dotenv==1.2.2
 pydantic[email]==2.9.0
 pydantic-settings==2.2.1
@@ -63,15 +63,16 @@ openai==2.37.0
 
 # ── Testing ──────────────────────────────────────────────────────────────────
 pytest==9.0.3
-pytest-asyncio==1.3.0
+# pytest-asyncio <0.24 requires pytest<9; use >=0.24 to stay compatible with pytest 9.x
+pytest-asyncio>=0.24.0
 
 # ── Keycloak (self-hosted auth) ────────────────────────────────────────────────
 # python-keycloak is included in Sovereignty_python-keycloak-master/
 
-# ── Multi-agent & observability ───────────────────────────────────────────────
+# ── Multi-agent & observability ──────────────────────────────────────────────
 aiohttp==3.13.5
 email-validator==2.3.0
 
-# ── Extended / Experimental packages ─────────────────────────────────────────
+# ── Extended / Experimental packages ────────────────────────────────────────
 # See requirements-extra.txt for the full extended ecosystem package list.
 # Those packages are tracked separately as many are not yet on PyPI.

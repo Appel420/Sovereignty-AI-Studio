@@ -29,11 +29,11 @@ messages:
       proposal_chunks = []
 
       agent_ports = {
-          "judge": 9898,
-          "ai_router": 9898,
-          "plugin": 9898,
+          "judge": 9899,
+          "ai_router": 9899,
+          "plugin": 9897,
           "platform": 9898,
-          "voice": 9898
+          "voice": 9897,
       }
 
       while True:
@@ -56,5 +56,4 @@ messages:
               os.rename(audit_file, f"{audit_file}.{int(time.time())}.bak")
               open(audit_file, "w").close()
           time.sleep(interval)
-model: openai/gpt-4.1
-responseFormat: text
+model: openai/gpt-5.4-mini responseFormat:text/voice

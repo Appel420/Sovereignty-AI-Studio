@@ -29,18 +29,52 @@ from argon2 import PasswordHasher
 import blake3
 
 # === HSM Placeholder Functions (Replace with vendor SDK / PKCS#11) ===
+# Keys are persisted to a local file so that create_jwt/verify_jwt use the
+# same key within a process AND across restarts.
+_HSM_STORE_FILE = os.path.join(os.path.dirname(__file__), ".sg_hsm_keys")
+_hsm_cache: dict = {}
+
+
+def _hsm_load():
+    """Populate _hsm_cache from the persistent store file."""
+    global _hsm_cache
+    if os.path.exists(_HSM_STORE_FILE):
+        try:
+            with open(_HSM_STORE_FILE, "r") as f:
+                raw = json.load(f)
+            _hsm_cache = {k: bytes.fromhex(v) for k, v in raw.items()}
+        except Exception:
+            _hsm_cache = {}
+
+
+def _hsm_save():
+    with open(_HSM_STORE_FILE, "w") as f:
+        json.dump({k: v.hex() for k, v in _hsm_cache.items()}, f)
+    try:
+        os.chmod(_HSM_STORE_FILE, 0o600)
+    except OSError:
+        pass
+
+
 def hsm_store_key(name, key_bytes):
     # Example: call PKCS#11 C_CreateObject or vendor SDK
+    _hsm_cache[name] = key_bytes
+    _hsm_save()
     return True
 
 def hsm_get_key(name):
     # Example: retrieve from HSM secure session
-    return os.urandom(32)
+    if name not in _hsm_cache:
+        # Auto-provision a stable key for this name on first access.
+        hsm_store_key(name, os.urandom(32))
+    return _hsm_cache[name]
 
-# Store keys securely at startup
-hsm_store_key('audit', os.urandom(32))
-hsm_store_key('jwt', os.urandom(32))
-hsm_store_key('encryption', os.urandom(32))
+
+# Load persisted keys at module import; generate stable keys on first run.
+_hsm_load()
+hsm_store_key('audit', _hsm_cache.get('audit') or os.urandom(32))
+hsm_store_key('jwt', _hsm_cache.get('jwt') or os.urandom(32))
+hsm_store_key('encryption', _hsm_cache.get('encryption') or os.urandom(32))
 
 def get_jwt_key():
     return hsm_get_key('jwt')

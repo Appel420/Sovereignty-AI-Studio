@@ -1,14 +1,16 @@
 # Sovereignty AI Studio ⚔️
+
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
-> **Zero third-party vendor lock-in.  No Google. No Meta. No Llama.cpp No Vercel.**
+> **Zero third-party vendor lock-in. No Google. No Meta. No Llama.cpp. No Vercel.**
 > All AI inference is local and stays on your infrastructure.
 
-**Private Sovereign AI Research and Development Platform**
+**Private Sovereign AI Research and Production Platform**
+
 **Core Model:** Super Grok Heavy 4.2 (xAI) – Locked, Sealed, Sovereign
 **Authority:** Derek Appel
-**Last Updated:** May 24, 2026
+**Last Updated:** June 1, 2026
 
 ---
 
@@ -16,11 +18,9 @@
 
 Sovereignty AI Studio is a fully private, self-contained research and production environment for advanced sovereign artificial intelligence systems.
 
-The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All components are designed for complete operational independence, end-to-end encryption, and tamper-resistant execution.
+The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All core services are intended to route through the project’s own runtime configuration, bridge services, and internal infrastructure.
 
 No external services, third-party models, or internet connectivity are required for core operation.
-
-*From Hello to Goodbye — Sovereignty AI Studio is a sovereign platform for the people.*
 
 ---
 
@@ -29,57 +29,68 @@ No external services, third-party models, or internet connectivity are required 
 ```
 Browser / iPhone
    │
-   ├─── HTTP GET http://localhost:9898/SGHv119.html  ──► KODER frontend (static server)
+   ├─── HTTP GET /SGHv119.html  ──► KODER frontend (static server / reverse proxy)
    │
-   └─── WebSocket/API http://localhost:9899/...  ──► node-bridge (gateway)
-                                                          │ proxy
-                                                          ▼
-                                                   Python bridge.py (9897)
-                                                          │
-                                                          ▼
-                                                   backend (FastAPI :8002, internal)
-                                                       ┌──┴──────────────┐
-                                                       ▼                 ▼
-                                               PostgreSQL (5432)   Redis (6379)
+   └─── API / WebSocket ────────► node-bridge (gateway)
+                                    │ proxy
+                                    ▼
+                             Python bridge.py
+                                    │
+                                    ▼
+                              backend (FastAPI, internal)
+                                 ┌──┴──────────────┐
+                                 ▼                 ▼
+                           PostgreSQL         Redis
 ```
 
-The UI is served at **port 9898** (static file server, non-Docker). All WebSocket and HTTP API traffic from the browser goes to **port 9899** (node-bridge), which proxies AI/TTS/memory/STT messages to the Python bridge at **port 9897**. Backend, database, and Redis remain on the internal Docker network.
+The UI should use runtime-configured endpoints rather than hardcoded hostnames or ports. Prefer relative paths or injected config for browser-facing calls.
 
-| Service | Port | Notes |
-|---------|------|-------|
-| KODER frontend (SGHv119.html) | 9898 | Static file server (non-Docker) |
-| node-bridge (gateway) | 9899 | WebSocket + HTTP API proxy |
-| Python bridge (bridge.py) | 9897 | Primary AI/WS backend |
-| backend (FastAPI) | internal | Routed via node-bridge |
-| PostgreSQL 16 | internal | Initializes from `db/schema.sql` |
-| Redis 7 | internal | Cache + session store |
+### Runtime Config
+
+Use `window.__SG_CONFIG` or `localStorage.sg_config` to provide runtime endpoints such as:
+
+```json
+{
+  "nodeBase": "/api/node",
+  "bridgeHealth": "/api/node/health",
+  "bridgeChat": "/api/node/chat",
+  "authBase": "/api/auth"
+}
+```
+
+---
+
+## Port / Service Model
+
+| Service | Notes |
+|---------|------|
+| KODER frontend | Static UI; should not hardcode a host |
+| node-bridge | Gateway; should read config from env/runtime |
+| Python bridge | Internal AI bridge |
+| backend (FastAPI) | Internal API, routed via bridge |
+| PostgreSQL | Internal |
+| Redis | Internal |
 
 ---
 
 ## Prerequisites
 
-- Python 3.12.x (CI target; 3.10+ should work)
-- Node.js >= 20.0.0 for the bridge and unified servers
+- Python 3.12.x
+- Node.js >= 20.0.0 for bridge and unified servers
 - Docker + Docker Compose for containerized workflows
+
+---
 
 ## Quick Start
 
 ```bash
-# 1. Copy environment config
 cp .env.example .env
-# Edit .env — set JWT_SECRET, database passwords, model paths
+# Configure runtime endpoints, secrets, TLS, auth, and database values in .env
 
-# 2. Start the stack
 docker compose up -d
 
-# 3. Check health
-curl http://localhost:9899/health
-```
-
-For production with TLS and static assets, enable the bundled Nginx reverse proxy:
-
-```bash
-docker compose --profile production up -d
+# Check health through the bridge
+curl /api/node/health
 ```
 
 ---
@@ -88,37 +99,28 @@ docker compose --profile production up -d
 
 | Path | Purpose |
 | --- | --- |
-| `SGHv119.html` | KODER — main sovereign dashboard (SuperGrok Heavy 4.2 Enterprise UI) |
-| `ai_core/sovereign_bridge.py` | Python sovereign AI bridge — routes all inference locally |
-| `node-bridge/server.js` | Node.js WebSocket + HTTP bridge proxy (port 9899) |
-| `bridge.py` | Python WebSocket bridge server (port 9897) |
-| `scripts/javascript/sanitizer.js` | Enterprise-grade sanitizer with circuit-breaker syslog, log rotation, correlation IDs |
-| `db/schema.sql` | Postgres schema (users, orgs, memberships, projects, usage, audit) |
-| `backend/app/api/v1` | FastAPI endpoints (auth, orgs, media, voice, telemetry, etc.) |
-| `frontend/src/views` | React views, including organization management |
-| `ios/` | iOS Swift Package (SovereigntyGuard) with debugger detection and audit logging |
-| `ai_core/` | Core AI modules (lie detector, defense module, Ara core) |
-| `apps/dashboards/` | Dashboard applications including post-quantum and EEG dashboards |
-| `crypto/` | Cryptography modules |
-| `docs/` | Hardware and research documentation |
-| `docker-compose.yml` | Self-hosted stack (Postgres, Redis, Backend, Bridge, Nginx) |
-| `eeg_streaming.py` | Real-time EEG signal acquisition, band power analysis, and SSE broadcasting |
-| `Backend_API_AUTH.py` | Post-quantum authentication router (Dilithium2 + TOTP) |
+| `SGHv119.html` | Main sovereign dashboard |
+| `node-bridge/server.js` | Node.js bridge proxy |
+| `bridge.py` | Python bridge server |
+| `frontend/src/services/alertApi.ts` | Runtime-configured API client |
+| `backend/app/api/v1` | FastAPI endpoints |
+| `docs/` | Documentation |
 
 ---
 
-## Sovereignty One Water Systems
+## Frontend / Dashboard Guidance
 
-The `firmware/esp32_controller.ino` controls a CDI+MED hybrid water purification system:
-- Pump control based on PV voltage + TDS thresholds
-- Anti-scaling polarity reversal every 15 minutes
-- Safety interlocks (over-pressure, over-temperature)
-- 1 Hz JSON telemetry via Serial
+Frontend and dashboard code should:
 
-See [docs/sovereignty_one.md](docs/sovereignty_one.md) for full technical documentation.
+- Use runtime config, not hardcoded localhost/127.0.0.1 literals
+- Prefer relative paths for same-origin requests
+- Use `authBase`, `nodeBase`, and `bridgeHealth` from config when present
+- Avoid direct calls to fixed ports unless explicitly required by the runtime environment
 
 ---
 
+ # fix/node-bridge-ci
+=======
 ## Project Structure
 
 ```
@@ -601,16 +603,15 @@ The platform is designed to maintain a sanitized, self-updating environment:
 <!-- BEGIN:IMPLEMENTATION_STATUS -->
 ## Implementation Status (Auto-Generated)
 
-- **Implementation fingerprint:** `dbd27d5a2fba34c2`
+- **Implementation fingerprint:** `387873a50881b4af`
 - **Last regenerated:** by `update_readme_implementation.py`
 
 ### Tracked Files
 - `fixers/database_fixer.py` (`976451bcd272` )
 - `tests/test_fixers.py` (`e3b0b099530c` )
-- `.github/workflows/ci.yml` (`1b8f9ec8e9c0` )
-- `.github/workflows/oauth-api-generator.yml` (`5da2146b994d` )
+- `.github/workflows/ci.yml` (`d264203d7f21` )
+- `.github/workflows/oauth-api-generator.yml` (`971d4eeaf7ae` )
 - `.github/workflows/readme-implementation-sync.yml` (`ae0c2a773616` )
-- `SGHv119.html` (`1d244aa984e8` )
 
 ### Key Behaviors Detected
 - Database fixer creates parent directories before rebuild: ✅ enabled
@@ -621,6 +622,16 @@ The platform is designed to maintain a sanitized, self-updating environment:
 - Dashboard + Live Terminal with package installer integrated in `SGHv119.html`
 - README implementation status is self-updating via GitHub Actions
 <!-- END:IMPLEMENTATION_STATUS -->
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -763,80 +774,33 @@ export PIPER_MODEL_PATH=./voice-en-us-libritts-high.onnx
 
 See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
 
+#  main
 ## Usage
 
 ### Creating Alerts via API
 
 ```bash
-# Create a security alert
-curl -X POST "http://localhost:9899/api/v1/alerts/" \
+curl -X POST "/api/node/api/v1/alerts/" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "type": "security",
     "title": "Unauthorized Access",
     "message": "Failed login attempt detected",
-    "severity": "high",
-    "source": "auth_system"
-  }'
-
-# Create an alert with audio notification
-curl -X POST "http://localhost:9899/api/v1/alerts/?speak=true" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "critical",
-    "title": "System Alert",
-    "message": "Critical system failure detected",
-    "severity": "critical"
+    "severity": "high"
   }'
 ```
-
 
 ### WebSocket Connection
 
-The frontend automatically connects to the WebSocket endpoint for real-time alerts. To connect manually:
+If enabled by runtime config, connect to the bridge WebSocket endpoint from the configured base URL. Do not hardcode localhost in browser code.
 
-```javascript
-const ws = new WebSocket('ws://localhost:9899/api/v1/alerts/ws/USER_ID');
-
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  console.log('Received alert:', message);
-};
-```
-
+---
 
 ## Testing
 
 ```bash
-# Run backend tests
 make test
-
-# Run linter
 make lint
-
-# Clean up
 make clean
 ```
-
-
-## Execution and Chain Validation
-
-Execution is controlled via the `./Ship` script, which performs:
-- Hardware-backed commit sealing
-- Chain validation (O-A-T-H)
-- Federation checks across devices
-- Divergence detection and halt on mismatch
-
-## Access Control
-
-- Root authority: Derek Appel
-- Chain identifier: O-A-T-H
-- Designated heir: DJ Appel
-
-## License
-
-GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
-
-Copyright (C) 2026 Appel420

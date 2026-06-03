@@ -11,7 +11,30 @@ import shutil
 from contextlib import contextmanager
 import fcntl  # For file locking
 
-from signature_manager import SignatureManager  # Moved to separate module
+from .signature_manager import SignatureManager  # Moved to separate module
+
+
+def _load_or_create_signing_key(log_file: Path) -> str:
+    """Load the persistent signing key for *log_file*, generating it on first run.
+
+    The key is stored in a sibling file with a ``.signing.key`` suffix so that the
+    same key is used across process restarts.  The key file is chmod 0600 so only
+    the owning process can read it.
+    """
+    key_file = log_file.with_suffix(".signing.key")
+    if key_file.exists():
+        stored = key_file.read_text(encoding="utf-8").strip()
+        if stored:
+            return stored
+    # Generate a new key and persist it before first use.
+    key = os.urandom(32).hex()
+    key_file.parent.mkdir(parents=True, exist_ok=True)
+    key_file.write_text(key, encoding="utf-8")
+    try:
+        os.chmod(key_file, 0o600)
+    except OSError:
+        pass
+    return key
 
 
 class LoggerUtils:
@@ -66,7 +89,9 @@ class LoggerUtils:
 class ImmutableLogger:
     def __init__(self, log_file: str = "scar_chain.log", secret_key: Optional[str] = None, max_log_size: int = 10_000_000) -> None:
         self.log_file: Path = Path(log_file)
-        self.secret_key: str = secret_key or os.urandom(32).hex()
+        # Load the persistent signing key so the chain survives process restarts.
+        # An explicit `secret_key` argument always takes precedence (e.g. tests).
+        self.secret_key: str = secret_key or _load_or_create_signing_key(self.log_file)
         self.max_log_size: int = max_log_size
         self.signer: SignatureManager = SignatureManager(self.secret_key)
         LoggerUtils.ensure_logfile(self.log_file)
