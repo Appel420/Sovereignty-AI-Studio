@@ -42,4 +42,4 @@ target-version = "py313"
 python_version = "3.13"
 strict = true
 explicit_package_bases = true
-exclude = "^(core/|external/|Sovereignty_python-keycloak-master/|media_generator_service\\.py$|video_llava\\.py$)"
+exclude = "^(core/|external/|Sovereignty_python-keycloak-master/|scripts/|media_generator_service\\.py$|video_llava\\.py$)"
