@@ -24,5 +24,4 @@ jobs:
           pip install pylint
 
       - name: Analysing the code with pylint
-        run: |
-          pylint backend src workflows AI_Eyes_Medical --ignore=external,Sovereignty_python-keycloak-master
+        run: make py-lint
