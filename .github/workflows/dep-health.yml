@@ -263,7 +263,7 @@ jobs:
                       continue
                   # Must be a valid PEP 508 specifier or URL
                   if not re.match(
-                      r'^[A-Za-z0-9_\-\.\[\]]+\s*(==|>=|<=|!=|~=|>|<)\s*[\w\.\-\*]+.*$',
+                      r'^[A-Za-z0-9_\-\.\[\]]+(?:\s*(==|>=|<=|!=|~=|>|<)\s*[\w\.\-\*]+.*)?$',
                       stripped,
                   ) and not stripped.startswith("http") and not stripped.startswith("-r"):
                       errors.append(f"{fname}:{i}: suspicious line: {stripped!r}")
