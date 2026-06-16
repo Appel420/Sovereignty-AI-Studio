@@ -1,9 +1,9 @@
 """Utility functions for tracking file access."""
 
+import builtins
 import contextlib
 import datetime
 import os
-import builtins
 
 FILE_LOG = "/system/scar/file-access.log"
 _ORIG_OPEN = builtins.open
@@ -16,7 +16,7 @@ def mark_open(path: str, action: str = "open"):
     try:
         with _ORIG_OPEN(FILE_LOG, "a", encoding="utf-8") as file_handle:
             file_handle.write(entry)
-    except Exception:
+    except OSError:
         pass
 
 
@@ -32,8 +32,8 @@ def safe_file(*args, **kwargs):
     finally:
         try:
             file_handle.close()
-        except Exception as exc:
-            print(f"Error closing file {path}: {exc}")
+        except OSError:
+            pass
 
 
 def safe_write(fd, data):
