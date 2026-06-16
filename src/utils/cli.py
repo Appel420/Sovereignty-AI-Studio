@@ -1,16 +1,16 @@
-from subs2cia.sources import AVSFile
-from subs2cia.pickers import picker
-from subs2cia.sources import Stream, get_and_partition_streams
-import subs2cia.subtools as subtools
-from subs2cia.ffmpeg_tools import export_condensed_audio, export_condensed_video
+"""Utility CLI for subtitle/audio stream condensing."""
 
-from typing import List, Union, Dict
 from collections import defaultdict
 from pathlib import Path
 from pprint import pprint
-import pysubs2 as ps2
-
+from typing import Dict, List, Union
 import logging
+
+import pysubs2 as ps2
+from subs2cia.ffmpeg_tools import export_condensed_audio, export_condensed_video
+from subs2cia.pickers import picker
+from subs2cia.sources import AVSFile, Stream, get_and_partition_streams
+import subs2cia.subtools as subtools
 
 
 def picked_sources_are_insufficient(d: dict):
@@ -47,9 +47,9 @@ def chapter_timestamps(sourcefile: AVSFile, ignore_chapters: List[str]):
     for title in ignore_chapters:
         if title in chapters_by_title:
             chapter = chapters_by_title[title]
-            timestamps.append([('', 1000 * int(float((chapter['start_time'])))), ('', 1000 * int(float(chapter['end_time'])))])
+            timestamps.append([('', 1000 * int(float(chapter['start_time']))), ('', 1000 * int(float(chapter['end_time'])) )])
         else:
-            logging.warning(f"Chapter '{title}' was specified to be ignored, but it was not found")
+            logging.warning("Chapter '%s' was specified to be ignored, but it was not found", title)
 
     return timestamps
 
@@ -135,39 +135,18 @@ class Common:
         self.out_videoext = '.mp4'
         self.out_audiocodec = out_audiocodec
 
-
         self.use_all_subs = use_all_subs
         self.subtitle_regex_filter = subtitle_regex_filter
-        # self.subtitle_regex_substrfilter = subtitle_regex_substrfilter
-        # self.subtitle_regex_substrfilter_nokeep = subtitle_regex_substrfilter_nokeep
         self.audio_stream_index = audio_stream_index
         self.subtitle_stream_index = subtitle_stream_index
-        # todo: verify ignore_range, make sure start is after end
         self.ignore_range = ignore_range
         self.ignore_chapters = ignore_chapters
 
         self.insufficient = False
-
         self.interactive = interactive
 
-    # go through source files and count how many subtitle and audio streams we have
     def get_and_partition_streams(self):
         self.partitioned_streams = get_and_partition_streams(self.sources)
-        # for sourcefile in self.sources:
-        #     if sourcefile.type == 'video':
-        #         # dig into streams
-        #         for idx, stream_info in enumerate(sourcefile.info['streams']):
-        #             stype = stream_info['codec_type']
-        #             self.partitioned_streams[stype].append(Stream(file=sourcefile, type=stype,
-        #                                                           index=idx, stream_info=stream_info))
-        #         continue
-        #     self.partitioned_streams[sourcefile.type].append(Stream(file=sourcefile, type=sourcefile.type,
-        #                                                             stream_info=sourcefile.info,
-        #                                                             index=None))
-        #     # for stream in sourcefile
-        # for k in self.partitioned_streams:
-        #     logging.info(f"Found {len(self.partitioned_streams[k])} {k} input streams")
-        #     # logging.debug(f"Streams found: {self.partitioned_streams[k]}")
 
     def initialize_pickers(self):
         for k in self.pickers:
@@ -201,7 +180,7 @@ class Common:
                 print(desc_str)
             print("")
 
-        print(f"Available chapters:")
+        print("Available chapters:")
         for source in self.sources:
             if source.type != 'video':
                 continue
@@ -209,7 +188,6 @@ class Common:
                 continue
             chapters = source.info['chapters']
             chapters_by_title = {c['tags']['title']: c for c in chapters}
-            # pprint(chapters_by_title)
             for k in chapters_by_title:
                 start = ps2.time.ms_to_str(float(chapters_by_title[k]['start_time']) * 1000)
                 end = ps2.time.ms_to_str(float(chapters_by_title[k]['end_time']) * 1000)
@@ -217,20 +195,10 @@ class Common:
         print("\n")
 
     def choose_audio(self, interactive: bool):
-        r"""
-        Picks an audio stream to use. If there are multiple audio streams, prioritizes the following:
-            * CLI-specified stream index
-            * target language
-            * order of appearance
-        :param interactive: if true, prompts user about which audio stream to use
-        :return:
-        """
+        r"""Picks an audio stream to use."""
         if len(self.partitioned_streams['audio']) == 0:
-            logging.warning(f"Couldn't find audio streams in input files")
+            logging.warning("Couldn't find audio streams in input files")
             return
-        # if interactive and len(self.partitioned_streams['audio']) > 1:
-        #     while self.picked_streams['audio'] is None:
-        #         self.picked_streams['audio'] = interactive_picker(self.sources, self.partitioned_streams, 'audio')
 
         k = 'audio'
         while self.picked_streams[k] is None:
@@ -239,26 +207,23 @@ class Common:
             else:
                 try:
                     self.picked_streams[k] = next(self.pickers[k])
-                except StopIteration as s:
+                except StopIteration:
                     logging.critical("Inputs don't contain usable audio")
                     self.insufficient = True
                     return
             afile = self.picked_streams[k].demux(overwrite_existing=self.demux_overwrite_existing)
             if afile is None:
-                logging.warning(f"Error while demuxing {self.picked_streams[k]}")
+                logging.warning("Error while demuxing %s", self.picked_streams[k])
                 self.picked_streams[k] = None
 
     def choose_subtitle(self, interactive: bool):
-        # pass
         raise NotImplementedError("Child classes must implement choose_subtitles")
 
     def choose_video(self, interactive: bool):
         if len(self.partitioned_streams['video']) == 0:
-            logging.info(f"Couldn't find video streams in input files")
+            logging.info("Couldn't find video streams in input files")
             return
-        # if interactive and len(self.partitioned_streams['video']) > 1:
-        #     self.picked_streams['video'] = interactive_picker(self.sources, self.partitioned_streams, 'video')
-        #     return
+
         k = 'video'
         while self.picked_streams[k] is None:
             if interactive and len(self.partitioned_streams['video']) > 1:
@@ -266,100 +231,89 @@ class Common:
             else:
                 try:
                     self.picked_streams[k] = next(self.pickers[k])
-                except StopIteration as s:
+                except StopIteration:
                     logging.critical("Inputs don't contain usable audio")
                     self.insufficient = True
                     return
-            # afile = self.picked_streams[k].demux(overwrite_existing=self.demux_overwrite_existing)
-            # if afile is None:
-            #     logging.warning(f"Error while demuxing {self.picked_streams[k]}")
-            #     self.picked_streams[k] = None
 
     def choose_streams(self):
         if insufficient_source_streams(self.partitioned_streams):
-            logging.error(f"Not enough input sources to generate condensed output for output stem {self.outstem} "
-                          f"(missing audio and/or subtitles)")
+            logging.error("Not enough input sources to generate condensed output for output stem %s (missing audio and/or subtitles)", self.outstem)
             self.insufficient = True
             return
         self.choose_audio(interactive=self.interactive)
         self.choose_subtitle(interactive=self.interactive)
         self.choose_video(interactive=self.interactive)
 
-        logging.info(f"Picked audio stream:    {self.picked_streams['audio']}")
-        logging.info(f"Picked subtitle stream: {self.picked_streams['subtitle']}")
-        logging.info(f"Picked video stream:    {self.picked_streams['video']}")
+        logging.info("Picked audio stream:    %s", self.picked_streams['audio'])
+        logging.info("Picked subtitle stream: %s", self.picked_streams['subtitle'])
+        logging.info("Picked video stream:    %s", self.picked_streams['video'])
 
     def choose_streams_old(self):
         if insufficient_source_streams(self.partitioned_streams):
-            logging.error(f"Not enough input sources to generate condensed output for output stem {self.outstem}")
+            logging.error("Not enough input sources to generate condensed output for output stem %s", self.outstem)
             self.insufficient = True
             return
         while picked_sources_are_insufficient(self.picked_streams):
             for k in ['audio', 'video', 'subtitle']:
                 if len(self.partitioned_streams[k]) == 0:
-                    logging.debug(f"no input streams of type {k}")
+                    logging.debug("no input streams of type %s", k)
                     continue
                 if self.picked_streams[k] is None:
                     try:
                         self.picked_streams[k] = next(self.pickers[k])
-                    except StopIteration as s:
-                        logging.critical("Input streams for this input group are invalid for condensing "
-                                         "(missing audio or subtitles)")
+                    except StopIteration:
+                        logging.critical("Input streams for this input group are invalid for condensing (missing audio or subtitles)")
                         self.insufficient = True
                         return
             for k in ['audio', 'subtitle', 'video']:
-                # validate picked streams
-
-
                 if k == 'audio':
                     afile = self.picked_streams[k].demux(overwrite_existing=self.demux_overwrite_existing)
                     if afile is None:
                         self.picked_streams[k] = None
 
-                # todo: maybe move this back into Condense, split/threshold is a cia thing, not a srs thing,
-                #  or have seperate functions for video, audio, and subtitles
                 if k == 'subtitle':
-                    subfile = self.picked_streams[k].demux(
-                        overwrite_existing=self.demux_overwrite_existing)  # type AVSFile
+                    subfile = self.picked_streams[k].demux(overwrite_existing=self.demux_overwrite_existing)
                     if subfile is None:
                         self.picked_streams[k] = None
                         continue
-                    # times = subtools.load_subtitle_times(subfile.filepath, include_all_lines=self.use_all_subs)
-                    audiolength = subtools.get_audiofile_duration(
-                        self.picked_streams['audio'].demux_file.filepath)
-                    subdata = subtools.SubtitleManipulator(subfile.filepath,
-                                                           threshold=self.threshold, padding=self.padding,
-                                                           ignore_range=self.ignore_range, audio_length=audiolength)
+                    audiolength = subtools.get_audiofile_duration(self.picked_streams['audio'].demux_file.filepath)
+                    subdata = subtools.SubtitleManipulator(
+                        subfile.filepath,
+                        threshold=self.threshold,
+                        padding=self.padding,
+                        ignore_range=self.ignore_range,
+                        audio_length=audiolength,
+                    )
                     subdata.load(include_all=self.use_all_subs, regex=self.subtitle_regex_filter)
                     if subdata.ssadata is None:
                         self.picked_streams[k] = None
                         continue
                     if self.picked_streams['audio'] is None:
-                        # can't verify subtitle validity until audio candidate is found
                         continue
-                    # times = subtools.merge_times(times, threshold=self.threshold, padding=self.padding)
                     subdata.merge_groups()
                     times = subdata.get_times()
                     ps_times = subtools.partition_and_split(times, self.partition, self.split)
-
                     sublength = subtools.get_partitioned_and_split_times_duration(ps_times)
-
                     compression_ratio = sublength / audiolength
                     if compression_ratio < self.minimum_compression_ratio:
-                        logging.info(f"got compression ratio of {compression_ratio}, which is smaller than the minimum"
-                                     f" ratio of {self.minimum_compression_ratio}, retrying wth different subtitle "
-                                     f"file. If too many subtitles are being ignored, try -ni or -R. If the minimum "
-                                     f"ratio is too high, try -c.")
+                        logging.info(
+                            "got compression ratio of %s, which is smaller than the minimum ratio of %s, retrying with different subtitle file. If too many subtitles are being ignored, try -ni or -R. If the minimum ratio is too high, try -c.",
+                            compression_ratio,
+                            self.minimum_compression_ratio,
+                        )
                         self.picked_streams[k] = None
                         continue
-                    self.dialogue_times = subtools.partition_and_split(sub_times=times,
-                                                                       partition_size=1000 * self.partition,
-                                                                       split_size=1000 * self.split)
+                    self.dialogue_times = subtools.partition_and_split(
+                        sub_times=times,
+                        partition_size=1000 * self.partition,
+                        split_size=1000 * self.split,
+                    )
                 if k == 'video':
                     pass
-        logging.info(f"Picked {self.picked_streams['audio']} to use for condensing")
-        logging.info(f"Picked {self.picked_streams['video']} to use for condensing")
-        logging.info(f"Picked {self.picked_streams['subtitle']} to use for condensing")
+        logging.info("Picked %s to use for condensing", self.picked_streams['audio'])
+        logging.info("Picked %s to use for condensing", self.picked_streams['video'])
+        logging.info("Picked %s to use for condensing", self.picked_streams['subtitle'])
 
     def cleanup(self):
         if self.keep_temporaries:
