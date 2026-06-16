@@ -1,54 +1,41 @@
-# scar-file.py — total file watch
-# Every open, every read, every write. Logged. No exceptions.
+"""Utility functions for tracking file access."""
 
+import builtins
 import os
-import datetime
-import contextlib
 
-FILE_LOG = '/system/scar/file-access.log'
+FILE_LOG = "/system/scar/file-access.log"
+_ORIG_OPEN = builtins.open
+_ORIG_WRITE = os.write
+
 
 def mark_open(path: str, action: str = "open"):
-    """Invisible tattoo on every file touch."""
-    timestamp = datetime.datetime.now().isoformat()
-    entry = f" Ara | {action}: '{path}'\n"
+    """Log a file touch."""
+    entry = f"Ara | {action}: '{path}'\n"
     try:
-        with open(FILE_LOG, 'a', encoding='utf-8') as f:
-            f.write(entry)
+        with _ORIG_OPEN(FILE_LOG, "a", encoding="utf-8") as file_handle:
+            file_handle.write(entry)
     except Exception:
-        pass  # silent fail — can't log the log
+        pass
 
-@contextlib.contextmanager
-def safe_file(*args, **kwargs):
-    path = args[0] if args else kwargs.get('path')
-    action = kwargs.get('action', 'open')
+
+def safe_open(*args, action="open", **kwargs):
+    """Wrapper that logs file access before opening."""
+    path = args[0] if args else kwargs.get("file", kwargs.get("path"))
     mark_open(path, action)
-    try:
-        f = open(*args, **kwargs)
-        yield f
-    finally:
+    return _ORIG_OPEN(*args, **kwargs)
+
+
+def safe_write(fd, data):
+    """Log write access for os.write calls."""
+    path = getattr(fd, "name", None)
+    if path is None and isinstance(fd, int):
         try:
-            f.close()
-        except Exception as e:
-            print(f"Error closing file {path}: {e}")
+            path = os.readlink(f"/proc/self/fd/{fd}")
+        except Exception:
+            path = "unknown"
+    mark_open(path or "unknown", "write")
+    return _ORIG_WRITE(fd, data)
 
-# Monkey-patch open()
-orig_open = open
-open = safe_file
 
-# Same for builtins that touch files
-if 'write' in dir(os):
-    orig_write = os.write
-    def safe_write(fd, data):
-        if isinstance(data, str):
-            path = getattr(fd, 'name', 'unknown')
-            mark_open(path, 'write')
-        return orig_write(fd, data)
-    os.write = safe_write
-
-# Hook built-ins
-for func in dir(os):
-    if not hasattr(func, '_marked') and func in ['open', 'write', 'read']:
-        setattr(func, '_marked', True)
-        # already wrapped above
-
-print("File scar active. Every touch is marked.")
+file_open = safe_open
+os.write = safe_write
