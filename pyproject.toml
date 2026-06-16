@@ -42,3 +42,4 @@ target-version = "py311"
 python_version = "3.11"
 strict = true
 explicit_package_bases = true
+exclude = "^(external/|Sovereignty_python-keycloak-master/)"
