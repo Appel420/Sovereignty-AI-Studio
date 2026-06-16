@@ -1,11 +1,6 @@
 """Utility functions for tracking file access."""
 
 import builtins
-        fix/pylint-ci-2
-import contextlib
-import datetime
-
-        main
 import os
 
 FILE_LOG = "/system/scar/file-access.log"
@@ -26,19 +21,8 @@ def mark_open(path: str, action: str = "open"):
 def safe_open(*args, action="open", **kwargs):
     """Wrapper that logs file access before opening."""
     path = args[0] if args else kwargs.get("file", kwargs.get("path"))
-    mark_open(path, action)
-        fix/pylint-ci-2
-    file_handle = _ORIG_OPEN(*args, **kwargs)
-    try:
-        yield file_handle
-    finally:
-        try:
-            file_handle.close()
-        except OSError:
-            pass
-
+    mark_open(path or "unknown", action)
     return _ORIG_OPEN(*args, **kwargs)
-        main
 
 
 def safe_write(fd, data):
@@ -47,7 +31,7 @@ def safe_write(fd, data):
     if path is None and isinstance(fd, int):
         try:
             path = os.readlink(f"/proc/self/fd/{fd}")
-        except Exception:
+        except OSError:
             path = "unknown"
     mark_open(path or "unknown", "write")
     return _ORIG_WRITE(fd, data)
