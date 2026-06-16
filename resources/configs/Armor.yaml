@@ -1,171 +1,172 @@
-# Ai sees users screen on device and interacts with dictation AI Screen Interaction Hub
-# HA Helm Values with Pod Disruption Budgets & Topology Spread
-#
-# This High Availability (HA) production values file enhances resilience by adding:
-#   1. Pod Disruption Budgets (PDBs) to maintain minimum availability during upgrades or node failures
-#   2. Topology Spread Constraints to evenly distribute pods across nodes and zones
-#
-# Create values-ha.yaml:
----
+```yaml
+version: "3.9"
 
-environment: production
+x-healthcheck: &default-healthcheck
+  test: ["CMD", "curl", "-f", "http://localhost:health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
 
-# Global Ingress
-ingress:
-  enabled: true
-  host: ai-prod.example.com
-  tls:
-    enabled: true
-    secretName: ai-gateway-tls
+x-restart: &default-restart
+  restart: unless-stopped
 
-# Node Scheduling Preferences
-nodeSelector:
-  kubernetes.io/os: linux
-tolerations:
-  - key: "workload-type"
-    operator: "Equal"
-    value: "ai"
-    effect: "NoSchedule"
+services:
+  python-backend:
+    build: ./python-backend
+    container_name: python-backend
+    ports:
+      - "9897:9897"
+    environment:
+      - FRONTEND_HOST=koder-frontend
+      - FRONTEND_PORT=9898
+      - CRYPTOKEYPATH=/secrets/crypto_key
+    volumes:
+      - ./secrets:/secrets
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-affinity:
-  nodeAffinity:
-    preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 50
-        preference:
-          matchExpressions:
-            - key: node-role.kubernetes.io/ai-node
-              operator: In
-              values:
-                - "true"
+  koder-frontend:
+    build: ./koder-frontend
+    container_name: koder-frontend
+    ports:
+      - "9898:9898"
+    depends_on:
+      - python-backend
+    environment:
+      - INTERNALBACKENDHOST=python-backend
+      - INTERNALBACKENDPORT=9897
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Global Topology Spread to distribute pods across nodes
-# This ensures pods are spread across availability zones if labeled
-podTopologySpreadConstraints:
-  - maxSkew: 1
-    topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: DoNotSchedule
-    labelSelector:
-      matchLabels:
-        app-group: ai-hub
+  node-external-backend:
+    build: ./node-backend
+    container_name: node-external-backend
+    ports:
+      - "9899:9899"
+    depends_on:
+      - koder-frontend
+    environment:
+      - FRONTENDBRIDGEHOST=koder-frontend
+      - FRONTENDBRIDGEPORT=9898
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Pod Disruption Budgets
-podDisruptionBudgets:
-  gateway:
-    minAvailable: 2
-  audioService:
-    minAvailable: 1
-  screenService:
-    minAvailable: 1
-  commandService:
-    minAvailable: 1
+  redis:
+    image: redis:7
+    container_name: redis
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Gateway Service
-gateway:
-  replicaCount: 3
-  image:
-    repository: registry.example.com/ai-gateway
-    tag: v1.3.0
-  resources:
-    requests:
-      cpu: 500m
-      memory: 512Mi
-    limits:
-      cpu: 1
-      memory: 1Gi
-  hpa:
-    enabled: true
-    minReplicas: 3
-    maxReplicas: 10
-    cpuAverageUtilization: 60
-    memoryAverageUtilization: 70
+  vlm-service-1:
+    build: ./vlm-service-1
+    container_name: vlm-service-1
+    environment:
+      - MODEL_PATH=/models/vlm1
+      - FRONTEND_HOST=koder-frontend
+      - FRONTEND_PORT=9898
+    volumes:
+      - ./models/vlm1:/models/vlm1
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Audio Service
-audioService:
-  replicaCount: 2
-  image:
-    repository: registry.example.com/ai-audio-service
-    tag: v1.3.0
-  resources:
-    requests:
-      cpu: 300m
-      memory: 384Mi
-    limits:
-      cpu: 600m
-      memory: 768Mi
-  hpa:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 8
-    cpuAverageUtilization: 65
-    memoryAverageUtilization: 75
+  vlm-service-2:
+    build: ./vlm-service-2
+    container_name: vlm-service-2
+    environment:
+      - MODEL_PATH=/models/vlm2
+      - FRONTEND_HOST=koder-frontend
+      - FRONTEND_PORT=9898
+    volumes:
+      - ./models/vlm2:/models/vlm2
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Screen Service
-screenService:
-  replicaCount: 2
-  image:
-    repository: registry.example.com/ai-screen-service
-    tag: v1.3.0
-  resources:
-    requests:
-      cpu: 400m
-      memory: 512Mi
-    limits:
-      cpu: 800m
-      memory: 1Gi
-  hpa:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 6
-    cpuAverageUtilization: 60
-    memoryAverageUtilization: 70
+  sovereign-tls-proxy:
+    image: nginx:alpine
+    container_name: sovereign-tls-proxy
+    depends_on:
+      - python-backend
+      - koder-frontend
+    ports:
+      - "443:443"
+    volumes:
+      - ./pki/certs:/etc/ssl/private:ro
+      - ./pki/nginx/conf.d:/etc/nginx/conf.d:ro
+    environment:
+      - PKI_MODE=ghost
+      - CIPHERSUITE=TLSAES256GCM_SHA384
+      - CURVES=X25519:Ed25519
+      - CERT_TYPE=X.509
+      - KEY_ENCRYPTION=AES-256
+      - ENCLAVE_MODE=enabled
+      - AUTOCERTGEN=ED25519
+    command: ["/bin/sh", "-c", "sovereign-ts-proxy --cli --pki-mode $PKI_MODE"]
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Command Service
-commandService:
-  replicaCount: 2
-  image:
-    repository: registry.example.com/ai-command-service
-    tag: v1.3.0
-  resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
-  hpa:
-    enabled: true
-    minReplicas: 2
-    maxReplicas: 6
-    cpuAverageUtilization: 55
-    memoryAverageUtilization: 65
+  pki-fastapi:
+    build: ./pki-fastapi
+    container_name: pki-fastapi
+    ports:
+      - "8443:8443"
+    environment:
+      - PKI_MODE=ghost
+      - SECURE_ENCLAVE=true
+      - CERTGENALGO=ED25519
+    healthcheck: *default-healthcheck
+    <<: *default-restart
+    networks:
+      - localnet
 
-# Redis with Persistence
-redis:
-  image: redis:7
-  persistence:
-    enabled: true
-    size: 5Gi
-  resources:
-    requests:
-      cpu: 200m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
+networks:
+  localnet:
+    driver: bridge
 
----
-# 1. Pod Disruption Budgets (PDB)
-#   - Gateway requires 2 pods always available
-#   - Other services require 1 pod always available
-#   - Prevents the cluster from evicting all pods during updates or maintenance
-#
-# 2. Topology Spread Constraints
-#   - Ensures pods are distributed across zones or labeled nodes
-#   - Reduces the risk of a single zone failure impacting availability
-#
-# 3. Deployment
-# Apply advanced HA values:
-#   helm upgrade --install ai-screen-hub ./helm/ai-screen-hub -f values-ha.yaml
-#
-# This configuration ensures high availability, resilience during upgrades,
-# and zone-aware pod distribution.
+volumes:
+  redis-data:
+
+profiles:
+  dev:
+    services:
+      - python-backend
+      - koder-frontend
+      - node-external-backend
+      - redis
+      - vlm-service-1
+      - vlm-service-2
+
+  prod:
+    services:
+      - python-backend
+      - koder-frontend
+      - node-external-backend
+      - redis
+      - vlm-service-1
+      - vlm-service-2
+      - sovereign-tls-proxy
+      - pki-fastapi
+```
