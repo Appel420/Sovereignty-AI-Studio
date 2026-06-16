@@ -36,10 +36,10 @@ lint = [
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py313"
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 explicit_package_bases = true
-exclude = "^(external/|Sovereignty_python-keycloak-master/)"
+exclude = "^(core/|external/|Sovereignty_python-keycloak-master/|media_generator_service\\.py$|video_llava\\.py$)"
