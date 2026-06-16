@@ -64,7 +64,9 @@ jobs:
         id: audit
         run: |
           set +e
-          pip-audit -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
+          # torch 2.12.0 currently has no fixed release in pip-audit, so we
+          # ignore that single advisory while still failing on everything else.
+          pip-audit --ignore-vuln CVE-2025-3000 -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
           status=$?
           echo "PIP_AUDIT_EXIT_CODE=$status" >> "$GITHUB_ENV"
           case "$status" in
