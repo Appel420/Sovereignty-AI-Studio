@@ -1,0 +1,10 @@
+[MASTER]
+ignore=external,Sovereignty_python-keycloak-master
+jobs=0
+persistent=no
+
+[MESSAGES CONTROL]
+disable=duplicate-code
+
+[FORMAT]
+max-line-length=120
