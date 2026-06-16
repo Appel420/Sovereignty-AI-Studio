@@ -62,7 +62,7 @@ async def get_weather():
         
         return jsonify(weather_data)
     
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         return jsonify({'error': 'City not found or API error'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -112,7 +112,7 @@ async def get_forecast():
         
         return jsonify(forecast_list)
     
-    except requests.exceptions.HTTPError as e:
+    except requests.exceptions.HTTPError:
         return jsonify({'error': 'City not found or API error'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
