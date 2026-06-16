@@ -14,14 +14,14 @@ def mark_open(path: str, action: str = "open"):
     try:
         with _ORIG_OPEN(FILE_LOG, "a", encoding="utf-8") as file_handle:
             file_handle.write(entry)
-    except Exception:
+    except OSError:
         pass
 
 
 def safe_open(*args, action="open", **kwargs):
     """Wrapper that logs file access before opening."""
     path = args[0] if args else kwargs.get("file", kwargs.get("path"))
-    mark_open(path, action)
+    mark_open(path or "unknown", action)
     return _ORIG_OPEN(*args, **kwargs)
 
 
@@ -31,7 +31,7 @@ def safe_write(fd, data):
     if path is None and isinstance(fd, int):
         try:
             path = os.readlink(f"/proc/self/fd/{fd}")
-        except Exception:
+        except OSError:
             path = "unknown"
     mark_open(path or "unknown", "write")
     return _ORIG_WRITE(fd, data)
