@@ -26,7 +26,6 @@ struct CodeBlockView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Header with smart copy button
             HStack {
                 Text(language.uppercased())
                     .font(.caption.bold())
@@ -52,13 +51,12 @@ struct CodeBlockView: View {
             
             Divider()
             
-            // Search
             HStack {
                 Image(systemName: "magnifyingglass")
                 TextField("Search code...", text: $searchText)
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
-                    Button("Clear") { searchText = "" }
+                    Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill") }
                 }
             }
             .padding(.horizontal, 12)
@@ -68,7 +66,6 @@ struct CodeBlockView: View {
             
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
-                    // Fixed Line Numbers
                     VStack(alignment: .trailing, spacing: 0) {
                         ForEach(filteredLines, id: \.index) { item in
                             Button {
@@ -87,7 +84,6 @@ struct CodeBlockView: View {
                     }
                     .background(Color(.secondarySystemBackground).opacity(0.6))
                     
-                    // Horizontally scrollable highlighted code
                     ScrollView(.horizontal) {
                         VStack(alignment: .leading, spacing: 0) {
                             ForEach(filteredLines, id: \.index) { item in
@@ -112,6 +108,5 @@ struct CodeBlockView: View {
             ? configuration.content 
             : filteredLines.map { $0.line }.joined(separator: "\n")
         UIPasteboard.general.string = text
-        // Toast logic would go here
     }
 }
