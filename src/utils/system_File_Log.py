@@ -1,9 +1,7 @@
 """Utility functions for tracking file access."""
 
-import contextlib
-import datetime
-import os
 import builtins
+import os
 
 FILE_LOG = "/system/scar/file-access.log"
 _ORIG_OPEN = builtins.open
@@ -20,29 +18,24 @@ def mark_open(path: str, action: str = "open"):
         pass
 
 
-@contextlib.contextmanager
-def safe_file(*args, **kwargs):
-    """Context manager that logs file access before opening."""
-    path = args[0] if args else kwargs.get("path")
-    action = kwargs.get("action", "open")
+def safe_open(*args, action="open", **kwargs):
+    """Wrapper that logs file access before opening."""
+    path = args[0] if args else kwargs.get("file", kwargs.get("path"))
     mark_open(path, action)
-    file_handle = _ORIG_OPEN(*args, **kwargs)
-    try:
-        yield file_handle
-    finally:
-        try:
-            file_handle.close()
-        except Exception as exc:
-            print(f"Error closing file {path}: {exc}")
+    return _ORIG_OPEN(*args, **kwargs)
 
 
 def safe_write(fd, data):
     """Log write access for os.write calls."""
-    if isinstance(data, str):
-        path = getattr(fd, "name", "unknown")
-        mark_open(path, "write")
+    path = getattr(fd, "name", None)
+    if path is None and isinstance(fd, int):
+        try:
+            path = os.readlink(f"/proc/self/fd/{fd}")
+        except Exception:
+            path = "unknown"
+    mark_open(path or "unknown", "write")
     return _ORIG_WRITE(fd, data)
 
 
-open = safe_file
+file_open = safe_open
 os.write = safe_write

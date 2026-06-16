@@ -26,6 +26,7 @@ class LLMTruthProbe:
     def __init__(self):
         # load pre-quantized classifier (onnx/int8 later)
         self.clf = LogisticRegression()
+        self.clf.fit(np.array([[-1.0], [1.0]]), np.array([0, 1]))
         self.threshold = 0.7
 
     def extract_logprobs(self, answer, tokenizer):
@@ -40,7 +41,8 @@ class LLMTruthProbe:
 
     def run(self, model_fn, tokenizer):
         responses = []
-        for q in np.random.choice(PROBES, 20, replace=False):
+        sample_size = min(20, len(PROBES))
+        for q in np.random.choice(PROBES, sample_size, replace=False):
             resp = model_fn(q)  # call LLM: "answer with yes or no"
             lp_diff = self.extract_logprobs(resp, tokenizer)
             responses.append(lp_diff)
@@ -68,5 +70,6 @@ def run(probe_list=PROBES):
     return False
 
 
-if run():
-    sys.exit(0)
+if __name__ == "__main__":
+    if run():
+        sys.exit(0)
