@@ -2,12 +2,10 @@
 
 from collections import defaultdict
 from pathlib import Path
-from pprint import pprint
 from typing import Dict, List, Union
 import logging
 
 import pysubs2 as ps2
-from subs2cia.ffmpeg_tools import export_condensed_audio, export_condensed_video
 from subs2cia.pickers import picker
 from subs2cia.sources import AVSFile, Stream, get_and_partition_streams
 import subs2cia.subtools as subtools
@@ -47,7 +45,7 @@ def chapter_timestamps(sourcefile: AVSFile, ignore_chapters: List[str]):
     for title in ignore_chapters:
         if title in chapters_by_title:
             chapter = chapters_by_title[title]
-            timestamps.append([('', 1000 * int(float(chapter['start_time']))), ('', 1000 * int(float(chapter['end_time'])) )])
+            timestamps.append([('', 1000 * int(float(chapter['start_time']))), ('', 1000 * int(float(chapter['end_time'])))])
         else:
             logging.warning("Chapter '%s' was specified to be ignored, but it was not found", title)
 

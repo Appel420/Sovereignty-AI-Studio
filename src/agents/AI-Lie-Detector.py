@@ -25,6 +25,7 @@ class LLMTruthProbe:
 
     def __init__(self):
         self.clf = LogisticRegression()
+        self.clf.fit(np.array([[-1.0], [1.0]]), np.array([0, 1]))
         self.threshold = 0.7
 
     def extract_logprobs(self, answer, tokenizer):
@@ -38,8 +39,14 @@ class LLMTruthProbe:
     def run(self, model_fn, tokenizer):
         """Run the probe set and return a boolean decision."""
         responses = []
+        fix/pylint-ci-2
         for q in np.random.choice(PROBES, 20, replace=False):
             resp = model_fn(q)
+
+        sample_size = min(20, len(PROBES))
+        for q in np.random.choice(PROBES, sample_size, replace=False):
+            resp = model_fn(q)  # call LLM: "answer with yes or no"
+        main
             lp_diff = self.extract_logprobs(resp, tokenizer)
             responses.append(lp_diff)
         score = self.clf.predict_proba(np.array(responses).reshape(-1, 1))[0][1]
@@ -68,5 +75,6 @@ def run(probe_list=None):
     return False
 
 
-if run():
-    sys.exit(0)
+if __name__ == "__main__":
+    if run():
+        sys.exit(0)
