@@ -1,3 +1,4 @@
+FORBIDDEN_WORD_AUDIT_HTML = r"""
 # 🌟 Forbidden Word Enforcement System - Audit Report 🌟
 
  <style>
@@ -345,3 +346,12 @@
 
  Certification
  🕮 Audit Compliant – Wax Seal ￼
+"""
+
+
+def render() -> str:
+   return FORBIDDEN_WORD_AUDIT_HTML
+
+
+if __name__ == "__main__":
+   print(FORBIDDEN_WORD_AUDIT_HTML)
