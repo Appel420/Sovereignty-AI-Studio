@@ -6,8 +6,8 @@
 argon2-cffi==25.1.0
 bcrypt==4.1.3
 blake3==1.0.7
-cryptography==46.0.7
-pyjwt==2.12.0
+cryptography==48.0.1
+pyjwt==2.13.0
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 
@@ -35,12 +35,11 @@ quart==0.20.0
 Flask==3.1.3
 
 # ── Auth / Security ────────────────────────────────────────────────────────────
-python-multipart==0.0.27
+python-multipart==0.0.32
 
 # ── AI / Inference (local only) ────────────────────────────────────────────────
 numpy==1.26.4
 torch==2.12.0
-# torch 2.12.0 is the first pinned release in this repo that clears current pip-audit advisories
 pennylane==0.44.1
 
 # ── Voice / TTS / STT (self-hosted) ───────────────────────────────────────────
@@ -70,7 +69,7 @@ pytest-asyncio>=0.24.0
 # python-keycloak is included in Sovereignty_python-keycloak-master/
 
 # ── Multi-agent & observability ──────────────────────────────────────────────
-aiohttp==3.13.5
+aiohttp==3.14.1
 email-validator==2.3.0
 
 # ── Extended / Experimental packages ────────────────────────────────────────

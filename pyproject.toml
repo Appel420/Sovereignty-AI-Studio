@@ -1,0 +1,45 @@
+[project]
+name = "sovereignty-ai-studio"
+version = "0.1.0"
+description = "Sovereign AI infrastructure and tools"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "quart>=0.20.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.2.1",
+    "email-validator>=2.3.0",
+    "cryptography>=43.0.0",
+    "blake3>=0.4.1",
+    "argon2-cffi>=23.1.0",
+    "python-jose[cryptography]>=3.5.0",
+    "passlib[bcrypt]>=1.7.4",
+    "SQLAlchemy>=2.0.29",
+    "redis>=7.4.0",
+    "requests>=2.33.0",
+]
+
+[project.optional-dependencies]
+pqc = [
+    "oqs>=0.10.0",  # Post-quantum (Dilithium, Kyber, etc.)
+]
+test = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+]
+lint = [
+    "ruff>=0.6.0",
+    "mypy>=1.11.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+explicit_package_bases = true
+exclude = "^(bridge/|core/|external/|Sovereignty_python-keycloak-master/|python3_bridge\\.py$|scripts/|sovereign-bridge/|sovereign_core/|sovereignty_ai/|media_generator_service\\.py$|video_llava\\.py$)"
