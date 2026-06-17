@@ -38,50 +38,52 @@ jobs:
 
       - name: GateOne ML-DSA-87 Attestation (iOS Build Context)
         run: |
-          python -c "
-          import json, time, oqs, os
-          from sovereign.pqc_signatures import MLDSASigner
+          python3 <<'PY'
+import json
+import time
+import os
+import requests
+from sovereign.pqc_signatures import MLDSASigner
 
-          PRIMARY = 'ML-DSA-87'
-          FALLBACK = 'ML-DSA-65'
+PRIMARY = 'ML-DSA-87'
+FALLBACK = 'ML-DSA-65'
 
-          payload = {
-              'node_id': 'ios-build-${{ github.run_id }}',
-              'nonce': str(int(time.time())),
-              'timestamp': int(time.time()),
-              'build_ref': '${{ github.sha }}',
-              'l6_level': 'Environmental',
-              'platform': 'iOS'
-          }
+payload = {
+    'node_id': 'ios-build-${{ github.run_id }}',
+    'nonce': str(int(time.time())),
+    'timestamp': int(time.time()),
+    'build_ref': '${{ github.sha }}',
+    'l6_level': 'Environmental',
+    'platform': 'iOS'
+}
 
-          signer = MLDSASigner(algorithm=PRIMARY)
-          pub, sec = signer.load_or_create_keypair()
-          message = json.dumps(payload, sort_keys=True).encode()
-          signature = signer.sign(message)
+signer = MLDSASigner(algorithm=PRIMARY)
+pub, sec = signer.load_or_create_keypair()
+message = json.dumps(payload, sort_keys=True).encode()
+signature = signer.sign(message)
 
-          token = {
-              'payload': payload,
-              'signature': signature.hex(),
-              'public_key': pub.hex(),
-              'algorithm': PRIMARY
-          }
+token = {
+    'payload': payload,
+    'signature': signature.hex(),
+    'public_key': pub.hex(),
+    'algorithm': PRIMARY
+}
 
-          print('iOS ML-DSA-87 attestation token generated')
-          print(json.dumps(token, indent=2))
+print('iOS ML-DSA-87 attestation token generated')
+print(json.dumps(token, indent=2))
 
-          verified = signer.verify(message, signature)
-          print(f'Local verification: {verified}')
-          assert verified is True
+verified = signer.verify(message, signature)
+print(f'Local verification: {verified}')
+assert verified is True
 
-          verifier_url = os.environ.get('GATEONE_VERIFIER_URL', '')
-          if verifier_url and verifier_url.startswith('http'):
-              import requests
-              try:
-                  r = requests.post(verifier_url, json={'attestation_token': json.dumps(token), 'max_age_seconds': 300}, timeout=10)
-                  print('GateOne response:', r.json())
-              except Exception as e:
-                  print('GateOne optional call:', e)
-          "
+verifier_url = os.environ.get('GATEONE_VERIFIER_URL', '')
+if verifier_url and verifier_url.startswith('http'):
+    try:
+        r = requests.post(verifier_url, json={'attestation_token': json.dumps(token), 'max_age_seconds': 300}, timeout=10)
+        print('GateOne response:', r.json())
+    except Exception as e:
+        print('GateOne optional call:', e)
+PY
 
   # =========================================================
   # XCODEGEN + BUILD + PQC MANIFEST SIGNING
@@ -103,32 +105,33 @@ jobs:
 
       - name: Create PQC-Backed Build Manifest
         run: |
-          python3 -c "
-          import json, time, hashlib
-          from sovereign.pqc_signatures import MLDSASigner
+          python3 <<'PY'
+import json
+import time
+from sovereign.pqc_signatures import MLDSASigner
 
-          manifest = {
-              'build_id': '${{ github.run_id }}',
-              'commit': '${{ github.sha }}',
-              'timestamp': int(time.time()),
-              'app': 'StreamStudioApp',
-              'platform': 'iOS',
-              'l6_level': 'Environmental'
-          }
+manifest = {
+    'build_id': '${{ github.run_id }}',
+    'commit': '${{ github.sha }}',
+    'timestamp': int(time.time()),
+    'app': 'StreamStudioApp',
+    'platform': 'iOS',
+    'l6_level': 'Environmental'
+}
 
-          signer = MLDSASigner(algorithm='ML-DSA-87')
-          pub, sec = signer.load_or_create_keypair()
-          message = json.dumps(manifest, sort_keys=True).encode()
-          signature = signer.sign(message)
+signer = MLDSASigner(algorithm='ML-DSA-87')
+pub, sec = signer.load_or_create_keypair()
+message = json.dumps(manifest, sort_keys=True).encode()
+signature = signer.sign(message)
 
-          manifest['ml_dsa_87_signature'] = signature.hex()
-          manifest['public_key'] = pub.hex()
+manifest['ml_dsa_87_signature'] = signature.hex()
+manifest['public_key'] = pub.hex()
 
-          with open('ios-build-manifest.json', 'w') as f:
-              json.dump(manifest, f, indent=2)
+with open('ios-build-manifest.json', 'w') as f:
+    json.dump(manifest, f, indent=2)
 
-          print('PQC-signed iOS build manifest created')
-          "
+print('PQC-signed iOS build manifest created')
+PY
 
       - name: Upload PQC Manifest + Logs
         uses: actions/upload-artifact@v4
@@ -152,22 +155,22 @@ jobs:
 
       - name: Verify PQC Manifest
         run: |
-          python3 -c "
-          import json
-          from sovereign.pqc_signatures import MLDSASigner
+          python3 <<'PY'
+import json
+from sovereign.pqc_signatures import MLDSASigner
 
-          with open('ios-build-manifest.json') as f:
-              manifest = json.load(f)
+with open('ios-build-manifest.json') as f:
+    manifest = json.load(f)
 
-          sig = bytes.fromhex(manifest.pop('ml_dsa_87_signature'))
-          pub = bytes.fromhex(manifest.pop('public_key'))
+sig = bytes.fromhex(manifest.pop('ml_dsa_87_signature'))
+pub = bytes.fromhex(manifest.pop('public_key'))
 
-          signer = MLDSASigner(algorithm='ML-DSA-87')
-          message = json.dumps(manifest, sort_keys=True).encode()
+signer = MLDSASigner(algorithm='ML-DSA-87')
+message = json.dumps(manifest, sort_keys=True).encode()
 
-          if signer.verify(message, sig):
-              print('✅ PQC manifest verification PASSED (ML-DSA-87)')
-          else:
-              print('❌ PQC manifest verification FAILED')
-              exit(1)
-          "
+if signer.verify(message, sig):
+    print('✅ PQC manifest verification PASSED (ML-DSA-87)')
+else:
+    print('❌ PQC manifest verification FAILED')
+    exit(1)
+PY
