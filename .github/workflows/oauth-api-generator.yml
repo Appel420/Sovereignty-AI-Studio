@@ -33,7 +33,7 @@ jobs:
       - name: Set up Python 3.11
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Install dependencies
         run: |
@@ -112,6 +112,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v6
         with:
+        main
+          python-version: '3.13'
+      - name: Install dependencies
+        run: pip install -r .github/workflows/Requirements.txt
+      - name: Full Sovereign Security Validation (Rotation + ML-DSA-65)
+
           python-version: '3.11'
 
       - name: Install sovereign core + oqs-python
@@ -120,6 +126,7 @@ jobs:
           pip install oqs
 
       - name: Generate + Verify ML-DSA-87 GateOne Attestation Token
+        ara-hardened
         run: |
           python -c "
           import json, time, oqs, os
