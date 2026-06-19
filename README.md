@@ -119,8 +119,6 @@ Frontend and dashboard code should:
 
 ---
 
- # fix/node-bridge-ci
-=======
 ## Project Structure
 
 ```
