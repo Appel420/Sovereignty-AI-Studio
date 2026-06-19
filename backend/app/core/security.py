@@ -1,14 +1,22 @@
 # app/core/security.py
 from datetime import datetime, timedelta
-from typing import Optional
+import hashlib
+from hmac import compare_digest
+from typing import Any, Optional
 
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 
 from app.config import settings
 
-# bcrypt hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+bcrypt: Any | None = None
+try:
+    import bcrypt as _bcrypt  # type: ignore[import]
+except ImportError:  # pragma: no cover - exercised only when bcrypt is unavailable
+    pass
+else:
+    bcrypt = _bcrypt
+
+_BCRYPT_SHA256_PREFIX = "bcrypt_sha256$"
 
 
 def create_access_token(
@@ -29,12 +37,52 @@ def create_access_token(
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify plain password against hashed version."""
-    return pwd_context.verify(plain_password, hashed_password)
+    if hashed_password.startswith(_BCRYPT_SHA256_PREFIX):
+        if bcrypt is None:
+            return False
+        try:
+            return bcrypt.checkpw(
+                _password_digest(plain_password),
+                hashed_password[len(_BCRYPT_SHA256_PREFIX) :].encode(),
+            )
+        except ValueError:
+            return False
+
+    if hashed_password.startswith("sha256$"):
+        try:
+            _, salt, digest = hashed_password.split("$", 2)
+        except ValueError:
+            return False
+        return compare_digest(
+            digest,
+            hashlib.sha256(f"{salt}{plain_password}".encode()).hexdigest(),
+        )
+
+    if bcrypt is None:
+        return False
+
+    try:
+        return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
+    except ValueError:
+        return False
 
 
 def get_password_hash(password: str) -> str:
     """Hash a plain password."""
-    return pwd_context.hash(password)
+    if bcrypt is None:
+        salt = hashlib.sha256(password.encode()).hexdigest()[:16]
+        digest = hashlib.sha256(f"{salt}{password}".encode()).hexdigest()
+        return f"sha256${salt}${digest}"
+
+    return (
+        f"{_BCRYPT_SHA256_PREFIX}"
+        f"{bcrypt.hashpw(_password_digest(password), bcrypt.gensalt()).decode()}"
+    )
+
+
+def _password_digest(password: str) -> bytes:
+    """Normalize passwords before bcrypt hashing to avoid the 72-byte limit."""
+    return hashlib.sha256(password.encode()).digest()
 
 
 def verify_token(token: str) -> Optional[str]:
