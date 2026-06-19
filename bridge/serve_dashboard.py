@@ -1,1 +1,1 @@
-FULL_SERVE_DASHBOARD_CONTENT
+"""Placeholder module for the dashboard server."""

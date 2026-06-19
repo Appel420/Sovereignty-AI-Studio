@@ -23,6 +23,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+app = FastAPI()
+
 # ─── CONFIG ───────────────────────────────────────────
 LOG_DIR = Path("logs")
 LOG_FILE = LOG_DIR / "access.merkle.jsonl"   # Upgraded to Merkle-chained

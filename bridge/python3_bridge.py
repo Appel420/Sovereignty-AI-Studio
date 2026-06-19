@@ -1,1 +1,1 @@
-FULL_SOVEREIGN_BRIDGE_CONTENT
+"""Placeholder module for the Python bridge."""
