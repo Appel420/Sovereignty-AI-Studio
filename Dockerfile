@@ -5,7 +5,6 @@ COPY . .
 
 RUN python3 -m venv /app/.venv \
     && /app/.venv/bin/pip install --upgrade pip \
-    && /app/.venv/bin/pip install torch==2.8.0 --index-url https://download.pytorch.org/whl/cpu \
     && /app/.venv/bin/pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir -p /app/logs && chmod 700 /app/logs
