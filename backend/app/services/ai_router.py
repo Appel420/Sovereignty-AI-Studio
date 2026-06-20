@@ -4,7 +4,7 @@ Priority order: xAI (Grok) → Anthropic (Claude) → OpenAI (GPT)
 Privacy mode forces local-only (no external calls — raises if no provider).
 Cost-optimized mode can be configured per-call.
 
-NO Ollama. NO Meta. NO Google. Sovereign cloud providers only.
+Keep the router privacy-first and vendor-neutral.
 """
 import logging
 import os
