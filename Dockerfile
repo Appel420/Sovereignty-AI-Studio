@@ -1,11 +1,11 @@
-FROM python:3.13-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 COPY . .
 
 RUN python3 -m venv /app/.venv \
     && /app/.venv/bin/pip install --upgrade pip \
-    && /app/.venv/bin/pip install --no-cache-dir -r requirements-docker.txt
+    && /app/.venv/bin/pip install --no-cache-dir -r requirements.txt
 
 RUN mkdir -p /app/logs && chmod 700 /app/logs
 
