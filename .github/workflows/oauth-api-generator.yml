@@ -13,10 +13,39 @@ name: OAUTH-API-GENERATOR
 on:
   push:
     branches: [ main ]
+    paths:
+      - ".github/workflows/Requirements.txt"
+      - ".github/workflows/oauth-api-generator.yml"
+      - "Dockerfile"
+      - "docker-compose*.yml"
+      - "package-lock.json"
+      - "package.json"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "requirements*.txt"
+      - "**/*.js"
+      - "**/*.py"
   pull_request:
     branches: [ main ]
+    paths:
+      - ".github/workflows/Requirements.txt"
+      - ".github/workflows/oauth-api-generator.yml"
+      - "Dockerfile"
+      - "docker-compose*.yml"
+      - "package-lock.json"
+      - "package.json"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "requirements*.txt"
+      - "**/*.js"
+      - "**/*.py"
   release:
     types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: oauth-api-generator-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   PYTHONPATH: .:./backend
@@ -24,7 +53,7 @@ env:
 jobs:
 
   # =========================================================
-  # LINT + TEST (Python + Node)
+  # LINT + TEST (Python)
   # =========================================================
   build-test:
     runs-on: ubuntu-latest
@@ -69,6 +98,16 @@ jobs:
           file: ./coverage.xml
           fail_ci_if_error: false
 
+  # =========================================================
+  # NODE CHECK
+  # =========================================================
+  node-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -79,8 +118,8 @@ jobs:
 
       - name: Node syntax check
         run: |
+          npm run check
           node -c node-bridge/server.js
-          node -c unified_server.js
 
   # =========================================================
   # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
@@ -117,6 +156,8 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
+          sbom: true
+          provenance: mode=max
           tags: |
             ${{ env.REGISTRY_LC }}:latest
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
@@ -135,47 +176,6 @@ jobs:
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: 1
-
-  # =========================================================
-  # SBOM GENERATION + ATTESTATION
-  # =========================================================
-  supply-chain:
-    needs: build-sign
-    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Compute lowercase image name
-        shell: bash
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
-      - name: Generate SBOM (CycloneDX)
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY_LC }}:${{ github.sha }}
-          format: cyclonedx-json
-          artifact-name: sbom-sovereignty-ai.json
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Cosign SBOM Attestation
-        run: |
-          cosign attest \
-            --predicate sbom-sovereignty-ai.json \
-            --type cyclonedx \
-            --yes \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: 1
-        continue-on-error: true
 
   # =========================================================
   # SECURITY SCANNING
