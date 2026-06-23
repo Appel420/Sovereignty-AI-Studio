@@ -46,6 +46,7 @@ SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 class Change:
     status: str
     path: str
+    commit: str
     old_path: str | None = None
 
 
@@ -100,15 +101,20 @@ def _list_changes(repo_dir: Path, branch_ref: str, since: datetime) -> list[Chan
             branch_ref,
             f"--since={since.isoformat()}",
             "--name-status",
-            "--pretty=format:",
+            "--pretty=format:commit %H",
         ],
         cwd=repo_dir,
     )
 
     latest_by_path: OrderedDict[str, Change] = OrderedDict()
+    current_commit = ""
     for raw in out.splitlines():
         line = raw.strip()
         if not line:
+            continue
+
+        if line.startswith("commit "):
+            current_commit = line.split(maxsplit=1)[1]
             continue
 
         parts = line.split("\t")
@@ -117,21 +123,22 @@ def _list_changes(repo_dir: Path, branch_ref: str, since: datetime) -> list[Chan
 
         if kind in {"A", "M", "D"} and len(parts) >= 2:
             rel = parts[1]
-            if rel not in latest_by_path:
-                latest_by_path[rel] = Change(status=kind, path=rel)
+            if rel not in latest_by_path and current_commit:
+                latest_by_path[rel] = Change(status=kind, path=rel, commit=current_commit)
         elif kind == "R" and len(parts) >= 3:
             old_path, new_path = parts[1], parts[2]
-            if old_path not in latest_by_path:
-                latest_by_path[old_path] = Change(status="D", path=old_path)
-            if new_path not in latest_by_path:
-                latest_by_path[new_path] = Change(status="A", path=new_path, old_path=old_path)
+            if current_commit:
+                if old_path not in latest_by_path:
+                    latest_by_path[old_path] = Change(status="D", path=old_path, commit=current_commit)
+                if new_path not in latest_by_path:
+                    latest_by_path[new_path] = Change(status="A", path=new_path, commit=current_commit, old_path=old_path)
 
     return list(latest_by_path.values())
 
 
-def _read_remote_file(repo_dir: Path, branch_ref: str, rel_path: str) -> bytes:
+def _read_remote_file(repo_dir: Path, commit_sha: str, rel_path: str) -> bytes:
     proc = subprocess.run(
-        ["git", "show", f"{branch_ref}:{rel_path}"],
+        ["git", "show", f"{commit_sha}:{rel_path}"],
         cwd=str(repo_dir),
         check=False,
         capture_output=True,
@@ -162,7 +169,10 @@ def _count_duplicate_hashes(root: Path) -> tuple[int, int]:
 def _load_state() -> dict:
     if not STATE_FILE.exists():
         return {}
-    return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    try:
+        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
 
 
 def _save_state(state: dict) -> None:
@@ -215,7 +225,7 @@ def sync_changes(*, remote_url: str, branch: str, dest_dir: Path, days: int, dry
             if change.status not in {"A", "M"}:
                 continue
 
-            payload = _read_remote_file(remote_dir, branch_ref, change.path)
+            payload = _read_remote_file(remote_dir, change.commit, change.path)
 
             if not dry_run:
                 target.parent.mkdir(parents=True, exist_ok=True)
