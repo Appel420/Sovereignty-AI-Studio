@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: Linux Arm64
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
