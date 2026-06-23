@@ -172,15 +172,14 @@ jobs:
               missing=1
             fi
           done
-          echo "::add-mask::${SHAMIR_SHARE_1:-}"
-          echo "::add-mask::${SHAMIR_SHARE_2:-}"
-          echo "::add-mask::${SHAMIR_SHARE_3:-}"
+          printf '::add-mask::%s\n' "${SHAMIR_SHARE_1:-}"
+          printf '::add-mask::%s\n' "${SHAMIR_SHARE_2:-}"
+          printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
           if [[ "$missing" -ne 0 ]]; then
             exit 1
           fi
 
       - name: Compute lowercase image name
-        shell: bash
         run: |
           echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
