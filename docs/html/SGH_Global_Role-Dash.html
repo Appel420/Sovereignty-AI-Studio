@@ -379,7 +379,7 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
     </div>
   </div>
   <div class="rs-search-wrap">
-    <input class="rs-search" id="rsearch" type="search" placeholder="Search 62 global roles&hellip;" autocomplete="off" spellcheck="false">
+    <input class="rs-search" id="rsearch" type="search" placeholder="Search roles worldwide&hellip;" autocomplete="off" spellcheck="false">
   </div>
   <div class="rs-body" id="roleBody">
     <div class="loading"><div class="spin"></div>Loading roles&hellip;</div>
@@ -400,8 +400,8 @@ background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/sv
     <div class="rank-list" id="rankList"></div>
     <div class="auth-lbl" style="margin-top:12px">FULL NAME</div>
     <input class="auth-inp" id="inName" type="text" placeholder="Your full name" autocomplete="name">
-    <div class="auth-lbl">BADGE / ID <span style="color:var(--t4)">(OPTIONAL)</span></div>
-    <input class="auth-inp" id="inBadge" type="text" placeholder="Badge # or employee ID" autocomplete="off">
+    <div class="auth-lbl">LOCAL ID / STAFF ID <span style="color:var(--t4)">(OPTIONAL)</span></div>
+    <input class="auth-inp" id="inBadge" type="text" placeholder="Organization ID / staff ID" autocomplete="off">
     <button class="auth-cta" id="authCta" disabled>ACCESS SYSTEM &#8594;</button>
   </div>
 </div>
@@ -881,7 +881,7 @@ const ROLE_CREDS = {
     {id:'accessToken', label:'Access Token (last 8)',    ph:'••••••••',     pattern:/\w{4,}/,            hint:'Tail of your privileged access token (PAM)'}
   ],
   developer: [
-    {id:'empId',       label:'Engineer Employee ID',     ph:'ENG-L4-0042',  pattern:/\w{4,}/,           hint:'Engineering organization employee ID'},
+    {id:'empId',       label:'Organization ID / staff ID', ph:'ORG-L4-0042',  pattern:/\w{4,}/,           hint:'Organization-issued ID or staff identifier'},
     {id:'githubHandle',label:'GitHub / GitLab Handle',   ph:'@username',    pattern:/^@?\w+$/,            hint:'Version control username - must match org roster'}
   ],
   undercover: [
@@ -1093,7 +1093,10 @@ window.validateCred = function(inp, id, role){
   const fields = ROLE_CREDS[role]||[];
   const field  = fields.find(f=>f.id===id);
   if(!field) return true;
-  const valid = field.pattern.test(inp.value.trim()) || inp.value.trim().length < 2;
+  const val = inp.value.trim();
+  const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([field.id, field.label, field.hint].filter(Boolean).join(' '));
+  const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+  const valid = field.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)) || val.length < 2;
   inp.classList.toggle('err', !valid && inp.value.length > 0);
   const errEl = document.getElementById('errCred_'+id);
   if(errEl) errEl.style.display = (!valid && inp.value.length > 0) ? 'block' : 'none';
@@ -1109,7 +1112,9 @@ function collectCredentials(role){
     const val = el ? el.value.trim() : '';
     creds[f.id] = val;
     // Validate all except optional ones with short values
-    if(val.length > 0 && !f.pattern.test(val)){
+    const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([f.id, f.label, f.hint].filter(Boolean).join(' '));
+    const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+    if(val.length > 0 && !(f.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)))){
       errors.push(f.label+': invalid format');
     }
     // First field of each role is required

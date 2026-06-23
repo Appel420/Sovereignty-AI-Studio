@@ -5,6 +5,10 @@
 
 > **Zero third-party vendor lock-in. Privacy-first. Local infrastructure only.**
 > All AI inference is local and stays on your infrastructure.
+>
+> **Medical-use notice:** CI/CD guardrails can support HIPAA/GDPR readiness, but
+> they do not certify compliance. Medical/regulatory deployment still requires
+> formal legal, security, and operational review.
 
 **Private Sovereign AI Research and Production Platform**
 

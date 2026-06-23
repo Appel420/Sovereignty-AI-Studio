@@ -34,11 +34,23 @@ class TestConfigFixer:
         assert is_valid is False
         assert len(issues) > 0
 
+    def test_validate_config_custom_port_key(self):
+        fixer = ConfigFixer()
+        config = {"GATEONE_VERIFIER_PORT": 70000}
+        is_valid, issues = fixer.validate_config(config)
+        assert is_valid is False
+        assert any("GATEONE_VERIFIER_PORT" in issue for issue in issues)
+
     def test_fix_config(self):
         fixer = ConfigFixer()
         config = {"SG_PORT": 99999}  # Invalid port
         fixed = fixer.fix_config(config)
         assert fixed["SG_PORT"] == 9897  # Default value
+
+    def test_fix_config_custom_port_key(self):
+        fixer = ConfigFixer(defaults={"GATEONE_VERIFIER_PORT": 9899})
+        fixed = fixer.fix_config({"GATEONE_VERIFIER_PORT": 70000})
+        assert fixed["GATEONE_VERIFIER_PORT"] == 9899
 
 
 class TestModelFixer:
