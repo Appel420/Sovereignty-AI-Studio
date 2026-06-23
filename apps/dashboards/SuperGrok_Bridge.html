@@ -2506,7 +2506,7 @@ const ROLE_CREDS = {
     {id:'accessToken', label:'Access Token (last 8)',    ph:'••••••••',     pattern:/\w{4,}/,            hint:'Tail of your privileged access token (PAM)'}
   ],
   developer: [
-    {id:'empId',       label:'Engineer Employee ID',     ph:'ENG-L4-0042',  pattern:/\w{4,}/,           hint:'Engineering organization employee ID'},
+    {id:'empId',       label:'Organization ID / staff ID', ph:'ORG-L4-0042',  pattern:/\w{4,}/,           hint:'Organization-issued ID or staff identifier'},
     {id:'githubHandle',label:'GitHub / GitLab Handle',   ph:'@username',    pattern:/^@?\w+$/,            hint:'Version control username - must match org roster'}
   ],
   undercover: [
@@ -2718,7 +2718,10 @@ window.validateCred = function(inp, id, role){
   const fields = ROLE_CREDS[role]||[];
   const field  = fields.find(f=>f.id===id);
   if(!field) return true;
-  const valid = field.pattern.test(inp.value.trim()) || inp.value.trim().length < 2;
+  const val = inp.value.trim();
+  const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([field.id, field.label, field.hint].filter(Boolean).join(' '));
+  const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+  const valid = field.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)) || val.length < 2;
   inp.classList.toggle('err', !valid && inp.value.length > 0);
   const errEl = document.getElementById('errCred_'+id);
   if(errEl) errEl.style.display = (!valid && inp.value.length > 0) ? 'block' : 'none';
@@ -2734,7 +2737,9 @@ function collectCredentials(role){
     const val = el ? el.value.trim() : '';
     creds[f.id] = val;
     // Validate all except optional ones with short values
-    if(val.length > 0 && !f.pattern.test(val)){
+    const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([f.id, f.label, f.hint].filter(Boolean).join(' '));
+    const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+    if(val.length > 0 && !(f.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)))){
       errors.push(f.label+': invalid format');
     }
     // First field of each role is required

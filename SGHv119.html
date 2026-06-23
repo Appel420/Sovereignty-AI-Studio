@@ -1058,7 +1058,7 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
     <button onclick="window._SG_BRIDGE_STATUS&&window._SG_BRIDGE_STATUS.reconnect()" style="background:var(--bg2);border:1px solid var(--wire);color:var(--t2);font-family:var(--mono);font-size:8px;padding:4px 10px;border-radius:5px;cursor:pointer">&#9889; Connect Bridge</button>
   </div>
   <div class="rs-search-wrap">
-    <input class="rs-search" id="rsearch" type="search" placeholder="Search 135 global roles&hellip;" autocomplete="off" spellcheck="false">
+    <input class="rs-search" id="rsearch" type="search" placeholder="Search roles worldwide&hellip;" autocomplete="off" spellcheck="false">
   </div>
   <div class="rs-body" id="roleBody">
     <div class="loading"><div class="spin"></div>Loading roles&hellip;</div>
@@ -1079,8 +1079,8 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
     <div class="rank-list" id="rankList"></div>
     <div class="auth-lbl" style="margin-top:12px">FULL NAME</div>
     <input class="auth-inp" id="inName" type="text" placeholder="Your full name" autocomplete="name">
-    <div class="auth-lbl">BADGE / ID <span style="color:var(--t4)">(OPTIONAL)</span></div>
-    <input class="auth-inp" id="inBadge" type="text" placeholder="Badge # or employee ID" autocomplete="off">
+    <div class="auth-lbl">LOCAL ID / STAFF ID <span style="color:var(--t4)">(OPTIONAL)</span></div>
+    <input class="auth-inp" id="inBadge" type="text" placeholder="Organization ID / staff ID" autocomplete="off">
     <button class="auth-cta" id="authCta" disabled>ACCESS SYSTEM &#8594;</button>
     <div id="sg-pp-err" style="color:#ff6b6b;font-size:11px;font-family:monospace;margin-top:8px;min-height:16px;text-align:center"></div>
     <div style="text-align:center;margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">
@@ -1613,7 +1613,7 @@ const ROLE_CREDS = {
     {id:'accessToken', label:'Access Token (last 8)',    ph:'••••••••',     pattern:/\w{4,}/,            hint:'Tail of your privileged access token (PAM)'}
   ],
   developer: [
-    {id:'empId',       label:'Engineer Employee ID',     ph:'ENG-L4-0042',  pattern:/\w{4,}/,           hint:'Engineering organization employee ID'},
+    {id:'empId',       label:'Organization ID / staff ID', ph:'ORG-L4-0042',  pattern:/\w{4,}/,           hint:'Organization-issued ID or staff identifier'},
     {id:'githubHandle',label:'GitHub / GitLab Handle',   ph:'@username',    pattern:/^@?\w+$/,            hint:'Version control username — must match org roster'}
   ],
   undercover: [
@@ -1821,7 +1821,10 @@ window.validateCred = function(inp, id, role){
   const fields = ROLE_CREDS[role]||[];
   const field  = fields.find(f=>f.id===id);
   if(!field) return true;
-  const valid = field.pattern.test(inp.value.trim()) || inp.value.trim().length < 2;
+  const val = inp.value.trim();
+  const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([field.id, field.label, field.hint].filter(Boolean).join(' '));
+  const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+  const valid = field.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)) || val.length < 2;
   inp.classList.toggle('err', !valid && inp.value.length > 0);
   const errEl = document.getElementById('errCred_'+id);
   if(errEl) errEl.style.display = (!valid && inp.value.length > 0) ? 'block' : 'none';
@@ -1837,7 +1840,9 @@ function collectCredentials(role){
     const val = el ? el.value.trim() : '';
     creds[f.id] = val;
     // Validate all except optional ones with short values
-    if(val.length > 0 && !f.pattern.test(val)){
+    const isGlobalIdLike = /(?:id|badge|handle|token|code|account|license|number|ref|reg)/i.test([f.id, f.label, f.hint].filter(Boolean).join(' '));
+    const globalIdPattern = /^[A-Za-z0-9][A-Za-z0-9._/-]{3,}$/;
+    if(val.length > 0 && !(f.pattern.test(val) || (isGlobalIdLike && globalIdPattern.test(val)))){
       errors.push(f.label+': invalid format');
     }
     // First field of each role is required
