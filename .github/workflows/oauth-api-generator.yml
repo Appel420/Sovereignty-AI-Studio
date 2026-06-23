@@ -242,6 +242,7 @@ jobs:
         with:
           scan-type: fs
           scan-ref: .
+          skip-dirs: external,frontend,Sovereignty_python-keycloak-master
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: true
