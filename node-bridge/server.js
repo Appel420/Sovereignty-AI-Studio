@@ -233,7 +233,18 @@ app.get('/api/agents/status', async (_req, res) => {
 
   const checkAgent = (key) =>
     new Promise((resolve) => {
-      const target = new URL('/health', agents[key].url);
+      const baseUrl = agents[key].url;
+      if (!baseUrl) {
+        return resolve();
+      }
+
+      let target;
+      try {
+        target = new URL('/health', baseUrl);
+      } catch {
+        return resolve();
+      }
+
       const client = requestClientFor(target);
       const req = client.request({
         hostname: target.hostname,
