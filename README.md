@@ -3,8 +3,12 @@
 [![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
 [![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
 
-> **Zero third-party vendor lock-in. No Google. No Meta. No Llama.cpp. No Vercel.**
+> **Zero third-party vendor lock-in. Privacy-first. Local infrastructure only.**
 > All AI inference is local and stays on your infrastructure.
+>
+> **Medical-use notice:** CI/CD guardrails can support HIPAA/GDPR readiness, but
+> they do not certify compliance. Medical/regulatory deployment still requires
+> formal legal, security, and operational review.
 
 **Private Sovereign AI Research and Production Platform**
 
@@ -119,8 +123,6 @@ Frontend and dashboard code should:
 
 ---
 
- # fix/node-bridge-ci
-=======
 ## Project Structure
 
 ```

@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: Linux Arm64
+    runs-on: linux Arm64 : ubuntu latest
     steps:
     - uses: actions/checkout@v4
 

@@ -242,7 +242,7 @@ async function proxyDDGChat(clientReq, clientRes, body, vqd) {
     });
 
     ddgReq.on('error', err => {
-      clientRes.write(`data: {"error":"${err.message}"}\n\n`);
+      clientRes.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
       clientRes.end();
       reject(err);
     });
@@ -333,7 +333,12 @@ const server = http.createServer(async (req, res) => {
 
       if (event.action === 'authenticate') {
         const sid = event.user?.sessionID || genSessionID();
-        store.sessions.set(sid, { ...event.user, startTime: Date.now(), lastActivity: Date.now() });
+        store.sessions.set(sid, {
+          ...event.user,
+          sessionID: sid,
+          startTime: Date.now(),
+          lastActivity: Date.now(),
+        });
         logAudit('AUTHENTICATION', `User ${event.user?.email} authenticated as ${event.user?.role}`);
         res.writeHead(201);
         res.end(JSON.stringify({ success: true, sessionID: sid }));
