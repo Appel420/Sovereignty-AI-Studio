@@ -1,0 +1,21 @@
+{"seq":1,"ts":"2026-06-25T20:13:37.082Z","ws_id":"server","event":"SERVER_START","detail":"Port 9899 · Piper: false","hash":"5c1904f2383cd5de"}
+{"seq":2,"ts":"2026-06-25T20:13:37.228Z","ws_id":"ws_1_1782418417228","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"f8be7b826015e91e"}
+{"seq":3,"ts":"2026-06-25T20:13:37.242Z","ws_id":"ws_2_1782418417242","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"b1d635ff65519e36"}
+{"seq":4,"ts":"2026-06-25T20:13:37.245Z","ws_id":"ws_1_1782418417228","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"6e6814d922f9db1d"}
+{"seq":5,"ts":"2026-06-25T20:13:37.263Z","ws_id":"ws_3_1782418417262","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"69e89fb2ff58ee92"}
+{"seq":6,"ts":"2026-06-25T20:13:37.264Z","ws_id":"ws_2_1782418417242","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"4b1465c443c712a0"}
+{"seq":7,"ts":"2026-06-25T20:13:37.269Z","ws_id":"server","event":"SERVER_STOP","detail":"SIGINT received","hash":"b374e34454cbc0af"}
+{"seq":1,"ts":"2026-06-25T20:14:28.560Z","ws_id":"server","event":"SERVER_START","detail":"Port 9899 · Piper: false","hash":"5c1904f2383cd5de"}
+{"seq":2,"ts":"2026-06-25T20:14:28.720Z","ws_id":"ws_1_1782418468720","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"f8be7b826015e91e"}
+{"seq":3,"ts":"2026-06-25T20:14:28.726Z","ws_id":"ws_2_1782418468726","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"b1d635ff65519e36"}
+{"seq":4,"ts":"2026-06-25T20:14:28.728Z","ws_id":"ws_1_1782418468720","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"6e6814d922f9db1d"}
+{"seq":5,"ts":"2026-06-25T20:14:28.737Z","ws_id":"ws_3_1782418468737","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"69e89fb2ff58ee92"}
+{"seq":6,"ts":"2026-06-25T20:14:28.738Z","ws_id":"ws_2_1782418468726","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"4b1465c443c712a0"}
+{"seq":7,"ts":"2026-06-25T20:14:28.740Z","ws_id":"server","event":"SERVER_STOP","detail":"SIGINT received","hash":"b374e34454cbc0af"}
+{"seq":1,"ts":"2026-06-25T20:14:52.231Z","ws_id":"server","event":"SERVER_START","detail":"Port 9899 · Piper: false","hash":"5c1904f2383cd5de"}
+{"seq":2,"ts":"2026-06-25T20:14:52.392Z","ws_id":"ws_1_1782418492392","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"f8be7b826015e91e"}
+{"seq":3,"ts":"2026-06-25T20:14:52.399Z","ws_id":"ws_2_1782418492399","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"b1d635ff65519e36"}
+{"seq":4,"ts":"2026-06-25T20:14:52.400Z","ws_id":"ws_1_1782418492392","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"6e6814d922f9db1d"}
+{"seq":5,"ts":"2026-06-25T20:14:52.411Z","ws_id":"ws_3_1782418492411","event":"WS_CONNECT","detail":"ip: 127.0.0.1","hash":"69e89fb2ff58ee92"}
+{"seq":6,"ts":"2026-06-25T20:14:52.411Z","ws_id":"ws_2_1782418492399","event":"WS_CLOSE","detail":"ip: 127.0.0.1","hash":"4b1465c443c712a0"}
+{"seq":7,"ts":"2026-06-25T20:14:52.413Z","ws_id":"server","event":"SERVER_STOP","detail":"SIGINT received","hash":"b374e34454cbc0af"}
