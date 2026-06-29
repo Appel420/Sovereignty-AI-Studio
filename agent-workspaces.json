@@ -1,4 +1,5 @@
 {
+       # integrate/supergrok-heavy
   "$schema": "./schemas/agent-workspaces.schema.json",
   "version": "1.0.0",
   "repository": "Appel420/Sovereignty-AI-Studio",
@@ -78,3 +79,31 @@
     }
   ]
 }
+
+  "repository": "Sovereignty-AI-Studio",
+  "base": "SuperGrok-Heavy-4-2-Skeleton",
+  "branches": {
+    "ara-hardened": {
+      "agent": "Ara",
+      "model": "Grok",
+      "provider": "xAI",
+      "role": "Security"
+    },
+    "claude": {
+      "agent": "Claude",
+      "provider": "Anthropic",
+      "role": "Development"
+    },
+    "gpt": {
+      "agent": "GPT / Codex",
+      "provider": "OpenAI",
+      "role": "Architecture"
+    },
+    "copilot": {
+      "agent": "GitHub Copilot",
+      "provider": "GitHub",
+      "role": "Code Assistance"
+    }
+  }
+}
+       # main
