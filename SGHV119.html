@@ -38,23 +38,26 @@
     .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
     .dot.ok { background: var(--ok); }
     .dot.bad { background: var(--bad); }
-    textarea, select, button, pre { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #07111d; color: var(--ink); }
+    textarea, select, button, pre, input { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #07111d; color: var(--ink); }
     textarea { min-height: 120px; padding: 12px; resize: vertical; }
-    select, button { padding: 12px; }
+    select, button, input { padding: 12px; }
     button { cursor: pointer; font-weight: 800; background: linear-gradient(135deg, #1c5fb8, #143b73); }
     pre { padding: 14px; overflow: auto; min-height: 120px; white-space: pre-wrap; }
     code { color: var(--accent); }
+    .warn { color: var(--warn); }
+    .ok { color: var(--ok); }
   </style>
 </head>
 <body>
   <main>
     <header>
-      <div class="tag">SGHV119 / GitHub / Sovereign Static Runtime</div>
+      <div class="tag">SGHV119 / GitHub / HTTPS / E2EE Quad Ratchet</div>
       <h1>Sovereignty AI Studio</h1>
-      <p>This is the canonical control surface. Agents run through GitHub branches and the bridge API. No React runtime. No framework dependency chain. No fake frontend shell.</p>
+      <p>This is the canonical control surface. Agents run through GitHub branches and the bridge API. Requests are sent over HTTPS request/response and can be wrapped in an E2EE quad-ratchet envelope. No React runtime. No browser ws:// control channel.</p>
       <div class="grid">
         <div class="status"><span id="bridge-dot" class="dot"></span><span id="bridge-status">Bridge checking</span></div>
         <div class="status"><span id="agent-dot" class="dot"></span><span id="agent-status">Agents checking</span></div>
+        <div class="status"><span id="e2ee-dot" class="dot"></span><span id="e2ee-status">E2EE checking</span></div>
       </div>
     </header>
 
@@ -66,8 +69,8 @@
     </section>
 
     <section class="panel" style="margin-top:16px">
-      <h2>Agent bridge</h2>
-      <p>Send one instruction into the bridge. The selected agent maps to its GitHub lane and backend route.</p>
+      <h2>Secure agent bridge</h2>
+      <p>Default path: HTTPS POST. E2EE mode wraps the payload before it leaves this page. The bridge must support encrypted envelopes before plaintext is removed.</p>
       <div class="grid">
         <select id="agent">
           <option value="grok">Ara / Grok — ara-hardened</option>
@@ -75,13 +78,22 @@
           <option value="gpt">GPT / Codex — gpt</option>
           <option value="copilot">GitHub Copilot — copilot</option>
         </select>
+        <select id="transport">
+          <option value="e2ee">HTTPS + E2EE quad ratchet envelope</option>
+          <option value="plain">HTTPS plaintext compatibility mode</option>
+        </select>
         <button id="send">Send through SGHV119</button>
+      </div>
+      <div class="grid">
+        <input id="session-secret" type="password" placeholder="Optional 32+ char session secret for E2EE bootstrap. Do not commit or share.">
+        <button id="reset-session">Reset ratchet session</button>
       </div>
       <textarea id="prompt" placeholder="Enter task for the selected agent..."></textarea>
       <pre id="output">Ready.</pre>
     </section>
   </main>
 
+  <script src="./crypto/e2ee_quad_ratchet.js"></script>
   <script>
     const branchMap = {
       grok: { branch: 'ara-hardened', agent: 'Ara', model: 'Grok', provider: 'xAI', role: 'Security' },
@@ -96,7 +108,34 @@
       $(textId).textContent = text;
     };
 
+    const textBytes = (value) => new TextEncoder().encode(String(value));
+    const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+
+    async function deriveBootstrapRoot(secret) {
+      if (!secret || secret.length < 32) return null;
+      const digest = await crypto.subtle.digest('SHA-256', textBytes('SGHV119 bootstrap:' + secret));
+      return new Uint8Array(digest);
+    }
+
+    async function getRatchetState() {
+      const saved = sessionStorage.getItem('sghv119.ratchet.state');
+      if (saved) return JSON.parse(saved);
+      const secret = $('session-secret').value.trim();
+      const rootKeyBytes = await deriveBootstrapRoot(secret);
+      const state = SGHV119QuadRatchet.createInitialState({
+        sessionId: 'sghv119-' + crypto.randomUUID(),
+        rootKeyBytes: rootKeyBytes || undefined
+      });
+      sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
+      return state;
+    }
+
+    function saveRatchetState(state) {
+      sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
+    }
+
     async function checkStatus() {
+      setStatus('e2ee-dot', 'e2ee-status', !!window.SGHV119QuadRatchet, window.SGHV119QuadRatchet ? 'E2EE module loaded' : 'E2EE module missing');
       try {
         const bridge = await fetch('/api/bridge/status').then(r => r.json());
         setStatus('bridge-dot', 'bridge-status', bridge.status === 'healthy', 'Bridge ' + bridge.status);
@@ -111,6 +150,19 @@
       }
     }
 
+    function buildAgentPayload(selected, lane, prompt) {
+      return {
+        task_type: 'github_agent_task',
+        model: lane.model || lane.agent,
+        branch: lane.branch,
+        provider: lane.provider,
+        messages: [
+          { role: 'system', content: 'You are operating through SGHV119.html and GitHub branch ' + lane.branch + '. Do not push directly to main.' },
+          { role: 'user', content: prompt }
+        ]
+      };
+    }
+
     async function sendAgentTask() {
       const selected = $('agent').value;
       const prompt = $('prompt').value.trim();
@@ -119,22 +171,28 @@
         return;
       }
       const lane = branchMap[selected];
-      $('output').textContent = 'Routing to ' + lane.agent + ' on GitHub branch ' + lane.branch + '...';
+      const route = '/ai/' + encodeURIComponent(selected);
+      const useE2ee = $('transport').value === 'e2ee';
+      $('output').textContent = 'Routing to ' + lane.agent + ' on GitHub branch ' + lane.branch + (useE2ee ? ' with E2EE envelope...' : ' in HTTPS compatibility mode...');
       try {
-        const response = await fetch('/ai/' + encodeURIComponent(selected), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            task_type: 'github_agent_task',
-            model: lane.model || lane.agent,
+        let body;
+        let headers = { 'Content-Type': 'application/json' };
+        const payload = buildAgentPayload(selected, lane, prompt);
+        if (useE2ee) {
+          if (!window.SGHV119QuadRatchet) throw new Error('E2EE module not loaded');
+          const state = await getRatchetState();
+          const envelope = await SGHV119QuadRatchet.encryptEnvelope(state, payload, {
+            agent: selected,
             branch: lane.branch,
-            provider: lane.provider,
-            messages: [
-              { role: 'system', content: 'You are operating through SGHV119.html and GitHub branch ' + lane.branch + '. Do not push directly to main.' },
-              { role: 'user', content: prompt }
-            ]
-          })
-        });
+            route
+          });
+          saveRatchetState(state);
+          headers['X-SGHV119-E2EE'] = 'quad-ratchet-v1';
+          body = JSON.stringify({ encrypted: true, envelope });
+        } else {
+          body = JSON.stringify(payload);
+        }
+        const response = await fetch(route, { method: 'POST', headers, body });
         const data = await response.json();
         $('output').textContent = JSON.stringify(data, null, 2);
       } catch (err) {
@@ -143,6 +201,10 @@
     }
 
     $('send').addEventListener('click', sendAgentTask);
+    $('reset-session').addEventListener('click', () => {
+      sessionStorage.removeItem('sghv119.ratchet.state');
+      $('output').textContent = 'Ratchet session reset. The next encrypted request will create a new session.';
+    });
     checkStatus();
     setInterval(checkStatus, 15000);
   </script>
