@@ -23,7 +23,18 @@ run_optional() {
   echo
 }
 
-# 1. Repository sanitization and architecture inventory.
+# 1. Minimal Guardian. PLATFORM.json is the policy source.
+echo "-- Guardian Genesis-0-1"
+GUARDIAN_STATUS=0
+if python3 scripts/guardian_minimal.py; then
+  echo "guardian: clean or warnings only"
+else
+  GUARDIAN_STATUS=$?
+  echo "guardian: blocking findings generated; review $REPORT_DIR/guardian-findings.json"
+fi
+echo
+
+# 2. Repository sanitization and architecture inventory.
 echo "-- sanitize audit"
 if python3 scripts/sg_sanitize_audit.py; then
   echo "sanitize audit: clean"
@@ -32,7 +43,7 @@ else
 fi
 echo
 
-# 2. Local OAuth generator hook. This is intentionally local-only.
+# 3. Local OAuth generator hook. This is intentionally local-only.
 # Set LOCAL_OAUTH_GENERATOR to your local script path if it differs.
 LOCAL_OAUTH_GENERATOR="${LOCAL_OAUTH_GENERATOR:-scripts/oauth-local-generator.sh}"
 echo "-- local OAuth generator"
@@ -44,7 +55,7 @@ else
 fi
 echo
 
-# 3. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
+# 4. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
 echo "-- SBOM"
 if command -v syft >/dev/null 2>&1; then
   syft dir:. -o spdx-json > "$REPORT_DIR/sbom.spdx.json"
@@ -57,7 +68,7 @@ else
 fi
 echo
 
-# 4. Lightweight local checks. Keep them offline/local.
+# 5. Lightweight local checks. Keep them offline/local.
 run_optional "python syntax check" python3 -m compileall -q scripts backend ai_core . 2>/dev/null || true
 
 if [[ -f node-bridge/package.json ]]; then
@@ -66,14 +77,24 @@ if [[ -f node-bridge/package.json ]]; then
   echo
 fi
 
-# 5. Summary.
-echo "== Summary =="
+# 6. Summary.
+echo "== Guardian Summary =="
+if [[ -f "$REPORT_DIR/guardian-summary.json" ]]; then
+  cat "$REPORT_DIR/guardian-summary.json"
+else
+  echo "guardian summary missing"
+fi
+
+echo
+echo "== Sanitize Summary =="
 if [[ -f "$REPORT_DIR/summary.json" ]]; then
   cat "$REPORT_DIR/summary.json"
 else
-  echo "summary missing"
+  echo "sanitize summary missing"
 fi
 
 echo
 echo "Reports: $REPORT_DIR"
 echo "Local CI complete. Review reports before committing generated artifacts."
+
+exit "$GUARDIAN_STATUS"
