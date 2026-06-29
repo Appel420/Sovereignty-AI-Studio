@@ -1,4 +1,85 @@
 {
+       # integrate/supergrok-heavy
+  "$schema": "./schemas/agent-workspaces.schema.json",
+  "version": "1.0.0",
+  "repository": "Appel420/Sovereignty-AI-Studio",
+  "defaultBranch": "main",
+  "policy": {
+    "directPushToMain": false,
+    "requirePullRequest": true,
+    "requireReview": true,
+    "requireStatusChecks": true,
+    "symmetricalWorkspaces": true
+  },
+  "sourceRepositories": {
+    "supergrokHeavySkeleton": {
+      "repository": "Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton",
+      "cloneUrl": "https://github.com/Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton.git",
+      "defaultBranch": "main",
+      "mountPath": "vendor/supergrok-heavy-4-2-skeleton",
+      "syncMode": "subtree-or-vendor-copy",
+      "ownerAgent": "grok"
+    }
+  },
+  "agents": [
+    {
+      "id": "grok",
+      "workspaceName": "Ara",
+      "provider": "xAI",
+      "model": "Grok",
+      "branch": "ara-hardened",
+      "role": "Security",
+      "mounts": [
+        "vendor/supergrok-heavy-4-2-skeleton"
+      ],
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "claude",
+      "workspaceName": "Claude",
+      "provider": "Anthropic",
+      "model": "Claude",
+      "branch": "claude",
+      "role": "Development",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "gpt",
+      "workspaceName": "GPT / Codex",
+      "provider": "OpenAI",
+      "model": "GPT",
+      "branch": "gpt",
+      "role": "Architecture",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "copilot",
+      "workspaceName": "GitHub Copilot",
+      "provider": "GitHub",
+      "model": "Copilot",
+      "branch": "copilot",
+      "role": "Code Assistance",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    }
+  ]
+}
+
   "repository": "Sovereignty-AI-Studio",
   "base": "SuperGrok-Heavy-4-2-Skeleton",
   "branches": {
@@ -25,3 +106,4 @@
     }
   }
 }
+       # main
