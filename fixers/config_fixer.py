@@ -56,11 +56,10 @@ class ConfigFixer:
         issues = []
 
         # Check ports
-        for port_key in ["SG_PORT", "NODE_BRIDGE_PORT", "FRONTEND_PORT"]:
-            if port_key in config:
-                port = config[port_key]
-                if not isinstance(port, int) or port < 1 or port > 65535:
-                    issues.append(f"Invalid port for {port_key}: {port}")
+        for key, value in config.items():
+            if key.endswith("_PORT"):
+                if not isinstance(value, int) or value < 1 or value > 65535:
+                    issues.append(f"Invalid port for {key}: {value}")
 
         # Check host
         if "SG_HOST" in config:

@@ -1,22 +1,6 @@
 {
   "branch": "main",
-< bot/sync-supergrok-20260509
   "last_sync_utc": "2026-05-09T04:25:13.839755+00:00",
-=======
-   bot/sync-supergrok-20260506
-  "last_sync_utc": "2026-05-06T04:27:57.115529+00:00",
-=======
- bot/sync-supergrok-20260507
-  "last_sync_utc": "2026-05-07T04:28:20.831170+00:00",
- bot/sync-supergrok-20260508
-  "last_sync_utc": "2026-05-08T04:22:16.930110+00:00",
-   bot/sync-supergrok-20260504
-  "last_sync_utc": "2026-05-04T04:32:49.628749+00:00",
-
-  "last_sync_utc": "2026-05-05T04:22:55.327087+00:00",
-   main
- main
-> main
   "remote_url": "https://github.com/Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton.git",
   "window_days": 30
 }
