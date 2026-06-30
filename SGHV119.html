@@ -25,7 +25,7 @@
       color: var(--ink);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    main { max-width: 1180px; margin: 0 auto; padding: 28px 18px 48px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 42px 18px 48px; }
     header { border: 1px solid var(--line); background: rgba(13,20,32,.92); padding: 22px; border-radius: 18px; }
     h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 48px); letter-spacing: -.04em; }
     h2 { margin: 0 0 12px; }
@@ -42,22 +42,33 @@
     textarea { min-height: 120px; padding: 12px; resize: vertical; }
     select, button, input { padding: 12px; }
     button { cursor: pointer; font-weight: 800; background: linear-gradient(135deg, #1c5fb8, #143b73); }
+    button.secondary { background: #0b1624; }
     pre { padding: 14px; overflow: auto; min-height: 120px; white-space: pre-wrap; }
     code { color: var(--accent); }
     .warn { color: var(--warn); }
     .ok { color: var(--ok); }
+    #sg-offline-indicator {
+      position: fixed; top: 0; left: 0; right: 0;
+      background: #1a0a00; color: #ff9b30;
+      padding: 6px 12px; font: 800 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+      z-index: 999999; display: flex; align-items: center; gap: 8px;
+      border-bottom: 1px solid #ff6b0030;
+    }
   </style>
 </head>
 <body>
+  <div id="sg-offline-indicator"><span>●</span><span id="offline-banner-text">CAVE MODE — no bridge contacted</span></div>
+
   <main>
     <header>
-      <div class="tag">SGHV119 / GitHub / HTTPS / E2EE Quad Ratchet</div>
+      <div class="tag">SGHV119 / Offline First / GitHub / HTTPS Optional / E2EE Envelope</div>
       <h1>Sovereignty AI Studio</h1>
-      <p>This is the canonical control surface. Agents run through GitHub branches and the bridge API. Requests are sent over HTTPS request/response and can be wrapped in an E2EE quad-ratchet envelope. No React runtime. No browser ws:// control channel.</p>
+      <p>This control surface boots without network access. Bridge/API calls are opt-in. In cave mode, commands are stored locally and can be exported or flushed later when the bridge is intentionally enabled.</p>
       <div class="grid">
-        <div class="status"><span id="bridge-dot" class="dot"></span><span id="bridge-status">Bridge checking</span></div>
-        <div class="status"><span id="agent-dot" class="dot"></span><span id="agent-status">Agents checking</span></div>
-        <div class="status"><span id="e2ee-dot" class="dot"></span><span id="e2ee-status">E2EE checking</span></div>
+        <div class="status"><span id="bridge-dot" class="dot"></span><span id="bridge-status">Bridge not contacted</span></div>
+        <div class="status"><span id="agent-dot" class="dot"></span><span id="agent-status">Agents local queue</span></div>
+        <div class="status"><span id="e2ee-dot" class="dot"></span><span id="e2ee-status">E2EE local check pending</span></div>
+        <div class="status"><span id="queue-dot" class="dot ok"></span><span id="queue-status">Queue 0</span></div>
       </div>
     </header>
 
@@ -69,8 +80,8 @@
     </section>
 
     <section class="panel" style="margin-top:16px">
-      <h2>Secure agent bridge</h2>
-      <p>Default path: HTTPS POST. E2EE mode wraps the payload before it leaves this page. The bridge must support encrypted envelopes before plaintext is removed.</p>
+      <h2>Offline-first agent console</h2>
+      <p>Default mode stores commands locally. Use bridge mode only when you intentionally want to send queued or live commands to the local bridge.</p>
       <div class="grid">
         <select id="agent">
           <option value="grok">Ara / Grok — ara-hardened</option>
@@ -78,18 +89,27 @@
           <option value="gpt">GPT / Codex — gpt</option>
           <option value="copilot">GitHub Copilot — copilot</option>
         </select>
-        <select id="transport">
-          <option value="e2ee">HTTPS + E2EE quad ratchet envelope</option>
-          <option value="plain">HTTPS plaintext compatibility mode</option>
+        <select id="network-mode">
+          <option value="offline" selected>Cave mode — local queue only</option>
+          <option value="bridge">Bridge mode — local bridge allowed</option>
         </select>
-        <button id="send">Send through SGHV119</button>
+        <select id="transport">
+          <option value="e2ee">E2EE envelope when bridge is used</option>
+          <option value="plain">Plain HTTPS compatibility when bridge is used</option>
+        </select>
+      </div>
+      <div class="grid">
+        <button id="send">Create command</button>
+        <button id="check-bridge" class="secondary">Check bridge manually</button>
+        <button id="flush-queue" class="secondary">Flush queue intentionally</button>
       </div>
       <div class="grid">
         <input id="session-secret" type="password" placeholder="Optional 32+ char session secret for E2EE bootstrap. Do not commit or share.">
-        <button id="reset-session">Reset ratchet session</button>
+        <button id="reset-session" class="secondary">Reset local ratchet session</button>
+        <button id="export-queue" class="secondary">Export local queue</button>
       </div>
-      <textarea id="prompt" placeholder="Enter task for the selected agent..."></textarea>
-      <pre id="output">Ready.</pre>
+      <textarea id="prompt" placeholder="Enter task. In cave mode it stays local."></textarea>
+      <pre id="output">Cave mode ready. No API or bridge has been contacted.</pre>
     </section>
   </main>
 
@@ -102,14 +122,77 @@
       copilot: { branch: 'copilot', agent: 'GitHub Copilot', provider: 'GitHub', role: 'Code Assistance' }
     };
 
+    const STORAGE_KEY = 'sghv119.local.command.queue';
     const $ = (id) => document.getElementById(id);
-    const setStatus = (dotId, textId, ok, text) => {
-      $(dotId).className = 'dot ' + (ok ? 'ok' : 'bad');
-      $(textId).textContent = text;
+
+    const SGLocal = {
+      bridgeOnline: false,
+      bridgeChecked: false,
+      startedAt: new Date().toISOString(),
+      queue() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+      },
+      saveQueue(queue) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(queue));
+        updateQueueStatus();
+      },
+      enqueue(command) {
+        const queue = SGLocal.queue();
+        queue.push(command);
+        SGLocal.saveQueue(queue);
+        return command;
+      },
+      guardianFallback() {
+        return {
+          _source: 'local-fallback-not-authoritative',
+          _generated: new Date().toISOString(),
+          mode: 'cave',
+          bridge_online: SGLocal.bridgeOnline,
+          queued_commands: SGLocal.queue().length,
+          governance: { guardian_active: false, traceability_pct: 100, offline_first: true },
+          risk: { uptime_pct: SGLocal.bridgeOnline ? 100 : 0, avg_latency_ms: 0, error_rate_pct: SGLocal.bridgeOnline ? 0 : 100 },
+          enterprise: { providers_online: 0, external_api_contacted: false }
+        };
+      }
     };
 
+    window.SGLocal = SGLocal;
+
+    function uuid() {
+      if (crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'sghv119-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+    }
+
+    function setStatus(dotId, textId, ok, text) {
+      $(dotId).className = 'dot ' + (ok ? 'ok' : 'bad');
+      $(textId).textContent = text;
+    }
+
+    function setBanner(text, online) {
+      $('offline-banner-text').textContent = text;
+      document.getElementById('sg-offline-indicator').style.background = online ? '#001a0d' : '#1a0a00';
+      document.getElementById('sg-offline-indicator').style.color = online ? '#3ddc97' : '#ff9b30';
+    }
+
+    function updateQueueStatus() {
+      const n = SGLocal.queue().length;
+      $('queue-status').textContent = 'Queue ' + n;
+      $('queue-dot').className = 'dot ' + (n ? 'ok' : 'ok');
+    }
+
+    async function fetchJsonLocalOnly(url, options) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), (options && options.timeoutMs) || 2500);
+      try {
+        const response = await fetch(url, { ...(options || {}), signal: controller.signal });
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return await response.json();
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
     const textBytes = (value) => new TextEncoder().encode(String(value));
-    const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
 
     async function deriveBootstrapRoot(secret) {
       if (!secret || secret.length < 32) return null;
@@ -122,10 +205,7 @@
       if (saved) return JSON.parse(saved);
       const secret = $('session-secret').value.trim();
       const rootKeyBytes = await deriveBootstrapRoot(secret);
-      const state = SGHV119QuadRatchet.createInitialState({
-        sessionId: 'sghv119-' + crypto.randomUUID(),
-        rootKeyBytes: rootKeyBytes || undefined
-      });
+      const state = SGHV119QuadRatchet.createInitialState({ sessionId: 'sghv119-' + uuid(), rootKeyBytes: rootKeyBytes || undefined });
       sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
       return state;
     }
@@ -134,33 +214,74 @@
       sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
     }
 
-    async function checkStatus() {
-      setStatus('e2ee-dot', 'e2ee-status', !!window.SGHV119QuadRatchet, window.SGHV119QuadRatchet ? 'E2EE module loaded' : 'E2EE module missing');
-      try {
-        const bridge = await fetch('/api/bridge/status').then(r => r.json());
-        setStatus('bridge-dot', 'bridge-status', bridge.status === 'healthy', 'Bridge ' + bridge.status);
-      } catch {
-        setStatus('bridge-dot', 'bridge-status', false, 'Bridge offline');
-      }
-      try {
-        const agents = await fetch('/api/agents/status').then(r => r.json());
-        setStatus('agent-dot', 'agent-status', agents.ecosystem !== 'offline', 'Agents ' + agents.ecosystem);
-      } catch {
-        setStatus('agent-dot', 'agent-status', false, 'Agents offline');
-      }
-    }
-
     function buildAgentPayload(selected, lane, prompt) {
       return {
         task_type: 'github_agent_task',
         model: lane.model || lane.agent,
         branch: lane.branch,
         provider: lane.provider,
+        created_offline_first: true,
         messages: [
-          { role: 'system', content: 'You are operating through SGHV119.html and GitHub branch ' + lane.branch + '. Do not push directly to main.' },
+          { role: 'system', content: 'You are operating through SGHV119.html and GitHub branch ' + lane.branch + '. Do not push directly to main. Offline-first mode is authoritative until bridge mode is explicitly enabled.' },
           { role: 'user', content: prompt }
         ]
       };
+    }
+
+    function createLocalCommand(selected, prompt) {
+      const lane = branchMap[selected];
+      return {
+        id: uuid(),
+        createdAt: new Date().toISOString(),
+        source: 'SGHV119.html',
+        mode: 'offline-first',
+        target: selected,
+        branch: lane.branch,
+        payload: buildAgentPayload(selected, lane, prompt),
+        status: 'queued-local'
+      };
+    }
+
+    async function prepareBridgeBody(selected, lane, payload, route) {
+      const useE2ee = $('transport').value === 'e2ee';
+      let headers = { 'Content-Type': 'application/json' };
+      let body;
+      if (useE2ee) {
+        if (!window.SGHV119QuadRatchet) throw new Error('E2EE module not loaded');
+        const state = await getRatchetState();
+        const envelope = await SGHV119QuadRatchet.encryptEnvelope(state, payload, { agent: selected, branch: lane.branch, route });
+        saveRatchetState(state);
+        headers['X-SGHV119-E2EE'] = 'quad-ratchet-v1';
+        body = JSON.stringify({ encrypted: true, envelope });
+      } else {
+        body = JSON.stringify(payload);
+      }
+      return { headers, body };
+    }
+
+    async function checkBridgeManually() {
+      $('output').textContent = 'Manual bridge check requested...';
+      try {
+        const bridge = await fetchJsonLocalOnly('/api/bridge/status', { timeoutMs: 2500 });
+        SGLocal.bridgeOnline = bridge.status === 'healthy';
+        SGLocal.bridgeChecked = true;
+        setStatus('bridge-dot', 'bridge-status', SGLocal.bridgeOnline, 'Bridge ' + bridge.status);
+        setBanner(SGLocal.bridgeOnline ? 'BRIDGE ONLINE — cave mode still available' : 'CAVE MODE — bridge unhealthy', SGLocal.bridgeOnline);
+        try {
+          const agents = await fetchJsonLocalOnly('/api/agents/status', { timeoutMs: 2500 });
+          setStatus('agent-dot', 'agent-status', agents.ecosystem !== 'offline', 'Agents ' + agents.ecosystem);
+        } catch {
+          setStatus('agent-dot', 'agent-status', false, 'Agents unavailable');
+        }
+        $('output').textContent = JSON.stringify({ bridge, guardian_fallback: SGLocal.guardianFallback() }, null, 2);
+      } catch (err) {
+        SGLocal.bridgeOnline = false;
+        SGLocal.bridgeChecked = true;
+        setStatus('bridge-dot', 'bridge-status', false, 'Bridge offline');
+        setStatus('agent-dot', 'agent-status', false, 'Agents local queue');
+        setBanner('CAVE MODE — bridge offline; using local data', false);
+        $('output').textContent = JSON.stringify(SGLocal.guardianFallback(), null, 2);
+      }
     }
 
     async function sendAgentTask() {
@@ -170,43 +291,93 @@
         $('output').textContent = 'No task entered.';
         return;
       }
-      const lane = branchMap[selected];
-      const route = '/ai/' + encodeURIComponent(selected);
-      const useE2ee = $('transport').value === 'e2ee';
-      $('output').textContent = 'Routing to ' + lane.agent + ' on GitHub branch ' + lane.branch + (useE2ee ? ' with E2EE envelope...' : ' in HTTPS compatibility mode...');
+      const mode = $('network-mode').value;
+      const localCommand = createLocalCommand(selected, prompt);
+
+      if (mode === 'offline') {
+        SGLocal.enqueue(localCommand);
+        $('output').textContent = JSON.stringify({ queued: true, reason: 'cave mode', command: localCommand }, null, 2);
+        return;
+      }
+
+      if (!SGLocal.bridgeChecked || !SGLocal.bridgeOnline) {
+        SGLocal.enqueue(localCommand);
+        $('output').textContent = JSON.stringify({ queued: true, reason: 'bridge not verified online', command: localCommand }, null, 2);
+        return;
+      }
+
       try {
-        let body;
-        let headers = { 'Content-Type': 'application/json' };
-        const payload = buildAgentPayload(selected, lane, prompt);
-        if (useE2ee) {
-          if (!window.SGHV119QuadRatchet) throw new Error('E2EE module not loaded');
-          const state = await getRatchetState();
-          const envelope = await SGHV119QuadRatchet.encryptEnvelope(state, payload, {
-            agent: selected,
-            branch: lane.branch,
-            route
-          });
-          saveRatchetState(state);
-          headers['X-SGHV119-E2EE'] = 'quad-ratchet-v1';
-          body = JSON.stringify({ encrypted: true, envelope });
-        } else {
-          body = JSON.stringify(payload);
-        }
-        const response = await fetch(route, { method: 'POST', headers, body });
+        const lane = branchMap[selected];
+        const route = '/ai/' + encodeURIComponent(selected);
+        const prepared = await prepareBridgeBody(selected, lane, localCommand.payload, route);
+        const response = await fetch(route, { method: 'POST', headers: prepared.headers, body: prepared.body });
         const data = await response.json();
-        $('output').textContent = JSON.stringify(data, null, 2);
+        $('output').textContent = JSON.stringify({ sent: true, response: data }, null, 2);
       } catch (err) {
-        $('output').textContent = 'Bridge request failed: ' + err.message;
+        SGLocal.enqueue(localCommand);
+        $('output').textContent = JSON.stringify({ queued: true, reason: 'bridge send failed: ' + err.message, command: localCommand }, null, 2);
       }
     }
 
+    async function flushQueue() {
+      const mode = $('network-mode').value;
+      if (mode !== 'bridge') {
+        $('output').textContent = 'Queue flush blocked: switch to bridge mode and manually check bridge first.';
+        return;
+      }
+      if (!SGLocal.bridgeChecked || !SGLocal.bridgeOnline) {
+        $('output').textContent = 'Queue flush blocked: bridge has not been verified online.';
+        return;
+      }
+      const queue = SGLocal.queue();
+      const remaining = [];
+      const results = [];
+      for (const command of queue) {
+        try {
+          const lane = branchMap[command.target];
+          const route = '/ai/' + encodeURIComponent(command.target);
+          const prepared = await prepareBridgeBody(command.target, lane, command.payload, route);
+          const response = await fetch(route, { method: 'POST', headers: prepared.headers, body: prepared.body });
+          const data = await response.json();
+          results.push({ id: command.id, sent: true, response: data });
+        } catch (err) {
+          remaining.push(command);
+          results.push({ id: command.id, sent: false, error: err.message });
+        }
+      }
+      SGLocal.saveQueue(remaining);
+      $('output').textContent = JSON.stringify({ flushed: results.length - remaining.length, remaining: remaining.length, results }, null, 2);
+    }
+
+    function exportQueue() {
+      $('output').textContent = JSON.stringify({ exportedAt: new Date().toISOString(), queue: SGLocal.queue(), guardian_fallback: SGLocal.guardianFallback() }, null, 2);
+    }
+
+    function bootOfflineFirst() {
+      setStatus('e2ee-dot', 'e2ee-status', !!window.SGHV119QuadRatchet, window.SGHV119QuadRatchet ? 'E2EE local module loaded' : 'E2EE local module missing');
+      setStatus('bridge-dot', 'bridge-status', false, 'Bridge not contacted');
+      setStatus('agent-dot', 'agent-status', true, 'Agents local queue');
+      setBanner('CAVE MODE — no bridge contacted', false);
+      updateQueueStatus();
+      $('output').textContent = JSON.stringify(SGLocal.guardianFallback(), null, 2);
+    }
+
     $('send').addEventListener('click', sendAgentTask);
+    $('check-bridge').addEventListener('click', checkBridgeManually);
+    $('flush-queue').addEventListener('click', flushQueue);
+    $('export-queue').addEventListener('click', exportQueue);
     $('reset-session').addEventListener('click', () => {
       sessionStorage.removeItem('sghv119.ratchet.state');
-      $('output').textContent = 'Ratchet session reset. The next encrypted request will create a new session.';
+      $('output').textContent = 'Local ratchet session reset. No bridge contacted.';
     });
-    checkStatus();
-    setInterval(checkStatus, 15000);
+
+    window.getGuardianData = async function(options) {
+      if (!options || options.allowNetwork !== true) return SGLocal.guardianFallback();
+      try { return await fetchJsonLocalOnly('/api/guardian/kpi', { timeoutMs: 2500 }); }
+      catch { return SGLocal.guardianFallback(); }
+    };
+
+    bootOfflineFirst();
   </script>
 </body>
 </html>
