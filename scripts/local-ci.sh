@@ -34,7 +34,16 @@ else
 fi
 echo
 
-# 2. Repository sanitization and architecture inventory.
+# 2. Offline inventory. This is cave-mode safe: local files only, no network.
+echo "-- offline inventory"
+if python3 scripts/offline_inventory.py; then
+  echo "offline inventory: reports generated"
+else
+  echo "offline inventory: failed; review script locally"
+fi
+echo
+
+# 3. Repository sanitization and architecture inventory.
 echo "-- sanitize audit"
 if python3 scripts/sg_sanitize_audit.py; then
   echo "sanitize audit: clean"
@@ -43,7 +52,7 @@ else
 fi
 echo
 
-# 3. Local OAuth generator hook. This is intentionally local-only.
+# 4. Local OAuth generator hook. This is intentionally local-only.
 # Set LOCAL_OAUTH_GENERATOR to your local script path if it differs.
 LOCAL_OAUTH_GENERATOR="${LOCAL_OAUTH_GENERATOR:-scripts/oauth-local-generator.sh}"
 echo "-- local OAuth generator"
@@ -55,7 +64,7 @@ else
 fi
 echo
 
-# 4. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
+# 5. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
 echo "-- SBOM"
 if command -v syft >/dev/null 2>&1; then
   syft dir:. -o spdx-json > "$REPORT_DIR/sbom.spdx.json"
@@ -68,7 +77,7 @@ else
 fi
 echo
 
-# 5. Lightweight local checks. Keep them offline/local.
+# 6. Lightweight local checks. Keep them offline/local.
 run_optional "python syntax check" python3 -m compileall -q scripts backend ai_core . 2>/dev/null || true
 
 if [[ -f node-bridge/package.json ]]; then
@@ -77,12 +86,20 @@ if [[ -f node-bridge/package.json ]]; then
   echo
 fi
 
-# 6. Summary.
+# 7. Summary.
 echo "== Guardian Summary =="
 if [[ -f "$REPORT_DIR/guardian-summary.json" ]]; then
   cat "$REPORT_DIR/guardian-summary.json"
 else
   echo "guardian summary missing"
+fi
+
+echo
+echo "== Offline Inventory Summary =="
+if [[ -f "$REPORT_DIR/offline-inventory-summary.json" ]]; then
+  cat "$REPORT_DIR/offline-inventory-summary.json"
+else
+  echo "offline inventory summary missing"
 fi
 
 echo
