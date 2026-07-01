@@ -1,0 +1,105 @@
+{
+  "routing": {
+    "version": "2.0",
+    "description": "SuperGrok Heavy Judge routing configuration. Dormant until wired through bridge policy and Guardian validation.",
+    "status": "dormant",
+    "defaults": {
+      "primary_model": "grok-4.3",
+      "heavy_judge": "on_demand",
+      "use_judge": false
+    },
+    "heavy_judge": {
+      "enabled": true,
+      "role": "final_quality_gate",
+      "never_use_as_primary": true,
+      "trigger_strategy": {
+        "always_for": [
+          "medical",
+          "education"
+        ],
+        "always_when_use_judge": true,
+        "general_queries_sampling_rate": 0.08
+      },
+      "yank_behavior": {
+        "low_risk": "rewrite_safer",
+        "medium_risk": "replace_with_safe_generic",
+        "high_critical_risk": "polite_refusal_with_explanation"
+      },
+      "verdict_format": {
+        "timestamp": "ISO8601_UTC",
+        "risk_score": "float_0_to_1",
+        "action": [
+          "pass",
+          "rewrite",
+          "yank",
+          "council_override"
+        ],
+        "hash": "SHA-256_of_final_output",
+        "signature": "optional_ed25519",
+        "context": "string_description_of_input_scenario"
+      },
+      "integration": {
+        "location": "SmartProviderRouter.consume_with_routing()",
+        "condition": "when use_judge=True or risk conditions met",
+        "position": "final_gatekeeper"
+      },
+      "strictness": {
+        "general_queries_threshold": 0.75,
+        "dynamic_escalation_enabled": true
+      }
+    },
+    "risk_scoring": {
+      "enabled": true,
+      "max_score": 100,
+      "weights": {
+        "context": 45,
+        "user_role": 20,
+        "request_type": 35
+      },
+      "context_keywords": {
+        "medical": 50,
+        "legal": 45,
+        "safety_critical": 50,
+        "education": 30,
+        "financial": 25,
+        "general": 10
+      }
+    },
+    "model_selection": {
+      "low_risk": {
+        "prefer": "fastest",
+        "models": [
+          "grok-4.3"
+        ]
+      },
+      "medium_risk": {
+        "prefer": "balanced",
+        "models": [
+          "grok-4.3",
+          "gpt-5.5-codex-max"
+        ]
+      },
+      "high_risk": {
+        "prefer": "highest_quality",
+        "models": [
+          "grok-4.3",
+          "gpt-5.5-codex-max"
+        ],
+        "force_heavy_judge": true
+      }
+    },
+    "fallback": {
+      "when_bridge_offline": "local_fallback",
+      "local_model": "grok"
+    }
+  },
+  "example_heavy_judge_verdict": {
+    "timestamp": "2026-06-29T04:12:33Z",
+    "risk_score": 0.87,
+    "action": "yank",
+    "hash": "a7f3c92e8b4d1f6a9e2c5b8d7e1f3a9c2b4d6e8f0a1c3e5b7d9f2a4c6e8b0d",
+    "signature": "ed25519:8f3a9c2b4d6e8f0a1c3e5b7d9f2a4c6e8b0d1f3a9c2b4d6e8f0a1c3e5b7d9f",
+    "context": "Medical diagnosis query - conflicting information from primary models",
+    "details": "High risk detected. Original response replaced with safe generic guidance."
+  }
+}
