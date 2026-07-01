@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05070d">
+  <title>SGHV119 Sovereignty AI Studio</title>
+  <style>
+    :root {
+      --bg: #05070d;
+      --panel: #0d1420;
+      --panel2: #121c2b;
+      --ink: #e6edf7;
+      --muted: #8fa3b8;
+      --line: #213247;
+      --ok: #3ddc97;
+      --warn: #f4c430;
+      --bad: #ff5f57;
+      --accent: #6aa9ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top, #101a2b 0, var(--bg) 48%);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main { max-width: 1180px; margin: 0 auto; padding: 28px 18px 48px; }
+    header { border: 1px solid var(--line); background: rgba(13,20,32,.92); padding: 22px; border-radius: 18px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 5vw, 48px); letter-spacing: -.04em; }
+    h2 { margin: 0 0 12px; }
+    p { color: var(--muted); line-height: 1.55; }
+    .tag { color: var(--ok); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 16px; }
+    .card, .panel { border: 1px solid var(--line); background: rgba(18,28,43,.92); border-radius: 16px; padding: 16px; }
+    .card strong { display: block; font-size: 20px; margin-bottom: 6px; }
+    .status { display: inline-flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 999px; background: #07111d; border: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--warn); }
+    .dot.ok { background: var(--ok); }
+    .dot.bad { background: var(--bad); }
+    textarea, select, button, pre, input { width: 100%; border-radius: 12px; border: 1px solid var(--line); background: #07111d; color: var(--ink); }
+    textarea { min-height: 120px; padding: 12px; resize: vertical; }
+    select, button, input { padding: 12px; }
+    button { cursor: pointer; font-weight: 800; background: linear-gradient(135deg, #1c5fb8, #143b73); }
+    pre { padding: 14px; overflow: auto; min-height: 120px; white-space: pre-wrap; }
+    code { color: var(--accent); }
+    .warn { color: var(--warn); }
+    .ok { color: var(--ok); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="tag">SGHV119 / GitHub / HTTPS / E2EE Quad Ratchet</div>
+      <h1>Sovereignty AI Studio</h1>
+      <p>This is the canonical control surface. Agents run through GitHub branches and the bridge API. Requests are sent over HTTPS request/response and can be wrapped in an E2EE quad-ratchet envelope. No React runtime. No browser ws:// control channel.</p>
+      <div class="grid">
+        <div class="status"><span id="bridge-dot" class="dot"></span><span id="bridge-status">Bridge checking</span></div>
+        <div class="status"><span id="agent-dot" class="dot"></span><span id="agent-status">Agents checking</span></div>
+        <div class="status"><span id="e2ee-dot" class="dot"></span><span id="e2ee-status">E2EE checking</span></div>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Agent branch map">
+      <article class="card"><strong>Ara / Grok</strong><p>Branch: <code>ara-hardened</code><br>Role: Security hardening.</p></article>
+      <article class="card"><strong>Claude</strong><p>Branch: <code>claude</code><br>Role: implementation and refactor work.</p></article>
+      <article class="card"><strong>GPT / Codex</strong><p>Branch: <code>gpt</code><br>Role: architecture, integration, verification.</p></article>
+      <article class="card"><strong>GitHub Copilot</strong><p>Branch: <code>copilot</code><br>Role: assisted code changes.</p></article>
+    </section>
+
+    <section class="panel" style="margin-top:16px">
+      <h2>Secure agent bridge</h2>
+      <p>Default path: HTTPS POST. E2EE mode wraps the payload before it leaves this page. The bridge must support encrypted envelopes before plaintext is removed.</p>
+      <div class="grid">
+        <select id="agent">
+          <option value="grok">Ara / Grok — ara-hardened</option>
+          <option value="claude">Claude — claude</option>
+          <option value="gpt">GPT / Codex — gpt</option>
+          <option value="copilot">GitHub Copilot — copilot</option>
+        </select>
+        <select id="transport">
+          <option value="e2ee">HTTPS + E2EE quad ratchet envelope</option>
+          <option value="plain">HTTPS plaintext compatibility mode</option>
+        </select>
+        <button id="send">Send through SGHV119</button>
+      </div>
+      <div class="grid">
+        <input id="session-secret" type="password" placeholder="Optional 32+ char session secret for E2EE bootstrap. Do not commit or share.">
+        <button id="reset-session">Reset ratchet session</button>
+      </div>
+      <textarea id="prompt" placeholder="Enter task for the selected agent..."></textarea>
+      <pre id="output">Ready.</pre>
+    </section>
+  </main>
+
+  <script src="./crypto/e2ee_quad_ratchet.js"></script>
+  <script>
+    const branchMap = {
+      grok: { branch: 'ara-hardened', agent: 'Ara', model: 'Grok', provider: 'xAI', role: 'Security' },
+      claude: { branch: 'claude', agent: 'Claude', provider: 'Anthropic', role: 'Development' },
+      gpt: { branch: 'gpt', agent: 'GPT / Codex', provider: 'OpenAI', role: 'Architecture' },
+      copilot: { branch: 'copilot', agent: 'GitHub Copilot', provider: 'GitHub', role: 'Code Assistance' }
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const setStatus = (dotId, textId, ok, text) => {
+      $(dotId).className = 'dot ' + (ok ? 'ok' : 'bad');
+      $(textId).textContent = text;
+    };
+
+    const textBytes = (value) => new TextEncoder().encode(String(value));
+    const bytesToB64 = (bytes) => btoa(String.fromCharCode(...bytes));
+
+    async function deriveBootstrapRoot(secret) {
+      if (!secret || secret.length < 32) return null;
+      const digest = await crypto.subtle.digest('SHA-256', textBytes('SGHV119 bootstrap:' + secret));
+      return new Uint8Array(digest);
+    }
+
+    async function getRatchetState() {
+      const saved = sessionStorage.getItem('sghv119.ratchet.state');
+      if (saved) return JSON.parse(saved);
+      const secret = $('session-secret').value.trim();
+      const rootKeyBytes = await deriveBootstrapRoot(secret);
+      const state = SGHV119QuadRatchet.createInitialState({
+        sessionId: 'sghv119-' + crypto.randomUUID(),
+        rootKeyBytes: rootKeyBytes || undefined
+      });
+      sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
+      return state;
+    }
+
+    function saveRatchetState(state) {
+      sessionStorage.setItem('sghv119.ratchet.state', JSON.stringify(state));
+    }
+
+    async function checkStatus() {
+      setStatus('e2ee-dot', 'e2ee-status', !!window.SGHV119QuadRatchet, window.SGHV119QuadRatchet ? 'E2EE module loaded' : 'E2EE module missing');
+      try {
+        const bridge = await fetch('/api/bridge/status').then(r => r.json());
+        setStatus('bridge-dot', 'bridge-status', bridge.status === 'healthy', 'Bridge ' + bridge.status);
+      } catch {
+        setStatus('bridge-dot', 'bridge-status', false, 'Bridge offline');
+      }
+      try {
+        const agents = await fetch('/api/agents/status').then(r => r.json());
+        setStatus('agent-dot', 'agent-status', agents.ecosystem !== 'offline', 'Agents ' + agents.ecosystem);
+      } catch {
+        setStatus('agent-dot', 'agent-status', false, 'Agents offline');
+      }
+    }
+
+    function buildAgentPayload(selected, lane, prompt) {
+      return {
+        task_type: 'github_agent_task',
+        model: lane.model || lane.agent,
+        branch: lane.branch,
+        provider: lane.provider,
+        messages: [
+          { role: 'system', content: 'You are operating through SGHV119.html and GitHub branch ' + lane.branch + '. Do not push directly to main.' },
+          { role: 'user', content: prompt }
+        ]
+      };
+    }
+
+    async function sendAgentTask() {
+      const selected = $('agent').value;
+      const prompt = $('prompt').value.trim();
+      if (!prompt) {
+        $('output').textContent = 'No task entered.';
+        return;
+      }
+      const lane = branchMap[selected];
+      const route = '/ai/' + encodeURIComponent(selected);
+      const useE2ee = $('transport').value === 'e2ee';
+      $('output').textContent = 'Routing to ' + lane.agent + ' on GitHub branch ' + lane.branch + (useE2ee ? ' with E2EE envelope...' : ' in HTTPS compatibility mode...');
+      try {
+        let body;
+        let headers = { 'Content-Type': 'application/json' };
+        const payload = buildAgentPayload(selected, lane, prompt);
+        if (useE2ee) {
+          if (!window.SGHV119QuadRatchet) throw new Error('E2EE module not loaded');
+          const state = await getRatchetState();
+          const envelope = await SGHV119QuadRatchet.encryptEnvelope(state, payload, {
+            agent: selected,
+            branch: lane.branch,
+            route
+          });
+          saveRatchetState(state);
+          headers['X-SGHV119-E2EE'] = 'quad-ratchet-v1';
+          body = JSON.stringify({ encrypted: true, envelope });
+        } else {
+          body = JSON.stringify(payload);
+        }
+        const response = await fetch(route, { method: 'POST', headers, body });
+        const data = await response.json();
+        $('output').textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        $('output').textContent = 'Bridge request failed: ' + err.message;
+      }
+    }
+
+    $('send').addEventListener('click', sendAgentTask);
+    $('reset-session').addEventListener('click', () => {
+      sessionStorage.removeItem('sghv119.ratchet.state');
+      $('output').textContent = 'Ratchet session reset. The next encrypted request will create a new session.';
+    });
+    checkStatus();
+    setInterval(checkStatus, 15000);
+  </script>
+</body>
+</html>
