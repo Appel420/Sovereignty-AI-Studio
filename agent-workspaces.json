@@ -1,27 +1,64 @@
 {
-  "repository": "Sovereignty-AI-Studio",
-  "base": "SuperGrok-Heavy-4-2-Skeleton",
-  "branches": {
-    "ara-hardened": {
-      "agent": "Ara",
-      "model": "Grok",
+  "repository": "Appel420/Sovereignty-AI-Studio",
+  "defaultBranch": "main",
+  "policy": {
+    "directPushToMain": false,
+    "requirePullRequest": true,
+    "requireReview": true,
+    "requireStatusChecks": true
+  },
+  "agents": [
+    {
+      "id": "grok",
+      "workspaceName": "Ara",
       "provider": "xAI",
-      "role": "Security"
+      "model": "Grok",
+      "branch": "ara-hardened",
+      "role": "Security hardening",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
     },
-    "claude": {
-      "agent": "Claude",
+    {
+      "id": "claude",
+      "workspaceName": "Claude",
       "provider": "Anthropic",
-      "role": "Development"
+      "model": "Claude",
+      "branch": "claude",
+      "role": "Development and refactoring",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
     },
-    "gpt": {
-      "agent": "GPT / Codex",
+    {
+      "id": "gpt",
+      "workspaceName": "GPT / Codex",
       "provider": "OpenAI",
-      "role": "Architecture"
+      "model": "GPT",
+      "branch": "gpt",
+      "role": "Architecture and verification",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
     },
-    "copilot": {
-      "agent": "GitHub Copilot",
+    {
+      "id": "copilot",
+      "workspaceName": "GitHub Copilot",
       "provider": "GitHub",
-      "role": "Code Assistance"
+      "model": "Copilot",
+      "branch": "copilot",
+      "role": "Code assistance",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
     }
-  }
+  ]
 }
