@@ -1,0 +1,58 @@
+{
+  "platform": "SGHV119",
+  "version": "1.0.0-genesis",
+  "mode": "local-first",
+  "entrypoint": "SGHV119.html",
+  "command_bus": "helpers/command_bus.js",
+  "bridge": "node-bridge",
+  "guardian": {
+    "mode": "report-only",
+    "reports": "automation/reports",
+    "fail_on": ["critical"]
+  },
+  "runtime": {
+    "react_active": false,
+    "browser_ws_allowed": false,
+    "external_provider_calls_from_ui_allowed": false,
+    "third_party_runtime_integrations_allowed": false
+  },
+  "security": {
+    "transport": "HTTPS",
+    "native_pqc_required": true,
+    "browser_pqc_keygen_allowed": false,
+    "dirty_api_keygen_allowed": false,
+    "fail_closed_when_crypto_provider_missing": true
+  },
+  "allowed_active_roots": [
+    "SGHV119.html",
+    "PLATFORM.json",
+    "agent-workspaces.json",
+    "helpers/",
+    "crypto/",
+    "guardian/",
+    "node-bridge/",
+    "backend/",
+    "agents/",
+    "ai_core/",
+    "rust/pqcrypto-ffi/",
+    "scripts/",
+    "docs/"
+  ],
+  "archive_candidate_roots": [
+    "frontend/",
+    "apps/dashboards/",
+    "external/"
+  ],
+  "forbidden_active_patterns": {
+    "react": ["react", "react-dom", "react-scripts", ".tsx", ".jsx"],
+    "insecure_websocket": ["ws://", "new WebSocket("],
+    "external_provider_api": ["api.openai.com", "api.anthropic.com", "api.x.ai"],
+    "google_meta": ["googleapis", "googletagmanager", "doubleclick", "facebook", "meta.com"]
+  },
+  "agents": {
+    "ara-hardened": "Ara / Grok security hardening",
+    "claude": "Claude development",
+    "gpt": "GPT / Codex architecture and verification",
+    "copilot": "GitHub Copilot code assistance"
+  }
+}

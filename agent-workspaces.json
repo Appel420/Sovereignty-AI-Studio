@@ -1,0 +1,64 @@
+{
+  "repository": "Appel420/Sovereignty-AI-Studio",
+  "defaultBranch": "main",
+  "policy": {
+    "directPushToMain": false,
+    "requirePullRequest": true,
+    "requireReview": true,
+    "requireStatusChecks": true
+  },
+  "agents": [
+    {
+      "id": "grok",
+      "workspaceName": "Ara",
+      "provider": "xAI",
+      "model": "Grok",
+      "branch": "ara-hardened",
+      "role": "Security hardening",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "claude",
+      "workspaceName": "Claude",
+      "provider": "Anthropic",
+      "model": "Claude",
+      "branch": "claude",
+      "role": "Development and refactoring",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "gpt",
+      "workspaceName": "GPT / Codex",
+      "provider": "OpenAI",
+      "model": "GPT",
+      "branch": "gpt",
+      "role": "Architecture and verification",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    },
+    {
+      "id": "copilot",
+      "workspaceName": "GitHub Copilot",
+      "provider": "GitHub",
+      "model": "Copilot",
+      "branch": "copilot",
+      "role": "Code assistance",
+      "permissions": {
+        "canMerge": false,
+        "canPushMain": false,
+        "requiresPR": true
+      }
+    }
+  ]
+}
