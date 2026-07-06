@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional
 from datetime import datetime
 from enum import Enum
@@ -32,16 +32,17 @@ class UserStatusUpdate(BaseModel):
 
 
 class UserStatusResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     user_id: int
     username: str
     status: str
     last_seen: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
-
 
 class UserInDB(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     is_active: bool
     is_verified: bool
@@ -54,9 +55,6 @@ class UserInDB(UserBase):
     created_at: datetime
     updated_at: datetime
     last_login: Optional[datetime]
-
-    class Config:
-        from_attributes = True
 
 
 class User(UserInDB):
