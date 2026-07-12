@@ -130,3 +130,18 @@ def test_provenance_verify_rejects_non_sha256_claims(client):
 
     assert verify.status_code == 400
     assert "Merkle" in verify.json()["detail"]
+
+
+def test_provenance_verify_rejects_malformed_hashes(client):
+    proof = client.post(
+        "/api/v1/provenance/proof/generate",
+        json={"leaves": ["alpha", "beta"], "leaf_index": 1},
+    ).json()
+    proof["hashes"][0] = "not-a-sha256-hash"
+
+    verify = client.post(
+        "/api/v1/provenance/proof/verify",
+        json={"leaf": "beta", "proof": proof},
+    )
+
+    assert verify.status_code == 422

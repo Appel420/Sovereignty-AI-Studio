@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 router = APIRouter()
+
+Sha256Hex = Annotated[
+    str,
+    Field(
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-fA-F]{64}$",
+    ),
+]
 
 
 class MerkleProofPayload(BaseModel):
@@ -15,10 +24,10 @@ class MerkleProofPayload(BaseModel):
     algorithm: str = Field(default="sha256")
     leaf_index: int = Field(ge=0)
     leaf_count: int = Field(ge=1)
-    leaf_hash: str = Field(min_length=64, max_length=64)
-    hashes: list[str] = Field(default_factory=list)
+    leaf_hash: Sha256Hex
+    hashes: list[Sha256Hex] = Field(default_factory=list)
     directions: list[bool] = Field(default_factory=list)
-    merkle_root: str = Field(min_length=64, max_length=64)
+    merkle_root: Sha256Hex
     offline: bool = True
 
 

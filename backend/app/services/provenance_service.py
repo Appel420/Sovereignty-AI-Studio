@@ -33,6 +33,11 @@ class ProvenanceService:
         self._validate_proof_type(proof.get("proof_type", self.proof_type))
         self._validate_algorithm(proof.get("algorithm", self.algorithm))
 
+        hashes = proof["hashes"]
+        directions = proof["directions"]
+        if len(hashes) != len(directions):
+            raise ValueError("Merkle proof hashes and directions must have equal lengths")
+
         normalized_leaf = self._normalize_leaf(leaf)
         leaf_hash = self._hash_leaf(normalized_leaf)
         if leaf_hash.hex() != str(proof["leaf_hash"]):
@@ -41,8 +46,8 @@ class ProvenanceService:
         merkle_proof = MerkleProof(
             leaf_hash=leaf_hash,
             index=int(proof["leaf_index"]),
-            hashes=[bytes.fromhex(hash_value) for hash_value in proof["hashes"]],
-            directions=[bool(direction) for direction in proof["directions"]],
+            hashes=[bytes.fromhex(hash_value) for hash_value in hashes],
+            directions=[bool(direction) for direction in directions],
         )
         return merkle_proof.verify(bytes.fromhex(str(proof["merkle_root"])))
 
