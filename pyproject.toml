@@ -22,7 +22,10 @@ dependencies = [
 
 [project.optional-dependencies]
 pqc = [
-    "oqs>=0.10.0",  # Post-quantum (Dilithium, Kyber, etc.)
+    # PyPI package that provides the `oqs` Python module (Open Quantum Safe).
+    # Wraps the liboqs C library; ML-DSA-87, ML-DSA-65, and many other
+    # post-quantum algorithms are available once this is installed.
+    "liboqs-python",
 ]
 test = [
     "pytest>=9.1.1",
