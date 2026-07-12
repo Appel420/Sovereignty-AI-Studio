@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,lint]" || pip install ruff mypy pytest
+          python -m pip install -e ".[test,lint,pqc]"
       - name: Lint
         run: ruff check . || true
       - name: Type check
@@ -32,29 +32,9 @@ jobs:
           python3 <<'PY'
           import json
           import time
-          import hashlib
-          import hmac
-          import secrets
           import sys
           sys.path.insert(0, '.')
-          try:
-              from sovereign.pqc_signatures import MLDSASigner
-          except ImportError:
-              class MLDSASigner:
-                  def __init__(self, algorithm='ML-DSA-87'):
-                      self.algorithm = algorithm
-                      self._secret_key = b''
-                      self._public_key = b''
-                  def load_or_create_keypair(self):
-                      if not self._secret_key:
-                          self._secret_key = secrets.token_bytes(32)
-                          self._public_key = hashlib.sha256(self._secret_key).digest()
-                      return self._public_key, self._secret_key
-                  def sign(self, message):
-                      _, sk = self.load_or_create_keypair()
-                      return hmac.new(sk, message, hashlib.sha256).digest()
-                  def verify(self, message, signature):
-                      return hmac.compare_digest(self.sign(message), signature)
+          from sovereign.pqc_signatures import MLDSASigner
 
           manifest = {
               'workflow': 'Python CI',
