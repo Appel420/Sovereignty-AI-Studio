@@ -1,150 +1,120 @@
 # Sovereignty AI Studio
 
-Private sovereign AI control surface for GitHub-coordinated agent work.
+Sovereignty AI Studio is a self-hosted, offline-first AI control surface and
+supporting service stack. The primary user interface is the KODER dashboard in
+[`SGHv119.html`](SGHv119.html); Python and Node services provide local routing,
+agent orchestration, and optional self-hosted integrations.
 
-## Canonical UI
+## What is included
 
-`SGHV119.html` is the primary interface.
+- **KODER dashboard:** a plain HTML, CSS, and JavaScript control surface.
+- **Python bridge:** local AI and orchestration services on port `9897`.
+- **Node bridge:** HTTP/API proxy on port `9899`.
+- **MCP server:** an offline JSON-RPC server over stdio with workspace-bounded
+  tools.
+- **Self-hosted stack:** Docker Compose definitions for the backend, database,
+  Redis, gateway, and optional services.
 
-The project does **not** use React as the sovereign runtime. The intended UI path is plain HTML, CSS, and JavaScript served from the repository or a local static server.
+## Quick start
 
-## Core Rule
+### Local development
 
-All agent work runs through GitHub branches and reviewed pull requests.
+Requirements:
 
-| Branch | Agent | Provider | Role |
-| --- | --- | --- | --- |
-| `ara-hardened` | Ara / Grok | xAI | Security hardening |
-| `claude` | Claude | Anthropic | Development |
-| `gpt` | GPT / Codex | OpenAI | Architecture and verification |
-| `copilot` | GitHub Copilot | GitHub | Code assistance |
+- Python 3.11 or later
+- Node.js 20 or later
 
-The branch map is stored in:
-
-```text
-agent-workspaces.json
-```
-
-## Transport Policy
-
-The default transport is **HTTP over TLS**.
-
-Use:
-
-```text
-POST /ai/grok
-POST /ai/claude
-POST /ai/gpt
-POST /ai/copilot
-GET  /api/bridge/status
-GET  /api/agents/status
-```
-
-Do **not** use insecure browser WebSockets as the default control channel.
-
-WebSockets are only acceptable when all of the following are true:
-
-1. The connection is `wss://`, not `ws://`.
-2. TLS is enabled and verified.
-3. The request is authenticated.
-4. The server validates origin and authorization.
-5. The feature explicitly requires bidirectional streaming.
-
-For SGHV119, ordinary command and agent routing should stay request/response over HTTPS.
-
-## Architecture
-
-```text
-Browser / iPhone
-   |
-   |-- HTTPS GET /SGHV119.html
-   |
-   |-- HTTPS POST /ai/:agentId
-   |-- HTTPS GET  /api/bridge/status
-   |-- HTTPS GET  /api/agents/status
-        |
-        v
-   node-bridge / gateway
-        |
-        v
-   internal services / GitHub agent workflow
-```
-
-## Repository Shape
-
-```text
-Sovereignty-AI-Studio/
-├── SGHV119.html              # Main static sovereign control surface
-├── agent-workspaces.json     # Agent-to-branch mapping
-├── node-bridge/              # HTTP bridge and internal gateway routes
-├── backend/                  # Internal API services
-├── ai_core/                  # Core AI modules
-├── agents/                   # Agent definitions
-├── docs/                     # Documentation
-└── README.md
-```
-
-## React Status
-
-Legacy React files may still exist in the repository while cleanup is in progress. They are not the intended sovereign runtime and should not be treated as the canonical frontend.
-
-The cleanup target is:
-
-```text
-SGHV119.html + HTTP bridge + GitHub branches
-```
-
-Not:
-
-```text
-React app + browser WebSocket control channel
-```
-
-## Local Start Pattern
-
-Use the bridge/static server path that serves `SGHV119.html`, then verify health through HTTP:
+From the repository root, install the required Python and Node dependencies
+using your preferred environment manager, then start the local services:
 
 ```bash
-curl /api/bridge/status
-curl /api/agents/status
+./START_SERVER.sh
 ```
 
-For local development without TLS, use loopback only. For device, LAN, or production access, terminate TLS and use HTTPS.
+Open the dashboard at:
 
-## Local-first MCP server
+```text
+http://127.0.0.1:9898/SGHv119.html
+```
 
-`mcp_server.py` provides a standard JSON-RPC MCP server over stdio. It works
-without network access or API keys and deliberately never accepts, persists, or
-transmits credentials. Its built-in tools are bounded to a configured local
-workspace: `sovereignty_status`, `workspace_list`, and `workspace_read`.
+The launcher starts these loopback services:
 
-Start it from the repository root:
+| Service | Address | Purpose |
+| --- | --- | --- |
+| KODER dashboard | `http://127.0.0.1:9898` | Static dashboard |
+| Python bridge | `http://127.0.0.1:9897` | Local backend |
+| Node bridge | `http://127.0.0.1:9899` | HTTP/API proxy |
+
+Press `Ctrl+C` in the launcher terminal to stop all three services.
+
+### MCP server
+
+The MCP server works without network access or API keys:
 
 ```bash
 python3 mcp_server.py
 ```
 
-It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to a specific
-directory when a client should access less than the repository. `hybrid` and
-`online` are explicit status modes only; this MCP server does not make network
-requests. Keep provider credentials in the existing self-hosted bridge or
-operator-managed secret store, never in MCP tool arguments.
+It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to restrict a
+client to a specific directory. See the [MCP server source](mcp_server.py) for
+the available tools and configuration.
 
-## Security Notes
+### Container services
 
-- Do not commit API keys, OAuth secrets, certificates, or `.env` files.
-- Keep `main` protected.
-- Use pull requests for agent branch merges.
-- Prefer short-lived tokens and least-privilege GitHub credentials.
-- Use HTTPS for browser-to-bridge traffic.
-- Avoid persistent socket channels unless they are authenticated `wss://` channels with origin enforcement.
+The self-hosted service stack is defined in
+[`docker-compose.yml`](docker-compose.yml). Review its required environment
+variables and production defaults before starting it:
 
-## Current Operating Model
+```bash
+docker compose up --build
+```
+
+## Network and deployment modes
+
+The default runtime is offline and loopback-only. `SG_NETWORK_MODE` supports:
+
+| Mode | Behavior |
+| --- | --- |
+| `offline` | Default. Loopback-only; no external or LAN requests. |
+| `hybrid` | Loopback plus hosts explicitly listed in `SG_LOCAL_NETWORK_ALLOWLIST`. |
+| `online` | Remote traffic only when `SG_ENABLE_REMOTE_NETWORK=1` is also set. |
+
+The Node bridge binds to `127.0.0.1` by default. For LAN, device, or public
+deployments, configure TLS and explicit access controls. The dashboard must
+disclose network activity; bridge network status is available at
+`/api/network/status`.
+
+For air-gapped or local-network deployments, use a private local CA. Public
+TLS through Let's Encrypt is an explicit online deployment option. Full details
+are in [Offline runtime and transport policy](docs/OFFLINE_RUNTIME.md).
+
+## Repository layout
 
 ```text
-SGHV119.html
-   -> HTTPS request/response
-   -> node bridge
-   -> GitHub/agent workflow
-   -> branch-specific pull request
+SGHv119.html       KODER dashboard
+START_SERVER.sh    Local three-service launcher
+bridge.py          Python local bridge
+node-bridge/       Node HTTP/API bridge
+backend/           FastAPI backend services
+gateway/           Python multi-agent gateway
+agents/            Agent service definitions
+mcp_server.py      Offline MCP server
+docs/              Architecture, deployment, and developer documentation
 ```
+
+## Development checks
+
+```bash
+npm run check
+make py-test
+make py-lint
+```
+
+## Security
+
+- Do not commit credentials, API keys, certificates, or `.env` files.
+- Keep core workflows functional without external services where possible.
+- Use loopback-only development defaults and explicit consent for networked
+  operation.
+- Review [SECURITY.md](SECURITY.md) and the
+  [offline runtime policy](docs/OFFLINE_RUNTIME.md) before deployment.
