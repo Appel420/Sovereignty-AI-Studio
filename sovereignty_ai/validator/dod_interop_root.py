@@ -164,16 +164,26 @@ class Store:
                 final = "ALLOW_WITH_EXPLICIT_CONSENT"
             else:
                 final = "QUARANTINE_CONSENT_REQUIRED"
+        trusted = final in {"ALLOW", "ALLOW_WITH_EXPLICIT_CONSENT"}
+        requires_explicit_consent = bool(root and root.get("requires_explicit_consent"))
+        if not root:
+            decision = "QUARANTINE_UNKNOWN_ROOT"
+        elif not metadata["ok"]:
+            decision = "QUARANTINE_ROOT_METADATA_MISMATCH"
+        elif not date_status["ok"]:
+            decision = date_status["decision"]
+        elif final == "ALLOW":
+            decision = "ALLOW"
+        elif final == "ALLOW_WITH_EXPLICIT_CONSENT":
+            decision = "ALLOW_WITH_EXPLICIT_CONSENT"
+        else:
+            decision = "RECOGNIZED_EXTERNAL_CONSENT_REQUIRED"
         return {
             "recognized": recognized,
-            "trusted": False,
-            "requires_explicit_consent": True,
+            "trusted": trusted,
+            "requires_explicit_consent": requires_explicit_consent,
             "trust_level": level,
-            "decision": (
-                "RECOGNIZED_EXTERNAL_CONSENT_REQUIRED"
-                if recognized
-                else "QUARANTINE_UNKNOWN_ROOT"
-            ),
+            "decision": decision,
             "reason": reason,
             "metadata_integrity": metadata,
             "date_status": date_status,
