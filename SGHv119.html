@@ -41,7 +41,8 @@ button, [role=button] {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' http://localhost:* http://localhost:* ws://localhost:* wss://localhost:* https://api.anthropic.com https://api.openai.com https://api.x.ai https://api.duckduckgo.com https://duckduckgo.com https://eonet.gsfc.nasa.gov https://api.weather.gov https://api.nasa.gov https:// http://; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; media-src 'self' blob:; frame-src 'self' http://localhost:* https://localhost:* blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss://localhost:* wss://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src 'self' blob: data:; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
+<script src="offline_policy.js"></script>
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -88,7 +89,7 @@ button, [role=button] {
   window.fetch = function(url, opts){
     var u = String(url||'');
     /* Only intercept loopback HTTP calls */
-    var isLoopback = u.indexOf('127.0.0.1') >= 0 || u.indexOf('localhost') >= 0 || u.indexOf('192.168.1.252') >= 0;
+    var isLoopback = u.indexOf('127.0.0.1') >= 0 || u.indexOf('localhost') >= 0 || u.indexOf('127.0.0.1') >= 0;
     var isHTTP     = u.indexOf('https://localhost') < 0 && u.indexOf('https://localhost') < 0;
     if(isLoopback && isHTTP){
       opts = opts || {};
@@ -135,12 +136,10 @@ button, [role=button] {
     if(_cached && (_cached.indexOf('9899') >= 0 || !_cached.match(/^\d+\.\d+\.\d+\.\d+:\d+$/))){
       localStorage.removeItem('sg_bridge_ip');
     }
-    /* If mode is ghost/offline/local, force back to hybrid */
+    /* Preserve offline/local mode; discard only invalid persisted values. */
     var _mode = localStorage.getItem('sgh_mode');
-    if(_mode === 'ghost' || _mode === 'offline' || _mode === 'local'){
-      localStorage.setItem('sgh_mode','hybrid');
-      console.warn('[Boot] sgh_mode was "'+_mode+'" — reset to hybrid so bridge can connect');
-    }
+    var _validModes = ['online','stealth','ghost','offline','local','hybrid'];
+    if(_mode && _validModes.indexOf(_mode) === -1) localStorage.removeItem('sgh_mode');
   }catch(e){}
 })();
 </script>
@@ -586,7 +585,7 @@ console.log('%c[SG_CRYPTO] Engine: Native WebCrypto (SHA-512 · AES-256-GCM · H
 '>
   <strong>⚠ You opened this from Files — voice and bridge CANNOT work from file://</strong><br>
   Run <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>python3 bridge.py</code> in a-Shell or iSH,
-  then open <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>http://192.168.1.252:9898/SGHv119.html</code> in Safari
+  then open <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>http://127.0.0.1:9898/SGHv119.html</code> in Safari
   <button onclick='document.getElementById("sg-file-warning").style.display="none"'
     style='margin-left:12px;background:#ffffff33;border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer'>✕</button>
 </div>
@@ -622,9 +621,9 @@ if(location.protocol==='file:'){
    banner.innerHTML =
      '<span style="font-size:20px">🌐</span>' +
      '<span>Open via HTTP so the bridge can connect: ' +
-     '<a href="http://192.168.1.252:9898" style="color:#fff;text-decoration:underline;font-size:14px" ' +
-     'onclick="window.location.href=\\x27http://192.168.1.252:9898\\x27;document.getElementById(\\x27sg-open-banner\\x27).remove();">' +
-     'http://192.168.1.252:9898' +
+     '<a href="http://127.0.0.1:9898" style="color:#fff;text-decoration:underline;font-size:14px" ' +
+     'onclick="window.location.href=\\x27http://127.0.0.1:9898\\x27;document.getElementById(\\x27sg-open-banner\\x27).remove();">' +
+     'http://127.0.0.1:9898' +
      '</a>' +
      ' <span style="font-weight:400;font-size:11px;opacity:.8">(start: python3 python3_bridge.py)</span>' +
      '</span>' +
@@ -742,7 +741,7 @@ try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sen
 }
 if (!sent) {
 /* HTTP fallback */
-fetch('http://192.168.1.252:9897/chat', {
+fetch('http://127.0.0.1:9897/chat', {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
 }).then(function(r){return r.json();}).then(function(d){
@@ -892,7 +891,7 @@ var tnow = window.tnow;
     /* ── 5. HTTP fallback — fire-and-forget ── */
     if(!sent){
       try {
-        fetch((location.protocol === 'https:' ? 'https://192.168.1.252:9897/error_ping' : 'http://192.168.1.252:9897/error_ping'), {
+        fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9897/error_ping' : 'http://127.0.0.1:9897/error_ping'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -929,7 +928,7 @@ var tnow = window.tnow;
   });
 
   /* ── SecurityPolicyViolation (CSP) — per-directive dedup, 60s window ── */
-  var _cspSeen = {}; /* pre-suppress known-benign violations */ (function(){var _f=Date.now()+9999999999;['connect-src:wss://192.168.1.252:9897/','connect-src:wss://192.168.1.252:9897','connect-src:wss://localhost','connect-src:wss://192.168.1.252:9897/','connect-src:wss://192.168.1.252:9897','connect-src:wss://localhost','connect-src:wss://192.168.1.252:9897/ '].forEach(function(k){_cspSeen[k]=_f;});})();
+  var _cspSeen = {}; /* pre-suppress known-benign violations */ (function(){var _f=Date.now()+9999999999;['connect-src:wss://127.0.0.1:9897/','connect-src:wss://127.0.0.1:9897','connect-src:wss://localhost','connect-src:wss://127.0.0.1:9897/','connect-src:wss://127.0.0.1:9897','connect-src:wss://localhost','connect-src:wss://127.0.0.1:9897/ '].forEach(function(k){_cspSeen[k]=_f;});})();
   document.addEventListener('securitypolicyviolation', function(ev){
     /* Suppress blob-request:// internal browser scheme (Safari SW noise) */
     if(ev.blockedURI && ev.blockedURI.indexOf('blob-request:')===0) return;
@@ -2123,7 +2122,7 @@ const BRIDGE = {
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     var self = this;
     try{
-      var wsUrl = 'ws://192.168.1.252:9897'; /* Python WS bridge :9897 */
+      var wsUrl = 'ws://127.0.0.1:9897'; /* Python WS bridge :9897 */
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
@@ -2191,7 +2190,7 @@ const BRIDGE = {
       };
     }catch(e){
       var isIns = e && (e.name==='SecurityError' || (e.message&&(e.message.indexOf('insecure')!==-1||e.message.indexOf('secure')!==-1)));
-      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://192.168.1.252:9898'); return; }
+      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://127.0.0.1:9898'); return; }
       this.log('warn','WebSocket unavailable — using HTTP polling');
       this.startPolling();
     }
@@ -2406,7 +2405,7 @@ var BridgeCFG = {
   },
   wsURL: function() {
     /* Python WS internal — loopback never uses wss:// */
-    return 'ws://192.168.1.252:9897';
+    return 'ws://127.0.0.1:9897';
   },
   save: function() {
     try { localStorage.setItem('bridge_cfg', JSON.stringify({
@@ -4110,13 +4109,13 @@ var CFG = (function(){
   /* Port map: WS=9897 (Python internal) · HTTP frontend=9898 (KODER) · Keycloak=8080/8443 */
   var D = {autoRepair:true,logLevel:'info',bridgeRelay:true,repairThrottleMs:500,
     alertThreshold:5,sealIntervalMs:30000,patchSandbox:true,maxRepairLog:200,
-    maxErrorLog:500,bridgeWsUrl:'ws://192.168.1.252:9897',bridgeHttpUrl:'http://192.168.1.252:9898/agents'};
+    maxErrorLog:500,bridgeWsUrl:'ws://127.0.0.1:9897',bridgeHttpUrl:'http://127.0.0.1:9898/agents'};
   try {
     var saved = JSON.parse(localStorage.getItem(_CFG_KEY)||'{}');
     if (saved) {
       /* WS=9897 Python internal only · HTTP AI/agent routes via KODER 9898 */
-      saved.bridgeWsUrl = 'ws://192.168.1.252:9897';
-      saved.bridgeHttpUrl = 'http://192.168.1.252:9898/agents';
+      saved.bridgeWsUrl = 'ws://127.0.0.1:9897';
+      saved.bridgeHttpUrl = 'http://127.0.0.1:9898/agents';
     }
     return Object.assign({}, D, saved);
   } catch(e) {
@@ -4674,19 +4673,13 @@ window.SGCrypto = (function(){
   };
   window.SGDilithium = Dilithium;
 
-  /* ── ML-KEM-768 simulation (real PQ on bridge server via liboqs) ── */
+  /* ML-KEM is provided only by the local liboqs bridge. Never emulate PQC. */
   var MLKEM = {
-    keygen: async function(){
-      var kp = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveKey','deriveBits']);
-      var ek = JSON.stringify(await crypto.subtle.exportKey('jwk',kp.publicKey));
-      return { ek:ek, dk:'ML-KEM-768-SIM', alg:'ML-KEM-768-SIM', note:'Real PQ via bridge liboqs' };
-    },
-    encapsulate: async function(ek){
-      var r = crypto.getRandomValues(new Uint8Array(32));
-      var K = Array.from(r).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-      return { c:'ct-'+K.slice(0,16), K:K, alg:'ML-KEM-768-SIM' };
-    },
-    decapsulate: async function(dk, c){ return { K: c&&c.K ? c.K : '' }; }
+    available: false,
+    algorithm: 'ML-KEM-768',
+    keygen: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); },
+    encapsulate: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); },
+    decapsulate: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); }
   };
   window.SGMLKEM = MLKEM;
   var MerkleTree = {
@@ -5997,7 +5990,7 @@ function afterPanel(id){
         /* Keycloak test */
         var kcTest=document.getElementById('fort-keycloak-test');
         if(kcTest&&!kcTest._fw){kcTest._fw=true;kcTest.addEventListener('click',function(){
-          fetch('http://192.168.1.252:9897/auth/keycloak/test')
+          fetch('http://127.0.0.1:9897/auth/keycloak/test')
             .then(function(r){return r.json();})
             .then(function(d){bOut('fort-oauth-out',JSON.stringify(d,null,2),'var(--gn)');})
             .catch(function(){bOut('fort-oauth-out','Keycloak at :8080 — start keycloak before testing','var(--t3)');});
@@ -6099,16 +6092,16 @@ function afterPanel(id){
           },2500);
         });}
         if(bTest&&!bTest._vw){bTest._vw=true;bTest.addEventListener('click',function(){
-          if(bOut)bOut.textContent='Testing http://192.168.1.252:9898...';
+          if(bOut)bOut.textContent='Testing http://127.0.0.1:9898...';
           fetch('/api/health')
             .then(function(r){return r.json();})
             .then(function(d){if(bOut)bOut.textContent='✅ Bridge OK · v'+d.version+' · HTML: '+(d.html?'found':'missing')+' · Keys: '+JSON.stringify(d.keys);bOut.style.color='var(--gn)';})
             .catch(function(e){if(bOut){bOut.textContent='❌ '+e.message+' — run: python3 ~/bridge.py in a-Shell';bOut.style.color='var(--pulse)';}});
         });}
         if(bWS&&!bWS._vw){bWS._vw=true;bWS.addEventListener('click',function(){
-          if(bOut)bOut.textContent='Testing ws://192.168.1.252:9897...';
+          if(bOut)bOut.textContent='Testing ws://127.0.0.1:9897...';
           try{
-            var t=new WebSocket('ws://192.168.1.252:9897');
+            var t=new WebSocket('ws://127.0.0.1:9897');
             t.onopen=function(){if(bOut){bOut.textContent='✅ WebSocket connected';bOut.style.color='var(--gn)';}t.close();};
             t.onerror=function(){if(bOut){bOut.textContent='❌ WS failed — bridge not running or wrong origin';bOut.style.color='var(--pulse)';}};
           }catch(e){if(bOut)bOut.textContent='❌ '+e.message;}
@@ -6527,7 +6520,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     var out = document.getElementById('kc-output');
     var testFn = function() {
       if(out) out.textContent='Testing...';
-      fetch('http://192.168.1.252:9897/auth/keycloak/realm')
+      fetch('http://127.0.0.1:9897/auth/keycloak/realm')
         .then(function(r){return r.json();})
         .then(function(d){
           if(out) out.textContent = JSON.stringify(d, null, 2);
@@ -6542,12 +6535,12 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:8080/admin','_blank','noopener,noreferrer'); });
     var lf=document.getElementById('kc-login-flow');
     if(lf) lf.addEventListener('click',function(){
-      fetch('http://192.168.1.252:9897/auth/keycloak/realm')
+      fetch('http://127.0.0.1:9897/auth/keycloak/realm')
         .then(function(r){return r.json();})
         .then(function(d){
           if(d.auth_endpoint){
             var url=d.auth_endpoint+'?response_type=code&client_id='+encodeURIComponent(d.client_id||'supergrok')
-              +'&redirect_uri='+encodeURIComponent('http://192.168.1.252:9897/auth/keycloak/callback')
+              +'&redirect_uri='+encodeURIComponent('http://127.0.0.1:9897/auth/keycloak/callback')
               +'&scope=openid profile email';
             window.open(url,'_blank','noopener,noreferrer,width=600,height=700');
             if(out) out.textContent='Login window opened. Complete Keycloak auth there.';
@@ -6563,7 +6556,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     var zi=document.getElementById('zoho-init-auth');
     if(zi) zi.addEventListener('click', function(){
       if(zout) zout.textContent='Requesting Zoho OAuth URL...';
-      fetch('http://192.168.1.252:9897/auth/zoho/init')
+      fetch('http://127.0.0.1:9897/auth/zoho/init')
         .then(function(r){return r.json();})
         .then(function(d){
           if(d.auth_url){
@@ -6576,7 +6569,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     });
     var zt=document.getElementById('zoho-test');
     if(zt) zt.addEventListener('click',function(){
-      fetch('http://192.168.1.252:9897/auth/zoho/init')
+      fetch('http://127.0.0.1:9897/auth/zoho/init')
         .then(function(r){return r.json();})
         .then(function(d){ if(zout) zout.textContent=JSON.stringify(d,null,2); })
         .catch(function(e){ if(zout) zout.textContent=e.message; });
@@ -6738,7 +6731,7 @@ PANELS.dashboard=function(){
       sr('PQ Crypto Suite','ONLINE','b-ok')+
       sr('Dilithium3','READY','b-ok')+
       sr('ML-KEM-768','READY','b-ok')+
-      sr('Agent Bridge','192.168.1.252:9899','b-warn')+
+      sr('Agent Bridge','127.0.0.1:9899','b-warn')+
       sr('Secure Enclave','READY','b-ok')+
       sr('Audit Chain','VERIFIED','b-ok')+
     '</div>'+
@@ -7498,13 +7491,13 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '<button class="btn" id="vc-stt-inject">\u2192 Inject to Active Field</button>' +
 '</div>' +
 '<div class="code-block" id="vc-stt-out" style="min-height:50px;font-size:11px"># Transcription appears here...</div>' +
-'<div style="margin-top:8px;font-size:10px;color:var(--t3)">Wispr Flow / OpenWhispr: Install locally and set hotkey to bridge endpoint ws://192.168.1.252:9897 for system-wide dictation into any app.</div>' +
+'<div style="margin-top:8px;font-size:10px;color:var(--t3)">Wispr Flow / OpenWhispr: Install locally and set hotkey to bridge endpoint ws://127.0.0.1:9897 for system-wide dictation into any app.</div>' +
 '</div>' +
 
 /* ── TTS — Piper ─────────────────────────────────── */
 '<div class="card">' +
 '<div class="card-title">\ud83d\udde8\ufe0f TTS \u2014 Piper (Offline, Natural Voice)</div>' +
-'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (192.168.1.252:9899/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
+'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (127.0.0.1:9899/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
 '<div class="two" style="margin-bottom:10px">' +
 '<div>' +
 '<label class="fi-label">Voice Model</label>' +
@@ -7561,7 +7554,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '<div class="card">' +
 '<div class="card-title">\ud83d\udee1\ufe0f CSP Header \u2014 Zero Leak Policy</div>' +
 '<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Content-Security-Policy to prevent accidental external loads. Add to your server response headers or <meta> tag.</p>' +
-"<div class=\"code-block\" id=\"vc-csp\" style=\"font-size:9px;line-height:1.6;user-select:all\">Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: ws://192.168.1.252:9897; connect-src 'self' ws://192.168.1.252:9897; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://duckduckgo.com; worker-src blob:; block-all-mixed-content;</div>" +
+"<div class=\"code-block\" id=\"vc-csp\" style=\"font-size:9px;line-height:1.6;user-select:all\">Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: ws://127.0.0.1:9897; connect-src 'self' ws://127.0.0.1:9897; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://duckduckgo.com; worker-src blob:; block-all-mixed-content;</div>" +
 '<button class="btn btn-s" id="vc-csp-copy" style="margin-top:8px">\ud83d\udccb Copy CSP Header</button>' +
 '</div>' +
 
@@ -7582,7 +7575,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 'python backend.py  # already configured\n\n' +
 '# 5. iOS: a-shell or iSH + Piper WASM\n' +
 '# 6. Android: Termux + bridge via WS\n' +
-'# 7. Wispr Flow / OpenWhispr: set endpoint ws://192.168.1.252:9897' +
+'# 7. Wispr Flow / OpenWhispr: set endpoint ws://127.0.0.1:9897' +
 '</div>' +
 '</div>';
 };
@@ -8231,7 +8224,7 @@ if ((window.BRIDGE && window.BRIDGE.connected)) {
   window._drawAIOut = out;
 } else {
   /* Fallback: HTTP POST */
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ message: prompt + '\n\n[Drawing: attached]', agent:'claude' })
@@ -8524,7 +8517,7 @@ if ((window.BRIDGE && window.BRIDGE.connected)) {
   if (stat) stat.textContent = '\u2713 Sent to Claude via bridge';
   window._faiOut = out;
 } else {
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ message:msg, agent:'claude' })
   }).then(function(r){ return r.json(); })
@@ -10454,7 +10447,7 @@ var fullMsg = '[Companion: '+name+']\n\nUser says: '+input+'\n\nRespond naturall
 if ((window.BRIDGE && window.BRIDGE.connected)) {
   PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:'claude', message:fullMsg, context:'opar_chat' }));
 } else {
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ message:fullMsg, agent:'claude' })
   }).then(function(r){ return r.json(); })
@@ -10883,13 +10876,13 @@ kc('DDG','Search','#00e676') +
 '<div style="font-size:11px;color:var(--t2);line-height:1.7">' +
 'This browser enforces post-quantum cryptographic standards on all connections routed through the SuperGrok bridge. ' +
 'Key exchange uses ML-KEM (CRYSTALS-Kyber) 1024-bit. Digital signatures use Falcon-1024. ' +
-'All outbound requests through the local proxy at 192.168.1.252:9897 are wrapped with PQ headers. ' +
+'All outbound requests through the local proxy at 127.0.0.1:9897 are wrapped with PQ headers. ' +
 'Direct iframe connections inherit the browser\x27s native TLS — bridge routing adds PQ layer on supported endpoints.' +
 '</div>' +
 '<div class="code-block" style="font-size:9px;margin-top:8px;line-height:1.7">' +
 'X-PQ-KEM: ML-KEM-1024\n' +
 'X-PQ-SIG: Falcon-1024\n' +
-'X-SuperGrok-Bridge: 192.168.1.252:9899\n' +
+'X-SuperGrok-Bridge: 127.0.0.1:9899\n' +
 'Strict-Transport-Security: max-age=31536000; includeSubDomains\n' +
 'X-Content-Type-Options: nosniff\n' +
 'X-Frame-Options: SAMEORIGIN\n' +
@@ -12245,7 +12238,7 @@ kc('TLS','Transport','#00e676') + kc('GDPR','Compliant','var(--volt)') +
 '<div class="card"><div class="card-title">Setup</div>' +
 sr('ZOHO_CLIENT_ID','Set env var','b-warn') +
 sr('ZOHO_CLIENT_SECRET','Set env var','b-warn') +
-sr('Redirect URI','192.168.1.252:9898/zoho/callback','b-info') +
+sr('Redirect URI','127.0.0.1:9898/zoho/callback','b-info') +
 '<div style="margin-top:10px;display:flex;gap:6px">' +
 '<button class="btn btn-p" id="zoho-init-auth">\ud83d\udd10 Init Zoho OAuth</button>' +
 '<button class="btn btn-s" id="zoho-test">\ud83e\udde9 Check Config</button>' +
@@ -12309,7 +12302,7 @@ var wsOk       = typeof WebSocket !== 'undefined';
 var agentBridge= window.SG_AGENT && window.SG_AGENT.getState ? window.SG_AGENT.getState().bridge : '?';
 
 out += row('WebSocket API', wsOk, wsOk?'WebSocket supported':'CRITICAL: No WebSocket');
-out += row('BridgeCFG defined', cfgDef, cfgDef?'url='+cfgUrl:'window.BridgeCFG missing', !cfgDef?'window.BridgeCFG={protocol:"ws",host:"localhost",port:9899,path:"",wsURL:function(){return "ws://192.168.1.252:9897";},save:function(){},load:function(){}};toast("BridgeCFG restored","ok");':'');
+out += row('BridgeCFG defined', cfgDef, cfgDef?'url='+cfgUrl:'window.BridgeCFG missing', !cfgDef?'window.BridgeCFG={protocol:"ws",host:"localhost",port:9899,path:"",wsURL:function(){return "ws://127.0.0.1:9897";},save:function(){},load:function(){}};toast("BridgeCFG restored","ok");':'');
 out += row('BridgeCFG protocol', cfgDef?(cfgProto==='ws'):'warn', cfgDef?'protocol='+cfgProto:'unknown', cfgDef&&cfgProto==='wss'?'BridgeCFG.protocol="ws";BridgeCFG.save();toast("Fixed: ws://","ok");':'');
 out += row('BRIDGE object', bridgeDef, bridgeDef?'defined':'window.BRIDGE missing — check block 5');
 out += row('BRIDGE connected', bridgeConn?true:'warn', bridgeConn?'Live':'Disconnected (start bridge.py)', bridgeDef&&!bridgeConn?'if(BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();toast("Reconnecting...","");':'');
@@ -12319,8 +12312,8 @@ out += row('Agent bridge', agentBridge==='connected'?true:'warn', 'SG_AGENT brid
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-p" style="font-size:9px" onclick="sg(function(){if(typeof BRIDGE!==\'undefined\'&&BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();if(typeof PiperTTS!==\'undefined\'&&PiperTTS.connect)PiperTTS.connect();if(window.SG_AGENT)SG_AGENT.reconnectBridge();toast(\'All bridges reconnecting...\',\'\');setTimeout(function(){loadPanel(\'diag\');},1500)})">🔌 Reconnect All Bridges</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://192.168.1.252:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://192.168.1.252:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -12451,15 +12444,15 @@ out += '<div style="font-family:var(--mono);background:var(--bg3);padding:10px;b
 'export GROK_API_KEY=xai-...<br>'+
 'python3 python3_bridge.py<br><br>'+
 '# Bridge listens on:<br>'+
-'ws://192.168.1.252:9897   ← WebSocket (AI chat, voice, agent)<br>'+
-'http://192.168.1.252:9898 ← HTTP health + REST endpoints (unified)'+
+'ws://127.0.0.1:9897   ← WebSocket (AI chat, voice, agent)<br>'+
+'http://127.0.0.1:9898 ← HTTP health + REST endpoints (unified)'+
 '</div>';
 out += '<div>If bridge is running but still disconnected: check firewall, verify port 9897 is free (<code style="font-family:var(--mono);color:var(--cy)">lsof -i :9899</code>), and make sure the bridge has no startup errors.</div>';
 out += '</div>';
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://192.168.1.252:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://192.168.1.252:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -13710,7 +13703,7 @@ canvas.addEventListener('mousedown',startDraw);canvas.addEventListener('mousemov
 canvas.addEventListener('touchstart',startDraw,{passive:false});canvas.addEventListener('touchmove',doDraw,{passive:false});canvas.addEventListener('touchend',endDraw);
 var clr=gi('drawClear');if(clr)clr.addEventListener('click',function(){ctx.clearRect(0,0,canvas.width,canvas.height);});
 var exp=gi('drawExport');if(exp)exp.addEventListener('click',function(){var a=document.createElement('a');a.download='drawing.png';a.href=canvas.toDataURL();a.click();});
-var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at 192.168.1.252:9897 to analyze drawing.';}});
+var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at 127.0.0.1:9897 to analyze drawing.';}});
 return;
 }
 
@@ -13859,7 +13852,7 @@ window._chatAg='claude';
 /* ══ AGENT COMMUNICATION ENGINE ══════════════════════════════════════════════
 Priority chain:
 
-1. WebSocket bridge (ws://192.168.1.252:9897) — real-time, all agents
+1. WebSocket bridge (ws://127.0.0.1:9897) — real-time, all agents
 1. Direct Anthropic API — Claude only, works without bridge
 1. Error card with actionable fix instructions
    ══════════════════════════════════════════════════════════════════════════ */
@@ -13986,7 +13979,7 @@ messages:[{role:'system',content:'You are SuperGrok AI.'}]
 .concat(history.slice(-8))
 .concat([{role:'user',content:msg}])});
 } else {
-ab.textContent='Agent '+ag+' requires bridge (ws://192.168.1.252:9897)';
+ab.textContent='Agent '+ag+' requires bridge (ws://127.0.0.1:9897)';
 ab.style.color='var(--t3)';
 return;
 }
@@ -14067,7 +14060,7 @@ if(out)out.innerHTML='<div class="card"><div class="card-title">⚖️ Council V
 audit('COUNCIL_VOTE',{q:q.slice(0,50)});
 }).catch(function(e){if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Bridge offline: '+e.message+'</div></div>';});
 } else {
-if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start node-bridge at 192.168.1.252:9899</div></div>';
+if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start node-bridge at 127.0.0.1:9899</div></div>';
 }
 }
 
@@ -14075,25 +14068,25 @@ function runEdu(){
 var q=gi('eduQ')&&gi('eduQ').value.trim();if(!q){toast('Enter a question','err');return;}
 var subj=gi('eduSubj')&&gi('eduSubj').value||'General';
 var o=gi('eduOut');if(!o)return;o.style.display='block';o.textContent='Querying GrokEDU...';
-fetch('http://192.168.1.252:9897/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 192.168.1.252:9899 for live GrokEDU responses.';});
+fetch('http://127.0.0.1:9897/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 127.0.0.1:9899 for live GrokEDU responses.';});
 }
 
 function runMed(){
 var q=gi('medQ')&&gi('medQ').value.trim();if(!q){toast('Enter a medical question','err');return;}
 var o=gi('medOut');if(!o)return;o.style.display='block';o.textContent='Querying MedEd...';
-fetch('http://192.168.1.252:9897/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 192.168.1.252:9899 for live MedEd responses.';});
+fetch('http://127.0.0.1:9897/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 127.0.0.1:9899 for live MedEd responses.';});
 }
 
 function genCards(){
 var t=gi('mcTopic')&&gi('mcTopic').value.trim();if(!t){toast('Enter a topic','err');return;}
 var out=gi('mcCards');if(!out)return;
 out.innerHTML='<div class="loading"><div class="spin"></div>Generating cards...</div>';
-fetch('http://192.168.1.252:9897/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:t})}).then(function(r){return r.json();}).then(function(d){
+fetch('http://127.0.0.1:9897/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:t})}).then(function(r){return r.json();}).then(function(d){
 var cards=(d.cards||[]);if(!cards.length){out.innerHTML='<div style="color:var(--t3);font-family:var(--mono);font-size:11px">No cards returned — bridge may be offline.</div>';return;}
 out.innerHTML=cards.map(function(c){return '<div class="card" style="cursor:pointer" title="Click to flip"><div style="font-weight:600;color:var(--acid);margin-bottom:6px">Q: '+c.q+'</div><div style="color:var(--t2);font-size:11px">A: '+c.a+'</div></div>';}).join('');
 audit('CARDS_GEN',{topic:t});
 }).catch(function(){
-var sample=[{q:'What is the topic?',a:t},{q:'Define: '+t,a:'(Bridge offline — connect 192.168.1.252:9897for AI-generated answers)'}];
+var sample=[{q:'What is the topic?',a:t},{q:'Define: '+t,a:'(Bridge offline — connect 127.0.0.1:9897for AI-generated answers)'}];
 out.innerHTML=sample.map(function(c){return '<div class="card"><div style="font-weight:600;color:var(--acid);margin-bottom:6px">Q: '+c.q+'</div><div style="color:var(--t2);font-size:11px">A: '+c.a+'</div></div>';}).join('');
 });
 }
@@ -14101,10 +14094,10 @@ out.innerHTML=sample.map(function(c){return '<div class="card"><div style="font-
 function runLie(){
 var s=gi('lieIn')&&gi('lieIn').value.trim();if(!s){toast('Enter a statement','err');return;}
 var o=gi('lieOut');if(!o)return;o.style.display='block';o.textContent='Verifying...';
-fetch('http://192.168.1.252:9897/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:s})}).then(function(r){return r.json();}).then(function(d){
+fetch('http://127.0.0.1:9897/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:s})}).then(function(r){return r.json();}).then(function(d){
 o.textContent='STATEMENT: '+s+'\nVERDICT: '+(d.verdict||'Unknown')+'\nCONFIDENCE: '+(d.confidence||'—')+'\nSIGNED: '+new Date().toISOString()+'\nALG: DILITHIUM3';
 audit('VERIFY',{s:s.slice(0,50)});
-}).catch(function(){o.textContent='Bridge offline. Connect 192.168.1.252:9897for live verification.';});
+}).catch(function(){o.textContent='Bridge offline. Connect 127.0.0.1:9897for live verification.';});
 }
 
 function runFileAI(){
@@ -14115,7 +14108,7 @@ var reader=new FileReader();
 reader.onload=function(ev){
 var content=ev.target.result;
 var preview=typeof content==='string'?content.slice(0,2000):'[Binary file]';
-o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at 192.168.1.252:9897for AI analysis]';
+o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at 127.0.0.1:9897for AI analysis]';
 audit('FILE_AI',{name:fi.files[0].name,size:fi.files[0].size,q:q.slice(0,40)});
 };
 reader.readAsText(fi.files[0]);
@@ -15371,7 +15364,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 192.168.1.252:9899</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 127.0.0.1:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -15844,7 +15837,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (192.168.1.252:9899) for full AI code review.';
+    '\n\n# Connect bridge (127.0.0.1:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -17194,7 +17187,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 192.168.1.252:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 127.0.0.1:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -17464,7 +17457,7 @@ var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyStat
 if (bridgeOk) {
 try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
 }
-if (out) out.textContent='Bridge offline. Connect 192.168.1.252:9897 for AI vision analysis.';
+if (out) out.textContent='Bridge offline. Connect 127.0.0.1:9897 for AI vision analysis.';
 }
 };
 
@@ -18031,7 +18024,7 @@ if (BridgeTerm._ws && BridgeTerm._ws.readyState < 2) return;
 try {
 /* BridgeTerm WS removed */ BridgeTerm._ws = null;
 BridgeTerm._ws.onopen = function() {
-BridgeTerm._log('CONNECTED to 192.168.1.252:9899/terminal', 'var(--acid)');
+BridgeTerm._log('CONNECTED to 127.0.0.1:9899/terminal', 'var(--acid)');
 window.auditLog && window.auditLog('BRIDGE_TERMINAL_OPEN', {});
 };
 BridgeTerm._ws.onmessage = function(e) {
@@ -18117,7 +18110,7 @@ ts: Date.now()
 
 /* ── BRIDGE TERMINAL PANEL ───────────────────────────────────── */
 PANELS.terminal = function() {
-return hdr('\ud83d\udda5\ufe0f Bridge Terminal','192.168.1.252:9897\u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
+return hdr('\ud83d\udda5\ufe0f Bridge Terminal','127.0.0.1:9897\u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
 '<div class="kgrid">' +
 kc('9899',     'Bridge Port',   'var(--acid)') +
 kc('WS',       'Protocol',      'var(--volt)') +
@@ -18126,7 +18119,7 @@ kc('ZERO',     'Cloud',         'var(--pulse)') +
 '</div>' +
 
 '<div style="background:#0a1a0a;border:1px solid #1a3a1a;border-radius:var(--r);padding:10px;font-family:var(--mono);font-size:9px;color:#22c55e;margin-bottom:12px;line-height:1.8">' +
-'\u26a1 BRIDGE PROTOCOL: SuperGrok connects to 192.168.1.252:9897 via WebSocket. ' +
+'\u26a1 BRIDGE PROTOCOL: SuperGrok connects to 127.0.0.1:9897 via WebSocket. ' +
 'On iOS: run python3 python3_bridge.py inside iSH or a-Shell. On desktop: python3 python3_bridge.py. ' +
 'Node.js commands exec via bridge. GitHub clone/pull/push routed through bridge.' +
 '</div>' +
@@ -18170,7 +18163,7 @@ item.label +
 '</div>' +
 '</div>' +
 '<div id="bt-output" style="background:#000;padding:10px;min-height:200px;max-height:45vh;overflow-y:auto;font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.6">' +
-'<div style="color:var(--acid)">SuperGrok Terminal \u2014 192.168.1.252:9899</div>' +
+'<div style="color:var(--acid)">SuperGrok Terminal \u2014 127.0.0.1:9899</div>' +
 '<div style="color:var(--t3)">Run commands via bridge. Start bridge.py on device first.</div>' +
 '<div style="color:var(--t3)">iSH: copy python3_bridge.py into /root, run: python3 python3_bridge.py</div>' +
 '<div style="color:var(--t3)">a-Shell: python3 python3_bridge.py in working dir</div>' +
@@ -18235,7 +18228,7 @@ return;
 }
 if (t.id === 'bc-test') {
 BridgeTerm.connect();
-window.toast && window.toast('\ud83d\udccd Testing connection to 192.168.1.252:9899', 'ok');
+window.toast && window.toast('\ud83d\udccd Testing connection to 127.0.0.1:9899', 'ok');
 return;
 }
 });
@@ -19085,7 +19078,7 @@ window.toast && window.toast('\u2b07\ufe0f Exporting 4K PNG...', 'ok');
 generateFromAI: function(desc) {
 if (!desc) { window.toast && window.toast('Enter a description first', 'err'); return; }
 var bOk = (window.BRIDGE && window.BRIDGE.connected);
-if (!bOk) { window.toast && window.toast('Bridge offline \u2014 connect 192.168.1.252:9899', 'err'); return; }
+if (!bOk) { window.toast && window.toast('Bridge offline \u2014 connect 127.0.0.1:9899', 'err'); return; }
 var prompt = 'Parse this avatar description. Return ONLY valid JSON with these exact fields: ' +
 '{"skin":"#hexcolor","hair":"#hexcolor","eyes":"#hexcolor","gender":"masculine|feminine|neutral",' +
 '"age":number,"hairStyle":"short_tight|short_wave|medium|long_straight|long_wave|curly|afro|locs|bun|ponytail|bald|buzz|mohawk|braids",' +
@@ -20459,7 +20452,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 192.168.1.252:9899</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 127.0.0.1:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -20895,7 +20888,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (192.168.1.252:9899) for full AI code review.';
+    '\n\n# Connect bridge (127.0.0.1:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -21666,7 +21659,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 192.168.1.252:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 127.0.0.1:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -21936,7 +21929,7 @@ var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyStat
 if (bridgeOk) {
 try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
 }
-if (out) out.textContent='Bridge offline. Connect 192.168.1.252:9897for AI vision analysis.';
+if (out) out.textContent='Bridge offline. Connect 127.0.0.1:9897for AI vision analysis.';
 }
 };
 
@@ -22223,7 +22216,7 @@ mkRepoCard('Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton','ssh://git@github.com:
 '<button class="btn-s" style="font-size:9px" onclick="sgGitStatus()">📊 Status</button>' +
 '</div></div>' +
 
-'<div id="gh-out" style="font-family:var(--mono);font-size:9px;color:var(--t2);background:var(--bg2);border:1px solid var(--wire);border-radius:8px;padding:10px;min-height:60px;white-space:pre-wrap;max-height:220px;overflow-y:auto">Ready — bridge must be running at ws://192.168.1.252:9897</div>' +
+'<div id="gh-out" style="font-family:var(--mono);font-size:9px;color:var(--t2);background:var(--bg2);border:1px solid var(--wire);border-radius:8px;padding:10px;min-height:60px;white-space:pre-wrap;max-height:220px;overflow-y:auto">Ready — bridge must be running at ws://127.0.0.1:9897</div>' +
 '</div>';
 };
 
@@ -22495,7 +22488,7 @@ return hdr('⚙️ Settings','API Keys · Bridge · Roles · Session · Display'
 '<button class="btn btn-p" style="font-size:9px" onclick="bridgeReconnect()">⚡ Reconnect Bridge</button>' +
 '<button class="btn" style="font-size:9px" onclick="window._bridgeGaveUp=false;window._bridgeRetryCount=0;initBridge();toast(\'Retrying...\',\'\')">🔄 Force Retry</button>' +
 '</div>' +
-'<div style="font-family:var(--mono);font-size:8px;color:var(--t3)">Bridge: ws://192.168.1.252:9897 · Run: <code>python3 python3_bridge.py</code></div>' +
+'<div style="font-family:var(--mono);font-size:8px;color:var(--t3)">Bridge: ws://127.0.0.1:9897 · Run: <code>python3 python3_bridge.py</code></div>' +
 '</div>' +
 
 /* API Keys */
@@ -22939,7 +22932,7 @@ html += '</div>';
 
 /* Bridge section */
 html += '<div class="card" style="border-color:'+(st.bridge?'var(--gn)':'var(--am)')+'44">';
-html +=   '<div class="card-title">'+(st.bridge?'🟢':'🔴')+' Bridge (ws://192.168.1.252:9897)</div>';
+html +=   '<div class="card-title">'+(st.bridge?'🟢':'🔴')+' Bridge (ws://127.0.0.1:9897)</div>';
 html +=   '<div style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-bottom:10px">'+
 (st.bridge?'Connected — all AI calls can route through bridge':'Offline — AI will use direct browser API calls')+
 '</div>';
@@ -22953,7 +22946,7 @@ html +=   '<div style="background:var(--bg1);border-radius:6px;padding:10px;marg
 html +=     '# In a-Shell or iSH:<br>';
 html +=     'python3 ~/bridge.py<br><br>';
 html +=     '# Then open Safari at:<br>';
-html +=     'http://192.168.1.252:9898<br><br>';
+html +=     'http://127.0.0.1:9898<br><br>';
 html +=     '# NOT from Files — must be HTTP for voice + WebSocket';
 html +=   '</div>';
 html += '</div>';
@@ -23796,7 +23789,7 @@ _queryDirect: function(agentId, message, history, cb){
   }
 
   /* Bridge offline */
-  var bridgeHint = 'Bridge offline — run: python3 python3_bridge.py  then open http://192.168.1.252:9898';
+  var bridgeHint = 'Bridge offline — run: python3 python3_bridge.py  then open http://127.0.0.1:9898';
   if(cb) cb({error:agentId+': '+bridgeHint, agent:agentId});
 },
 
@@ -23983,7 +23976,7 @@ html += '</div>';
 html += '<div id="ag-thread" style="background:var(--bg1);border:1px solid var(--wire);border-radius:8px;min-height:80px;max-height:300px;overflow-y:auto;padding:10px;font-family:var(--mono);font-size:10px;color:var(--t2)"><span style="color:var(--t4)">Messages appear here\u2026</span></div>';
 html += '</div>';
 }
-html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t4);text-align:center;padding:10px 0">GPT & Grok: run python3 python3_bridge.py \u00b7 open http://192.168.1.252:9898 \u00b7 add keys in \u2630 AI API Keys</div>';
+html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t4);text-align:center;padding:10px 0">GPT & Grok: run python3 python3_bridge.py \u00b7 open http://127.0.0.1:9898 \u00b7 add keys in \u2630 AI API Keys</div>';
 return html;
 };
 
@@ -24308,7 +24301,7 @@ window._bridgeGaveUp = false;
 try{
 /* WS always on Python bridge :9897 — never derive from location.host
    (page is served from KODER :9898 which is HTTP-only, not a WS server) */
-var _wsURL = (location.protocol==='https:'?'wss://':'ws://')+'192.168.1.252:9897';
+var _wsURL = (location.protocol==='https:'?'wss://':'ws://')+'127.0.0.1:9897';
 var ws = new WebSocket(_wsURL);
 window.ws = ws;
 ws.onopen = function(){
@@ -24866,7 +24859,7 @@ try{ window.ws.send(JSON.stringify({type:'stt_start',lang:'en-US'})); }catch(e){
 toast('Bridge STT active','ok');
 self._listening = true; self._btns(true); return;
 }
-toast('Voice unavailable — serve via http://192.168.1.252:9898 or allow mic in iOS Settings','err');
+toast('Voice unavailable — serve via http://127.0.0.1:9898 or allow mic in iOS Settings','err');
 return;
 }
 var rec = new SR();
@@ -25176,7 +25169,7 @@ return;
 /* Fallback: dedicated WebSocket to /terminal */
 _mode = 'bridge-ws';
 try{
-  _ws = new WebSocket('ws://192.168.1.252:9897/terminal');
+  _ws = new WebSocket('ws://127.0.0.1:9897/terminal');
   _ws.onopen = function(){
     _ws.send(JSON.stringify({type:'ssh_connect',host:host,port:parseInt(port)||22,username:user,password:pass}));
     _setStatus('connecting','SSH handshake...','');
@@ -26384,7 +26377,7 @@ window.sendChat = function(msg){
   }
 
   /* Route through sovereign bridge */
-  fetch((window.BRIDGE && window.BRIDGE.base || 'http://192.168.1.252:9897') + '/api/ai', {
+  fetch((window.BRIDGE && window.BRIDGE.base || 'http://127.0.0.1:9897') + '/api/ai', {
     method:  'POST',
     headers: {'Content-Type':'application/json'},
     body:    JSON.stringify(payload)
@@ -26905,7 +26898,7 @@ var PIP = {
     }
 
     /* Route through sovereign bridge */
-    var bridgeBase = (window.BRIDGE && window.BRIDGE.base) || 'http://192.168.1.252:9897';
+    var bridgeBase = (window.BRIDGE && window.BRIDGE.base) || 'http://127.0.0.1:9897';
     var ctx = window.SGMemory ? window.SGMemory.getContext(6) : '';
 
     fetch(bridgeBase + '/api/ai', {
@@ -27061,7 +27054,7 @@ window.SGLog=function(type,data){
   /* 9897 = internal Python brain (dashboard talks here directly)
      9899 = external Node gateway (fallback only) */
   var _candidates=_override?[_override]:[
-    '192.168.1.252:9897',
+    '127.0.0.1:9897',
     location.hostname+':9897'
   ].filter(function(c,i,a){
   var p=c.split(':');var h=p[0];var pt=parseInt(p[1]||'0',10);
@@ -27320,7 +27313,7 @@ document.addEventListener('click',function(e){
   }catch(e){console.warn('[SG boot]',e.message);}
 })();
 
-console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 192.168.1.252:9897','color:#00ffc8;font-weight:bold');
+console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 127.0.0.1:9897','color:#00ffc8;font-weight:bold');
 })();
 
 </script>
@@ -28585,7 +28578,7 @@ console.log('%c[SOC2Panel v1.0] Loaded — CC6.1 CC5.2 CC7.1 CC7.2 CC7.3 CC8.3 A
   </div>
   <div class="sgcpr">
     <button class="sgcpb" onclick="SGC.ping()">PING</button>
-    <span class="sgcps" id="sgcps">192.168.1.252:9898 &#8594; 192.168.1.252:9897</span>
+    <span class="sgcps" id="sgcps">127.0.0.1:9898 &#8594; 127.0.0.1:9897</span>
   </div>
   <div id="sgcv-council" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
     <div class="sgcir">
@@ -29286,7 +29279,7 @@ console.log('%c[AI Guardian Panel] Loaded — Provider Health | KPI | Anomalies 
 
 <div id="sg-conn-modal">
   <div class="sg-conn-modal-title">&#128279; BRIDGE CONNECTION</div>
-  <input id="sg-conn-input" placeholder="e.g. 192.168.1.252:9897 or 10.0.0.2:9899" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="sg-conn-input" placeholder="e.g. 127.0.0.1:9897 or 10.0.0.2:9899" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
   <div class="sg-conn-hosts-list" id="sg-conn-hosts-list"></div>
   <div class="sg-conn-modal-row">
     <div class="sg-conn-modal-btn" onclick="SGConn.applyManual()">&#10003; CONNECT</div>
@@ -29303,8 +29296,8 @@ if(window.SGConn)return;
 /* Probe 9897 (internal Python brain) first — 9899 is external gateway only */
 var CANDIDATES=[
   location.host,
-  '192.168.1.252:9898',
-  '192.168.1.252:9897'
+  '127.0.0.1:9898',
+  '127.0.0.1:9897'
 ].filter(function(c,i,a){
   var p=c.split(':');var h=p[0];var pt=parseInt(p[1]||'0',10);
   return h&&h!=='null'&&h!=='undefined'&&h!=='0.0.0.0'&&h!==''&&pt>0&&pt<65536&&a.indexOf(c)===i;
@@ -29441,7 +29434,7 @@ window.SGConn={
     }catch(e){}
     window.BRIDGE.base = '';
     window.BRIDGE._bridgeReady = false;
-    txt('sg-conn-host','Force connecting to 192.168.1.252:9897...');
+    txt('sg-conn-host','Force connecting to 127.0.0.1:9897...');
     var dot = el('sg-cdot');
     if(dot) dot.className = 'sg-conn-dot probing';
     /* Direct raw XHR — no helper functions */
@@ -29460,9 +29453,9 @@ window.SGConn={
           var r = JSON.parse(x.responseText);
           window.BRIDGE.base = '';
           window.BRIDGE._bridgeReady = true;
-          localStorage.setItem('sg_bridge_ip','192.168.1.252:9897');
+          localStorage.setItem('sg_bridge_ip','127.0.0.1:9897');
           var dot2 = el('sg-cdot'); if(dot2) dot2.className='sg-conn-dot live';
-          txt('sg-conn-host','CONNECTED 192.168.1.252:9897 — '+JSON.stringify(r).slice(0,60));
+          txt('sg-conn-host','CONNECTED 127.0.0.1:9897 — '+JSON.stringify(r).slice(0,60));
           var strip = el('sg-conn-strip'); if(strip) strip.className='live';
           if(window.SGC && window.SGC.ping) setTimeout(function(){SGC.ping();},300);
         }catch(e){ txt('sg-conn-host','BAD RESPONSE: '+x.responseText.slice(0,80)); }
@@ -29840,7 +29833,7 @@ console.log('%c[CryptoPanel] Ed25519 · X25519 · Stream ready','color:#7c4dff;f
     <div class="inf-kv"><span class="inf-kv-k">Driver</span><span class="inf-kv-v">bridge</span></div>
     <div class="inf-kv"><span class="inf-kv-k">Subnet</span><span class="inf-kv-v">172.28.0.0/16</span></div>
     <div class="inf-kv"><span class="inf-kv-k">Network name</span><span class="inf-kv-v">localnet</span></div>
-    <div class="inf-kv"><span class="inf-kv-k">Device IP</span><span class="inf-kv-v ok">192.168.1.252</span></div>
+    <div class="inf-kv"><span class="inf-kv-k">Device IP</span><span class="inf-kv-v ok">127.0.0.1</span></div>
   </div>
 
   <!-- COMMANDS tab -->
@@ -29932,7 +29925,7 @@ function probe1(svc){
       if(!done){done=true;res({id:svc.id,status:'unknown',ms:3000});}
     },3000);
     var x=new XMLHttpRequest();
-    var url='http://192.168.1.252:'+svc.port+svc.health;
+    var url='http://127.0.0.1:'+svc.port+svc.health;
     try{x.open('GET',url,true);}
     catch(e){clearTimeout(guard);res({id:svc.id,status:'unhealthy',ms:0});return;}
     x.onload=function(){
