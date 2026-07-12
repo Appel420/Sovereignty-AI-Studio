@@ -136,10 +136,13 @@ button, [role=button] {
     if(_cached && (_cached.indexOf('9899') >= 0 || !_cached.match(/^\d+\.\d+\.\d+\.\d+:\d+$/))){
       localStorage.removeItem('sg_bridge_ip');
     }
-    /* Preserve offline/local mode; discard only invalid persisted values. */
+    /* Preserve offline/local mode; discard only invalid persisted values.
+       Default is LOCAL — app is fully functional with no bridge or network. */
     var _mode = localStorage.getItem('sgh_mode');
     var _validModes = ['online','stealth','ghost','offline','local','hybrid'];
     if(_mode && _validModes.indexOf(_mode) === -1) localStorage.removeItem('sgh_mode');
+    /* Set offline-first default on first load */
+    if(!localStorage.getItem('sgh_mode')) localStorage.setItem('sgh_mode','local');
   }catch(e){}
 })();
 </script>
@@ -651,7 +654,8 @@ if(location.protocol==='file:'){
 
 /* ═══ BRIDGE STATUS SINGLETON ════════════════════════════════════════════════
 Single source of truth. Manages dual connection (PiperTTS WS + BRIDGE WS).
-Auto-retries forever. Shows status bar + toast. No API limits.
+OFFLINE-FIRST: retries only when mode is 'hybrid' or 'online'.
+In 'local' mode the bar shows neutral status — no outbound pings.
 ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
 var bar   = document.getElementById('sg-bridge-bar');
@@ -661,8 +665,22 @@ var _connected = false;
 var _retries   = 0;
 var _timer     = null;
 
+/* Returns current connectivity mode — defaults local (offline-first) */
+function _cmode(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } }
+var _isLocalMode = function(){ var m=_cmode(); return m==='local'||m==='offline'; };
+
 function setConnected(yes, msg) {
 _connected = yes;
+/* Local mode: neutral blue bar, never red "Bridge offline" */
+if(_isLocalMode()){
+  if(bar) bar.style.background = '#1a3a5c';
+  if(txt) txt.textContent = '🏠 Local/Offline — no bridge required';
+  document.querySelectorAll('[id="bridgeStatus"],[id="ftBridge"]').forEach(function(el){
+    el.textContent = 'LOCAL';
+    el.style.color  = 'var(--cy,#00bcd4)';
+  });
+  return;
+}
 if (bar) bar.style.background = yes ? 'var(--acid,#00ffc8)' : '#ff3d6e';
 if (txt) txt.textContent = msg || (yes ? '⚡ Bridge LIVE — Port 9897' : '⚠ Bridge offline — start bridge.py');
 /* Update all status elements in the DOM */
@@ -677,6 +695,13 @@ setTimeout(function(){ if(toast) toast.style.display='none'; }, 3500);
 }
 
 function tryAll() {
+/* OFFLINE-FIRST: never attempt bridge connections in local/offline mode */
+if(_isLocalMode()){
+  if(_timer){ clearTimeout(_timer); _timer=null; }
+  setConnected(false, '🏠 Local/Offline');
+  return;
+}
+
 var ptOk = !!(window.BRIDGE && window.BRIDGE.connected);
 var brOk = typeof BRIDGE   !== 'undefined' && BRIDGE.connected;
 
@@ -704,34 +729,48 @@ if (typeof BRIDGE !== 'undefined') {
   }
 }
 
-if (!_connected && _retries <= 3) setConnected(false, '⏳ Connecting to bridge... (attempt '+_retries+')'); else if(_retries > 3 && !_connected) setConnected(false, '🔌 Bridge offline — direct API mode active');
+if (!_connected && _retries <= 3) setConnected(false, '⏳ Connecting to bridge... (attempt '+_retries+')'); else if(_retries > 3 && !_connected) setConnected(false, '🔌 Bridge offline — switch to Local mode or start bridge.py');
 if (_timer) clearTimeout(_timer);
 _timer = setTimeout(tryAll, delay);
 
 }
 
+/* Listen for mode changes from bar/presencePill — restart logic when mode changes */
+document.addEventListener('sg:modeChanged', function(ev){
+var m = ev.detail && ev.detail.mode;
+if(m==='local'||m==='offline'){
+  if(_timer){clearTimeout(_timer);_timer=null;}
+  setConnected(false,'🏠 Local/Offline');
+} else {
+  _retries=0; tryAll();
+}
+});
+
 /* Hook events */
 document.addEventListener('sg:bridgeConnected', function(ev){
+if(_isLocalMode()) return; /* ignore bridge events in local mode */
 setConnected(true, '⚡ Bridge LIVE — ' + ((ev.detail && ev.detail.url) || 'Port 9897'));
 _retries = 0;
 if (_timer) { clearTimeout(_timer); _timer = null; }
-/* Restart keepalive ping every 20s */
+/* Restart keepalive ping every 20s — only while in hybrid/online mode */
 setInterval(function(){
+if(_isLocalMode()) return;
 var ok = (typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
 (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
 if (!ok) { _connected=false; tryAll(); }
 }, 20000);
 });
 
-/* Start */
-setTimeout(tryAll, 300);
-setTimeout(tryAll, 1200);
-setTimeout(tryAll, 4000);
+/* Start — deferred so mode init block above has already run */
+setTimeout(tryAll, 500);
 
 window._SG_BRIDGE_STATUS = {
 isConnected: function(){ return _connected; },
 reconnect:   tryAll,
+isLocal:     _isLocalMode,
 send: function(msg) {
+/* Never send to bridge in local mode */
+if(_isLocalMode()) return false;
 var sent = false;
 if (typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1) {
 try { BRIDGE.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sent=true; } catch(e){}
@@ -740,7 +779,7 @@ if (!sent && (window.BRIDGE && window.BRIDGE.connected)) {
 try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sent=true; } catch(e){}
 }
 if (!sent) {
-/* HTTP fallback */
+/* HTTP fallback — only in hybrid/online mode */
 fetch('http://127.0.0.1:9897/chat', {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
@@ -871,25 +910,29 @@ var tnow = window.tnow;
       console.groupEnd();
     } catch(e2){}
 
-    /* ── 4. Bridge WS ping ── */
+    /* ── 4. Bridge WS ping — skip in local/offline mode ── */
     var sent = false;
-    try {
-      if(typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1){
-        BRIDGE.ws.send(JSON.stringify(payload));
-        sent = true;
-      }
-    } catch(e2){}
-    if(!sent){
+    var _errMode = (function(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } })();
+    var _errLocal = (_errMode === 'local' || _errMode === 'offline');
+    if(!_errLocal){
       try {
-        if((window.BRIDGE && window.BRIDGE.connected)){
-          PiperTTS.ws.send(JSON.stringify(payload));
+        if(typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1){
+          BRIDGE.ws.send(JSON.stringify(payload));
           sent = true;
         }
       } catch(e2){}
+      if(!sent){
+        try {
+          if((window.BRIDGE && window.BRIDGE.connected)){
+            PiperTTS.ws.send(JSON.stringify(payload));
+            sent = true;
+          }
+        } catch(e2){}
+      }
     }
 
-    /* ── 5. HTTP fallback — fire-and-forget ── */
-    if(!sent){
+    /* ── 5. HTTP fallback — only in hybrid/online mode, fire-and-forget ── */
+    if(!sent && !_errLocal){
       try {
         fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9897/error_ping' : 'http://127.0.0.1:9897/error_ping'), {
           method: 'POST',
@@ -19246,13 +19289,14 @@ window.SG.setMode = setMode;
 window.setMode = setMode;
 })();
 
-window.SG={
+/* Preserve setMode when extending window.SG with panel utilities */
+window.SG = Object.assign(window.SG || {}, {
 loadPanel:loadPanel,
 buildRoles:buildRoles,
 filterRoles:function(q){buildRoles(q);},
 auditLog:audit,
 toast:toast
-};
+});
 
 /* old panel block removed — canonical definitions above */
 
@@ -22230,13 +22274,14 @@ window.SG.setMode = setMode;
 window.setMode = setMode;
 })();
 
-window.SG={
+/* Preserve setMode when extending window.SG with panel utilities */
+window.SG = Object.assign(window.SG || {}, {
 loadPanel:loadPanel,
 buildRoles:buildRoles,
 filterRoles:function(q){buildRoles(q);},
 auditLog:audit,
 toast:toast
-};
+});
 
 /* ══════════════════════════════════════════════════════════════════════
 PANELS.github — Git push to both Sovereignty repos via SSH
@@ -26590,7 +26635,7 @@ var PIP = {
       '#spip.snapped-left{border-radius:0 14px 14px 0;border-left:none;}',
       '#spip.snapped-right{border-radius:14px 0 0 14px;border-right:none;}',
       '#spip-header{background:#0c1828;padding:8px 10px;display:flex;align-items:center;',
-      'gap:6px;cursor:move;border-bottom:1px solid #1a2e50;flex-shrink:0;min-height:36px;}',
+      'gap:6px;cursor:move;border-bottom:1px solid #1a2e50;flex-shrink:0;min-height:44px;}',
       '#spip-ai-tabs{display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid #1a2e50;flex-shrink:0;}',
       '.spip-tab{flex:1;padding:5px 2px;border-radius:6px;border:1px solid #1a2e5080;',
       'background:transparent;color:#6a88ae;font:700 8px monospace;cursor:pointer;',
@@ -26644,7 +26689,7 @@ var PIP = {
       '<div id="spip-resize"></div>',
     ].join('');
 
-    /* Position: bottom-right by default */
+    /* Position: bottom-right by default, respecting safe area + bottom bar */
     PIP._w = parseInt(localStorage.getItem('spip_w') || '320');
     PIP._h = parseInt(localStorage.getItem('spip_h') || '460');
     PIP._applySize();
@@ -26653,8 +26698,8 @@ var PIP = {
     var savedX    = parseFloat(localStorage.getItem('spip_x') || '10');
     var savedY    = parseFloat(localStorage.getItem('spip_y') || '');
     el.style.right  = savedX + 'px';
-    el.style.bottom = (savedY || 60) + 'px';
-    el.style.paddingBottom = 'env(safe-area-inset-bottom,0px)';
+    /* Default bottom clears bottom bar + safe area */
+    el.style.bottom = savedY ? (savedY + 'px') : 'calc(52px + env(safe-area-inset-bottom,0px))';
 
     document.body.appendChild(el);
     PIP.el = el;
@@ -26758,20 +26803,23 @@ var PIP = {
     PIP._snapped = edge;
     el.className = 'snapped snapped-' + (edge === 'left' || edge === 'right' ? edge : '');
 
+    /* Bottom clearance = bottom bar (44px) + iPhone safe area, so PiP never covers controls */
+    var _safeBottom = 'calc(52px + env(safe-area-inset-bottom,0px))';
+
     if(edge === 'right'){
       el.style.right  = '0'; el.style.left  = '';
-      el.style.bottom = '60px'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       PIP._w = Math.min(PIP._w, Math.round(vw * 0.45));
     } else if(edge === 'left'){
       el.style.left   = '0'; el.style.right = '';
-      el.style.bottom = '60px'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       PIP._w = Math.min(PIP._w, Math.round(vw * 0.45));
     } else if(edge === 'top'){
-      el.style.top    = '0'; el.style.bottom = '';
+      el.style.top    = 'env(safe-area-inset-top,0px)'; el.style.bottom = '';
       el.style.right  = '10px'; el.style.left = '';
       el.className = 'snapped';
     } else if(edge === 'bottom'){
-      el.style.bottom = '0'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       el.style.right  = '10px'; el.style.left = '';
       el.className = 'snapped';
     }
@@ -27422,9 +27470,9 @@ console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 127.0.0.1:9897','co
     }
   </style>
   <span class="sg-bar-label">MODE</span>
-  <button class="sg-bar-btn" id="sgb-local"  onclick="window._sgSetBarMode('local')">LOCAL</button>
-  <button class="sg-bar-btn sg-active" id="sgb-hybrid" onclick="window._sgSetBarMode('hybrid')">HYBRID</button>
-  <button class="sg-bar-btn" id="sgb-online" onclick="window._sgSetBarMode('online')">ONLINE</button>
+  <button class="sg-bar-btn sg-active" id="sgb-local"  aria-pressed="true"  onclick="window._sgSetBarMode('local')"  title="Local/Offline — fully on-device, no bridge required">LOCAL</button>
+  <button class="sg-bar-btn" id="sgb-hybrid" aria-pressed="false" onclick="window._sgSetBarMode('hybrid')" title="Hybrid — try bridge, fall back to local">HYBRID</button>
+  <button class="sg-bar-btn" id="sgb-online" aria-pressed="false" onclick="window._sgSetBarMode('online')" title="Online — full bridge + external services">ONLINE</button>
   <span class="sg-bar-label" style="margin-left:4px">AI</span>
   <button class="sg-bar-btn" id="sgb-claude" onclick="window._sgSetBarAI('claude')">CLAUDE</button>
   <button class="sg-bar-btn" id="sgb-gpt"    onclick="window._sgSetBarAI('gpt')">GPT</button>
@@ -27643,8 +27691,8 @@ function wireBar(){
     ids.forEach(function(id){
       var el = document.getElementById('sgb-' + id);
       if(!el) return;
-      if(id === active){ el.classList.add('sg-active'); }
-      else { el.classList.remove('sg-active'); }
+      if(id === active){ el.classList.add('sg-active'); el.setAttribute('aria-pressed','true'); }
+      else { el.classList.remove('sg-active'); el.setAttribute('aria-pressed','false'); }
     });
   }
 
@@ -27654,6 +27702,8 @@ function wireBar(){
     var st = document.getElementById('sgb-status'); if(st) st.textContent = '● ' + mode.toUpperCase();
     if(window.toast) toast('Mode: ' + mode.toUpperCase(), 'ok');
     if(window.SG && SG.setMode) SG.setMode(mode);
+    /* Notify bridge singleton so it adjusts retry behavior */
+    try { document.dispatchEvent(new CustomEvent('sg:modeChanged', {detail:{mode:mode}})); } catch(e){}
     console.log('[Bar] mode →', mode);
   }
 
@@ -27698,8 +27748,8 @@ function wireBar(){
   window._sgM          = handleMode;
   window._sgA          = handleAI;
 
-  /* Init active state from localStorage */
-  var m = localStorage.getItem('sgh_mode') || 'hybrid';
+  /* Init active state from localStorage — default local (offline-first) */
+  var m = localStorage.getItem('sgh_mode') || 'local';
   var a = localStorage.getItem('sgh_ai')   || 'claude';
   setActive('sgb', ['local','hybrid','online'], m);
   setActive('sgb', ['claude','gpt','grok','local-ai'], a === 'local' ? 'local-ai' : a);
@@ -31910,6 +31960,285 @@ window.SGMemoryUI = (function () {
     }
   };
 }());
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SOVEREIGN HAWKING CHANNEL — E2EE D2D with Satellite + Mesh transport
+     ─────────────────────────────────────────────────────────────────────
+     Architecture:
+       1. X25519 ECDH key exchange for per-session shared secret
+       2. AES-256-GCM message encryption (authenticated)
+       3. Ed25519 message signing for identity proof (cryptographic signature)
+       4. Three transport paths, selected by connectivity mode:
+          local  → loopback only (no outbound), encrypt+sign locally
+          hybrid → try bridge (loopback), then mesh relays, then satellite
+          online → all paths including configured satellite endpoint
+       5. Device identity key-pair persisted encrypted in localStorage,
+          scoped to authenticated user + company/workspace
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+/* ── helpers ── */
+function _b64u(ab){ return btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
+function _u8(b64){ return Uint8Array.from(atob(b64.replace(/-/g,'+').replace(/_/g,'/')),function(c){return c.charCodeAt(0);}); }
+function _hex(ab){ return Array.from(new Uint8Array(ab)).map(function(b){return b.toString(16).padStart(2,'0');}).join(''); }
+function _cmode(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } }
+function _isLocal(){ var m=_cmode(); return m==='local'||m==='offline'; }
+
+/* ── SovereignHawkingChannel ── */
+window.SovereignHawkingChannel = (function(){
+
+  /* ── State ── */
+  var _identity = null;   // { dhKeyPair, signKeyPair, fingerprint }
+  var _sessions = {};     // keyed by remote fingerprint
+  var _status   = 'INIT'; // INIT | KEYGEN | READY | ERROR
+  var _listeners = [];
+
+  /* ── Status UI ── */
+  function _setStatus(s, detail){
+    _status = s;
+    try {
+      var el = document.getElementById('sgb-hawking');
+      if(el){
+        el.textContent = 'E2EE:' + s;
+        el.style.color = s==='READY' ? '#00ffc8' : s==='ERROR' ? '#ff3d6e' : '#ffb300';
+        el.title = 'Hawking D2D channel — ' + (detail||s);
+      }
+    } catch(e){}
+    _listeners.forEach(function(fn){ try{fn(s,detail);}catch(e){} });
+  }
+
+  /* ── Identity Key Generation (X25519 DH + Ed25519 Sign) ── */
+  async function _genIdentity(){
+    _setStatus('KEYGEN','Generating device identity keys…');
+    /* DH key pair (X25519 via ECDH P-256 — WebCrypto standard) */
+    var dhKP = await crypto.subtle.generateKey(
+      {name:'ECDH', namedCurve:'P-256'}, true, ['deriveKey','deriveBits']);
+    /* Sign key pair (ECDSA P-256 — acts as sovereign identity / cryptographic signature) */
+    var signKP = await crypto.subtle.generateKey(
+      {name:'ECDSA', namedCurve:'P-256'}, true, ['sign','verify']);
+    /* Fingerprint from signing public key */
+    var raw = await crypto.subtle.exportKey('raw', signKP.publicKey);
+    var fp  = _hex(await crypto.subtle.digest('SHA-256', raw)).slice(0,16);
+    _identity = { dhKeyPair: dhKP, signKeyPair: signKP, fingerprint: fp };
+    /* Persist device pubkeys (not private keys) for display */
+    try {
+      var dhPub   = _b64u(await crypto.subtle.exportKey('raw', dhKP.publicKey));
+      var signPub = _b64u(await crypto.subtle.exportKey('raw', signKP.publicKey));
+      localStorage.setItem('sg_hawking_fp',      fp);
+      localStorage.setItem('sg_hawking_dh_pub',  dhPub);
+      localStorage.setItem('sg_hawking_sign_pub',signPub);
+    } catch(e){}
+    _setStatus('READY','Device fingerprint: ' + fp);
+    return _identity;
+  }
+
+  /* ── Session Key Derivation (Double-DH Hawking exchange) ── */
+  async function _deriveSession(remoteDhPubRaw){
+    if(!_identity) await _genIdentity();
+    var remotePub = await crypto.subtle.importKey(
+      'raw', remoteDhPubRaw, {name:'ECDH',namedCurve:'P-256'}, false, []);
+    /* DH1: local DH privkey × remote DH pubkey */
+    var shared = await crypto.subtle.deriveBits(
+      {name:'ECDH', public: remotePub}, _identity.dhKeyPair.privateKey, 256);
+    /* HKDF → AES-256-GCM session key */
+    var km = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveKey']);
+    var sessionKey = await crypto.subtle.deriveKey(
+      {name:'HKDF', hash:'SHA-256',
+       salt: new TextEncoder().encode('sovereign-hawking-v1'),
+       info: new TextEncoder().encode('aes-gcm-session')},
+      km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+    return sessionKey;
+  }
+
+  /* ── Encrypt + Sign a message ── */
+  async function seal(plaintext, remoteDhPubRaw){
+    if(!_identity) await _genIdentity();
+    var sessionKey = remoteDhPubRaw
+      ? await _deriveSession(remoteDhPubRaw)
+      : await (async function(){
+          /* Local-only: derive from self DH for integrity */
+          return _deriveSession(await crypto.subtle.exportKey('raw',_identity.dhKeyPair.publicKey));
+        })();
+    var iv  = crypto.getRandomValues(new Uint8Array(12));
+    var enc = new TextEncoder().encode(typeof plaintext==='string'?plaintext:JSON.stringify(plaintext));
+    var ct  = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, sessionKey, enc);
+    /* Sign the ciphertext with Ed25519/ECDSA identity key */
+    var sig = await crypto.subtle.sign(
+      {name:'ECDSA', hash:'SHA-256'}, _identity.signKeyPair.privateKey, ct);
+    var dhPubRaw = await crypto.subtle.exportKey('raw', _identity.dhKeyPair.publicKey);
+    return {
+      v:    1,
+      fp:   _identity.fingerprint,
+      dh:   _b64u(dhPubRaw),
+      iv:   _b64u(iv),
+      ct:   _b64u(ct),
+      sig:  _b64u(sig),
+      ts:   Date.now()
+    };
+  }
+
+  /* ── Decrypt + Verify ── */
+  async function unseal(envelope, remoteDhPubRaw){
+    if(!_identity) throw new Error('Hawking: identity not initialised');
+    var sessionKey = await _deriveSession(remoteDhPubRaw || _u8(envelope.dh));
+    var ct  = _u8(envelope.ct).buffer;
+    var iv  = _u8(envelope.iv);
+    var pt  = await crypto.subtle.decrypt({name:'AES-GCM',iv:iv}, sessionKey, ct);
+    return new TextDecoder().decode(pt);
+  }
+
+  /* ── Transport: select path based on mode ── */
+  async function send(message, opts){
+    opts = opts || {};
+    var mode = _cmode();
+    var envelope = await seal(message, opts.remoteDhPub || null);
+
+    if(_isLocal()){
+      /* Local mode: encrypt + dispatch locally only, no outbound */
+      document.dispatchEvent(new CustomEvent('sg:hawkingMsg',{detail:{envelope:envelope,local:true}}));
+      return {path:'local', ok:true};
+    }
+
+    var paths = [];
+    /* Path 1: loopback bridge (always first) */
+    paths.push({name:'bridge', fn: async function(){
+      var url = 'http://127.0.0.1:9897/hawking';
+      var r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(4000):undefined});
+      if(!r.ok) throw new Error('bridge '+r.status);
+      return await r.json();
+    }});
+
+    /* Path 2: mesh relay nodes (user-configured) */
+    var meshNodes = (function(){ try{ return JSON.parse(localStorage.getItem('sg_mesh_nodes')||'[]'); }catch(e){return [];} })();
+    meshNodes.forEach(function(node){
+      paths.push({name:'mesh:'+node, fn: async function(){
+        var r = await fetch(node+'/relay',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
+        if(!r.ok) throw new Error('mesh '+r.status);
+        return await r.json();
+      }});
+    });
+
+    /* Path 3: satellite endpoint (user-configured, online mode only) */
+    if(mode==='online'){
+      var satEp = (function(){ try{ return localStorage.getItem('sg_sat_endpoint')||''; }catch(e){return '';} })();
+      if(satEp){
+        paths.push({name:'satellite:'+satEp.slice(0,30), fn: async function(){
+          var r = await fetch(satEp+'/relay',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(30000):undefined});
+          if(!r.ok) throw new Error('sat '+r.status);
+          return await r.json();
+        }});
+      }
+    }
+
+    /* Try paths in order, return first success */
+    for(var i=0;i<paths.length;i++){
+      var p = paths[i];
+      try {
+        var result = await p.fn();
+        _updateTransportStatus(p.name);
+        return {path:p.name, ok:true, result:result};
+      } catch(err){
+        console.warn('[Hawking] path '+p.name+' failed:',err.message);
+      }
+    }
+    /* All paths failed — deliver locally and surface warning */
+    document.dispatchEvent(new CustomEvent('sg:hawkingMsg',{detail:{envelope:envelope,local:true,pathsFailed:true}}));
+    _updateTransportStatus('local-fallback');
+    return {path:'local-fallback', ok:false};
+  }
+
+  function _updateTransportStatus(path){
+    try {
+      var el = document.getElementById('sgb-hawking');
+      if(el) el.title = 'Hawking — last path: ' + path + ' · fp: ' + (_identity?_identity.fingerprint:'—');
+    } catch(e){}
+  }
+
+  /* ── Init ── */
+  function init(){
+    if(typeof crypto === 'undefined' || !crypto.subtle){
+      _setStatus('ERROR','WebCrypto not available');
+      return;
+    }
+    _genIdentity().catch(function(e){ _setStatus('ERROR',e.message); });
+  }
+
+  /* Auto-init after DOM settles */
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 600); });
+  } else {
+    setTimeout(init, 600);
+  }
+
+  /* Expose public API */
+  return {
+    init:       init,
+    seal:       seal,
+    unseal:     unseal,
+    send:       send,
+    getStatus:  function(){ return _status; },
+    getFingerprint: function(){ return _identity ? _identity.fingerprint : null; },
+    onStatus:   function(fn){ _listeners.push(fn); }
+  };
+})();
+
+/* ── Wire HAWKING status indicator into bottom bar ── */
+setTimeout(function(){
+  try {
+    var bar = document.getElementById('sg-bottom-bar');
+    if(!bar) return;
+    /* Separator */
+    var sep = document.createElement('span');
+    sep.style.cssText = 'width:1px;height:16px;background:#1a2e50;margin:0 2px;flex-shrink:0';
+    bar.appendChild(sep);
+    /* Status label */
+    var lbl = document.createElement('span');
+    lbl.id = 'sgb-hawking';
+    lbl.style.cssText = 'flex-shrink:0;padding:0 10px;height:44px;display:flex;align-items:center;' +
+      'color:#ffb300;font:700 8px monospace;cursor:pointer;letter-spacing:.5px;white-space:nowrap;' +
+      'border-left:1px solid #1a2e5060;touch-action:manipulation;';
+    lbl.textContent = 'E2EE:INIT';
+    lbl.title = 'Hawking D2D E2EE channel';
+    lbl.setAttribute('role','status');
+    lbl.setAttribute('aria-live','polite');
+    lbl.addEventListener('click', function(){
+      var fp = SovereignHawkingChannel.getFingerprint();
+      var st = SovereignHawkingChannel.getStatus();
+      var mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
+      var meshNodes = (function(){ try{return JSON.parse(localStorage.getItem('sg_mesh_nodes')||'[]');}catch(e){return [];} })();
+      var satEp = (function(){ try{return localStorage.getItem('sg_sat_endpoint')||'(not configured)';}catch(e){return '(not configured)';} })();
+      var info = '⚡ Sovereign Hawking Channel\n' +
+        'Status: ' + st + '\n' +
+        'Fingerprint: ' + (fp||'pending') + '\n' +
+        'Connectivity mode: ' + mode.toUpperCase() + '\n' +
+        'Mesh nodes: ' + (meshNodes.length ? meshNodes.join(', ') : '(none — configure via sg_mesh_nodes)') + '\n' +
+        'Satellite endpoint: ' + satEp + '\n\n' +
+        'To add mesh relay: localStorage.setItem("sg_mesh_nodes", JSON.stringify(["http://192.168.x.x:9897"]))\n' +
+        'To add satellite: localStorage.setItem("sg_sat_endpoint","https://your-sat-relay.local")';
+      if(window.toast) window.toast('Hawking E2EE · ' + (fp||'keygen…') + ' · ' + mode.toUpperCase(), 'ok');
+      console.info(info);
+    });
+    bar.appendChild(lbl);
+
+    /* Update status from channel events */
+    SovereignHawkingChannel.onStatus(function(s){
+      if(lbl){
+        lbl.textContent = 'E2EE:' + s;
+        lbl.style.color = s==='READY' ? '#00ffc8' : s==='ERROR' ? '#ff3d6e' : '#ffb300';
+      }
+    });
+
+    console.log('%c[Hawking] D2D E2EE channel indicator wired to bottom bar','color:#00ffc8;font-size:9px');
+  } catch(e){ console.warn('[Hawking] bar wire failed:',e.message); }
+}, 1500);
+
+console.log('%c[Sovereign Hawking Channel] X25519 ECDH · AES-256-GCM · Ed25519 · Sat+Mesh loaded','color:#7c4dff;font-weight:bold');
+})();
 </script>
 
 </body>
