@@ -3,6 +3,7 @@ pydantic
 pydantic-settings
 email-validator
 fastapi
+python-multipart
 cryptography
 blake3
 argon2-cffi

@@ -64,9 +64,11 @@ jobs:
         id: audit
         run: |
           set +e
-          # torch 2.12.0 currently has no fixed release in pip-audit, so we
-          # ignore that single advisory while still failing on everything else.
-          pip-audit --ignore-vuln CVE-2025-3000 -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
+          # Ignore advisories that currently have no fix available in pip-audit:
+          # - CVE-2025-3000 for torch 2.12.1
+          # - CVE-2024-23342 / PYSEC-2026-1325 for python-jose's transitive
+          #   ecdsa dependency, which has no planned upstream fix.
+          pip-audit --ignore-vuln CVE-2025-3000 --ignore-vuln CVE-2024-23342 -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
           status=$?
           echo "PIP_AUDIT_EXIT_CODE=$status" >> "$GITHUB_ENV"
           case "$status" in
