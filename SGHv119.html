@@ -3588,7 +3588,7 @@ return `<div class="panel-hdr">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div>
         <div style="font-family:var(--mono);font-size:8px;color:var(--mu);margin-bottom:4px">PRIMARY AGENT</div>
-        <select id="agentPrimary" style="width:100%;padding:8px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
+        <select id="agentPrimary" onchange="SGMemoryUI.refreshConsent()" style="width:100%;padding:8px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
           <option value="claude">Claude (Anthropic)</option>
           <option value="grok">Grok (xAI)</option>
           <option value="copilot">GitHub Copilot</option>
@@ -3616,6 +3616,7 @@ return `<div class="panel-hdr">
           style="flex:1;padding:9px 12px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
         <button onclick="saveCopilotToken()" class="btn-p" style="width:auto;padding:9px 14px;flex-shrink:0">💾 Save</button>
         <button onclick="testCopilotAgent()" class="btn-s" style="width:auto;padding:9px 14px;flex-shrink:0">🧪 Test</button>
+        <button onclick="disconnectAgentCredentials()" class="btn-s" style="width:auto;padding:9px 14px;flex-shrink:0">Disconnect</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3628,6 +3629,29 @@ return `<div class="panel-hdr">
       <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer">
         <input type="checkbox" id="agentOnDevice" checked style="accent-color:var(--cy)"> On-device only — never external relay
       </label>
+    </div>
+  </div>
+
+  <div class="card gf" style="margin-bottom:12px">
+    <div class="card-t"><div class="ctd"></div>ENCRYPTED USER MEMORY VAULT</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--mu);line-height:1.5;margin-bottom:8px">Private model memory and collaboration records are encrypted in this device's IndexedDB. Unlocking is required each session; no transcript or provider credential is placed in localStorage.</div>
+    <div style="display:flex;gap:8px;margin-bottom:9px">
+      <input id="agentVaultPassphrase" type="password" autocomplete="current-password" placeholder="Vault passphrase (12+ characters)" style="flex:1;padding:9px 12px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
+      <button onclick="SGMemoryUI.unlock()" class="btn-p" style="width:auto;padding:9px 14px">🔓 Unlock</button>
+      <button onclick="SGMemoryUI.lock()" class="btn-s" style="width:auto;padding:9px 14px">🔒 Lock</button>
+    </div>
+    <div id="agentVaultStatus" style="font-family:var(--mono);font-size:8px;color:var(--am);margin-bottom:9px">Locked — memory is unavailable to all models.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentIncludePrivate" style="accent-color:var(--cy)"> Include this model's private memory in this request</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentSharedConsent" style="accent-color:var(--cy)" onchange="SGMemoryUI.setConsent(this.checked)"> Consent to receive shared collaboration memory this session</label>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button onclick="SGMemoryUI.loadSelected()" class="btn-s" style="width:auto;padding:8px 12px">📖 Load Model History</button>
+      <button onclick="SGMemoryUI.shareSelected()" class="btn-s" style="width:auto;padding:8px 12px">🤝 Share Current Model History</button>
+      <button onclick="SGMemoryUI.review()" class="btn-s" style="width:auto;padding:8px 12px">📜 Review Consent Log</button>
+      <button onclick="SGMemoryUI.exportEncrypted()" class="btn-s" style="width:auto;padding:8px 12px">💾 Export Encrypted</button>
+      <button onclick="SGMemoryUI.deleteSelected()" class="btn-s" style="width:auto;padding:8px 12px;color:var(--am)">Delete Model</button>
+      <button onclick="SGMemoryUI.wipe()" class="btn-s" style="width:auto;padding:8px 12px;color:var(--rd)">Wipe Vault</button>
     </div>
   </div>
 
@@ -3683,19 +3707,16 @@ function _initCopilotAgent(){
 (function(){
 var _sessions = 0;
 var _history = [];
-
-// Load saved token
 try{
-  var saved = localStorage.getItem('sg_copilot_token');
-  if(saved){ var el=document.getElementById('copilotToken'); if(el) el.value=saved; }
+  ['sg_copilot_token','sg_ant_key','sg_xai_key','sg_oai_key'].forEach(function(key){ localStorage.removeItem(key); });
 }catch(_){}
 
 // Update status indicators
 function checkStatus(){
   var keys = {
-    claude: localStorage.getItem('sg_ant_key'),
-    grok:   localStorage.getItem('sg_xai_key'),
-    copilot:localStorage.getItem('sg_copilot_token')
+    claude: window.SGProviderCredentials.claude,
+    grok:   window.SGProviderCredentials.grok,
+    copilot:window.SGProviderCredentials.copilot
   };
   var map = {claude:'agentClaudeStatus',grok:'agentGrokStatus',copilot:'agentCopilotStatus'};
   Object.keys(map).forEach(function(k){
@@ -3708,9 +3729,17 @@ setTimeout(checkStatus, 100);
 window.saveCopilotToken = function(){
   var v = (document.getElementById('copilotToken')||{}).value||'';
   if(!v.trim()){ toast('Enter a token first','err'); return; }
-  try{ localStorage.setItem('sg_copilot_token', v.trim()); }catch(_){}
+  window.SGProviderCredentials.copilot = v.trim();
+  document.getElementById('copilotToken').value = '';
   checkStatus();
-  toast('Copilot token saved on-device','ok');
+  toast('Copilot token retained only for this active runtime','ok');
+};
+
+window.disconnectAgentCredentials = function(){
+  window.SGMemoryUI.disconnect('copilot');
+  var token = document.getElementById('copilotToken'); if(token) token.value = '';
+  checkStatus();
+  toast('Provider disconnected and runtime context cleared','ok');
 };
 
 window.testCopilotAgent = function(){
@@ -3771,6 +3800,15 @@ window.runCopilotAgent = async function(){
   var startTime = Date.now();
   var localOnly = onDevice || !sgExternalApisAllowed();
   var wantsAnalysis = mode === 'security' || mode === 'debug' || mode === 'review' || mode === 'explain';
+  var memoryEntries = [];
+  if(window.SGMemoryUI.vault.key){
+    try{
+      memoryEntries = await window.SGMemoryUI.contextForRequest(
+        primary,
+        !!(document.getElementById('agentIncludePrivate')||{}).checked
+      );
+    }catch(memoryError){ toast('Memory unavailable: '+memoryError.message,'err'); }
+  }
 
   if(localOnly){
     var localText = await aiAnalyzeOrFix(code || prompt, wantsAnalysis ? 'analyze' : 'fix');
@@ -3785,6 +3823,8 @@ window.runCopilotAgent = async function(){
     if(auditChk && auditChk.checked && typeof auditLog==='function'){
       auditLog('AGENT_CALL','agent='+primary+' mode='+mode+' local=true prompt_len='+prompt.length+' output_len='+localText.length);
     }
+    await window.SGMemoryUI.record(primary, 'user', prompt);
+    await window.SGMemoryUI.record(primary, 'assistant', localText);
     toast('Agent completed locally','ok');
     return localText;
   }
@@ -3793,15 +3833,15 @@ window.runCopilotAgent = async function(){
   var apiUrl = '';
   var apiModel = '';
   if(primary==='claude'){
-    apiKey = localStorage.getItem('sg_ant_key')||'';
+    apiKey = window.SGProviderCredentials.claude||'';
     apiUrl = 'https://api.anthropic.com/v1/messages';
     apiModel = 'claude-opus-4-7';
   } else if(primary==='grok'){
-    apiKey = localStorage.getItem('sg_xai_key')||'';
+    apiKey = window.SGProviderCredentials.grok||'';
     apiUrl = 'https://api.x.ai/v1/chat/completions';
     apiModel = 'grok-4.3';
   } else if(primary==='openai'){
-    apiKey = localStorage.getItem('sg_oai_key')||'';
+    apiKey = window.SGProviderCredentials.openai||'';
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     apiModel = 'gpt-5.4-mini';
   }
@@ -3830,6 +3870,11 @@ window.runCopilotAgent = async function(){
   sysPrompt += '\n\nIMPORTANT: This interface may call remote APIs when online. Never suggest or use APIs from Google. Always prioritize safety, security, and production readiness.';
 
   var userMsg = prompt;
+  if(memoryEntries.length){
+    userMsg += '\n\nUSER-APPROVED MEMORY CONTEXT:\n' + memoryEntries.map(function(entry){
+      return '['+entry.model+'/'+entry.role+'] '+entry.content;
+    }).join('\n');
+  }
   var bt3 = Array(4).join(String.fromCharCode(96));
   if(code.trim()) userMsg += '\n\n' + bt3 + '\n' + code + '\n' + bt3;
 
@@ -3884,8 +3929,13 @@ window.runCopilotAgent = async function(){
     if(auditChk && auditChk.checked && typeof auditLog==='function'){
       auditLog('AGENT_CALL','agent='+primary+' mode='+mode+' elapsed='+elapsed+'s prompt_len='+prompt.length+' output_len='+text.length);
     }
-    toast('Agent completed in '+elapsed+'s','ok');
-    return text;
+    return Promise.all([
+      window.SGMemoryUI.record(primary, 'user', prompt),
+      window.SGMemoryUI.record(primary, 'assistant', text)
+    ]).then(function(){
+      toast('Agent completed in '+elapsed+'s','ok');
+      return text;
+    });
   })
   .catch(function(err){
     var msg = '⚠ Network error: '+(err && err.message ? err.message : err);
@@ -31740,6 +31790,126 @@ if(!window.speak){
 
 console.log('%c[VoiceSystem v2] Push-to-talk · AI conversation · iOS STT+TTS ready','color:#7c4dff;font-weight:bold');
 })();
+</script>
+
+<script src="assets/sovereign-memory-vault.js"></script>
+<script>
+window.SGProviderCredentials = window.SGProviderCredentials || {};
+window.SGMemoryUI = (function () {
+  var vault = new SovereignMemoryVault.Vault();
+  function selectedModel() {
+    return (document.getElementById('agentPrimary') || {}).value || 'claude';
+  }
+  function status(message, color) {
+    var element = document.getElementById('agentVaultStatus');
+    if (element) { element.textContent = message; element.style.color = color || 'var(--am)'; }
+  }
+  function requireUnlocked() {
+    if (!vault.key) { status('Locked — unlock the vault before using memory.', 'var(--rd)'); throw new Error('Vault is locked.'); }
+  }
+  async function refreshConsent() {
+    var checkbox = document.getElementById('agentSharedConsent');
+    if (!checkbox || !vault.key) return;
+    checkbox.checked = await vault.hasConsent(selectedModel());
+  }
+  return {
+    vault: vault,
+    unlock: async function () {
+      try {
+        var passphrase = (document.getElementById('agentVaultPassphrase') || {}).value || '';
+        await vault.unlock(passphrase);
+        document.getElementById('agentVaultPassphrase').value = '';
+        status('Unlocked — encrypted user memory stays on this device.', 'var(--gn)');
+        await refreshConsent();
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    lock: function () { vault.lock(); status('Locked — memory is unavailable to all models.', 'var(--am)'); },
+    refreshConsent: refreshConsent,
+    setConsent: async function (allowed) {
+      try {
+        requireUnlocked();
+        await vault.setConsent(selectedModel(), allowed);
+        status(allowed ? 'Consent recorded: this model may receive collaboration memory.' : 'Consent revoked: shared memory will not be sent.', allowed ? 'var(--gn)' : 'var(--am)');
+      } catch (error) {
+        var checkbox = document.getElementById('agentSharedConsent'); if (checkbox) checkbox.checked = false;
+        status(error.message, 'var(--rd)');
+      }
+    },
+    contextForRequest: async function (model, includePrivate) {
+      requireUnlocked();
+      var entries = [];
+      if (includePrivate) entries = entries.concat((await vault.list('private', model)).slice(-12));
+      if (await vault.hasConsent(model)) {
+        var shared = await vault.list('shared', 'collaboration');
+        shared.slice(-1).forEach(function (event) { entries = entries.concat(event.entries || []); });
+      }
+      return entries;
+    },
+    record: async function (model, role, content) {
+      if (vault.key && content) await vault.saveConversation(model, role, content);
+    },
+    loadSelected: async function () {
+      try {
+        requireUnlocked();
+        var entries = await vault.list('private', selectedModel());
+        var output = document.getElementById('agentOutput');
+        var card = document.getElementById('agentOutputCard');
+        if (card) card.style.display = '';
+        if (output) output.textContent = entries.length ? entries.map(function (entry) { return '[' + entry.role + '] ' + entry.content; }).join('\n\n') : 'No private memory for ' + selectedModel() + '.';
+        status('Loaded only ' + selectedModel() + ' private memory.', 'var(--gn)');
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    shareSelected: async function () {
+      try {
+        requireUnlocked();
+        var model = selectedModel();
+        var entries = await vault.list('private', model);
+        if (!entries.length) throw new Error('No private history exists for this model.');
+        await vault.share(model, entries.slice(-12));
+        status('Shared collaboration record created with your active consent.', 'var(--gn)');
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    review: async function () {
+      try {
+        requireUnlocked();
+        var events = await vault.audit(selectedModel());
+        var output = document.getElementById('agentOutput');
+        var card = document.getElementById('agentOutputCard');
+        if (card) card.style.display = '';
+        if (output) output.textContent = events.length ? events.map(function (event) { return new Date(event.createdAt).toISOString() + ' ' + event.type + ' ' + JSON.stringify(event); }).join('\n') : 'No consent or sharing events for ' + selectedModel() + '.';
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    exportEncrypted: async function () {
+      try {
+        requireUnlocked();
+        var blob = new Blob([await vault.exportEncrypted()], { type: 'application/json' });
+        var url = URL.createObjectURL(blob), anchor = document.createElement('a');
+        anchor.href = url; anchor.download = 'sovereign-memory-vault-encrypted.json'; anchor.click();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        status('Encrypted vault exported; keep it with its passphrase.', 'var(--gn)');
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    deleteSelected: async function () {
+      try {
+        requireUnlocked();
+        var model = selectedModel();
+        if (!confirm('Delete all private, consent, and audit records for ' + model + '?')) return;
+        await vault.deleteModel(model);
+        status('Deleted ' + model + ' memory and consent records.', 'var(--am)');
+      } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    wipe: async function () {
+      if (!confirm('Wipe every encrypted model and collaboration record? This cannot be undone.')) return;
+      await vault.wipe();
+      status('Vault wiped and locked.', 'var(--rd)');
+    },
+    disconnect: function (model) {
+      delete window.SGProviderCredentials[model];
+      vault.lock();
+      status('Provider runtime context cleared; vault locked.', 'var(--am)');
+    }
+  };
+}());
 </script>
 
 </body>
