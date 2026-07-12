@@ -24,8 +24,30 @@ Requirements:
 - Python 3.11 or later
 - Node.js 20 or later
 
-From the repository root, install the required Python and Node dependencies
-using your preferred environment manager, then start the local services:
+Install the checked-in Python and Node dependency sets. This creates `.venv`
+and installs both Node workspaces; it does not create credentials, substitute a
+model, or make runtime network calls:
+
+```bash
+./INSTALL.sh
+```
+
+For an air-gapped workstation with pre-populated Python and npm caches, use:
+
+```bash
+./INSTALL.sh --offline
+```
+
+The local AI bridge requires an actual GGUF model. Place or mount a model you
+are licensed to use on the host, then set its absolute path before starting:
+
+```bash
+export SOVEREIGN_MODEL_PATH=/absolute/path/to/model.gguf
+```
+
+No placeholder, simulated, or remote inference fallback is provided. The
+launcher stops with an error if the model or its local runtime is unavailable.
+Then start the local services:
 
 ```bash
 ./START_SERVER.sh
