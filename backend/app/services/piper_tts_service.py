@@ -27,7 +27,9 @@ class PiperTTSService:
             Path(__file__).parent.parent.parent.parent,
             "piper-tts"
         )
-        self.model_path = model_path
+        self.model_path = model_path or os.getenv(
+            "PIPER_MODEL_PATH", os.getenv("PIPER_MODEL", "")
+        )
         self.piper_executable = self._find_piper_executable()
         
     def _find_piper_executable(self) -> Optional[str]:

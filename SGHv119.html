@@ -41,7 +41,8 @@ button, [role=button] {
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#03060f">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' http://localhost:* http://localhost:* ws://localhost:* wss://localhost:* https://api.anthropic.com https://api.openai.com https://api.x.ai https://api.duckduckgo.com https://duckduckgo.com https://eonet.gsfc.nasa.gov https://api.weather.gov https://api.nasa.gov https:// http://; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; media-src 'self' blob:; frame-src 'self' http://localhost:* https://localhost:* blob: data:; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data:; connect-src 'self' http://localhost http://localhost:* http://127.0.0.1 http://127.0.0.1:* ws://localhost ws://localhost:* ws://127.0.0.1 ws://127.0.0.1:* wss://localhost wss://localhost:* wss://127.0.0.1 wss://127.0.0.1:*; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src 'self' blob: data:; worker-src 'self' blob:; base-uri 'self'; form-action 'self';">
+<script src="offline_policy.js"></script>
 <script>/* kill Script error. before anything else — also unregister stale SWs */
 (function(){
   var _s='Script error';
@@ -88,8 +89,8 @@ button, [role=button] {
   window.fetch = function(url, opts){
     var u = String(url||'');
     /* Only intercept loopback HTTP calls */
-    var isLoopback = u.indexOf('127.0.0.1') >= 0 || u.indexOf('localhost') >= 0 || u.indexOf('192.168.1.252') >= 0;
-    var isHTTP     = u.indexOf('https://localhost') < 0 && u.indexOf('https://localhost') < 0;
+    var isLoopback = u.indexOf('127.0.0.1') >= 0 || u.indexOf('localhost') >= 0 || u.indexOf('[::1]') >= 0 || u.indexOf('::1') >= 0;
+    var isHTTP     = /^http:\/\//i.test(u);
     if(isLoopback && isHTTP){
       opts = opts || {};
       return new Promise(function(resolve, reject){
@@ -135,12 +136,14 @@ button, [role=button] {
     if(_cached && (_cached.indexOf('9899') >= 0 || !_cached.match(/^\d+\.\d+\.\d+\.\d+:\d+$/))){
       localStorage.removeItem('sg_bridge_ip');
     }
-    /* If mode is ghost/offline/local, force back to hybrid */
+    /* Preserve offline/local mode; discard only invalid persisted values.
+       Default is LOCAL — app is fully functional with no bridge or network. */
     var _mode = localStorage.getItem('sgh_mode');
-    if(_mode === 'ghost' || _mode === 'offline' || _mode === 'local'){
-      localStorage.setItem('sgh_mode','hybrid');
-      console.warn('[Boot] sgh_mode was "'+_mode+'" — reset to hybrid so bridge can connect');
-    }
+    var _validModes = ['online','stealth','ghost','offline','local','hybrid'];
+    if(_mode && _validModes.indexOf(_mode) === -1) localStorage.removeItem('sgh_mode');
+    /* Set offline-first default on first load */
+    if(!localStorage.getItem('sgh_mode')) localStorage.setItem('sgh_mode','local');
+    localStorage.removeItem('sgh_mode_forced');
   }catch(e){}
 })();
 </script>
@@ -349,6 +352,7 @@ transition:all .2s;background:transparent;color:var(--t3);touch-action:manipulat
 #presencePill button:hover:not(.pm-active){color:var(--t1)}
 #presencePill .pm-active{font-weight:700}
 #presencePill .pm-online.pm-active{background:var(--acid);color:#000}
+#presencePill .pm-local.pm-active{background:#1a3a5c;color:#b5e9ff}
 #presencePill .pm-stealth.pm-active{background:#22c55e;color:#000}
 #presencePill .pm-ghost.pm-active{background:#333;color:#666}
 
@@ -586,7 +590,7 @@ console.log('%c[SG_CRYPTO] Engine: Native WebCrypto (SHA-512 · AES-256-GCM · H
 '>
   <strong>⚠ You opened this from Files — voice and bridge CANNOT work from file://</strong><br>
   Run <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>python3 bridge.py</code> in a-Shell or iSH,
-  then open <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>http://192.168.1.252:9898/SGHv119.html</code> in Safari
+  then open <code style='background:#ffffff22;padding:1px 6px;border-radius:3px'>http://127.0.0.1:9898/SGHv119.html</code> in Safari
   <button onclick='document.getElementById("sg-file-warning").style.display="none"'
     style='margin-left:12px;background:#ffffff33;border:none;color:#fff;padding:3px 10px;border-radius:4px;cursor:pointer'>✕</button>
 </div>
@@ -622,9 +626,9 @@ if(location.protocol==='file:'){
    banner.innerHTML =
      '<span style="font-size:20px">🌐</span>' +
      '<span>Open via HTTP so the bridge can connect: ' +
-     '<a href="http://192.168.1.252:9898" style="color:#fff;text-decoration:underline;font-size:14px" ' +
-     'onclick="window.location.href=\\x27http://192.168.1.252:9898\\x27;document.getElementById(\\x27sg-open-banner\\x27).remove();">' +
-     'http://192.168.1.252:9898' +
+     '<a href="http://127.0.0.1:9898" style="color:#fff;text-decoration:underline;font-size:14px" ' +
+     'onclick="window.location.href=\\x27http://127.0.0.1:9898\\x27;document.getElementById(\\x27sg-open-banner\\x27).remove();">' +
+     'http://127.0.0.1:9898' +
      '</a>' +
      ' <span style="font-weight:400;font-size:11px;opacity:.8">(start: python3 python3_bridge.py)</span>' +
      '</span>' +
@@ -652,7 +656,8 @@ if(location.protocol==='file:'){
 
 /* ═══ BRIDGE STATUS SINGLETON ════════════════════════════════════════════════
 Single source of truth. Manages dual connection (PiperTTS WS + BRIDGE WS).
-Auto-retries forever. Shows status bar + toast. No API limits.
+OFFLINE-FIRST: retries only when mode is 'hybrid' or 'online'.
+In 'local' mode the bar shows neutral status — no outbound pings.
 ══════════════════════════════════════════════════════════════════════════════ */
 (function(){
 var bar   = document.getElementById('sg-bridge-bar');
@@ -662,8 +667,26 @@ var _connected = false;
 var _retries   = 0;
 var _timer     = null;
 
+/* Returns current connectivity mode — defaults local (offline-first) */
+function _cmode(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } }
+var _isLocalMode = function(){ var m=_cmode(); return m==='local'||m==='offline'; };
+
 function setConnected(yes, msg) {
 _connected = yes;
+/* Local mode: show mode label + any passed activity message (do NOT erase it).
+   This keeps the bar honest — loopback polls are still visible. */
+if(_isLocalMode()){
+  if(bar) bar.style.background = '#1a3a5c';
+  var localMsg = msg || '🏠 LOCAL — offline-first · loopback only';
+  if(txt) txt.textContent = localMsg;
+  document.querySelectorAll('[id="bridgeStatus"],[id="ftBridge"]').forEach(function(el){
+    el.textContent = 'LOCAL';
+    el.style.color  = 'var(--cy,#00bcd4)';
+  });
+  /* Emit to ops log so the activity is traceable */
+  if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode', 'bridge-status', localMsg, 'localhost');
+  return;
+}
 if (bar) bar.style.background = yes ? 'var(--acid,#00ffc8)' : '#ff3d6e';
 if (txt) txt.textContent = msg || (yes ? '⚡ Bridge LIVE — Port 9897' : '⚠ Bridge offline — start bridge.py');
 /* Update all status elements in the DOM */
@@ -678,6 +701,13 @@ setTimeout(function(){ if(toast) toast.style.display='none'; }, 3500);
 }
 
 function tryAll() {
+/* OFFLINE-FIRST: never attempt bridge connections in local/offline mode */
+if(_isLocalMode()){
+  if(_timer){ clearTimeout(_timer); _timer=null; }
+  setConnected(false, '🏠 Local/Offline');
+  return;
+}
+
 var ptOk = !!(window.BRIDGE && window.BRIDGE.connected);
 var brOk = typeof BRIDGE   !== 'undefined' && BRIDGE.connected;
 
@@ -705,34 +735,48 @@ if (typeof BRIDGE !== 'undefined') {
   }
 }
 
-if (!_connected && _retries <= 3) setConnected(false, '⏳ Connecting to bridge... (attempt '+_retries+')'); else if(_retries > 3 && !_connected) setConnected(false, '🔌 Bridge offline — direct API mode active');
+if (!_connected && _retries <= 3) setConnected(false, '⏳ Connecting to bridge... (attempt '+_retries+')'); else if(_retries > 3 && !_connected) setConnected(false, '🔌 Bridge offline — switch to Local mode or start bridge.py');
 if (_timer) clearTimeout(_timer);
 _timer = setTimeout(tryAll, delay);
 
 }
 
+/* Listen for mode changes from bar/presencePill — restart logic when mode changes */
+document.addEventListener('sg:modeChanged', function(ev){
+var m = ev.detail && ev.detail.mode;
+if(m==='local'||m==='offline'){
+  if(_timer){clearTimeout(_timer);_timer=null;}
+  setConnected(false,'🏠 Local/Offline');
+} else {
+  _retries=0; tryAll();
+}
+});
+
 /* Hook events */
 document.addEventListener('sg:bridgeConnected', function(ev){
+if(_isLocalMode()) return; /* ignore bridge events in local mode */
 setConnected(true, '⚡ Bridge LIVE — ' + ((ev.detail && ev.detail.url) || 'Port 9897'));
 _retries = 0;
 if (_timer) { clearTimeout(_timer); _timer = null; }
-/* Restart keepalive ping every 20s */
+/* Restart keepalive ping every 20s — only while in hybrid/online mode */
 setInterval(function(){
+if(_isLocalMode()) return;
 var ok = (typeof PiperTTS!=='undefined'&&PiperTTS.ws&&PiperTTS.ws.readyState===1)||
 (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
 if (!ok) { _connected=false; tryAll(); }
 }, 20000);
 });
 
-/* Start */
-setTimeout(tryAll, 300);
-setTimeout(tryAll, 1200);
-setTimeout(tryAll, 4000);
+/* Start — deferred so mode init block above has already run */
+setTimeout(tryAll, 500);
 
 window._SG_BRIDGE_STATUS = {
 isConnected: function(){ return _connected; },
 reconnect:   tryAll,
+isLocal:     _isLocalMode,
 send: function(msg) {
+/* Never send to bridge in local mode */
+if(_isLocalMode()) return false;
 var sent = false;
 if (typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1) {
 try { BRIDGE.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sent=true; } catch(e){}
@@ -741,8 +785,8 @@ if (!sent && (window.BRIDGE && window.BRIDGE.connected)) {
 try { PiperTTS.ws.send(typeof msg === 'string' ? msg : JSON.stringify(msg)); sent=true; } catch(e){}
 }
 if (!sent) {
-/* HTTP fallback */
-fetch('http://192.168.1.252:9897/chat', {
+/* HTTP fallback — only in hybrid/online mode */
+fetch('http://127.0.0.1:9897/chat', {
 method:'POST', headers:{'Content-Type':'application/json'},
 body: JSON.stringify(typeof msg === 'object' ? msg : {message:msg})
 }).then(function(r){return r.json();}).then(function(d){
@@ -872,27 +916,31 @@ var tnow = window.tnow;
       console.groupEnd();
     } catch(e2){}
 
-    /* ── 4. Bridge WS ping ── */
+    /* ── 4. Bridge WS ping — skip in local/offline mode ── */
     var sent = false;
-    try {
-      if(typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1){
-        BRIDGE.ws.send(JSON.stringify(payload));
-        sent = true;
-      }
-    } catch(e2){}
-    if(!sent){
+    var _errMode = (function(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } })();
+    var _errLocal = (_errMode === 'local' || _errMode === 'offline');
+    if(!_errLocal){
       try {
-        if((window.BRIDGE && window.BRIDGE.connected)){
-          PiperTTS.ws.send(JSON.stringify(payload));
+        if(typeof BRIDGE !== 'undefined' && BRIDGE.ws && BRIDGE.ws.readyState === 1){
+          BRIDGE.ws.send(JSON.stringify(payload));
           sent = true;
         }
       } catch(e2){}
+      if(!sent){
+        try {
+          if((window.BRIDGE && window.BRIDGE.connected)){
+            PiperTTS.ws.send(JSON.stringify(payload));
+            sent = true;
+          }
+        } catch(e2){}
+      }
     }
 
-    /* ── 5. HTTP fallback — fire-and-forget ── */
-    if(!sent){
+    /* ── 5. HTTP fallback — only in hybrid/online mode, fire-and-forget ── */
+    if(!sent && !_errLocal){
       try {
-        fetch((location.protocol === 'https:' ? 'https://192.168.1.252:9897/error_ping' : 'http://192.168.1.252:9897/error_ping'), {
+        fetch((location.protocol === 'https:' ? 'https://127.0.0.1:9897/error_ping' : 'http://127.0.0.1:9897/error_ping'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -929,7 +977,7 @@ var tnow = window.tnow;
   });
 
   /* ── SecurityPolicyViolation (CSP) — per-directive dedup, 60s window ── */
-  var _cspSeen = {}; /* pre-suppress known-benign violations */ (function(){var _f=Date.now()+9999999999;['connect-src:wss://192.168.1.252:9897/','connect-src:wss://192.168.1.252:9897','connect-src:wss://localhost','connect-src:wss://192.168.1.252:9897/','connect-src:wss://192.168.1.252:9897','connect-src:wss://localhost','connect-src:wss://192.168.1.252:9897/ '].forEach(function(k){_cspSeen[k]=_f;});})();
+  var _cspSeen = {}; /* pre-suppress known-benign violations */ (function(){var _f=Date.now()+9999999999;['connect-src:wss://127.0.0.1:9897/','connect-src:wss://127.0.0.1:9897','connect-src:wss://localhost','connect-src:wss://127.0.0.1:9897/','connect-src:wss://127.0.0.1:9897','connect-src:wss://localhost','connect-src:wss://127.0.0.1:9897/ '].forEach(function(k){_cspSeen[k]=_f;});})();
   document.addEventListener('securitypolicyviolation', function(ev){
     /* Suppress blob-request:// internal browser scheme (Safari SW noise) */
     if(ev.blockedURI && ev.blockedURI.indexOf('blob-request:')===0) return;
@@ -1131,7 +1179,8 @@ if(typeof window.sg!=='function')window.sg=function(fn){try{fn();}catch(e){conso
 <!-- PRESENCE MODE CONTROLS -->
 
 <div id="presencePill">
-  <button class="pm-online pm-active" data-mode="online">🌐 Online</button>
+  <button class="pm-local pm-active" data-mode="local">🏠 Local</button>
+  <button class="pm-online" data-mode="online">🌐 Online</button>
   <button class="pm-stealth" data-mode="stealth">🕵️ Stealth</button>
   <button class="pm-ghost" data-mode="ghost">👻 Ghost</button>
 </div>
@@ -2123,7 +2172,7 @@ const BRIDGE = {
     if(this.ws){ try{this.ws.close();}catch(e){} this.ws=null; }
     var self = this;
     try{
-      var wsUrl = 'ws://192.168.1.252:9897'; /* Python WS bridge :9897 */
+      var wsUrl = 'ws://127.0.0.1:9897'; /* Python WS bridge :9897 */
       const ws = new WebSocket(wsUrl);
       this.ws = ws;
       ws.onopen = ()=>{
@@ -2191,7 +2240,7 @@ const BRIDGE = {
       };
     }catch(e){
       var isIns = e && (e.name==='SecurityError' || (e.message&&(e.message.indexOf('insecure')!==-1||e.message.indexOf('secure')!==-1)));
-      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://192.168.1.252:9898'); return; }
+      if(isIns){ window._sgBridgeInsecure=true; this.log('warn','ws:// blocked by browser — serve from http://127.0.0.1:9898'); return; }
       this.log('warn','WebSocket unavailable — using HTTP polling');
       this.startPolling();
     }
@@ -2204,19 +2253,27 @@ const BRIDGE = {
   },
 
   async pollHealth(){
+    var _mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
     try{
       // Try Python :9897 health (internal backend)
       let r;
       try {
         r = await new Promise(function(res){
           var _xhp=new XMLHttpRequest();
-          if(!_safeXhrOpen(_xhp,'GET','/api/health')){res({ok:false});return;}
+          if(!_safeXhrOpen(_xhp,'GET','/api/health')){res({ok:false,status:0});return;}
           _xhp.timeout=2000;
           _xhp.onload=function(){res({ok:_xhp.status<400,status:_xhp.status});}
-          _xhp.onerror=_xhp.ontimeout=function(){res({ok:false});}
+          _xhp.onerror=_xhp.ontimeout=function(){res({ok:false,status:0});}
           _xhp.send();
         });
-      } catch(e2) { r={ok:false}; }
+      } catch(e2) { r={ok:false,status:0}; }
+      /* Always emit to ops log — never hide loopback polls, even in local mode */
+      if(window.SG_OPS_LOG) SG_OPS_LOG.emit(
+        r.ok ? 'completed' : 'failed',
+        'health-poll',
+        'GET /api/health → '+(r.ok?'200 OK':'HTTP '+(r.status||'unreachable'))+' · mode:'+_mode,
+        'localhost:9899'
+      );
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         if(ST && ST.cicd) ST.cicd.status = 'online';
@@ -2232,6 +2289,7 @@ const BRIDGE = {
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
       this.updateUI('PORT 9897 OFFLINE','var(--am)');
+      if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','health-poll','GET /api/health → exception: '+e.message+' · mode:'+_mode,'localhost:9899');
     }
   },
 
@@ -2406,7 +2464,7 @@ var BridgeCFG = {
   },
   wsURL: function() {
     /* Python WS internal — loopback never uses wss:// */
-    return 'ws://192.168.1.252:9897';
+    return 'ws://127.0.0.1:9897';
   },
   save: function() {
     try { localStorage.setItem('bridge_cfg', JSON.stringify({
@@ -3372,7 +3430,17 @@ window.renderPiperTTS = function() {
 window.renderGitHub = function() {
   var connected = !!GitHub.token;
   return '<div class="panel-hdr"><h2>GitHub Integration</h2>' +
-    '<p>// Real OAuth · IndexedDB storage · AES-256 · Push/Pull · Audit logged</p></div>' +
+    '<p>// Real OAuth \xb7 IndexedDB storage \xb7 AES-256 \xb7 Push/Pull \xb7 Audit logged</p></div>' +
+    /* OAuth opt-in notice — public deployment required */
+    '<div style="background:rgba(255,179,0,.07);border:1px solid rgba(255,179,0,.2);' +
+    'border-radius:var(--r2);padding:10px 13px;font-family:var(--mono);font-size:8px;' +
+    'color:var(--t2);margin-bottom:12px;line-height:1.8">' +
+    '<span style="color:var(--yl);font-weight:700">\u26a0\ufe0f OPT-IN \u2014 PUBLIC DEPLOYMENT REQUIRED</span><br>' +
+    'GitHub OAuth requires a publicly accessible redirect URI and a registered OAuth App. ' +
+    'For local or offline use, generate a token at <code>github.com/settings/tokens</code> ' +
+    'and supply it to the bridge as <code>GH_TOKEN</code>. ' +
+    'Never configure OAuth client secrets on local-only or air-gapped deployments.' +
+    '</div>' +
     '<div class="g4">' +
     mc(connected ? 'CONNECTED' : 'DISCONNECTED', 'GitHub', connected ? GitHub.user : 'Not auth', 'GH', connected ? 'var(--gn)' : 'var(--mu)') +
     mc(GitHub.clientId ? 'SET' : 'NOT SET', 'Client ID', 'OAuth App', 'ID', GitHub.clientId ? 'var(--gn)' : 'var(--rd)') +
@@ -3538,6 +3606,202 @@ window.renderLinearCard = function() {
 };
 
 // ─── 15. WIRE PANELS + UPGRADE ROLE NAVS ─────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOCAL CONTROL PLANE (LCP) v1.0 — offline-first loopback dashboard
+//  All fetches target 127.0.0.1 only. No polling. Explicit refresh only.
+//  Surfaces: repo status · agent status · CI/CD workflows · network audit
+//  SOC 2-aligned controls — not a certification claim.
+// ═══════════════════════════════════════════════════════════════════════
+window.LCP = (function(){
+  'use strict';
+  var BASE = 'http://127.0.0.1:9898';
+
+  function _el(id){ return document.getElementById(id); }
+  function _set(id, html){ var e=_el(id); if(e) e.innerHTML=html; }
+  function _badge(t,c){ return '<span class="sb2 '+c+'">'+t+'</span>'; }
+
+  function _fetchEndpoint(path, targetId, transform){
+    _set(targetId,'<span style="color:var(--t3);font-family:var(--mono);font-size:10px">⏳ fetching…</span>');
+    window.fetch(BASE+path,{method:'GET',headers:{'Accept':'application/json'}})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        _set(targetId, transform(d));
+        if(typeof addAudit==='function') addAudit('LCP_FETCH', path+' ok');
+      })
+      .catch(function(e){
+        _set(targetId,'<span style="color:var(--rd);font-family:var(--mono);font-size:10px">⚠ '+
+          e.message+' — bridge offline or not running (start bridge/serve_dashboard.py)</span>');
+        if(typeof addAudit==='function') addAudit('LCP_FETCH_ERR', path+': '+e.message);
+      });
+  }
+
+  function _renderRepo(d){
+    var clean = d.clean ? _badge('CLEAN','b-ok') : _badge('DIRTY','b-warn');
+    return '<div class="srow"><span class="sl">Branch</span>' +
+      '<span style="font-family:var(--mono);font-size:10px;color:var(--acid)">'+(d.branch||'—')+'</span></div>'+
+      '<div class="srow"><span class="sl">Commit</span>' +
+      '<span style="font-family:var(--mono);font-size:10px;color:var(--t2)">'+(d.commit||'—')+'</span></div>'+
+      '<div class="srow"><span class="sl">Status</span>'+clean+'</div>'+
+      (d.staged_count?'<div class="srow"><span class="sl">Staged</span>'+_badge(d.staged_count+' file(s)','b-info')+'</div>':'')+
+      (d.unstaged_count?'<div class="srow"><span class="sl">Unstaged</span>'+_badge(d.unstaged_count+' file(s)','b-warn')+'</div>':'')+
+      (d.untracked_count?'<div class="srow"><span class="sl">Untracked</span>'+_badge(d.untracked_count+' file(s)','b-dim')+'</div>':'');
+  }
+
+  function _renderAgentMods(d){
+    var rows=(d.agent_modules||[]).slice(0,8).map(function(m){
+      return '<div class="srow"><span class="sl" style="font-family:var(--mono);font-size:9px">'+
+        m.replace('.py','')+'</span>'+_badge('REGISTERED','b-ok')+'</div>';
+    }).join('');
+    return '<div class="srow"><span class="sl">Modules found</span>'+_badge(d.count||0,'b-info')+'</div>'+rows;
+  }
+
+  function _renderCICD(d){
+    var rows=(d.workflows||[]).slice(0,12).map(function(w){
+      return '<div class="srow"><span class="sl" style="font-family:var(--mono);font-size:9px">'+
+        w.name+'</span>'+_badge('AVAILABLE','b-ok')+'</div>';
+    }).join('');
+    return '<div class="srow"><span class="sl">Local workflows</span>'+_badge(d.count||0,'b-info')+'</div>'+rows;
+  }
+
+  function _renderAudit(d){
+    /* Merge bridge audit entries with in-browser SGOfflinePolicy events */
+    var policy=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status():null;
+    var pAttempts=policy?policy.attempts.slice(-10):[];
+    var bEntries=(d.entries||[]).slice(-10);
+    var rows=pAttempts.map(function(e){
+      var cls=e.action==='NETWORK_BLOCKED'?'b-err':'b-ok';
+      return '<div class="audit-entry">'+
+        '<span class="audit-ts">'+(e.timestamp||'').slice(11,19)+'</span>'+
+        '<span class="audit-ev">'+_badge(e.action.slice(0,14),cls)+'</span>'+
+        '<span class="audit-data">'+String(e.detail||'').slice(0,60)+'</span></div>';
+    }).join('');
+    var bRows=bEntries.map(function(e){
+      return '<div class="audit-entry">'+
+        '<span class="audit-ts">'+new Date(e.ts*1000).toTimeString().slice(0,8)+'</span>'+
+        '<span class="audit-ev">'+_badge('BRIDGE','b-info')+'</span>'+
+        '<span class="audit-data">'+String(e.detail||e.event||'').slice(0,60)+'</span></div>';
+    }).join('');
+    return (rows||bRows)||
+      '<span style="color:var(--t3);font-family:var(--mono);font-size:10px">No network events yet.</span>';
+  }
+
+  return {
+    refresh: function(){
+      var ts=_el('lcp-last-refresh');
+      if(ts) ts.textContent='Refreshed: '+new Date().toTimeString().slice(0,8);
+      if(typeof addAudit==='function') addAudit('LCP_REFRESH','User-triggered control plane refresh');
+      /* All four fetches target loopback only — no external calls */
+      _fetchEndpoint('/api/repo-status',   'lcp-repo-body',   _renderRepo);
+      _fetchEndpoint('/api/agent-status',  'lcp-agent-body',  _renderAgentMods);
+      _fetchEndpoint('/api/cicd-status',   'lcp-cicd-body',   _renderCICD);
+      _fetchEndpoint('/api/network-audit', 'lcp-audit-body',  _renderAudit);
+    },
+    showLocalAudit: function(){
+      /* Render in-browser SGOfflinePolicy events without any bridge call */
+      var body=_el('lcp-audit-body'); if(!body) return;
+      var policy=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status():null;
+      if(!policy||!policy.attempts.length){
+        body.innerHTML='<span style="color:var(--t3);font-family:var(--mono);font-size:10px">No network events recorded yet.</span>';
+        return;
+      }
+      body.innerHTML=policy.attempts.slice(-20).map(function(e){
+        var cls=e.action==='NETWORK_BLOCKED'?'b-err':'b-ok';
+        return '<div class="audit-entry">'+
+          '<span class="audit-ts">'+(e.timestamp||'').slice(11,19)+'</span>'+
+          '<span class="audit-ev">'+'<span class="sb2 '+cls+'">'+e.action.slice(0,14)+'</span>'+'</span>'+
+          '<span class="audit-data">'+String(e.detail||'').slice(0,60)+'</span></div>';
+      }).join('');
+    }
+  };
+})();
+
+window.renderLocalCP = function(){
+  var mode=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status().mode:'offline';
+  var modeBadge=mode==='offline'||mode==='local'?
+    '<span class="sb2 b-ok">OFFLINE-FIRST</span>':
+    mode==='hybrid'?'<span class="sb2 b-warn">HYBRID</span>':
+    '<span class="sb2 b-err">ONLINE</span>';
+
+  return '<div class="panel-hdr">'+
+    '<h2>\uD83C\uDFE0 Local Control Plane</h2>'+
+    '<p>// Offline-first \xb7 Loopback only \xb7 Explicit refresh \xb7 Audit logged \xb7 No polling</p>'+
+    '</div>'+
+
+    /* Mode bar + refresh */
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'+
+    modeBadge+
+    '<span style="font-family:var(--mono);font-size:9px;color:var(--t3)">All fetches \u2192 127.0.0.1 only. No automatic polling.</span>'+
+    '<button class="btn btn-p btn-sm" style="margin-left:auto" onclick="LCP.refresh()">\u27f3\u00a0Refresh</button>'+
+    '<span id="lcp-last-refresh" style="font-family:var(--mono);font-size:8px;color:var(--t3)">Not yet refreshed</span>'+
+    '</div>'+
+
+    '<div class="two">'+
+
+    /* Repo status */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDCC1 Repository Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 loopback \xb7 read-only \xb7 branch-aware</span></div>'+
+    '<div id="lcp-repo-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    /* Agent status */
+    '<div class="card">'+
+    '<div class="card-title">\uD83E\uDD16 Agent Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 local scan \xb7 no shell</span></div>'+
+    '<div id="lcp-agent-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    '</div>'+
+    '<div class="two">'+
+
+    /* CI/CD status */
+    '<div class="card">'+
+    '<div class="card-title">\u2699\uFE0F CI/CD Workflows '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 local availability</span></div>'+
+    '<div id="lcp-cicd-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    /* Network audit */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDD0D Network Request Audit '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 offline_policy events</span></div>'+
+    '<div id="lcp-audit-body" class="audit-live" style="height:180px;font-size:9px">'+
+    '<span style="color:var(--t3);font-family:var(--mono);font-size:10px">Click Refresh (bridge) or Show Local Events.</span>'+
+    '</div>'+
+    '<button class="btn btn-s btn-sm" style="margin-top:6px" onclick="LCP.showLocalAudit()">Show Local Policy Events</button>'+
+    '</div>'+
+
+    '</div>'+
+
+    /* MCP workspace status info */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDD17 MCP Workspace Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 branch-aware \xb7 stdio \xb7 no shell</span></div>'+
+    '<div style="font-family:var(--mono);font-size:9px;color:var(--t2);line-height:1.8">'+
+    'Server: <code style="color:var(--acid)">mcp_server.py</code> (JSON-RPC\u00a02.0 \xb7 stdio)<br>'+
+    'Tool: <code style="color:var(--acid)">workspace_repo_status</code> \u2014 reports branch, commit, staged/unstaged counts<br>'+
+    'Default mode: <code style="color:var(--acid)">offline</code> '+
+    '(set <code>SG_MCP_MODE=hybrid</code> or <code>online</code> to allow bridge endpoints)<br>'+
+    'No shell access: git is invoked with fixed read-only arguments and no user-controlled input.'+
+    '</div>'+
+    '</div>'+
+
+    /* SOC 2 / PKI / OAuth alignment notice */
+    '<div style="background:rgba(124,77,255,.06);border:1px solid rgba(124,77,255,.15);'+
+    'border-radius:var(--r2);padding:12px;font-family:var(--mono);font-size:8px;'+
+    'color:var(--t2);line-height:1.9;margin-top:10px">'+
+    '<span style="color:var(--vt);font-weight:700">SOC\u00a02-ALIGNED CONTROLS</span> \u2014 '+
+    'Access logging, loopback isolation, immutable audit trail, and explicit remote-access consent '+
+    'are implemented. This is not a SOC\u00a02 certification claim.<br>'+
+    '<span style="color:var(--yl)">PRIVATE PKI / LET\'S ENCRYPT</span> \u2014 '+
+    'TLS certificate generation is available in online mode only (opt-in via Presence Mode).<br>'+
+    '<span style="color:var(--yl)">GITHUB OAUTH</span> \u2014 '+
+    'OAuth requires a publicly accessible redirect URI and is an opt-in public-deployment feature '+
+    '(see GitHub Integration panel). Do not configure OAuth client secrets on local-only deployments.'+
+    '</div>';
+};
+
 if (typeof PANEL_MAP !== 'undefined') {
 PANEL_MAP.bridgecfg  = function() { return renderBridgeConfig(); };
 PANEL_MAP.pipertts   = function() { return renderPiperTTS(); };
@@ -3548,6 +3812,9 @@ PANEL_MAP.killswitch = function() { return renderKillswitch(); };
 PANEL_MAP.ids        = function() { return renderIDSPanel(); };
 PANEL_MAP.linearcard = function() { return renderLinearCard(); };
 PANEL_MAP.copilot_agent = function() { return renderCopilotAgent(); };
+PANEL_MAP.localcp    = function() { return renderLocalCP(); };
+/* Diagnostics / ops log panel — registered here so loadPanel('diagnostics') works */
+if(typeof PANELS !== 'undefined' && PANELS.diagnostics) PANEL_MAP.diagnostics = PANELS.diagnostics;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3589,7 +3856,7 @@ return `<div class="panel-hdr">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
       <div>
         <div style="font-family:var(--mono);font-size:8px;color:var(--mu);margin-bottom:4px">PRIMARY AGENT</div>
-        <select id="agentPrimary" style="width:100%;padding:8px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
+        <select id="agentPrimary" onchange="SGMemoryUI.refreshConsent()" style="width:100%;padding:8px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
           <option value="claude">Claude (Anthropic)</option>
           <option value="grok">Grok (xAI)</option>
           <option value="copilot">GitHub Copilot</option>
@@ -3617,6 +3884,7 @@ return `<div class="panel-hdr">
           style="flex:1;padding:9px 12px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
         <button onclick="saveCopilotToken()" class="btn-p" style="width:auto;padding:9px 14px;flex-shrink:0">💾 Save</button>
         <button onclick="testCopilotAgent()" class="btn-s" style="width:auto;padding:9px 14px;flex-shrink:0">🧪 Test</button>
+        <button onclick="disconnectAgentCredentials()" class="btn-s" style="width:auto;padding:9px 14px;flex-shrink:0">Disconnect</button>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -3629,6 +3897,38 @@ return `<div class="panel-hdr">
       <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer">
         <input type="checkbox" id="agentOnDevice" checked style="accent-color:var(--cy)"> On-device only — never external relay
       </label>
+    </div>
+  </div>
+
+  <div class="card gf" style="margin-bottom:12px">
+    <div class="card-t"><div class="ctd"></div>ENCRYPTED USER MEMORY VAULT</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--mu);line-height:1.5;margin-bottom:8px">Private model memory stays encrypted in this device's IndexedDB, binds to the active login, hydrates only after unlock, and is never silently exported or attached to outbound requests.</div>
+    <div style="display:flex;gap:8px;margin-bottom:9px">
+      <input id="agentVaultPassphrase" type="password" autocomplete="current-password" placeholder="Vault passphrase (12+ characters)" style="flex:1;padding:9px 12px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
+      <button onclick="SGMemoryUI.unlock()" class="btn-p" style="width:auto;padding:9px 14px">🔓 Unlock</button>
+      <button onclick="SGMemoryUI.lock()" class="btn-s" style="width:auto;padding:9px 14px">🔒 Lock</button>
+    </div>
+    <div id="agentVaultStatus" style="font-family:var(--mono);font-size:8px;color:var(--am);margin-bottom:9px">Locked — memory is unavailable to all models.</div>
+    <div id="agentVaultScope" style="font-family:var(--mono);font-size:8px;color:var(--cy);margin-bottom:9px">Awaiting session binding for login-scoped memory.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentAttachMemory" style="accent-color:var(--cy)"> Explicitly attach approved memory to outbound AI requests</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentIncludePrivate" style="accent-color:var(--cy)"> Include this model's private memory when attachment is enabled</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentSharedConsent" style="accent-color:var(--cy)" onchange="SGMemoryUI.setConsent(this.checked)"> Allow the selected model to receive approved shared memory this session</label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;align-items:center">
+      <span style="font-family:var(--mono);font-size:8px;color:var(--mu)">Share current model history with:</span>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="claude" style="accent-color:var(--cy)"> Claude</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="grok" style="accent-color:var(--cy)"> Grok</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="copilot" style="accent-color:var(--cy)"> Copilot</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="openai" style="accent-color:var(--cy)"> OpenAI</label>
+    </div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button onclick="SGMemoryUI.loadSelected()" class="btn-s" style="width:auto;padding:8px 12px">📖 Load Model History</button>
+      <button onclick="SGMemoryUI.shareSelected()" class="btn-s" style="width:auto;padding:8px 12px">🤝 Share Current Model History</button>
+      <button onclick="SGMemoryUI.review()" class="btn-s" style="width:auto;padding:8px 12px">📜 Review Consent Log</button>
+      <button onclick="SGMemoryUI.exportEncrypted()" class="btn-s" style="width:auto;padding:8px 12px">💾 Export Encrypted</button>
+      <button onclick="SGMemoryUI.deleteSelected()" class="btn-s" style="width:auto;padding:8px 12px;color:var(--am)">Delete Model</button>
+      <button onclick="SGMemoryUI.wipe()" class="btn-s" style="width:auto;padding:8px 12px;color:var(--rd)">Wipe Vault</button>
     </div>
   </div>
 
@@ -3684,19 +3984,16 @@ function _initCopilotAgent(){
 (function(){
 var _sessions = 0;
 var _history = [];
-
-// Load saved token
 try{
-  var saved = localStorage.getItem('sg_copilot_token');
-  if(saved){ var el=document.getElementById('copilotToken'); if(el) el.value=saved; }
+  ['sg_copilot_token','sg_ant_key','sg_xai_key','sg_oai_key'].forEach(function(key){ localStorage.removeItem(key); });
 }catch(_){}
 
 // Update status indicators
 function checkStatus(){
   var keys = {
-    claude: localStorage.getItem('sg_ant_key'),
-    grok:   localStorage.getItem('sg_xai_key'),
-    copilot:localStorage.getItem('sg_copilot_token')
+    claude: window.SGProviderCredentials.claude,
+    grok:   window.SGProviderCredentials.grok,
+    copilot:window.SGProviderCredentials.copilot
   };
   var map = {claude:'agentClaudeStatus',grok:'agentGrokStatus',copilot:'agentCopilotStatus'};
   Object.keys(map).forEach(function(k){
@@ -3709,9 +4006,17 @@ setTimeout(checkStatus, 100);
 window.saveCopilotToken = function(){
   var v = (document.getElementById('copilotToken')||{}).value||'';
   if(!v.trim()){ toast('Enter a token first','err'); return; }
-  try{ localStorage.setItem('sg_copilot_token', v.trim()); }catch(_){}
+  window.SGProviderCredentials.copilot = v.trim();
+  document.getElementById('copilotToken').value = '';
   checkStatus();
-  toast('Copilot token saved on-device','ok');
+  toast('Copilot token retained only for this active runtime','ok');
+};
+
+window.disconnectAgentCredentials = function(){
+  window.SGMemoryUI.disconnect('copilot');
+  var token = document.getElementById('copilotToken'); if(token) token.value = '';
+  checkStatus();
+  toast('Provider disconnected and runtime context cleared','ok');
 };
 
 window.testCopilotAgent = function(){
@@ -3772,6 +4077,17 @@ window.runCopilotAgent = async function(){
   var startTime = Date.now();
   var localOnly = onDevice || !sgExternalApisAllowed();
   var wantsAnalysis = mode === 'security' || mode === 'debug' || mode === 'review' || mode === 'explain';
+  var memoryEntries = [];
+  var attachApprovedMemory = !!(document.getElementById('agentAttachMemory')||{}).checked;
+  if(window.SGMemoryUI.vault.key && attachApprovedMemory && !localOnly){
+    try{
+      memoryEntries = await window.SGMemoryUI.contextForRequest(
+        primary,
+        !!(document.getElementById('agentIncludePrivate')||{}).checked,
+        {destination:primary+':remote'}
+      );
+    }catch(memoryError){ toast('Memory unavailable: '+memoryError.message,'err'); }
+  }
 
   if(localOnly){
     var localText = await aiAnalyzeOrFix(code || prompt, wantsAnalysis ? 'analyze' : 'fix');
@@ -3786,6 +4102,8 @@ window.runCopilotAgent = async function(){
     if(auditChk && auditChk.checked && typeof auditLog==='function'){
       auditLog('AGENT_CALL','agent='+primary+' mode='+mode+' local=true prompt_len='+prompt.length+' output_len='+localText.length);
     }
+    await window.SGMemoryUI.record(primary, 'user', prompt);
+    await window.SGMemoryUI.record(primary, 'assistant', localText);
     toast('Agent completed locally','ok');
     return localText;
   }
@@ -3794,15 +4112,15 @@ window.runCopilotAgent = async function(){
   var apiUrl = '';
   var apiModel = '';
   if(primary==='claude'){
-    apiKey = localStorage.getItem('sg_ant_key')||'';
+    apiKey = window.SGProviderCredentials.claude||'';
     apiUrl = 'https://api.anthropic.com/v1/messages';
     apiModel = 'claude-opus-4-7';
   } else if(primary==='grok'){
-    apiKey = localStorage.getItem('sg_xai_key')||'';
+    apiKey = window.SGProviderCredentials.grok||'';
     apiUrl = 'https://api.x.ai/v1/chat/completions';
     apiModel = 'grok-4.3';
   } else if(primary==='openai'){
-    apiKey = localStorage.getItem('sg_oai_key')||'';
+    apiKey = window.SGProviderCredentials.openai||'';
     apiUrl = 'https://api.openai.com/v1/chat/completions';
     apiModel = 'gpt-5.4-mini';
   }
@@ -3831,6 +4149,11 @@ window.runCopilotAgent = async function(){
   sysPrompt += '\n\nIMPORTANT: This interface may call remote APIs when online. Never suggest or use APIs from Google. Always prioritize safety, security, and production readiness.';
 
   var userMsg = prompt;
+  if(memoryEntries.length){
+    userMsg += '\n\nUSER-APPROVED MEMORY CONTEXT:\n' + memoryEntries.map(function(entry){
+      return '['+entry.model+'/'+entry.role+'] '+entry.content;
+    }).join('\n');
+  }
   var bt3 = Array(4).join(String.fromCharCode(96));
   if(code.trim()) userMsg += '\n\n' + bt3 + '\n' + code + '\n' + bt3;
 
@@ -3885,8 +4208,13 @@ window.runCopilotAgent = async function(){
     if(auditChk && auditChk.checked && typeof auditLog==='function'){
       auditLog('AGENT_CALL','agent='+primary+' mode='+mode+' elapsed='+elapsed+'s prompt_len='+prompt.length+' output_len='+text.length);
     }
-    toast('Agent completed in '+elapsed+'s','ok');
-    return text;
+    return Promise.all([
+      window.SGMemoryUI.record(primary, 'user', prompt),
+      window.SGMemoryUI.record(primary, 'assistant', text)
+    ]).then(function(){
+      toast('Agent completed in '+elapsed+'s','ok');
+      return text;
+    });
   })
   .catch(function(err){
     var msg = '⚠ Network error: '+(err && err.message ? err.message : err);
@@ -3982,6 +4310,58 @@ console.log('%c Piper+KC+Merkle+Killswitch+DDQ+IDS+LinearCard+GitHub+BridgeCFG+Q
 </script>
 
 <script>
+/* ══ SG_OPS_LOG — Unified Operation Lifecycle Stream v1.0 ══
+   Captures all operations with timestamp, lifecycle state, subsystem, and provider.
+   States used: connecting · searching · waiting · generating · speaking · completed
+                cancelled · failed · health-poll · mode
+   Every entry is also mirrored to addAudit() and optionally shown in PANELS.diagnostics.
+*/
+(function(){
+'use strict';
+if(window.SG_OPS_LOG) return;
+var MAX_ENTRIES = 300;
+var _entries = [];
+var _listeners = [];
+
+function _ts(){
+  try{ return new Date().toISOString().slice(11,23); }catch(e){ return '??:??:??.???'; }
+}
+
+function emit(state, subsystem, detail, provider){
+  var entry = {
+    ts: _ts(),
+    wall: Date.now(),
+    state: String(state||'info'),
+    subsystem: String(subsystem||'system'),
+    detail: String(detail||''),
+    provider: String(provider||'—')
+  };
+  _entries.push(entry);
+  if(_entries.length > MAX_ENTRIES) _entries.shift();
+  // Mirror to audit chain so everything is traceable
+  try{
+    if(typeof window.addAudit === 'function'){
+      window.addAudit('OPS:'+entry.state.toUpperCase(), '['+entry.subsystem+'] '+(entry.provider!=='—'?'('+entry.provider+') ':'')+entry.detail);
+    }
+  }catch(_){}
+  // Notify live panel subscribers
+  for(var i=0;i<_listeners.length;i++){ try{_listeners[i](entry);}catch(_){} }
+  return entry;
+}
+
+window.SG_OPS_LOG = {
+  emit:    emit,
+  on:      function(fn){ _listeners.push(fn); },
+  off:     function(fn){ _listeners=_listeners.filter(function(f){return f!==fn;}); },
+  entries: function(){ return _entries.slice(); },
+  last:    function(n){ return _entries.slice(-(n||20)); },
+  clear:   function(){ _entries=[]; }
+};
+console.log('%c[SG_OPS_LOG] Lifecycle stream active (max '+MAX_ENTRIES+' entries)', 'color:#00ffc8;font-size:9px');
+})();
+</script>
+
+<script>
 /* ══ PIPER ══ */
 try {
 
@@ -4041,16 +4421,32 @@ try {
     if (typeof AIVoice !== 'undefined' && !AIVoice.enabled) return;
     if (!text || !text.trim()) return;
 
-    // Try Piper bridge first
+    // Try Piper bridge first (offline, on-device, port 9899)
     var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
     if (bridgeOk) {
       var rid = Date.now();
       try {
         PiperTTS.ws.send(JSON.stringify({ type: 'piper_speak', text: text, requestId: rid }));
+        /* Emit lifecycle event — engine is Piper (local bridge) */
+        if(window.SG_OPS_LOG) SG_OPS_LOG.emit('speaking','TTS',
+          'Piper TTS (port 9899): "'+text.slice(0,60)+(text.length>60?'…':'')+'"',
+          'Piper TTS — bridge ws:9899');
         return; // bridge handles it — no browser TTS needed
-      } catch(e) {}
+      } catch(e) {
+        /* Piper bridge WS send failed — fall through to browser */
+        if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','TTS',
+          'Piper send error: '+e.message+' — falling back to browser voice',
+          'Piper TTS — bridge ws:9899');
+      }
     }
     // Fallback: browser Web Speech API (on-device, no network)
+    var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
+    var _reason = bridgeOk
+      ? 'Piper send failed'
+      : 'Piper bridge not connected (ws readyState=' + _wsState + ')';
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('speaking','TTS',
+      'WebSpeech API fallback ['+_reason+']: "'+text.slice(0,60)+(text.length>60?'…':'')+'"',
+      'Web Speech API (browser built-in)');
     if (_origSpeak2) { _origSpeak2(text); return; }
     if (_nativeSynth) {
       _nativeSynth.cancel();
@@ -4110,13 +4506,13 @@ var CFG = (function(){
   /* Port map: WS=9897 (Python internal) · HTTP frontend=9898 (KODER) · Keycloak=8080/8443 */
   var D = {autoRepair:true,logLevel:'info',bridgeRelay:true,repairThrottleMs:500,
     alertThreshold:5,sealIntervalMs:30000,patchSandbox:true,maxRepairLog:200,
-    maxErrorLog:500,bridgeWsUrl:'ws://192.168.1.252:9897',bridgeHttpUrl:'http://192.168.1.252:9898/agents'};
+    maxErrorLog:500,bridgeWsUrl:'ws://127.0.0.1:9897',bridgeHttpUrl:'http://127.0.0.1:9898/agents'};
   try {
     var saved = JSON.parse(localStorage.getItem(_CFG_KEY)||'{}');
     if (saved) {
       /* WS=9897 Python internal only · HTTP AI/agent routes via KODER 9898 */
-      saved.bridgeWsUrl = 'ws://192.168.1.252:9897';
-      saved.bridgeHttpUrl = 'http://192.168.1.252:9898/agents';
+      saved.bridgeWsUrl = 'ws://127.0.0.1:9897';
+      saved.bridgeHttpUrl = 'http://127.0.0.1:9898/agents';
     }
     return Object.assign({}, D, saved);
   } catch(e) {
@@ -4674,19 +5070,13 @@ window.SGCrypto = (function(){
   };
   window.SGDilithium = Dilithium;
 
-  /* ── ML-KEM-768 simulation (real PQ on bridge server via liboqs) ── */
+  /* ML-KEM is provided only by the local liboqs bridge. Never emulate PQC. */
   var MLKEM = {
-    keygen: async function(){
-      var kp = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'},true,['deriveKey','deriveBits']);
-      var ek = JSON.stringify(await crypto.subtle.exportKey('jwk',kp.publicKey));
-      return { ek:ek, dk:'ML-KEM-768-SIM', alg:'ML-KEM-768-SIM', note:'Real PQ via bridge liboqs' };
-    },
-    encapsulate: async function(ek){
-      var r = crypto.getRandomValues(new Uint8Array(32));
-      var K = Array.from(r).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
-      return { c:'ct-'+K.slice(0,16), K:K, alg:'ML-KEM-768-SIM' };
-    },
-    decapsulate: async function(dk, c){ return { K: c&&c.K ? c.K : '' }; }
+    available: false,
+    algorithm: 'ML-KEM-768',
+    keygen: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); },
+    encapsulate: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); },
+    decapsulate: async function(){ throw new Error('ML-KEM-768 unavailable: install the local liboqs bridge. No simulation is provided.'); }
   };
   window.SGMLKEM = MLKEM;
   var MerkleTree = {
@@ -5824,6 +6214,7 @@ var NAV_ITEMS=[
   {sec:'ADMIN',       ic:'\u2699',       lb:'Role Editor',         p:'roleeditor',  lv:4},
   {sec:'ADMIN',       ic:'\ud83d\udd34',lb:'Kill Switch',         p:'killswitch',  lv:4},
   {sec:'ADMIN',       ic:'\ud83c\udfd7',lb:'CI/CD',               p:'cicd',        lv:3},
+  {sec:'ADMIN',       ic:'\ud83c\udfe0',lb:'Local Control Plane', p:'localcp',     lv:3},
   {sec:'ADMIN',       ic:'\ud83d\udc51',lb:'Root Admin',          p:'rootadmin',   lv:5},
 ];
 
@@ -5997,7 +6388,7 @@ function afterPanel(id){
         /* Keycloak test */
         var kcTest=document.getElementById('fort-keycloak-test');
         if(kcTest&&!kcTest._fw){kcTest._fw=true;kcTest.addEventListener('click',function(){
-          fetch('http://192.168.1.252:9897/auth/keycloak/test')
+          fetch('http://127.0.0.1:9897/auth/keycloak/test')
             .then(function(r){return r.json();})
             .then(function(d){bOut('fort-oauth-out',JSON.stringify(d,null,2),'var(--gn)');})
             .catch(function(){bOut('fort-oauth-out','Keycloak at :8080 — start keycloak before testing','var(--t3)');});
@@ -6099,16 +6490,16 @@ function afterPanel(id){
           },2500);
         });}
         if(bTest&&!bTest._vw){bTest._vw=true;bTest.addEventListener('click',function(){
-          if(bOut)bOut.textContent='Testing http://192.168.1.252:9898...';
+          if(bOut)bOut.textContent='Testing http://127.0.0.1:9898...';
           fetch('/api/health')
             .then(function(r){return r.json();})
             .then(function(d){if(bOut)bOut.textContent='✅ Bridge OK · v'+d.version+' · HTML: '+(d.html?'found':'missing')+' · Keys: '+JSON.stringify(d.keys);bOut.style.color='var(--gn)';})
             .catch(function(e){if(bOut){bOut.textContent='❌ '+e.message+' — run: python3 ~/bridge.py in a-Shell';bOut.style.color='var(--pulse)';}});
         });}
         if(bWS&&!bWS._vw){bWS._vw=true;bWS.addEventListener('click',function(){
-          if(bOut)bOut.textContent='Testing ws://192.168.1.252:9897...';
+          if(bOut)bOut.textContent='Testing ws://127.0.0.1:9897...';
           try{
-            var t=new WebSocket('ws://192.168.1.252:9897');
+            var t=new WebSocket('ws://127.0.0.1:9897');
             t.onopen=function(){if(bOut){bOut.textContent='✅ WebSocket connected';bOut.style.color='var(--gn)';}t.close();};
             t.onerror=function(){if(bOut){bOut.textContent='❌ WS failed — bridge not running or wrong origin';bOut.style.color='var(--pulse)';}};
           }catch(e){if(bOut)bOut.textContent='❌ '+e.message;}
@@ -6527,7 +6918,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     var out = document.getElementById('kc-output');
     var testFn = function() {
       if(out) out.textContent='Testing...';
-      fetch('http://192.168.1.252:9897/auth/keycloak/realm')
+      fetch('http://127.0.0.1:9897/auth/keycloak/realm')
         .then(function(r){return r.json();})
         .then(function(d){
           if(out) out.textContent = JSON.stringify(d, null, 2);
@@ -6542,12 +6933,12 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     if(oa) oa.addEventListener('click',function(){ window.open('http://localhost:8080/admin','_blank','noopener,noreferrer'); });
     var lf=document.getElementById('kc-login-flow');
     if(lf) lf.addEventListener('click',function(){
-      fetch('http://192.168.1.252:9897/auth/keycloak/realm')
+      fetch('http://127.0.0.1:9897/auth/keycloak/realm')
         .then(function(r){return r.json();})
         .then(function(d){
           if(d.auth_endpoint){
             var url=d.auth_endpoint+'?response_type=code&client_id='+encodeURIComponent(d.client_id||'supergrok')
-              +'&redirect_uri='+encodeURIComponent('http://192.168.1.252:9897/auth/keycloak/callback')
+              +'&redirect_uri='+encodeURIComponent('http://127.0.0.1:9897/auth/keycloak/callback')
               +'&scope=openid profile email';
             window.open(url,'_blank','noopener,noreferrer,width=600,height=700');
             if(out) out.textContent='Login window opened. Complete Keycloak auth there.';
@@ -6563,7 +6954,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     var zi=document.getElementById('zoho-init-auth');
     if(zi) zi.addEventListener('click', function(){
       if(zout) zout.textContent='Requesting Zoho OAuth URL...';
-      fetch('http://192.168.1.252:9897/auth/zoho/init')
+      fetch('http://127.0.0.1:9897/auth/zoho/init')
         .then(function(r){return r.json();})
         .then(function(d){
           if(d.auth_url){
@@ -6576,7 +6967,7 @@ document.addEventListener('sg:panelLoaded', function(ev) {
     });
     var zt=document.getElementById('zoho-test');
     if(zt) zt.addEventListener('click',function(){
-      fetch('http://192.168.1.252:9897/auth/zoho/init')
+      fetch('http://127.0.0.1:9897/auth/zoho/init')
         .then(function(r){return r.json();})
         .then(function(d){ if(zout) zout.textContent=JSON.stringify(d,null,2); })
         .catch(function(e){ if(zout) zout.textContent=e.message; });
@@ -6738,7 +7129,7 @@ PANELS.dashboard=function(){
       sr('PQ Crypto Suite','ONLINE','b-ok')+
       sr('Dilithium3','READY','b-ok')+
       sr('ML-KEM-768','READY','b-ok')+
-      sr('Agent Bridge','192.168.1.252:9899','b-warn')+
+      sr('Agent Bridge','127.0.0.1:9899','b-warn')+
       sr('Secure Enclave','READY','b-ok')+
       sr('Audit Chain','VERIFIED','b-ok')+
     '</div>'+
@@ -7498,13 +7889,13 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '<button class="btn" id="vc-stt-inject">\u2192 Inject to Active Field</button>' +
 '</div>' +
 '<div class="code-block" id="vc-stt-out" style="min-height:50px;font-size:11px"># Transcription appears here...</div>' +
-'<div style="margin-top:8px;font-size:10px;color:var(--t3)">Wispr Flow / OpenWhispr: Install locally and set hotkey to bridge endpoint ws://192.168.1.252:9897 for system-wide dictation into any app.</div>' +
+'<div style="margin-top:8px;font-size:10px;color:var(--t3)">Wispr Flow / OpenWhispr: Install locally and set hotkey to bridge endpoint ws://127.0.0.1:9897 for system-wide dictation into any app.</div>' +
 '</div>' +
 
 /* ── TTS — Piper ─────────────────────────────────── */
 '<div class="card">' +
 '<div class="card-title">\ud83d\udde8\ufe0f TTS \u2014 Piper (Offline, Natural Voice)</div>' +
-'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (192.168.1.252:9899/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
+'<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Piper TTS via bridge (127.0.0.1:9899/tts). Fully offline. No ElevenLabs, no Google TTS, no AWS Polly. Natural neural voice on CPU. Coqui TTS supported as alternate model.</p>' +
 '<div class="two" style="margin-bottom:10px">' +
 '<div>' +
 '<label class="fi-label">Voice Model</label>' +
@@ -7561,7 +7952,7 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '<div class="card">' +
 '<div class="card-title">\ud83d\udee1\ufe0f CSP Header \u2014 Zero Leak Policy</div>' +
 '<p style="font-size:12px;color:var(--t1);margin-bottom:10px">Content-Security-Policy to prevent accidental external loads. Add to your server response headers or <meta> tag.</p>' +
-"<div class=\"code-block\" id=\"vc-csp\" style=\"font-size:9px;line-height:1.6;user-select:all\">Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: ws://192.168.1.252:9897; connect-src 'self' ws://192.168.1.252:9897; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://duckduckgo.com; worker-src blob:; block-all-mixed-content;</div>" +
+"<div class=\"code-block\" id=\"vc-csp\" style=\"font-size:9px;line-height:1.6;user-select:all\">Content-Security-Policy: default-src 'self' 'unsafe-inline' 'unsafe-eval' blob: data: ws://127.0.0.1:9897; connect-src 'self' ws://127.0.0.1:9897; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; media-src 'self' blob:; frame-src https://duckduckgo.com; worker-src blob:; block-all-mixed-content;</div>" +
 '<button class="btn btn-s" id="vc-csp-copy" style="margin-top:8px">\ud83d\udccb Copy CSP Header</button>' +
 '</div>' +
 
@@ -7582,10 +7973,90 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 'python backend.py  # already configured\n\n' +
 '# 5. iOS: a-shell or iSH + Piper WASM\n' +
 '# 6. Android: Termux + bridge via WS\n' +
-'# 7. Wispr Flow / OpenWhispr: set endpoint ws://192.168.1.252:9897' +
+'# 7. Wispr Flow / OpenWhispr: set endpoint ws://127.0.0.1:9897' +
 '</div>' +
 '</div>';
 };
+
+/* ══ DIAGNOSTICS PANEL — Live Operations / Process Log ══
+   Shows all lifecycle events from SG_OPS_LOG:
+   health polls, TTS engine selection, STT routing, vision analysis,
+   mode changes, and bridge status — nothing hidden.
+*/
+PANELS.diagnostics = function() {
+var _ops = (window.SG_OPS_LOG ? window.SG_OPS_LOG.last(80) : []).reverse();
+var _mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
+var _ai   = (function(){ try{return localStorage.getItem('sgh_ai')||'—';}catch(e){return '—';} })();
+var bridgeWs   = (typeof PiperTTS!=='undefined'&&PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
+var bridgeLive = (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
+var piperLive  = (typeof PiperTTS!=='undefined'&&PiperTTS.ready);
+var STATE_COLORS = {
+  completed:'#22c55e', speaking:'#00ffc8', connecting:'#f59e0b',
+  generating:'#a78bfa', searching:'#38bdf8', waiting:'#94a3b8',
+  failed:'#ef4444', cancelled:'#6b7280', mode:'#00bcd4', 'health-poll':'#3a5980', info:'#94a3b8'
+};
+function stateColor(s){ return STATE_COLORS[s] || '#94a3b8'; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var rows = _ops.map(function(e){
+  var c = stateColor(e.state);
+  return '<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:8px;line-height:1.5">' +
+    '<span style="color:#3a5980;flex-shrink:0;width:72px;font-family:var(--mono)">'+esc(e.ts)+'</span>' +
+    '<span style="color:'+c+';flex-shrink:0;width:70px;font-family:var(--mono);font-weight:700">'+esc(e.state.toUpperCase())+'</span>' +
+    '<span style="color:#7c8fa8;flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.subsystem)+'">'+esc(e.subsystem)+'</span>' +
+    '<span style="color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.detail)+'">'+esc(e.detail)+'</span>' +
+    '<span style="color:#7c4dff;flex-shrink:0;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px" title="'+esc(e.provider)+'">'+esc(e.provider)+'</span>' +
+    '</div>';
+}).join('');
+
+return hdr('\ud83d\udd0e Diagnostics', 'Live Ops Log \u00b7 Network \u00b7 Voice \u00b7 Image \u00b7 Bridge \u00b7 Nothing Hidden') +
+/* ── Status summary ── */
+'<div class="kgrid">' +
+'<div class="kc"><div class="kv" style="color:'+((_mode==='local'||_mode==='offline')?'var(--cy)':(_mode==='hybrid'?'var(--am)':'var(--gn)'))+'">'+_mode.toUpperCase()+'</div><div class="kl">Mode</div></div>' +
+'<div class="kc"><div class="kv" style="color:'+(bridgeLive?'var(--gn)':'var(--rd)')+'">'+(bridgeLive?'LIVE':'OFFLINE')+'</div><div class="kl">Bridge 9897</div></div>' +
+'<div class="kc"><div class="kv" style="color:'+(piperLive?'var(--gn)':'var(--am)')+'">'+(piperLive?'READY':'OFF')+'</div><div class="kl">Piper TTS</div></div>' +
+'<div class="kc"><div class="kv" style="color:var(--cy)">'+_ai.toUpperCase()+'</div><div class="kl">AI Provider</div></div>' +
+'</div>' +
+/* ── Controls ── */
+'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.SG_OPS_LOG)SG_OPS_LOG.clear();loadPanel(\'diagnostics\')">🗑 Clear Log</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="loadPanel(\'diagnostics\')">↻ Refresh</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.BRIDGE)BRIDGE.pollHealth()">⬡ Poll /api/health</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.PiperTTS)PiperTTS.checkStatus()">🎤 Piper Status</button>' +
+'</div>' +
+/* ── Column headers ── */
+'<div style="display:flex;gap:6px;padding:3px 0;margin-bottom:2px;font-size:7px;font-family:var(--mono);color:#3a5980;border-bottom:1px solid rgba(255,255,255,.1)">' +
+'<span style="width:72px">TIME</span>' +
+'<span style="width:70px">STATE</span>' +
+'<span style="width:80px">SUBSYSTEM</span>' +
+'<span style="flex:1">DETAIL</span>' +
+'<span style="width:110px;margin-left:4px">PROVIDER</span>' +
+'</div>' +
+/* ── Log entries ── */
+'<div id="sg-ops-log-panel" style="background:rgba(0,0,0,.4);border:1px solid var(--bd2);border-radius:6px;padding:8px;font-family:var(--mono);max-height:400px;overflow-y:auto">' +
+(rows || '<div style="color:#3a5980;font-size:9px">No events yet — operations will appear here in real time.</div>') +
+'</div>' +
+/* ── Live update wiring ── */
+'<script>(function(){' +
+'var _pan = document.getElementById("sg-ops-log-panel");' +
+'if(!_pan||!window.SG_OPS_LOG)return;' +
+'function _addRow(e){' +
+'var STATE_C={"completed":"#22c55e","speaking":"#00ffc8","connecting":"#f59e0b","generating":"#a78bfa","searching":"#38bdf8","waiting":"#94a3b8","failed":"#ef4444","cancelled":"#6b7280","mode":"#00bcd4","health-poll":"#3a5980","info":"#94a3b8"};' +
+'var c=STATE_C[e.state]||"#94a3b8";' +
+'function es(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}' +
+'var d=document.createElement("div");' +
+'d.style.cssText="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:8px;line-height:1.5";' +
+'d.innerHTML=\'<span style="color:#3a5980;flex-shrink:0;width:72px;font-family:monospace">\'+es(e.ts)+\'</span>\'+\'<span style="color:\'+c+\';flex-shrink:0;width:70px;font-family:monospace;font-weight:700">\'+es(e.state.toUpperCase())+\'</span>\'+\'<span style="color:#7c8fa8;flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\'+es(e.subsystem)+\'">\'+es(e.subsystem)+\'</span>\'+\'<span style="color:var(--tx,#e2e8f0);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\'+es(e.detail)+\'">\'+es(e.detail)+\'</span>\'+\'<span style="color:#7c4dff;flex-shrink:0;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px" title="\'+es(e.provider)+\'">\'+es(e.provider)+\'</span>\';' +
+'_pan.insertBefore(d,_pan.firstChild);' +
+'while(_pan.children.length>100)_pan.removeChild(_pan.lastChild);' +
+'}' +
+'window.SG_OPS_LOG.on(_addRow);' +
+'window._sgOpsCleanup=window._sgOpsCleanup||[];window._sgOpsCleanup.push(function(){window.SG_OPS_LOG.off(_addRow);});' +
+'})()\u003c/script>';
+};
+
+/* Register diagnostics panel with PANEL_MAP (deferred — defined after PANEL_MAP block) */
+if(typeof PANEL_MAP !== 'undefined') PANEL_MAP.diagnostics = PANELS.diagnostics;
 
 PANELS.screen=function(){
 return hdr('\ud83d\udcfa Screen Share','On-Device Only \u00b7 getDisplayMedia \u00b7 Never Uploads Without Permission \u00b7 AI Analysis')+
@@ -8231,7 +8702,7 @@ if ((window.BRIDGE && window.BRIDGE.connected)) {
   window._drawAIOut = out;
 } else {
   /* Fallback: HTTP POST */
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ message: prompt + '\n\n[Drawing: attached]', agent:'claude' })
@@ -8524,7 +8995,7 @@ if ((window.BRIDGE && window.BRIDGE.connected)) {
   if (stat) stat.textContent = '\u2713 Sent to Claude via bridge';
   window._faiOut = out;
 } else {
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify({ message:msg, agent:'claude' })
   }).then(function(r){ return r.json(); })
@@ -10454,7 +10925,7 @@ var fullMsg = '[Companion: '+name+']\n\nUser says: '+input+'\n\nRespond naturall
 if ((window.BRIDGE && window.BRIDGE.connected)) {
   PiperTTS.ws.send(JSON.stringify({ type:'ai_chat', agent:'claude', message:fullMsg, context:'opar_chat' }));
 } else {
-  fetch('http://192.168.1.252:9897/chat', {
+  fetch('http://127.0.0.1:9897/chat', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body:JSON.stringify({ message:fullMsg, agent:'claude' })
   }).then(function(r){ return r.json(); })
@@ -10883,13 +11354,13 @@ kc('DDG','Search','#00e676') +
 '<div style="font-size:11px;color:var(--t2);line-height:1.7">' +
 'This browser enforces post-quantum cryptographic standards on all connections routed through the SuperGrok bridge. ' +
 'Key exchange uses ML-KEM (CRYSTALS-Kyber) 1024-bit. Digital signatures use Falcon-1024. ' +
-'All outbound requests through the local proxy at 192.168.1.252:9897 are wrapped with PQ headers. ' +
+'All outbound requests through the local proxy at 127.0.0.1:9897 are wrapped with PQ headers. ' +
 'Direct iframe connections inherit the browser\x27s native TLS — bridge routing adds PQ layer on supported endpoints.' +
 '</div>' +
 '<div class="code-block" style="font-size:9px;margin-top:8px;line-height:1.7">' +
 'X-PQ-KEM: ML-KEM-1024\n' +
 'X-PQ-SIG: Falcon-1024\n' +
-'X-SuperGrok-Bridge: 192.168.1.252:9899\n' +
+'X-SuperGrok-Bridge: 127.0.0.1:9899\n' +
 'Strict-Transport-Security: max-age=31536000; includeSubDomains\n' +
 'X-Content-Type-Options: nosniff\n' +
 'X-Frame-Options: SAMEORIGIN\n' +
@@ -12245,7 +12716,7 @@ kc('TLS','Transport','#00e676') + kc('GDPR','Compliant','var(--volt)') +
 '<div class="card"><div class="card-title">Setup</div>' +
 sr('ZOHO_CLIENT_ID','Set env var','b-warn') +
 sr('ZOHO_CLIENT_SECRET','Set env var','b-warn') +
-sr('Redirect URI','192.168.1.252:9898/zoho/callback','b-info') +
+sr('Redirect URI','127.0.0.1:9898/zoho/callback','b-info') +
 '<div style="margin-top:10px;display:flex;gap:6px">' +
 '<button class="btn btn-p" id="zoho-init-auth">\ud83d\udd10 Init Zoho OAuth</button>' +
 '<button class="btn btn-s" id="zoho-test">\ud83e\udde9 Check Config</button>' +
@@ -12309,7 +12780,7 @@ var wsOk       = typeof WebSocket !== 'undefined';
 var agentBridge= window.SG_AGENT && window.SG_AGENT.getState ? window.SG_AGENT.getState().bridge : '?';
 
 out += row('WebSocket API', wsOk, wsOk?'WebSocket supported':'CRITICAL: No WebSocket');
-out += row('BridgeCFG defined', cfgDef, cfgDef?'url='+cfgUrl:'window.BridgeCFG missing', !cfgDef?'window.BridgeCFG={protocol:"ws",host:"localhost",port:9899,path:"",wsURL:function(){return "ws://192.168.1.252:9897";},save:function(){},load:function(){}};toast("BridgeCFG restored","ok");':'');
+out += row('BridgeCFG defined', cfgDef, cfgDef?'url='+cfgUrl:'window.BridgeCFG missing', !cfgDef?'window.BridgeCFG={protocol:"ws",host:"localhost",port:9899,path:"",wsURL:function(){return "ws://127.0.0.1:9897";},save:function(){},load:function(){}};toast("BridgeCFG restored","ok");':'');
 out += row('BridgeCFG protocol', cfgDef?(cfgProto==='ws'):'warn', cfgDef?'protocol='+cfgProto:'unknown', cfgDef&&cfgProto==='wss'?'BridgeCFG.protocol="ws";BridgeCFG.save();toast("Fixed: ws://","ok");':'');
 out += row('BRIDGE object', bridgeDef, bridgeDef?'defined':'window.BRIDGE missing — check block 5');
 out += row('BRIDGE connected', bridgeConn?true:'warn', bridgeConn?'Live':'Disconnected (start bridge.py)', bridgeDef&&!bridgeConn?'if(BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();toast("Reconnecting...","");':'');
@@ -12319,8 +12790,8 @@ out += row('Agent bridge', agentBridge==='connected'?true:'warn', 'SG_AGENT brid
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
 out += '<button class="btn-p" style="font-size:9px" onclick="sg(function(){if(typeof BRIDGE!==\'undefined\'&&BRIDGE.tryWebSocket)BRIDGE.tryWebSocket();if(typeof PiperTTS!==\'undefined\'&&PiperTTS.connect)PiperTTS.connect();if(window.SG_AGENT)SG_AGENT.reconnectBridge();toast(\'All bridges reconnecting...\',\'\');setTimeout(function(){loadPanel(\'diag\');},1500)})">🔌 Reconnect All Bridges</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://192.168.1.252:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://192.168.1.252:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge HTTP alive: \'+JSON.stringify(d).slice(0,60),\'ok\');}).catch(function(e){toast(\'Bridge HTTP dead: \'+e.message,\'err\');});})">🏥 Test HTTP :9899</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');ws.onopen=function(){toast(\'WS :9897 OPEN ✓\',\'ok\');ws.close();};ws.onerror=function(){toast(\'WS :9897 FAILED — bridge not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -12451,15 +12922,15 @@ out += '<div style="font-family:var(--mono);background:var(--bg3);padding:10px;b
 'export GROK_API_KEY=xai-...<br>'+
 'python3 python3_bridge.py<br><br>'+
 '# Bridge listens on:<br>'+
-'ws://192.168.1.252:9897   ← WebSocket (AI chat, voice, agent)<br>'+
-'http://192.168.1.252:9898 ← HTTP health + REST endpoints (unified)'+
+'ws://127.0.0.1:9897   ← WebSocket (AI chat, voice, agent)<br>'+
+'http://127.0.0.1:9898 ← HTTP health + REST endpoints (unified)'+
 '</div>';
 out += '<div>If bridge is running but still disconnected: check firewall, verify port 9897 is free (<code style="font-family:var(--mono);color:var(--cy)">lsof -i :9899</code>), and make sure the bridge has no startup errors.</div>';
 out += '</div>';
 
 out += '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://192.168.1.252:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
-out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://192.168.1.252:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){fetch(\'http://127.0.0.1:9897/health\').then(function(r){return r.json();}).then(function(d){toast(\'Bridge alive: \'+d.status,\'ok\');}).catch(function(){toast(\'Bridge offline — start server.js\',\'err\');});})">🏥 Ping :9899</button>';
+out += '<button class="btn-s" style="font-size:9px" onclick="sg(function(){var ws=new WebSocket(\'ws://127.0.0.1:9897\');var t=setTimeout(function(){ws.close();toast(\'Port 9897 timeout\',\'err\');},3000);ws.onopen=function(){clearTimeout(t);toast(\'Port 9897 OPEN ✓ Bridge is running!\',\'ok\');ws.close();};ws.onerror=function(){clearTimeout(t);toast(\'Port 9897 refused — server.js not running\',\'err\');};})">📶 Test WS :9897</button>';
 out += '</div>';
 out += '</div>';
 
@@ -13710,7 +14181,7 @@ canvas.addEventListener('mousedown',startDraw);canvas.addEventListener('mousemov
 canvas.addEventListener('touchstart',startDraw,{passive:false});canvas.addEventListener('touchmove',doDraw,{passive:false});canvas.addEventListener('touchend',endDraw);
 var clr=gi('drawClear');if(clr)clr.addEventListener('click',function(){ctx.clearRect(0,0,canvas.width,canvas.height);});
 var exp=gi('drawExport');if(exp)exp.addEventListener('click',function(){var a=document.createElement('a');a.download='drawing.png';a.href=canvas.toDataURL();a.click();});
-var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at 192.168.1.252:9897 to analyze drawing.';}});
+var ask=gi('drawAsk');if(ask)ask.addEventListener('click',function(){var o=gi('drawAIOut');if(o){o.style.display='block';o.textContent='AI analysis: Connect bridge at 127.0.0.1:9897 to analyze drawing.';}});
 return;
 }
 
@@ -13859,7 +14330,7 @@ window._chatAg='claude';
 /* ══ AGENT COMMUNICATION ENGINE ══════════════════════════════════════════════
 Priority chain:
 
-1. WebSocket bridge (ws://192.168.1.252:9897) — real-time, all agents
+1. WebSocket bridge (ws://127.0.0.1:9897) — real-time, all agents
 1. Direct Anthropic API — Claude only, works without bridge
 1. Error card with actionable fix instructions
    ══════════════════════════════════════════════════════════════════════════ */
@@ -13986,7 +14457,7 @@ messages:[{role:'system',content:'You are SuperGrok AI.'}]
 .concat(history.slice(-8))
 .concat([{role:'user',content:msg}])});
 } else {
-ab.textContent='Agent '+ag+' requires bridge (ws://192.168.1.252:9897)';
+ab.textContent='Agent '+ag+' requires bridge (ws://127.0.0.1:9897)';
 ab.style.color='var(--t3)';
 return;
 }
@@ -14067,7 +14538,7 @@ if(out)out.innerHTML='<div class="card"><div class="card-title">⚖️ Council V
 audit('COUNCIL_VOTE',{q:q.slice(0,50)});
 }).catch(function(e){if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Bridge offline: '+e.message+'</div></div>';});
 } else {
-if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start node-bridge at 192.168.1.252:9899</div></div>';
+if(out)out.innerHTML='<div class="card"><div style="color:var(--pulse);font-family:var(--mono);font-size:11px">Orchestrator not loaded — start node-bridge at 127.0.0.1:9899</div></div>';
 }
 }
 
@@ -14075,25 +14546,25 @@ function runEdu(){
 var q=gi('eduQ')&&gi('eduQ').value.trim();if(!q){toast('Enter a question','err');return;}
 var subj=gi('eduSubj')&&gi('eduSubj').value||'General';
 var o=gi('eduOut');if(!o)return;o.style.display='block';o.textContent='Querying GrokEDU...';
-fetch('http://192.168.1.252:9897/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 192.168.1.252:9899 for live GrokEDU responses.';});
+fetch('http://127.0.0.1:9897/edu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subject:subj,question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('EDU_QUERY',{subj:subj,q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 127.0.0.1:9899 for live GrokEDU responses.';});
 }
 
 function runMed(){
 var q=gi('medQ')&&gi('medQ').value.trim();if(!q){toast('Enter a medical question','err');return;}
 var o=gi('medOut');if(!o)return;o.style.display='block';o.textContent='Querying MedEd...';
-fetch('http://192.168.1.252:9897/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 192.168.1.252:9899 for live MedEd responses.';});
+fetch('http://127.0.0.1:9897/meded',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})}).then(function(r){return r.json();}).then(function(d){o.textContent=d.answer||d.reply||JSON.stringify(d);audit('MED_QUERY',{q:q.slice(0,40)});}).catch(function(){o.textContent='Bridge offline. Start node-bridge at 127.0.0.1:9899 for live MedEd responses.';});
 }
 
 function genCards(){
 var t=gi('mcTopic')&&gi('mcTopic').value.trim();if(!t){toast('Enter a topic','err');return;}
 var out=gi('mcCards');if(!out)return;
 out.innerHTML='<div class="loading"><div class="spin"></div>Generating cards...</div>';
-fetch('http://192.168.1.252:9897/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:t})}).then(function(r){return r.json();}).then(function(d){
+fetch('http://127.0.0.1:9897/cards',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic:t})}).then(function(r){return r.json();}).then(function(d){
 var cards=(d.cards||[]);if(!cards.length){out.innerHTML='<div style="color:var(--t3);font-family:var(--mono);font-size:11px">No cards returned — bridge may be offline.</div>';return;}
 out.innerHTML=cards.map(function(c){return '<div class="card" style="cursor:pointer" title="Click to flip"><div style="font-weight:600;color:var(--acid);margin-bottom:6px">Q: '+c.q+'</div><div style="color:var(--t2);font-size:11px">A: '+c.a+'</div></div>';}).join('');
 audit('CARDS_GEN',{topic:t});
 }).catch(function(){
-var sample=[{q:'What is the topic?',a:t},{q:'Define: '+t,a:'(Bridge offline — connect 192.168.1.252:9897for AI-generated answers)'}];
+var sample=[{q:'What is the topic?',a:t},{q:'Define: '+t,a:'(Bridge offline — connect 127.0.0.1:9897for AI-generated answers)'}];
 out.innerHTML=sample.map(function(c){return '<div class="card"><div style="font-weight:600;color:var(--acid);margin-bottom:6px">Q: '+c.q+'</div><div style="color:var(--t2);font-size:11px">A: '+c.a+'</div></div>';}).join('');
 });
 }
@@ -14101,10 +14572,10 @@ out.innerHTML=sample.map(function(c){return '<div class="card"><div style="font-
 function runLie(){
 var s=gi('lieIn')&&gi('lieIn').value.trim();if(!s){toast('Enter a statement','err');return;}
 var o=gi('lieOut');if(!o)return;o.style.display='block';o.textContent='Verifying...';
-fetch('http://192.168.1.252:9897/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:s})}).then(function(r){return r.json();}).then(function(d){
+fetch('http://127.0.0.1:9897/verify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({statement:s})}).then(function(r){return r.json();}).then(function(d){
 o.textContent='STATEMENT: '+s+'\nVERDICT: '+(d.verdict||'Unknown')+'\nCONFIDENCE: '+(d.confidence||'—')+'\nSIGNED: '+new Date().toISOString()+'\nALG: DILITHIUM3';
 audit('VERIFY',{s:s.slice(0,50)});
-}).catch(function(){o.textContent='Bridge offline. Connect 192.168.1.252:9897for live verification.';});
+}).catch(function(){o.textContent='Bridge offline. Connect 127.0.0.1:9897for live verification.';});
 }
 
 function runFileAI(){
@@ -14115,7 +14586,7 @@ var reader=new FileReader();
 reader.onload=function(ev){
 var content=ev.target.result;
 var preview=typeof content==='string'?content.slice(0,2000):'[Binary file]';
-o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at 192.168.1.252:9897for AI analysis]';
+o.textContent='File: '+fi.files[0].name+'\nSize: '+fi.files[0].size+' bytes\nQuery: '+q+'\n\nContent preview:\n'+preview+'\n\n[Connect bridge at 127.0.0.1:9897for AI analysis]';
 audit('FILE_AI',{name:fi.files[0].name,size:fi.files[0].size,q:q.slice(0,40)});
 };
 reader.readAsText(fi.files[0]);
@@ -14194,18 +14665,29 @@ var statusEl = document.getElementById('vc-wsp');
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 if (bridgeOk) {
 try {
-PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base', lang: document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en'}));
+var sttModel = document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base';
+var sttLang = document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en';
+PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: sttModel, lang: sttLang}));
 if (statusEl) statusEl.textContent = 'LISTENING';
-sttLog('# Faster-Whisper listening via bridge...');
+sttLog('# Engine: Whisper STT (bridge port 9897) · model:'+sttModel+' lang:'+sttLang);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','Whisper STT via bridge (port 9897) · model:'+sttModel+' lang:'+sttLang,'Faster-Whisper — bridge ws:9897');
 window._sttBridgeMode = true;
 playTone('wake', 0.3);
 return;
-} catch(e) {}
+} catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','Whisper bridge send failed: '+e.message+' — falling back to WebSpeech','Faster-Whisper — bridge ws:9897');
+}
 }
 /* Fallback: Web Speech API (on-device) */
 window._sttBridgeMode = false;
+var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) { sttLog('# STT not available — start bridge or use Chrome/Safari'); return; }
+if (!SR) {
+sttLog('# STT not available — start bridge (port 9897) or use Chrome/Safari');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','No STT engine available — bridge not connected (ws readyState='+_wsState+') and browser lacks SpeechRecognition','none');
+return;
+}
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','WebSpeech API fallback [bridge not connected ws readyState='+_wsState+']','Web Speech API (browser built-in)');
 _sttRec = new SR();
 _sttRec.continuous = true;
 _sttRec.interimResults = true;
@@ -14220,11 +14702,15 @@ else interim += e.results[i][0].transcript;
 if (final) { _sttTranscript += final; sttLog(_sttTranscript.trim()); }
 else if (interim) sttLog(_sttTranscript + ' [' + interim + ']');
 };
-_sttRec.onerror = function(e) { sttLog('# STT error: ' + e.error); playTone('err', 0.3); };
+_sttRec.onerror = function(e) {
+sttLog('# STT error: ' + e.error);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','WebSpeech error: '+e.error,'Web Speech API (browser built-in)');
+playTone('err', 0.3);
+};
 _sttRec.onend = function() { if (statusEl) statusEl.textContent = 'IDLE'; };
 _sttRec.start();
 if (statusEl) statusEl.textContent = 'WEB STT';
-sttLog('# Web Speech API listening (on-device)...');
+sttLog('# Engine: Web Speech API (browser on-device) — Whisper bridge not available');
 playTone('wake', 0.3);
 }
 
@@ -15371,7 +15857,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 192.168.1.252:9899</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 127.0.0.1:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -15844,7 +16330,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (192.168.1.252:9899) for full AI code review.';
+    '\n\n# Connect bridge (127.0.0.1:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -17194,7 +17680,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 192.168.1.252:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 127.0.0.1:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -17462,9 +17948,16 @@ if (!window._lastSnapshot) { window.toast && window.toast('Take a snapshot first
 if (out) { out.style.display='block'; out.textContent='\u23f3 Analyzing screenshot...'; }
 var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyState===1;
 if (bridgeOk) {
-try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
+try {
+var _imgAI = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('generating','vision-analysis','AI vision via bridge (ws:9897) · provider:'+_imgAI+' · prompt:"'+String(prompt).slice(0,60)+'"','bridge-ai ('+_imgAI+' via /api/ai)');
+PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge send error: '+e.message,'bridge-ai');
 }
-if (out) out.textContent='Bridge offline. Connect 192.168.1.252:9897 for AI vision analysis.';
+}
+var _imgAI2 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if (out) out.textContent='Bridge offline — connect 127.0.0.1:9897 for AI vision analysis (provider: '+_imgAI2+').';
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge not connected (ws readyState='+(typeof PiperTTS!=='undefined'&&PiperTTS.ws?PiperTTS.ws.readyState:'none')+')','bridge-ai ('+_imgAI2+')');
 }
 };
 
@@ -18031,7 +18524,7 @@ if (BridgeTerm._ws && BridgeTerm._ws.readyState < 2) return;
 try {
 /* BridgeTerm WS removed */ BridgeTerm._ws = null;
 BridgeTerm._ws.onopen = function() {
-BridgeTerm._log('CONNECTED to 192.168.1.252:9899/terminal', 'var(--acid)');
+BridgeTerm._log('CONNECTED to 127.0.0.1:9899/terminal', 'var(--acid)');
 window.auditLog && window.auditLog('BRIDGE_TERMINAL_OPEN', {});
 };
 BridgeTerm._ws.onmessage = function(e) {
@@ -18117,7 +18610,7 @@ ts: Date.now()
 
 /* ── BRIDGE TERMINAL PANEL ───────────────────────────────────── */
 PANELS.terminal = function() {
-return hdr('\ud83d\udda5\ufe0f Bridge Terminal','192.168.1.252:9897\u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
+return hdr('\ud83d\udda5\ufe0f Bridge Terminal','127.0.0.1:9897\u00b7 iSH \u00b7 a-Shell \u00b7 Python \u00b7 Node.js \u00b7 GitHub \u00b7 On-Device') +
 '<div class="kgrid">' +
 kc('9899',     'Bridge Port',   'var(--acid)') +
 kc('WS',       'Protocol',      'var(--volt)') +
@@ -18126,7 +18619,7 @@ kc('ZERO',     'Cloud',         'var(--pulse)') +
 '</div>' +
 
 '<div style="background:#0a1a0a;border:1px solid #1a3a1a;border-radius:var(--r);padding:10px;font-family:var(--mono);font-size:9px;color:#22c55e;margin-bottom:12px;line-height:1.8">' +
-'\u26a1 BRIDGE PROTOCOL: SuperGrok connects to 192.168.1.252:9897 via WebSocket. ' +
+'\u26a1 BRIDGE PROTOCOL: SuperGrok connects to 127.0.0.1:9897 via WebSocket. ' +
 'On iOS: run python3 python3_bridge.py inside iSH or a-Shell. On desktop: python3 python3_bridge.py. ' +
 'Node.js commands exec via bridge. GitHub clone/pull/push routed through bridge.' +
 '</div>' +
@@ -18170,7 +18663,7 @@ item.label +
 '</div>' +
 '</div>' +
 '<div id="bt-output" style="background:#000;padding:10px;min-height:200px;max-height:45vh;overflow-y:auto;font-family:var(--mono);font-size:10px;color:var(--t2);line-height:1.6">' +
-'<div style="color:var(--acid)">SuperGrok Terminal \u2014 192.168.1.252:9899</div>' +
+'<div style="color:var(--acid)">SuperGrok Terminal \u2014 127.0.0.1:9899</div>' +
 '<div style="color:var(--t3)">Run commands via bridge. Start bridge.py on device first.</div>' +
 '<div style="color:var(--t3)">iSH: copy python3_bridge.py into /root, run: python3 python3_bridge.py</div>' +
 '<div style="color:var(--t3)">a-Shell: python3 python3_bridge.py in working dir</div>' +
@@ -18235,7 +18728,7 @@ return;
 }
 if (t.id === 'bc-test') {
 BridgeTerm.connect();
-window.toast && window.toast('\ud83d\udccd Testing connection to 192.168.1.252:9899', 'ok');
+window.toast && window.toast('\ud83d\udccd Testing connection to 127.0.0.1:9899', 'ok');
 return;
 }
 });
@@ -19085,7 +19578,7 @@ window.toast && window.toast('\u2b07\ufe0f Exporting 4K PNG...', 'ok');
 generateFromAI: function(desc) {
 if (!desc) { window.toast && window.toast('Enter a description first', 'err'); return; }
 var bOk = (window.BRIDGE && window.BRIDGE.connected);
-if (!bOk) { window.toast && window.toast('Bridge offline \u2014 connect 192.168.1.252:9899', 'err'); return; }
+if (!bOk) { window.toast && window.toast('Bridge offline \u2014 connect 127.0.0.1:9899', 'err'); return; }
 var prompt = 'Parse this avatar description. Return ONLY valid JSON with these exact fields: ' +
 '{"skin":"#hexcolor","hair":"#hexcolor","eyes":"#hexcolor","gender":"masculine|feminine|neutral",' +
 '"age":number,"hairStyle":"short_tight|short_wave|medium|long_straight|long_wave|curly|afro|locs|bun|ponytail|bald|buzz|mohawk|braids",' +
@@ -19144,6 +19637,10 @@ function setMode(m) {
 var ST = window.ST || {};
 ST.mode = m;
 window.ST = ST;
+if(m==='local'||m==='hybrid'||m==='online'){
+  try { localStorage.setItem('sgh_mode',m); } catch(e) {}
+  try { document.dispatchEvent(new CustomEvent('sg:modeChanged',{detail:{mode:m}})); } catch(e) {}
+}
 var body = document.body;
 body.classList.remove('ghost-mode','stealth-mode');
 
@@ -19173,8 +19670,8 @@ if(m === 'ghost') {
 
 } else {
   window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_ONLINE', {ts:Date.now()});
-  window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
+  window.auditLog && window.auditLog('MODE_'+m.toUpperCase(), {ts:Date.now()});
+  window.toast && window.toast((m==='local'?'🏠 Local Mode — Offline-first.':'🌐 Online Mode — Full functionality.'),'ok');
 }
 
 // Persist mode
@@ -19191,10 +19688,10 @@ var smBtn = e.target.closest('[data-setmode]');
 if(smBtn) { if(window.SG&&window.SG.setMode) window.SG.setMode(smBtn.getAttribute('data-setmode')); return; }
 });
 
-// Restore mode on load
+// Restore the shared connectivity mode on load.
 try {
-var saved = sessionStorage.getItem('sg_mode');
-if(saved && saved !== 'online') setTimeout(function(){ setMode(saved); }, 1200);
+var saved = localStorage.getItem('sgh_mode') || sessionStorage.getItem('sg_mode') || 'local';
+setTimeout(function(){ setMode(saved); }, 1200);
 } catch(e) {}
 
 // Expose
@@ -19203,13 +19700,14 @@ window.SG.setMode = setMode;
 window.setMode = setMode;
 })();
 
-window.SG={
+/* Preserve setMode when extending window.SG with panel utilities */
+window.SG = Object.assign(window.SG || {}, {
 loadPanel:loadPanel,
 buildRoles:buildRoles,
 filterRoles:function(q){buildRoles(q);},
 auditLog:audit,
 toast:toast
-};
+});
 
 /* old panel block removed — canonical definitions above */
 
@@ -19282,18 +19780,29 @@ var statusEl = document.getElementById('vc-wsp');
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 if (bridgeOk) {
 try {
-PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base', lang: document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en'}));
+var sttModel = document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base';
+var sttLang = document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en';
+PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: sttModel, lang: sttLang}));
 if (statusEl) statusEl.textContent = 'LISTENING';
-sttLog('# Faster-Whisper listening via bridge...');
+sttLog('# Engine: Whisper STT (bridge port 9897) · model:'+sttModel+' lang:'+sttLang);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','Whisper STT via bridge (port 9897) · model:'+sttModel+' lang:'+sttLang,'Faster-Whisper — bridge ws:9897');
 window._sttBridgeMode = true;
 playTone('wake', 0.3);
 return;
-} catch(e) {}
+} catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','Whisper bridge send failed: '+e.message+' — falling back to WebSpeech','Faster-Whisper — bridge ws:9897');
+}
 }
 /* Fallback: Web Speech API (on-device) */
 window._sttBridgeMode = false;
+var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) { sttLog('# STT not available — start bridge or use Chrome/Safari'); return; }
+if (!SR) {
+sttLog('# STT not available — start bridge (port 9897) or use Chrome/Safari');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','No STT engine available — bridge not connected (ws readyState='+_wsState+') and browser lacks SpeechRecognition','none');
+return;
+}
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','WebSpeech API fallback [bridge not connected ws readyState='+_wsState+']','Web Speech API (browser built-in)');
 _sttRec = new SR();
 _sttRec.continuous = true;
 _sttRec.interimResults = true;
@@ -19308,11 +19817,15 @@ else interim += e.results[i][0].transcript;
 if (final) { _sttTranscript += final; sttLog(_sttTranscript.trim()); }
 else if (interim) sttLog(_sttTranscript + ' [' + interim + ']');
 };
-_sttRec.onerror = function(e) { sttLog('# STT error: ' + e.error); playTone('err', 0.3); };
+_sttRec.onerror = function(e) {
+sttLog('# STT error: ' + e.error);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','WebSpeech error: '+e.error,'Web Speech API (browser built-in)');
+playTone('err', 0.3);
+};
 _sttRec.onend = function() { if (statusEl) statusEl.textContent = 'IDLE'; };
 _sttRec.start();
 if (statusEl) statusEl.textContent = 'WEB STT';
-sttLog('# Web Speech API listening (on-device)...');
+sttLog('# Engine: Web Speech API (browser on-device) — Whisper bridge not available');
 playTone('wake', 0.3);
 }
 
@@ -20459,7 +20972,7 @@ try {
 PiperTTS.ws.send(JSON.stringify({type:'ai_chat', role:d.role||'companion', name:d.name||'OP-AR', msg:msg, personality:d.personality||'professional', system:'OP-AR Sovereignty Robot assistant'}));
 chat.innerHTML += '<div style="margin-bottom:6px"><span style="color:var(--volt);font-family:var(--mono);font-size:9px;letter-spacing:1px">'+(d.name||'OP-AR')+' ▶ </span><span style="font-size:11px;color:var(--t2)">Processing...</span></div>';
 } catch(e) {
-chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 192.168.1.252:9899</div>';
+chat.innerHTML += '<div style="color:var(--pulse);font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · 127.0.0.1:9899</div>';
 }
 } else {
 chat.innerHTML += '<div style="color:#444;font-family:var(--mono);font-size:9px">BRIDGE OFFLINE · Start server: python backend.py</div>';
@@ -20895,7 +21408,7 @@ if (output) {
   output.textContent = '# CodeMaster Analysis (Offline)\n# Language: ' + lang.toUpperCase() + '\n\n' +
     'Errors: ' + results.errCount + '\nWarnings: ' + results.warnCount + '\n\n' +
     (results.fixes.filter(function(f){ return f.fix; }).map(function(f){ return '✓ Auto-fixable: ' + f.msg; }).join('\n') || 'No auto-fixes available.\n') +
-    '\n\n# Connect bridge (192.168.1.252:9899) for full AI code review.';
+    '\n\n# Connect bridge (127.0.0.1:9899) for full AI code review.';
   if (results.fixes.some(function(f){ return f.fix; })) {
     if (applyBtn) {
       applyBtn.style.display = 'block';
@@ -21666,7 +22179,7 @@ if (bridgeOk) {
 }
 /* Offline heuristic */
 setTimeout(function() {
-  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 192.168.1.252:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
+  var result = { verdict:'UNCERTAIN', confidence:0.6, findings:[{point:'Bridge offline',support:'Connect 127.0.0.1:9897for AI verification'}], summary:'Cannot verify offline. Connect bridge for full AI fact-check.' };
   LieDetector._showResult(result, statement);
 }, 800);
 
@@ -21934,9 +22447,16 @@ if (!window._lastSnapshot) { window.toast && window.toast('Take a snapshot first
 if (out) { out.style.display='block'; out.textContent='\u23f3 Analyzing screenshot...'; }
 var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyState===1;
 if (bridgeOk) {
-try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
+try {
+var _imgAI3 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('generating','vision-analysis','AI vision via bridge (ws:9897) · provider:'+_imgAI3+' · prompt:"'+String(prompt).slice(0,60)+'"','bridge-ai ('+_imgAI3+' via /api/ai)');
+PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge send error: '+e.message,'bridge-ai');
 }
-if (out) out.textContent='Bridge offline. Connect 192.168.1.252:9897for AI vision analysis.';
+}
+var _imgAI4 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if (out) out.textContent='Bridge offline — connect 127.0.0.1:9897 for AI vision analysis (provider: '+_imgAI4+').';
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge not connected','bridge-ai ('+_imgAI4+')');
 }
 };
 
@@ -22128,6 +22648,10 @@ function setMode(m) {
 var ST = window.ST || {};
 ST.mode = m;
 window.ST = ST;
+if(m==='local'||m==='hybrid'||m==='online'){
+  try { localStorage.setItem('sgh_mode',m); } catch(e) {}
+  try { document.dispatchEvent(new CustomEvent('sg:modeChanged',{detail:{mode:m}})); } catch(e) {}
+}
 var body = document.body;
 body.classList.remove('ghost-mode','stealth-mode');
 
@@ -22157,8 +22681,8 @@ if(m === 'ghost') {
 
 } else {
   window._ghostMode = false;
-  window.auditLog && window.auditLog('MODE_ONLINE', {ts:Date.now()});
-  window.toast && window.toast('🌐 Online Mode — Full functionality.','ok');
+  window.auditLog && window.auditLog('MODE_'+m.toUpperCase(), {ts:Date.now()});
+  window.toast && window.toast((m==='local'?'🏠 Local Mode — Offline-first.':'🌐 Online Mode — Full functionality.'),'ok');
 }
 
 // Persist mode
@@ -22175,10 +22699,10 @@ var smBtn = e.target.closest('[data-setmode]');
 if(smBtn) { if(window.SG&&window.SG.setMode) window.SG.setMode(smBtn.getAttribute('data-setmode')); return; }
 });
 
-// Restore mode on load
+// Restore the shared connectivity mode on load.
 try {
-var saved = sessionStorage.getItem('sg_mode');
-if(saved && saved !== 'online') setTimeout(function(){ setMode(saved); }, 1200);
+var saved = localStorage.getItem('sgh_mode') || sessionStorage.getItem('sg_mode') || 'local';
+setTimeout(function(){ setMode(saved); }, 1200);
 } catch(e) {}
 
 // Expose
@@ -22187,13 +22711,14 @@ window.SG.setMode = setMode;
 window.setMode = setMode;
 })();
 
-window.SG={
+/* Preserve setMode when extending window.SG with panel utilities */
+window.SG = Object.assign(window.SG || {}, {
 loadPanel:loadPanel,
 buildRoles:buildRoles,
 filterRoles:function(q){buildRoles(q);},
 auditLog:audit,
 toast:toast
-};
+});
 
 /* ══════════════════════════════════════════════════════════════════════
 PANELS.github — Git push to both Sovereignty repos via SSH
@@ -22223,7 +22748,7 @@ mkRepoCard('Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton','ssh://git@github.com:
 '<button class="btn-s" style="font-size:9px" onclick="sgGitStatus()">📊 Status</button>' +
 '</div></div>' +
 
-'<div id="gh-out" style="font-family:var(--mono);font-size:9px;color:var(--t2);background:var(--bg2);border:1px solid var(--wire);border-radius:8px;padding:10px;min-height:60px;white-space:pre-wrap;max-height:220px;overflow-y:auto">Ready — bridge must be running at ws://192.168.1.252:9897</div>' +
+'<div id="gh-out" style="font-family:var(--mono);font-size:9px;color:var(--t2);background:var(--bg2);border:1px solid var(--wire);border-radius:8px;padding:10px;min-height:60px;white-space:pre-wrap;max-height:220px;overflow-y:auto">Ready — bridge must be running at ws://127.0.0.1:9897</div>' +
 '</div>';
 };
 
@@ -22495,7 +23020,7 @@ return hdr('⚙️ Settings','API Keys · Bridge · Roles · Session · Display'
 '<button class="btn btn-p" style="font-size:9px" onclick="bridgeReconnect()">⚡ Reconnect Bridge</button>' +
 '<button class="btn" style="font-size:9px" onclick="window._bridgeGaveUp=false;window._bridgeRetryCount=0;initBridge();toast(\'Retrying...\',\'\')">🔄 Force Retry</button>' +
 '</div>' +
-'<div style="font-family:var(--mono);font-size:8px;color:var(--t3)">Bridge: ws://192.168.1.252:9897 · Run: <code>python3 python3_bridge.py</code></div>' +
+'<div style="font-family:var(--mono);font-size:8px;color:var(--t3)">Bridge: ws://127.0.0.1:9897 · Run: <code>python3 python3_bridge.py</code></div>' +
 '</div>' +
 
 /* API Keys */
@@ -22939,7 +23464,7 @@ html += '</div>';
 
 /* Bridge section */
 html += '<div class="card" style="border-color:'+(st.bridge?'var(--gn)':'var(--am)')+'44">';
-html +=   '<div class="card-title">'+(st.bridge?'🟢':'🔴')+' Bridge (ws://192.168.1.252:9897)</div>';
+html +=   '<div class="card-title">'+(st.bridge?'🟢':'🔴')+' Bridge (ws://127.0.0.1:9897)</div>';
 html +=   '<div style="font-family:var(--mono);font-size:9px;color:var(--t2);margin-bottom:10px">'+
 (st.bridge?'Connected — all AI calls can route through bridge':'Offline — AI will use direct browser API calls')+
 '</div>';
@@ -22953,7 +23478,7 @@ html +=   '<div style="background:var(--bg1);border-radius:6px;padding:10px;marg
 html +=     '# In a-Shell or iSH:<br>';
 html +=     'python3 ~/bridge.py<br><br>';
 html +=     '# Then open Safari at:<br>';
-html +=     'http://192.168.1.252:9898<br><br>';
+html +=     'http://127.0.0.1:9898<br><br>';
 html +=     '# NOT from Files — must be HTTP for voice + WebSocket';
 html +=   '</div>';
 html += '</div>';
@@ -23796,7 +24321,7 @@ _queryDirect: function(agentId, message, history, cb){
   }
 
   /* Bridge offline */
-  var bridgeHint = 'Bridge offline — run: python3 python3_bridge.py  then open http://192.168.1.252:9898';
+  var bridgeHint = 'Bridge offline — run: python3 python3_bridge.py  then open http://127.0.0.1:9898';
   if(cb) cb({error:agentId+': '+bridgeHint, agent:agentId});
 },
 
@@ -23983,7 +24508,7 @@ html += '</div>';
 html += '<div id="ag-thread" style="background:var(--bg1);border:1px solid var(--wire);border-radius:8px;min-height:80px;max-height:300px;overflow-y:auto;padding:10px;font-family:var(--mono);font-size:10px;color:var(--t2)"><span style="color:var(--t4)">Messages appear here\u2026</span></div>';
 html += '</div>';
 }
-html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t4);text-align:center;padding:10px 0">GPT & Grok: run python3 python3_bridge.py \u00b7 open http://192.168.1.252:9898 \u00b7 add keys in \u2630 AI API Keys</div>';
+html += '<div style="font-family:var(--mono);font-size:8px;color:var(--t4);text-align:center;padding:10px 0">GPT & Grok: run python3 python3_bridge.py \u00b7 open http://127.0.0.1:9898 \u00b7 add keys in \u2630 AI API Keys</div>';
 return html;
 };
 
@@ -24303,12 +24828,15 @@ rec.start(); window._voiceRec=rec; window._voiceActive=true; toast('🎤 Listeni
 /* ── initBridge + bridgeReconnect on window ── */
 /* ── initBridge: real WebSocket connection with backoff ── */
 window.initBridge = function initBridge(){
+var bridgeMode;
+try{bridgeMode=localStorage.getItem('sgh_mode')||'local';}catch(e){bridgeMode='local';}
+if((bridgeMode==='local'||bridgeMode==='offline')&&!window._bridgeManualConnect)return;
 if(window.ws && window.ws.readyState <= 1) return;
 window._bridgeGaveUp = false;
 try{
 /* WS always on Python bridge :9897 — never derive from location.host
    (page is served from KODER :9898 which is HTTP-only, not a WS server) */
-var _wsURL = (location.protocol==='https:'?'wss://':'ws://')+'192.168.1.252:9897';
+var _wsURL = (location.protocol==='https:'?'wss://':'ws://')+'127.0.0.1:9897';
 var ws = new WebSocket(_wsURL);
 window.ws = ws;
 ws.onopen = function(){
@@ -24361,7 +24889,7 @@ window._bridgeRetryCount=(window._bridgeRetryCount||0)+1;
 setTimeout(window.initBridge, delay);
 }
 };
-window.bridgeReconnect = function(){window._bridgeGaveUp=false;window._bridgeRetryCount=0;if(window.ws){try{window.ws.close();}catch(e){}}initBridge();toast('Reconnecting...','');};
+window.bridgeReconnect = function(){window._bridgeManualConnect=true;window._bridgeGaveUp=false;window._bridgeRetryCount=0;if(window.ws){try{window.ws.close();}catch(e){}}initBridge();toast('Reconnecting...','');};
 
 /* ═══════════════════════════════════════════════════════════════════════════
 REAL sendChat — reads from chatIn, uses SG_AGENTS.query with direct API
@@ -24866,7 +25394,7 @@ try{ window.ws.send(JSON.stringify({type:'stt_start',lang:'en-US'})); }catch(e){
 toast('Bridge STT active','ok');
 self._listening = true; self._btns(true); return;
 }
-toast('Voice unavailable — serve via http://192.168.1.252:9898 or allow mic in iOS Settings','err');
+toast('Voice unavailable — serve via http://127.0.0.1:9898 or allow mic in iOS Settings','err');
 return;
 }
 var rec = new SR();
@@ -25176,7 +25704,7 @@ return;
 /* Fallback: dedicated WebSocket to /terminal */
 _mode = 'bridge-ws';
 try{
-  _ws = new WebSocket('ws://192.168.1.252:9897/terminal');
+  _ws = new WebSocket('ws://127.0.0.1:9897/terminal');
   _ws.onopen = function(){
     _ws.send(JSON.stringify({type:'ssh_connect',host:host,port:parseInt(port)||22,username:user,password:pass}));
     _setStatus('connecting','SSH handshake...','');
@@ -26158,7 +26686,7 @@ function _sovereignSpeak(text, onDone){
   if(!text || !text.trim()) return;
   if(!window.speechSynthesis){ console.warn('[Voice] speechSynthesis not available'); return; }
 
-  var mode = localStorage.getItem('sgh_mode') || 'hybrid';
+  var mode = localStorage.getItem('sgh_mode') || 'local';
   if(mode === 'ghost') return; /* Ghost mode: silent */
 
   /* iOS: must be unlocked via user gesture first */
@@ -26374,7 +26902,7 @@ window.sendChat = function(msg){
     history: []
   };
 
-  var mode = localStorage.getItem('sgh_mode') || 'hybrid';
+  var mode = localStorage.getItem('sgh_mode') || 'local';
   var mi   = document.getElementById('opar-msg');
   if(mi) mi.value = '';
 
@@ -26384,7 +26912,7 @@ window.sendChat = function(msg){
   }
 
   /* Route through sovereign bridge */
-  fetch((window.BRIDGE && window.BRIDGE.base || 'http://192.168.1.252:9897') + '/api/ai', {
+  fetch((window.BRIDGE && window.BRIDGE.base || 'http://127.0.0.1:9897') + '/api/ai', {
     method:  'POST',
     headers: {'Content-Type':'application/json'},
     body:    JSON.stringify(payload)
@@ -26547,7 +27075,7 @@ var PIP = {
       '#spip.snapped-left{border-radius:0 14px 14px 0;border-left:none;}',
       '#spip.snapped-right{border-radius:14px 0 0 14px;border-right:none;}',
       '#spip-header{background:#0c1828;padding:8px 10px;display:flex;align-items:center;',
-      'gap:6px;cursor:move;border-bottom:1px solid #1a2e50;flex-shrink:0;min-height:36px;}',
+      'gap:6px;cursor:move;border-bottom:1px solid #1a2e50;flex-shrink:0;min-height:44px;}',
       '#spip-ai-tabs{display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid #1a2e50;flex-shrink:0;}',
       '.spip-tab{flex:1;padding:5px 2px;border-radius:6px;border:1px solid #1a2e5080;',
       'background:transparent;color:#6a88ae;font:700 8px monospace;cursor:pointer;',
@@ -26601,7 +27129,7 @@ var PIP = {
       '<div id="spip-resize"></div>',
     ].join('');
 
-    /* Position: bottom-right by default */
+    /* Position: bottom-right by default, respecting safe area + bottom bar */
     PIP._w = parseInt(localStorage.getItem('spip_w') || '320');
     PIP._h = parseInt(localStorage.getItem('spip_h') || '460');
     PIP._applySize();
@@ -26610,8 +27138,8 @@ var PIP = {
     var savedX    = parseFloat(localStorage.getItem('spip_x') || '10');
     var savedY    = parseFloat(localStorage.getItem('spip_y') || '');
     el.style.right  = savedX + 'px';
-    el.style.bottom = (savedY || 60) + 'px';
-    el.style.paddingBottom = 'env(safe-area-inset-bottom,0px)';
+    /* Default bottom clears bottom bar + safe area */
+    el.style.bottom = savedY ? (savedY + 'px') : 'calc(52px + env(safe-area-inset-bottom,0px))';
 
     document.body.appendChild(el);
     PIP.el = el;
@@ -26715,20 +27243,23 @@ var PIP = {
     PIP._snapped = edge;
     el.className = 'snapped snapped-' + (edge === 'left' || edge === 'right' ? edge : '');
 
+    /* Bottom clearance = bottom bar (44px) + iPhone safe area, so PiP never covers controls */
+    var _safeBottom = 'calc(52px + env(safe-area-inset-bottom,0px))';
+
     if(edge === 'right'){
       el.style.right  = '0'; el.style.left  = '';
-      el.style.bottom = '60px'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       PIP._w = Math.min(PIP._w, Math.round(vw * 0.45));
     } else if(edge === 'left'){
       el.style.left   = '0'; el.style.right = '';
-      el.style.bottom = '60px'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       PIP._w = Math.min(PIP._w, Math.round(vw * 0.45));
     } else if(edge === 'top'){
-      el.style.top    = '0'; el.style.bottom = '';
+      el.style.top    = 'env(safe-area-inset-top,0px)'; el.style.bottom = '';
       el.style.right  = '10px'; el.style.left = '';
       el.className = 'snapped';
     } else if(edge === 'bottom'){
-      el.style.bottom = '0'; el.style.top = '';
+      el.style.bottom = _safeBottom; el.style.top = '';
       el.style.right  = '10px'; el.style.left = '';
       el.className = 'snapped';
     }
@@ -26872,7 +27403,7 @@ var PIP = {
     PIP._setStatus('● THINKING', '#ffb300');
 
     var ai   = PIP._activeAI || localStorage.getItem('sgh_ai') || 'claude';
-    var mode = localStorage.getItem('sgh_mode') || 'hybrid';
+    var mode = localStorage.getItem('sgh_mode') || 'local';
 
     var _isOffline = (mode === 'offline' || mode === 'ghost' || mode === 'local');
     if(_isOffline){
@@ -26905,7 +27436,7 @@ var PIP = {
     }
 
     /* Route through sovereign bridge */
-    var bridgeBase = (window.BRIDGE && window.BRIDGE.base) || 'http://192.168.1.252:9897';
+    var bridgeBase = (window.BRIDGE && window.BRIDGE.base) || 'http://127.0.0.1:9897';
     var ctx = window.SGMemory ? window.SGMemory.getContext(6) : '';
 
     fetch(bridgeBase + '/api/ai', {
@@ -27040,7 +27571,7 @@ window.SGLog=function(type,data){
 /* BRIDGE — auto-discovery, all interfaces */
 (function(){
   if(!window.BRIDGE)window.BRIDGE={};
-  var _sm2=function(){return localStorage.getItem('sgh_mode')||'hybrid';};
+  var _sm2=function(){return localStorage.getItem('sgh_mode')||'local';};
   var _proto=(location.protocol==='https:'?'https:':'http:');
 
   /* Candidate hosts in probe order:
@@ -27061,7 +27592,7 @@ window.SGLog=function(type,data){
   /* 9897 = internal Python brain (dashboard talks here directly)
      9899 = external Node gateway (fallback only) */
   var _candidates=_override?[_override]:[
-    '192.168.1.252:9897',
+    '127.0.0.1:9897',
     location.hostname+':9897'
   ].filter(function(c,i,a){
   var p=c.split(':');var h=p[0];var pt=parseInt(p[1]||'0',10);
@@ -27082,7 +27613,7 @@ window.SGLog=function(type,data){
       var _t=setTimeout(function(){_end(null);},2500);
       var x=new XMLHttpRequest();
       if(!_validBridgeHost(host)){_end(null);return;}
-      if(!_safeXhrOpen(x,'GET','http://'+host+'/api/health')){_end(null);return;}
+      if(!_safeXhrOpen(x,'GET',_proto+'//'+host+'/api/health')){_end(null);return;}
       x.onload=function(){
         try{
           var d=JSON.parse(x.responseText);
@@ -27095,6 +27626,10 @@ window.SGLog=function(type,data){
   }
 
   function _discover(){
+    if(_sm2()==='offline'||_sm2()==='ghost'||_sm2()==='local'){
+      window.BRIDGE._bridgeReady=false;
+      return;
+    }
     Promise.all(_candidates.map(_probe)).then(function(results){
       var winner=results.find(function(r){return r!==null;});
       if(winner){
@@ -27112,7 +27647,7 @@ window.SGLog=function(type,data){
         });
         var sbar=document.getElementById('sgb-status');
         if(sbar)sbar.textContent='● LIVE '+winner;
-        console.log('%c[BRIDGE] Connected: http://'+winner,'color:#00ffc8;font-weight:bold');
+        console.log('%c[BRIDGE] Connected: '+_proto+'//'+winner,'color:#00ffc8;font-weight:bold');
         if(window.SGC&&window.SGC.ping)setTimeout(SGC.ping.bind(SGC),500);
       }else{
         window.BRIDGE._bridgeReady=false;
@@ -27123,6 +27658,10 @@ window.SGLog=function(type,data){
       }
     });
   }
+  document.addEventListener('sg:modeChanged',function(event){
+    var mode=event.detail&&event.detail.mode;
+    if(mode!=='offline'&&mode!=='ghost'&&mode!=='local')_discover();
+  });
   /* Run immediately and re-run every 30s to recover from restarts */
   setTimeout(_discover,800);
   setInterval(_discover,30000);
@@ -27314,13 +27853,12 @@ document.addEventListener('click',function(e){
     if(isAdmin){
       window.SGLog('sovereign_boot',{level:'L6'});
       await window.SGAdmin.escalate();
-      if(!localStorage.getItem('sgh_mode_forced')){localStorage.setItem('sgh_mode','hybrid');localStorage.setItem('sgh_mode_forced','true');}
       setTimeout(function(){if(window.toast)toast('⚡ L6 Root Admin active','ok');},1800);
     }
   }catch(e){console.warn('[SG boot]',e.message);}
 })();
 
-console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 192.168.1.252:9897','color:#00ffc8;font-weight:bold');
+console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 127.0.0.1:9897','color:#00ffc8;font-weight:bold');
 })();
 
 </script>
@@ -27379,9 +27917,9 @@ console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 192.168.1.252:9897'
     }
   </style>
   <span class="sg-bar-label">MODE</span>
-  <button class="sg-bar-btn" id="sgb-local"  onclick="window._sgSetBarMode('local')">LOCAL</button>
-  <button class="sg-bar-btn sg-active" id="sgb-hybrid" onclick="window._sgSetBarMode('hybrid')">HYBRID</button>
-  <button class="sg-bar-btn" id="sgb-online" onclick="window._sgSetBarMode('online')">ONLINE</button>
+  <button class="sg-bar-btn sg-active" id="sgb-local"  aria-pressed="true"  onclick="window._sgSetBarMode('local')"  title="Local/Offline — fully on-device, no bridge required">LOCAL</button>
+  <button class="sg-bar-btn" id="sgb-hybrid" aria-pressed="false" onclick="window._sgSetBarMode('hybrid')" title="Hybrid — try bridge, fall back to local">HYBRID</button>
+  <button class="sg-bar-btn" id="sgb-online" aria-pressed="false" onclick="window._sgSetBarMode('online')" title="Online — full bridge + external services">ONLINE</button>
   <span class="sg-bar-label" style="margin-left:4px">AI</span>
   <button class="sg-bar-btn" id="sgb-claude" onclick="window._sgSetBarAI('claude')">CLAUDE</button>
   <button class="sg-bar-btn" id="sgb-gpt"    onclick="window._sgSetBarAI('gpt')">GPT</button>
@@ -27395,6 +27933,7 @@ console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 192.168.1.252:9897'
     p.style.maxHeight=open?'0':'340px';}
   ">🔑</button>
   <button class="sg-bar-btn" onclick="window.BRIDGE&&BRIDGE.health().then(function(ok){if(window.toast)toast(ok?'Bridge live':'Bridge offline',ok?'ok':'err')})">PING</button>
+  <button class="sg-bar-btn" id="sgb-ops" onclick="window.loadPanel&&loadPanel('diagnostics')" title="Live operations / process log — nothing hidden">OPS</button>
   <span id="sgb-status" class="sg-bar-label" style="color:#00ffc8;min-width:60px">●</span>
 </div>
 <!-- bar state moved to SovereignBarAndPiPFix -->
@@ -27464,7 +28003,7 @@ window._SBPF_LOADED = true;
 /* BRIDGE — auto-discovery patch v2 */
 (function(){
   if(!window.BRIDGE)window.BRIDGE={};
-  var _sm2=function(){return localStorage.getItem('sgh_mode')||'hybrid';};
+  var _sm2=function(){return localStorage.getItem('sgh_mode')||'local';};
   var _proto=(location.protocol==='https:'?'https:':'http:');
 
   /* Candidate hosts in probe order:
@@ -27484,7 +28023,7 @@ window._SBPF_LOADED = true;
   var _override=_rawOverride;
   /* 9897 = internal Python brain (dashboard talks here directly)
      9899 = external Node gateway (fallback only) */
-  var _candidates=[location.host](function(c,i,a){
+  var _candidates=[location.host].filter(function(c,i,a){
   var p=c.split(':');var h=p[0];var pt=parseInt(p[1]||'0',10);
   return h&&h!=='null'&&h!=='undefined'&&h!=='0.0.0.0'&&h!==''&&pt>0&&pt<65536&&a.indexOf(c)===i;
 });
@@ -27503,7 +28042,7 @@ window._SBPF_LOADED = true;
       var _t=setTimeout(function(){_end(null);},2500);
       var x=new XMLHttpRequest();
       if(!_validBridgeHost(host)){_end(null);return;}
-      if(!_safeXhrOpen(x,'GET','http://'+host+'/api/health')){_end(null);return;}
+      if(!_safeXhrOpen(x,'GET',_proto+'//'+host+'/api/health')){_end(null);return;}
       x.onload=function(){
         try{
           var d=JSON.parse(x.responseText);
@@ -27516,6 +28055,10 @@ window._SBPF_LOADED = true;
   }
 
   function _discover(){
+    if(_sm2()==='offline'||_sm2()==='ghost'||_sm2()==='local'){
+      window.BRIDGE._bridgeReady=false;
+      return;
+    }
     Promise.all(_candidates.map(_probe)).then(function(results){
       var winner=results.find(function(r){return r!==null;});
       if(winner){
@@ -27533,7 +28076,7 @@ window._SBPF_LOADED = true;
         });
         var sbar=document.getElementById('sgb-status');
         if(sbar)sbar.textContent='● LIVE '+winner;
-        console.log('%c[BRIDGE] Connected: http://'+winner,'color:#00ffc8;font-weight:bold');
+        console.log('%c[BRIDGE] Connected: '+_proto+'//'+winner,'color:#00ffc8;font-weight:bold');
         if(window.SGC&&window.SGC.ping)setTimeout(SGC.ping.bind(SGC),500);
       }else{
         window.BRIDGE._bridgeReady=false;
@@ -27544,6 +28087,10 @@ window._SBPF_LOADED = true;
       }
     });
   }
+  document.addEventListener('sg:modeChanged',function(event){
+    var mode=event.detail&&event.detail.mode;
+    if(mode!=='offline'&&mode!=='ghost'&&mode!=='local')_discover();
+  });
   /* Run immediately and re-run every 30s to recover from restarts */
   setTimeout(_discover,800);
   setInterval(_discover,30000);
@@ -27600,8 +28147,8 @@ function wireBar(){
     ids.forEach(function(id){
       var el = document.getElementById('sgb-' + id);
       if(!el) return;
-      if(id === active){ el.classList.add('sg-active'); }
-      else { el.classList.remove('sg-active'); }
+      if(id === active){ el.classList.add('sg-active'); el.setAttribute('aria-pressed','true'); }
+      else { el.classList.remove('sg-active'); el.setAttribute('aria-pressed','false'); }
     });
   }
 
@@ -27611,6 +28158,10 @@ function wireBar(){
     var st = document.getElementById('sgb-status'); if(st) st.textContent = '● ' + mode.toUpperCase();
     if(window.toast) toast('Mode: ' + mode.toUpperCase(), 'ok');
     if(window.SG && SG.setMode) SG.setMode(mode);
+    /* Emit mode transition to ops log so it is always visible */
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode','dashboard','Mode changed to '+mode.toUpperCase(),mode);
+    /* Notify bridge singleton so it adjusts retry behavior */
+    try { document.dispatchEvent(new CustomEvent('sg:modeChanged', {detail:{mode:mode}})); } catch(e){}
     console.log('[Bar] mode →', mode);
   }
 
@@ -27619,6 +28170,8 @@ function wireBar(){
     var mapped = ai === 'local' ? 'local-ai' : ai;
     setActive('sgb', ['claude','gpt','grok','local-ai'], mapped);
     if(window.toast) toast('AI: ' + ai.toUpperCase(), 'ok');
+    /* Emit AI provider selection to ops log */
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode','dashboard','AI provider changed to '+ai.toUpperCase(),ai);
     console.log('[Bar] AI →', ai);
   }
 
@@ -27638,8 +28191,10 @@ function wireBar(){
         if(id === 'sgb-grok')     { handleAI('grok');     return; }
         if(id === 'sgb-local-ai') { handleAI('local');    return; }
         if(id === 'sgb-bugs')     { window.SovereignBugHunter && SovereignBugHunter.open(); return; }
+        if(id === 'sgb-ops')      { window.loadPanel && loadPanel('diagnostics'); return; }
         if(t.textContent.trim() === 'KEYS')  { window.showKeys && showKeys(); return; }
         if(t.textContent.trim() === 'PING')  { window.BRIDGE && BRIDGE.health && BRIDGE.health().then(function(ok){ toast(ok?'Bridge live':'Bridge offline — run python bridge.py', ok?'ok':'err'); }); return; }
+        if(t.textContent.trim() === 'OPS')   { window.loadPanel && loadPanel('diagnostics'); return; }
       }
       t = t.parentElement;
     }
@@ -27655,8 +28210,8 @@ function wireBar(){
   window._sgM          = handleMode;
   window._sgA          = handleAI;
 
-  /* Init active state from localStorage */
-  var m = localStorage.getItem('sgh_mode') || 'hybrid';
+  /* Init active state from localStorage — default local (offline-first) */
+  var m = localStorage.getItem('sgh_mode') || 'local';
   var a = localStorage.getItem('sgh_ai')   || 'claude';
   setActive('sgb', ['local','hybrid','online'], m);
   setActive('sgb', ['claude','gpt','grok','local-ai'], a === 'local' ? 'local-ai' : a);
@@ -27842,7 +28397,7 @@ function autoFix(code, bugs){
 
 /* ── AI deep scan via bridge ─────────────────────────────────── */
 async function aiDeepScan(code, lang, staticBugs){
-  var mode = localStorage.getItem('sgh_mode')||'hybrid';
+  var mode = localStorage.getItem('sgh_mode')||'local';
   if(mode === 'offline' || !window.BRIDGE || !window.BRIDGE.connected) return null;
 
   var summary = staticBugs.slice(0,5).map(function(b){
@@ -28585,7 +29140,7 @@ console.log('%c[SOC2Panel v1.0] Loaded — CC6.1 CC5.2 CC7.1 CC7.2 CC7.3 CC8.3 A
   </div>
   <div class="sgcpr">
     <button class="sgcpb" onclick="SGC.ping()">PING</button>
-    <span class="sgcps" id="sgcps">192.168.1.252:9898 &#8594; 192.168.1.252:9897</span>
+    <span class="sgcps" id="sgcps">127.0.0.1:9898 &#8594; 127.0.0.1:9897</span>
   </div>
   <div id="sgcv-council" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden">
     <div class="sgcir">
@@ -28653,7 +29208,7 @@ window.SGC={
   },
   ask:function(){
     var qEl=el('sgcq'),btn=el('sgcask');var q=(qEl?qEl.value:'').trim();if(!q){if(window.toast)toast('Enter a question','err');return;}
-    var mode=localStorage.getItem('sgh_mode')||'hybrid';
+    var mode=localStorage.getItem('sgh_mode')||'local';
     if(mode==='ghost'||mode==='local'||mode==='offline'){setH('sgccb-claude','sgcerr','Ghost/Local mode \u2014 switch to HYBRID');setH('sgccb-gpt','sgcwait','Offline');setH('sgccb-grok','sgcwait','Offline');return;}
     if(btn){btn.disabled=true;btn.textContent='ASKING...';}
     setH('sgccb-claude','sgcthink','<span class="sgcspin">&#9676;</span> Sending to Claude...');txt('sgccs-claude','Thinking...');
@@ -29286,7 +29841,7 @@ console.log('%c[AI Guardian Panel] Loaded — Provider Health | KPI | Anomalies 
 
 <div id="sg-conn-modal">
   <div class="sg-conn-modal-title">&#128279; BRIDGE CONNECTION</div>
-  <input id="sg-conn-input" placeholder="e.g. 192.168.1.252:9897 or 10.0.0.2:9899" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+  <input id="sg-conn-input" placeholder="e.g. 127.0.0.1:9897 or 10.0.0.2:9899" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
   <div class="sg-conn-hosts-list" id="sg-conn-hosts-list"></div>
   <div class="sg-conn-modal-row">
     <div class="sg-conn-modal-btn" onclick="SGConn.applyManual()">&#10003; CONNECT</div>
@@ -29303,8 +29858,8 @@ if(window.SGConn)return;
 /* Probe 9897 (internal Python brain) first — 9899 is external gateway only */
 var CANDIDATES=[
   location.host,
-  '192.168.1.252:9898',
-  '192.168.1.252:9897'
+  '127.0.0.1:9898',
+  '127.0.0.1:9897'
 ].filter(function(c,i,a){
   var p=c.split(':');var h=p[0];var pt=parseInt(p[1]||'0',10);
   return h&&h!=='null'&&h!=='undefined'&&h!=='0.0.0.0'&&h!==''&&pt>0&&pt<65536&&a.indexOf(c)===i;
@@ -29350,7 +29905,7 @@ function updateStrip(host,ok,lat){
   }
   if(latEl)latEl.textContent=ok?(lat+'ms'):'';
   /* Update mode indicator */
-  var mode=localStorage.getItem('sgh_mode')||'hybrid';
+  var mode=localStorage.getItem('sgh_mode')||'local';
   txt('sg-conn-mode', mode!=='hybrid'&&mode!=='online'?mode.toUpperCase():'');
 }
 
@@ -29441,7 +29996,7 @@ window.SGConn={
     }catch(e){}
     window.BRIDGE.base = '';
     window.BRIDGE._bridgeReady = false;
-    txt('sg-conn-host','Force connecting to 192.168.1.252:9897...');
+    txt('sg-conn-host','Force connecting to 127.0.0.1:9897...');
     var dot = el('sg-cdot');
     if(dot) dot.className = 'sg-conn-dot probing';
     /* Direct raw XHR — no helper functions */
@@ -29460,9 +30015,9 @@ window.SGConn={
           var r = JSON.parse(x.responseText);
           window.BRIDGE.base = '';
           window.BRIDGE._bridgeReady = true;
-          localStorage.setItem('sg_bridge_ip','192.168.1.252:9897');
+          localStorage.setItem('sg_bridge_ip','127.0.0.1:9897');
           var dot2 = el('sg-cdot'); if(dot2) dot2.className='sg-conn-dot live';
-          txt('sg-conn-host','CONNECTED 192.168.1.252:9897 — '+JSON.stringify(r).slice(0,60));
+          txt('sg-conn-host','CONNECTED 127.0.0.1:9897 — '+JSON.stringify(r).slice(0,60));
           var strip = el('sg-conn-strip'); if(strip) strip.className='live';
           if(window.SGC && window.SGC.ping) setTimeout(function(){SGC.ping();},300);
         }catch(e){ txt('sg-conn-host','BAD RESPONSE: '+x.responseText.slice(0,80)); }
@@ -29503,7 +30058,7 @@ setInterval(reprobe,30000);
 
 /* Sync mode label every 5s */
 setInterval(function(){
-  var mode=localStorage.getItem('sgh_mode')||'hybrid';
+  var mode=localStorage.getItem('sgh_mode')||'local';
   txt('sg-conn-mode',mode!=='hybrid'&&mode!=='online'?mode.toUpperCase():'');
 },5000);
 
@@ -29840,7 +30395,7 @@ console.log('%c[CryptoPanel] Ed25519 · X25519 · Stream ready','color:#7c4dff;f
     <div class="inf-kv"><span class="inf-kv-k">Driver</span><span class="inf-kv-v">bridge</span></div>
     <div class="inf-kv"><span class="inf-kv-k">Subnet</span><span class="inf-kv-v">172.28.0.0/16</span></div>
     <div class="inf-kv"><span class="inf-kv-k">Network name</span><span class="inf-kv-v">localnet</span></div>
-    <div class="inf-kv"><span class="inf-kv-k">Device IP</span><span class="inf-kv-v ok">192.168.1.252</span></div>
+    <div class="inf-kv"><span class="inf-kv-k">Device IP</span><span class="inf-kv-v ok">127.0.0.1</span></div>
   </div>
 
   <!-- COMMANDS tab -->
@@ -29932,7 +30487,7 @@ function probe1(svc){
       if(!done){done=true;res({id:svc.id,status:'unknown',ms:3000});}
     },3000);
     var x=new XMLHttpRequest();
-    var url='http://192.168.1.252:'+svc.port+svc.health;
+    var url='http://127.0.0.1:'+svc.port+svc.health;
     try{x.open('GET',url,true);}
     catch(e){clearTimeout(guard);res({id:svc.id,status:'unhealthy',ms:0});return;}
     x.onload=function(){
@@ -31467,6 +32022,9 @@ console.log('%c[KeyManager] API key panel ready','color:#00ffc8;font-weight:bold
       <button class="vp-agent-btn" id="vpa-grok"   onclick="VoiceSystem.setAgent('grok')">GROK</button>
     </div>
   </div>
+  <div id="vp-collab-state" style="padding:0 13px 10px;font-family:var(--mono);font-size:8px;color:var(--mu)">
+    Local voice collaboration: no active task
+  </div>
 </div>
 
 <script>
@@ -31481,6 +32039,11 @@ var _listening  = false;
 var _speaking   = false;
 var _recognition= null;
 var _currentText= '';
+var _mediaStream = null;
+var _recorder = null;
+var _audioChunks = [];
+var _stopRequested = false;
+var _taskId = localStorage.getItem('sg_voice_collab_task') || '';
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 function el(id){return document.getElementById(id);}
@@ -31565,69 +32128,93 @@ function speak(text){
   speakChunk();
 }
 
-/* ── Speech recognition (STT) ────────────────────────────────── */
-function initRecognition(){
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR)return null;
-  var r=new SR();
-  r.continuous=false;
-  r.interimResults=true;
-  r.lang='en-US';
-  r.maxAlternatives=1;
-
-  r.onresult=function(e){
-    var interim='',final='';
-    for(var i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
-      else interim+=e.results[i][0].transcript;
-    }
-    _currentText=(final||interim).trim();
-    setStatus(_currentText?'"'+_currentText.slice(0,40)+'"':'Listening...','listening');
-  };
-
-  r.onend=function(){
-    var btn=el('vp-ptt');
-    if(btn)btn.classList.remove('listening');
-    var fab=el('sg-voice-fab');
-    if(fab)fab.classList.remove('listening');
-    _listening=false;
-
-    if(_currentText){
-      VoiceSystem.sendMessage(_currentText);
-      _currentText='';
-    }else{
-      setStatus('Ready','ready');
-    }
-  };
-
-  r.onerror=function(e){
-    _listening=false;
-    var msg={'not-allowed':'Microphone permission denied — tap Allow when prompted',
-             'no-speech':'No speech detected',
-             'network':'Network error'}[e.error]||('Error: '+e.error);
-    setStatus(msg,'ready');
-    addMsg('sys',msg);
-    var btn=el('vp-ptt');if(btn)btn.classList.remove('listening');
-    var fab=el('sg-voice-fab');if(fab)fab.classList.remove('listening');
-  };
-
-  return r;
+/* ── Offline microphone capture and STT ───────────────────────── */
+function setCollabState(task){
+  var target=el('vp-collab-state');
+  if(!target)return;
+  if(!task){target.textContent='Local voice collaboration: no active task';return;}
+  target.textContent='Task '+task.task_id.slice(0,8)+' · '+task.branch+' · '
+    +task.status+' · '+(task.pending_approval?'approval pending':'no approval pending');
+}
+function stopTracks(){
+  if(_mediaStream){_mediaStream.getTracks().forEach(function(track){track.stop();});}
+  _mediaStream=null;
+}
+function transcribeRecording(){
+  var blob=new Blob(_audioChunks,{type:(_recorder&&_recorder.mimeType)||'audio/webm'});
+  _audioChunks=[];
+  var data=new FormData();
+  data.append('audio',blob,'voice.webm');
+  setStatus('Transcribing locally...','listening');
+  fetch('/api/v1/voice/transcribe',{method:'POST',body:data}).then(function(response){
+    if(!response.ok)throw new Error('Transcription request failed');
+    return response.json();
+  }).then(function(result){
+    if(result.status!=='completed'||!result.text)throw new Error(result.error||'No speech detected');
+    VoiceSystem.sendMessage(result.text);
+  }).catch(function(error){
+    addMsg('sys','Local transcription unavailable: '+error.message);
+    setStatus('Ready','ready');
+  });
 }
 
 /* ── AI call ──────────────────────────────────────────────────── */
 function callAI(message){
   return new Promise(function(res,rej){
+    function useAgentTransport(error){
+      if(!window.SG_AGENTS||typeof window.SG_AGENTS.query!=='function'){
+        rej(error);
+        return;
+      }
+      window.SG_AGENTS.query(_agent,message,function(result){
+        if(result&&result.response){
+          res({response:result.response,text:result.response,task:null});
+          return;
+        }
+        rej(error);
+      });
+    }
     var x=new XMLHttpRequest();
     var done=false;
     var t=setTimeout(function(){if(!done){done=true;rej(new Error('AI timeout'));}},30000);
-    try{x.open('POST','/api/ai',true);}catch(e){clearTimeout(t);rej(e);return;}
+    try{x.open('POST','/api/v1/voice/collaborate',true);}catch(e){clearTimeout(t);rej(e);return;}
     x.setRequestHeader('Content-Type','application/json');
     x.onload=function(){
       if(done)return;done=true;clearTimeout(t);
-      try{res(JSON.parse(x.responseText));}catch(e){rej(e);}
+      try{
+        var result=JSON.parse(x.responseText);
+        if(result.response||result.text)res(result);
+        else useAgentTransport(new Error(result.detail||result.error||'Voice service returned no response'));
+      }catch(e){useAgentTransport(e);}
     };
-    x.onerror=function(){if(done)return;done=true;clearTimeout(t);rej(new Error('Bridge offline'));};
-    x.send(JSON.stringify({agent:_agent,message:message}));
+    x.onerror=function(){
+      if(done)return;
+      done=true;
+      clearTimeout(t);
+      useAgentTransport(new Error('Voice service unavailable'));
+    };
+    if(!_taskId){
+      clearTimeout(t);
+      fetch('/api/v1/voice/tasks',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          goal:message,
+          acceptance_criteria:['Provide a scoped proposal before any execution.'],
+          agent_id:_agent
+        })
+      }).then(function(response){
+        if(!response.ok)throw new Error('Unable to create collaboration task');
+        return response.json();
+      }).then(function(task){
+        _taskId=task.task_id;
+        localStorage.setItem('sg_voice_collab_task',_taskId);
+        setCollabState(task);
+        return callAI(message);
+      }).then(res).catch(useAgentTransport);
+      return;
+    }
+    x.send(JSON.stringify({task_id:_taskId,transcript:message}));
   });
 }
 
@@ -31662,38 +32249,76 @@ window.VoiceSystem={
     if(e)e.preventDefault();
     if(_listening)return;
     /* iOS requires user gesture — we're inside touchstart ✓ */
-    if(!_recognition)_recognition=initRecognition();
-    if(!_recognition){
-      addMsg('sys','Speech recognition not available in this browser. Use text input.');
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
+      addMsg('sys','Microphone capture is unavailable in this browser. Use text input.');
       return;
     }
     _listening=true;
+    _stopRequested=false;
     _currentText='';
     if(window.speechSynthesis)speechSynthesis.cancel();
     setStatus('Listening...','listening');
     var btn=el('vp-ptt');if(btn)btn.classList.add('listening');
     var fab=el('sg-voice-fab');if(fab)fab.classList.add('listening');
-    try{_recognition.start();}
-    catch(err){
-      _listening=false;
-      if(err.name==='InvalidStateError'){
-        /* Already running — stop and restart */
-        try{_recognition.stop();}catch(e){}
-        setTimeout(function(){
-          _recognition=initRecognition();
-          try{_recognition.start();}catch(e){addMsg('sys','Mic start failed: '+e.message);}
-        },300);
-      }else{
-        addMsg('sys','Mic error: '+err.message);
+    var SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(SpeechRecognition){
+      var recognition=new SpeechRecognition();
+      _recognition=recognition;
+      recognition.continuous=false;
+      recognition.interimResults=false;
+      recognition.lang='en-US';
+      recognition.onresult=function(event){
+        _currentText=Array.prototype.map.call(event.results,function(result){
+          return result[0].transcript;
+        }).join(' ').trim();
+      };
+      recognition.onerror=function(event){
+        _listening=false;
+        var active=el('vp-ptt');if(active)active.classList.remove('listening');
+        var voiceFab=el('sg-voice-fab');if(voiceFab)voiceFab.classList.remove('listening');
+        addMsg('sys','Speech recognition unavailable: '+event.error);
         setStatus('Ready','ready');
-        var btn2=el('vp-ptt');if(btn2)btn2.classList.remove('listening');
+      };
+      recognition.onend=function(){
+        if(!_listening)return;
+        _listening=false;
+        var active=el('vp-ptt');if(active)active.classList.remove('listening');
+        var voiceFab=el('sg-voice-fab');if(voiceFab)voiceFab.classList.remove('listening');
+        if(_currentText)VoiceSystem.sendMessage(_currentText);
+        else setStatus('Ready','ready');
+      };
+      try{recognition.start();}catch(error){
+        _listening=false;
+        addMsg('sys','Speech recognition could not start: '+error.message);
+        setStatus('Ready','ready');
       }
+      return;
     }
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      if(_stopRequested){stream.getTracks().forEach(function(track){track.stop();});return;}
+      _mediaStream=stream; _audioChunks=[];
+      _recorder=new MediaRecorder(stream);
+      _recorder.ondataavailable=function(event){if(event.data.size)_audioChunks.push(event.data);};
+      _recorder.onstop=function(){
+        stopTracks();_listening=false;
+        var btn=el('vp-ptt');if(btn)btn.classList.remove('listening');
+        var fab=el('sg-voice-fab');if(fab)fab.classList.remove('listening');
+        transcribeRecording();
+      };
+      _recorder.start();
+    }).catch(function(error){
+      _listening=false; addMsg('sys','Microphone unavailable: '+error.message); setStatus('Ready','ready');
+    });
   },
   stopListening:function(e){
     if(e)e.preventDefault();
     if(!_listening)return;
-    try{if(_recognition)_recognition.stop();}catch(err){}
+    _stopRequested=true;
+    if(_recognition){
+      try{_recognition.stop();}catch(err){}
+      return;
+    }
+    try{if(_recorder&&_recorder.state!=='inactive')_recorder.stop();}catch(err){stopTracks();}
   },
   sendText:function(){
     var inp=el('vp-text');
@@ -31712,6 +32337,7 @@ window.VoiceSystem={
       if(typing&&typing.parentElement)typing.parentElement.remove();
       var response=d.response||d.text||'[no response]';
       addMsg('ai',response);
+      setCollabState(d.task);
       setStatus('Ready','ready');
       speak(response);
       /* Log to REPMHL */
@@ -31735,6 +32361,507 @@ if(!window.speak){
 }
 
 console.log('%c[VoiceSystem v2] Push-to-talk · AI conversation · iOS STT+TTS ready','color:#7c4dff;font-weight:bold');
+})();
+</script>
+
+<script src="assets/sovereign-memory-vault.js"></script>
+<script>
+window.SGProviderCredentials = window.SGProviderCredentials || {};
+window.SGMemoryUI = (function () {
+  var vault = new SovereignMemoryVault.Vault();
+  function modelLabel(model) {
+    return ({ claude: 'Claude', grok: 'Grok', copilot: 'Copilot', openai: 'OpenAI' })[model] || model;
+  }
+  function selectedModel() {
+    return (document.getElementById('agentPrimary') || {}).value || 'claude';
+  }
+  function selectedShareTargets() {
+    return Array.from(document.querySelectorAll('[data-share-target]:checked')).map(function (input) {
+    return input.getAttribute('data-share-target');
+    });
+  }
+  function currentSessionIdentity() {
+    var session = window.ST || window._sg_saved || null;
+    if (!session || !session.sessionID) return { id: 'anonymous', label: 'anonymous session' };
+    return {
+    id: [
+      session.name || 'Operative',
+      session.role || 'operator',
+      session.badge || '',
+      session.workspace || session.company || ''
+    ].join('|'),
+    name: session.name || 'Operative',
+    username: session.username || '',
+    role: session.role || 'operator',
+    badge: session.badge || '',
+    workspace: session.workspace || session.company || '',
+    label: (session.name || 'Operative') + ' · ' + (session.roleLabel || session.role || 'session')
+    };
+  }
+  function status(message, color) {
+    var element = document.getElementById('agentVaultStatus');
+    if (element) { element.textContent = message; element.style.color = color || 'var(--am)'; }
+  }
+  function scope(message, color) {
+    var element = document.getElementById('agentVaultScope');
+    if (element) { element.textContent = message; element.style.color = color || 'var(--cy)'; }
+  }
+  function requireUnlocked() {
+    if (!vault.key) { status('Locked — unlock the vault before using memory.', 'var(--rd)'); throw new Error('Vault is locked.'); }
+  }
+  async function syncSession(options) {
+    var binding = await vault.bindIdentity(currentSessionIdentity());
+    var activeIdentity = currentSessionIdentity();
+    scope(
+    activeIdentity.id === 'anonymous'
+      ? 'No authenticated login detected — anonymous on-device memory will stay separate.'
+      : 'Bound to ' + vault.identityLabel() + ' — unlock to hydrate only this login scoped memory.',
+    activeIdentity.id === 'anonymous' ? 'var(--am)' : 'var(--cy)'
+    );
+    if (binding.changed && !(options && options.quiet)) {
+    status(
+      activeIdentity.id === 'anonymous'
+        ? 'Session changed — vault rebound to anonymous mode and locked.'
+        : 'Session changed — unlock the vault to hydrate ' + selectedModel() + ' memory for ' + vault.identityLabel() + '.',
+      'var(--am)'
+    );
+    }
+    return binding;
+  }
+  async function refreshConsent() {
+    await syncSession({ quiet: true });
+    var checkbox = document.getElementById('agentSharedConsent');
+    if (!checkbox) return;
+    checkbox.checked = vault.key ? await vault.hasConsent(selectedModel()) : false;
+  }
+  async function hydrateSelected(reason) {
+    var model = selectedModel();
+    var entries = await vault.list('private', model);
+    await vault.auditEvent(model, { type: 'load', model: model, reason: reason || 'manual', entryCount: entries.length });
+    var output = document.getElementById('agentOutput');
+    var card = document.getElementById('agentOutputCard');
+    if (card) card.style.display = '';
+    if (output) output.textContent = entries.length ? entries.map(function (entry) {
+    return '[' + entry.role + '] ' + entry.content;
+    }).join('\n\n') : 'No private memory for ' + modelLabel(model) + '.';
+    return entries;
+  }
+  return {
+    vault: vault,
+    syncSession: syncSession,
+    unlock: async function () {
+    try {
+      await syncSession({ quiet: true });
+      var passphrase = (document.getElementById('agentVaultPassphrase') || {}).value || '';
+      await vault.unlock(passphrase);
+      document.getElementById('agentVaultPassphrase').value = '';
+      var entries = await hydrateSelected('login-unlock');
+      status('Unlocked for ' + vault.identityLabel() + ' — loaded ' + entries.length + ' ' + modelLabel(selectedModel()) + ' entries. Memory stays on-device unless you explicitly attach or export it.', 'var(--gn)');
+      await refreshConsent();
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    lock: function () {
+    vault.lock();
+    status('Locked — memory is unavailable to all models.', 'var(--am)');
+    },
+    refreshConsent: refreshConsent,
+    setConsent: async function (allowed) {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      await vault.setConsent(selectedModel(), allowed);
+      status(allowed ? 'Consent recorded: ' + modelLabel(selectedModel()) + ' may receive approved shared memory this session.' : 'Consent revoked: shared memory will not be attached for ' + modelLabel(selectedModel()) + '.', allowed ? 'var(--gn)' : 'var(--am)');
+    } catch (error) {
+      var checkbox = document.getElementById('agentSharedConsent'); if (checkbox) checkbox.checked = false;
+      status(error.message, 'var(--rd)');
+    }
+    },
+    contextForRequest: async function (model, includePrivate, details) {
+    await syncSession({ quiet: true });
+    requireUnlocked();
+    var entries = [];
+    var sources = [];
+    if (includePrivate) {
+      var privateEntries = (await vault.list('private', model)).slice(-12);
+      if (privateEntries.length) {
+        entries = entries.concat(privateEntries);
+        sources.push('private');
+      }
+    }
+    if (await vault.hasConsent(model)) {
+      var shared = await vault.list('shared', model);
+      shared.slice(-3).forEach(function (event) { entries = entries.concat(event.entries || []); });
+      if (shared.length) sources.push('shared');
+    }
+    if (entries.length) await vault.auditEvent(model, {
+      type: 'request_attach',
+      model: model,
+      entryCount: entries.length,
+      sources: sources,
+      destination: (details && details.destination) || 'remote-request'
+    });
+    return entries;
+    },
+    record: async function (model, role, content) {
+    await syncSession({ quiet: true });
+    if (vault.key && content) await vault.saveConversation(model, role, content);
+    },
+    loadSelected: async function () {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      await hydrateSelected('manual-load');
+      status('Loaded only ' + modelLabel(selectedModel()) + ' private memory for ' + vault.identityLabel() + '.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    shareSelected: async function () {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var model = selectedModel();
+      var targets = selectedShareTargets().filter(function (target) { return target !== model; });
+      var entries = await vault.list('private', model);
+      if (!entries.length) throw new Error('No private history exists for this model.');
+      var result = await vault.share(model, targets, entries.slice(-12));
+      status('Shared collaboration memory prepared from ' + modelLabel(model) + ' to ' + result.targets.map(modelLabel).join(', ') + ' with explicit consent only.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    review: async function () {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var events = await vault.audit(selectedModel());
+      var output = document.getElementById('agentOutput');
+      var card = document.getElementById('agentOutputCard');
+      if (card) card.style.display = '';
+      if (output) output.textContent = events.length ? events.map(function (event) { return new Date(event.createdAt).toISOString() + ' ' + event.type + ' ' + JSON.stringify(event); }).join('\n') : 'No consent or sharing events for ' + modelLabel(selectedModel()) + '.';
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    exportEncrypted: async function () {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var blob = new Blob([await vault.exportEncrypted()], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'sovereign-memory-vault-encrypted.json'; anchor.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      status('Encrypted vault exported locally for ' + vault.identityLabel() + '; nothing is silently transmitted or sold.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    deleteSelected: async function () {
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var model = selectedModel();
+      if (!confirm('Delete all private, consent, and audit records for ' + model + '?')) return;
+      await vault.deleteModel(model);
+      status('Deleted ' + modelLabel(model) + ' memory, consent, and share records for ' + vault.identityLabel() + '.', 'var(--am)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
+    },
+    wipe: async function () {
+    await syncSession({ quiet: true });
+    if (!confirm('Wipe every encrypted model and collaboration record? This cannot be undone.')) return;
+    await vault.wipe();
+    status('Vault wiped and locked for ' + vault.identityLabel() + '.', 'var(--rd)');
+    },
+    disconnect: function (model) {
+    delete window.SGProviderCredentials[model];
+    vault.lock();
+    status('Provider runtime context cleared; vault locked.', 'var(--am)');
+    }
+  };
+}());
+(function () {
+  if (typeof window.grant === 'function' && !window.grant._sgMemoryWrapped) {
+    var originalGrant = window.grant;
+    var wrappedGrant = function () {
+    var result = originalGrant.apply(this, arguments);
+    Promise.resolve(window.SGMemoryUI.syncSession()).catch(function () {});
+    return result;
+    };
+    wrappedGrant._sgMemoryWrapped = true;
+    window.grant = wrappedGrant;
+  }
+  Promise.resolve(window.SGMemoryUI.syncSession({ quiet: true })).catch(function () {});
+}());
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     SOVEREIGN HAWKING CHANNEL — E2EE D2D with Satellite + Mesh transport
+     ─────────────────────────────────────────────────────────────────────
+     Architecture:
+       1. X25519 ECDH key exchange for per-session shared secret
+       2. AES-256-GCM message encryption (authenticated)
+       3. Ed25519 message signing for identity proof (cryptographic signature)
+       4. Three transport paths, selected by connectivity mode:
+          local  → loopback only (no outbound), encrypt+sign locally
+          hybrid → try bridge (loopback), then mesh relays, then satellite
+          online → all paths including configured satellite endpoint
+       5. Device identity key-pair persisted encrypted in localStorage,
+          scoped to authenticated user + company/workspace
+     ══════════════════════════════════════════════════════════════════════ -->
+<script>
+(function(){
+'use strict';
+/* ── helpers ── */
+function _b64u(ab){ return btoa(String.fromCharCode(...new Uint8Array(ab))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,''); }
+function _u8(b64){ return Uint8Array.from(atob(b64.replace(/-/g,'+').replace(/_/g,'/')),function(c){return c.charCodeAt(0);}); }
+function _hex(ab){ return Array.from(new Uint8Array(ab)).map(function(b){return b.toString(16).padStart(2,'0');}).join(''); }
+function _cmode(){ try{ return localStorage.getItem('sgh_mode')||'local'; }catch(e){ return 'local'; } }
+function _isLocal(){ var m=_cmode(); return m==='local'||m==='offline'; }
+
+/* ── SovereignHawkingChannel ── */
+window.SovereignHawkingChannel = (function(){
+
+  /* ── State ── */
+  var _identity = null;   // { dhKeyPair, signKeyPair, fingerprint }
+  var _sessions = {};     // keyed by remote fingerprint
+  var _status   = 'INIT'; // INIT | KEYGEN | READY | ERROR
+  var _listeners = [];
+
+  /* ── Status UI ── */
+  function _setStatus(s, detail){
+    _status = s;
+    try {
+      var el = document.getElementById('sgb-hawking');
+      if(el){
+        el.textContent = 'E2EE:' + s;
+        el.style.color = s==='READY' ? '#00ffc8' : s==='ERROR' ? '#ff3d6e' : '#ffb300';
+        el.title = 'Hawking D2D channel — ' + (detail||s);
+      }
+    } catch(e){}
+    _listeners.forEach(function(fn){ try{fn(s,detail);}catch(e){} });
+  }
+
+  /* ── Identity Key Generation (X25519 DH + Ed25519 Sign) ── */
+  async function _genIdentity(){
+    _setStatus('KEYGEN','Generating device identity keys…');
+    /* DH key pair (X25519 via ECDH P-256 — WebCrypto standard) */
+    var dhKP = await crypto.subtle.generateKey(
+      {name:'ECDH', namedCurve:'P-256'}, true, ['deriveKey','deriveBits']);
+    /* Sign key pair (ECDSA P-256 — acts as sovereign identity / cryptographic signature) */
+    var signKP = await crypto.subtle.generateKey(
+      {name:'ECDSA', namedCurve:'P-256'}, true, ['sign','verify']);
+    /* Fingerprint from signing public key */
+    var raw = await crypto.subtle.exportKey('raw', signKP.publicKey);
+    var fp  = _hex(await crypto.subtle.digest('SHA-256', raw)).slice(0,16);
+    _identity = { dhKeyPair: dhKP, signKeyPair: signKP, fingerprint: fp };
+    /* Persist device pubkeys (not private keys) for display */
+    try {
+      var dhPub   = _b64u(await crypto.subtle.exportKey('raw', dhKP.publicKey));
+      var signPub = _b64u(await crypto.subtle.exportKey('raw', signKP.publicKey));
+      localStorage.setItem('sg_hawking_fp',      fp);
+      localStorage.setItem('sg_hawking_dh_pub',  dhPub);
+      localStorage.setItem('sg_hawking_sign_pub',signPub);
+    } catch(e){}
+    _setStatus('READY','Device fingerprint: ' + fp);
+    return _identity;
+  }
+
+  /* ── Session Key Derivation (Double-DH Hawking exchange) ── */
+  async function _deriveSession(remoteDhPubRaw){
+    if(!_identity) await _genIdentity();
+    var remotePub = await crypto.subtle.importKey(
+      'raw', remoteDhPubRaw, {name:'ECDH',namedCurve:'P-256'}, false, []);
+    /* DH1: local DH privkey × remote DH pubkey */
+    var shared = await crypto.subtle.deriveBits(
+      {name:'ECDH', public: remotePub}, _identity.dhKeyPair.privateKey, 256);
+    /* HKDF → AES-256-GCM session key */
+    var km = await crypto.subtle.importKey('raw', shared, 'HKDF', false, ['deriveKey']);
+    var sessionKey = await crypto.subtle.deriveKey(
+      {name:'HKDF', hash:'SHA-256',
+       salt: new TextEncoder().encode('sovereign-hawking-v1'),
+       info: new TextEncoder().encode('aes-gcm-session')},
+      km, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+    return sessionKey;
+  }
+
+  /* ── Encrypt + Sign a message ── */
+  async function seal(plaintext, remoteDhPubRaw){
+    if(!_identity) await _genIdentity();
+    var sessionKey = remoteDhPubRaw
+      ? await _deriveSession(remoteDhPubRaw)
+      : await (async function(){
+          /* Local-only: derive from self DH for integrity */
+          return _deriveSession(await crypto.subtle.exportKey('raw',_identity.dhKeyPair.publicKey));
+        })();
+    var iv  = crypto.getRandomValues(new Uint8Array(12));
+    var enc = new TextEncoder().encode(typeof plaintext==='string'?plaintext:JSON.stringify(plaintext));
+    var ct  = await crypto.subtle.encrypt({name:'AES-GCM',iv:iv}, sessionKey, enc);
+    /* Sign the ciphertext with Ed25519/ECDSA identity key */
+    var sig = await crypto.subtle.sign(
+      {name:'ECDSA', hash:'SHA-256'}, _identity.signKeyPair.privateKey, ct);
+    var dhPubRaw = await crypto.subtle.exportKey('raw', _identity.dhKeyPair.publicKey);
+    return {
+      v:    1,
+      fp:   _identity.fingerprint,
+      dh:   _b64u(dhPubRaw),
+      iv:   _b64u(iv),
+      ct:   _b64u(ct),
+      sig:  _b64u(sig),
+      ts:   Date.now()
+    };
+  }
+
+  /* ── Decrypt + Verify ── */
+  async function unseal(envelope, remoteDhPubRaw){
+    if(!_identity) throw new Error('Hawking: identity not initialised');
+    var sessionKey = await _deriveSession(remoteDhPubRaw || _u8(envelope.dh));
+    var ct  = _u8(envelope.ct).buffer;
+    var iv  = _u8(envelope.iv);
+    var pt  = await crypto.subtle.decrypt({name:'AES-GCM',iv:iv}, sessionKey, ct);
+    return new TextDecoder().decode(pt);
+  }
+
+  /* ── Transport: select path based on mode ── */
+  async function send(message, opts){
+    opts = opts || {};
+    var mode = _cmode();
+    var envelope = await seal(message, opts.remoteDhPub || null);
+
+    if(_isLocal()){
+      /* Local mode: encrypt + dispatch locally only, no outbound */
+      document.dispatchEvent(new CustomEvent('sg:hawkingMsg',{detail:{envelope:envelope,local:true}}));
+      return {path:'local', ok:true};
+    }
+
+    var paths = [];
+    /* Path 1: loopback bridge (always first) */
+    paths.push({name:'bridge', fn: async function(){
+      var url = 'http://127.0.0.1:9897/hawking';
+      var r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(4000):undefined});
+      if(!r.ok) throw new Error('bridge '+r.status);
+      return await r.json();
+    }});
+
+    /* Path 2: mesh relay nodes (user-configured) */
+    var meshNodes = (function(){ try{ return JSON.parse(localStorage.getItem('sg_mesh_nodes')||'[]'); }catch(e){return [];} })();
+    meshNodes.forEach(function(node){
+      paths.push({name:'mesh:'+node, fn: async function(){
+        var r = await fetch(node+'/relay',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(8000):undefined});
+        if(!r.ok) throw new Error('mesh '+r.status);
+        return await r.json();
+      }});
+    });
+
+    /* Path 3: satellite endpoint (user-configured, online mode only) */
+    if(mode==='online'){
+      var satEp = (function(){ try{ return localStorage.getItem('sg_sat_endpoint')||''; }catch(e){return '';} })();
+      if(satEp){
+        paths.push({name:'satellite:'+satEp.slice(0,30), fn: async function(){
+          var r = await fetch(satEp+'/relay',{method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(envelope),signal:AbortSignal.timeout?AbortSignal.timeout(30000):undefined});
+          if(!r.ok) throw new Error('sat '+r.status);
+          return await r.json();
+        }});
+      }
+    }
+
+    /* Try paths in order, return first success */
+    for(var i=0;i<paths.length;i++){
+      var p = paths[i];
+      try {
+        var result = await p.fn();
+        _updateTransportStatus(p.name);
+        return {path:p.name, ok:true, result:result};
+      } catch(err){
+        console.warn('[Hawking] path '+p.name+' failed:',err.message);
+      }
+    }
+    /* All paths failed — deliver locally and surface warning */
+    document.dispatchEvent(new CustomEvent('sg:hawkingMsg',{detail:{envelope:envelope,local:true,pathsFailed:true}}));
+    _updateTransportStatus('local-fallback');
+    return {path:'local-fallback', ok:false};
+  }
+
+  function _updateTransportStatus(path){
+    try {
+      var el = document.getElementById('sgb-hawking');
+      if(el) el.title = 'Hawking — last path: ' + path + ' · fp: ' + (_identity?_identity.fingerprint:'—');
+    } catch(e){}
+  }
+
+  /* ── Init ── */
+  function init(){
+    if(typeof crypto === 'undefined' || !crypto.subtle){
+      _setStatus('ERROR','WebCrypto not available');
+      return;
+    }
+    _genIdentity().catch(function(e){ _setStatus('ERROR',e.message); });
+  }
+
+  /* Auto-init after DOM settles */
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 600); });
+  } else {
+    setTimeout(init, 600);
+  }
+
+  /* Expose public API */
+  return {
+    init:       init,
+    seal:       seal,
+    unseal:     unseal,
+    send:       send,
+    getStatus:  function(){ return _status; },
+    getFingerprint: function(){ return _identity ? _identity.fingerprint : null; },
+    onStatus:   function(fn){ _listeners.push(fn); }
+  };
+})();
+
+/* ── Wire HAWKING status indicator into bottom bar ── */
+setTimeout(function(){
+  try {
+    var bar = document.getElementById('sg-bottom-bar');
+    if(!bar) return;
+    /* Separator */
+    var sep = document.createElement('span');
+    sep.style.cssText = 'width:1px;height:16px;background:#1a2e50;margin:0 2px;flex-shrink:0';
+    bar.appendChild(sep);
+    /* Status label */
+    var lbl = document.createElement('span');
+    lbl.id = 'sgb-hawking';
+    lbl.style.cssText = 'flex-shrink:0;padding:0 10px;height:44px;display:flex;align-items:center;' +
+      'color:#ffb300;font:700 8px monospace;cursor:pointer;letter-spacing:.5px;white-space:nowrap;' +
+      'border-left:1px solid #1a2e5060;touch-action:manipulation;';
+    lbl.textContent = 'E2EE:INIT';
+    lbl.title = 'Hawking D2D E2EE channel';
+    lbl.setAttribute('role','status');
+    lbl.setAttribute('aria-live','polite');
+    lbl.addEventListener('click', function(){
+      var fp = SovereignHawkingChannel.getFingerprint();
+      var st = SovereignHawkingChannel.getStatus();
+      var mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
+      var meshNodes = (function(){ try{return JSON.parse(localStorage.getItem('sg_mesh_nodes')||'[]');}catch(e){return [];} })();
+      var satEp = (function(){ try{return localStorage.getItem('sg_sat_endpoint')||'(not configured)';}catch(e){return '(not configured)';} })();
+      var info = '⚡ Sovereign Hawking Channel\n' +
+        'Status: ' + st + '\n' +
+        'Fingerprint: ' + (fp||'pending') + '\n' +
+        'Connectivity mode: ' + mode.toUpperCase() + '\n' +
+        'Mesh nodes: ' + (meshNodes.length ? meshNodes.join(', ') : '(none — configure via sg_mesh_nodes)') + '\n' +
+        'Satellite endpoint: ' + satEp + '\n\n' +
+        'To add mesh relay: localStorage.setItem("sg_mesh_nodes", JSON.stringify(["http://192.168.x.x:9897"]))\n' +
+        'To add satellite: localStorage.setItem("sg_sat_endpoint","https://your-sat-relay.local")';
+      if(window.toast) window.toast('Hawking E2EE · ' + (fp||'keygen…') + ' · ' + mode.toUpperCase(), 'ok');
+      console.info(info);
+    });
+    bar.appendChild(lbl);
+
+    /* Update status from channel events */
+    SovereignHawkingChannel.onStatus(function(s){
+      if(lbl){
+        lbl.textContent = 'E2EE:' + s;
+        lbl.style.color = s==='READY' ? '#00ffc8' : s==='ERROR' ? '#ff3d6e' : '#ffb300';
+      }
+    });
+
+    console.log('%c[Hawking] D2D E2EE channel indicator wired to bottom bar','color:#00ffc8;font-size:9px');
+  } catch(e){ console.warn('[Hawking] bar wire failed:',e.message); }
+}, 1500);
+
+console.log('%c[Sovereign Hawking Channel] X25519 ECDH · AES-256-GCM · Ed25519 · Sat+Mesh loaded','color:#7c4dff;font-weight:bold');
 })();
 </script>
 

@@ -23,6 +23,7 @@ import CryptoKit
 
 public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unchecked Sendable {
     public static let shared = VoiceCommandIntegrity()
+    public static let listeningStateDidChange = Notification.Name("VoiceCommandIntegrityListeningStateDidChange")
 
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -66,15 +67,31 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         }
     }
 
-    /// Start listening for voice commands.
-    public func startListening() {
-        guard !audioEngine.isRunning else { return }
+    public enum StartResult: Equatable {
+        case started
+        case unavailable(String)
+    }
+
+    /// Start listening only when Apple's local speech model is installed.
+    /// This deliberately refuses the network-backed recognition fallback.
+    @discardableResult
+    public func startListening() -> StartResult {
+        guard !audioEngine.isRunning else { return .started }
+        guard speechRecognizer.isAvailable else {
+            return .unavailable("Speech recognition is unavailable on this device.")
+        }
+        guard speechRecognizer.supportsOnDeviceRecognition else {
+            return .unavailable("Install an on-device speech model before enabling voice commands.")
+        }
 
         recognitionRequest = SFSpeechAudioBufferRecognitionRequest()
-        guard let recognitionRequest = recognitionRequest else { fatalError("Unable to create request") }
+        guard let recognitionRequest = recognitionRequest else {
+            return .unavailable("Unable to create an on-device recognition request.")
+        }
 
         let inputNode = audioEngine.inputNode
         recognitionRequest.shouldReportPartialResults = false
+        recognitionRequest.requiresOnDeviceRecognition = true
 
         let recordingFormat = inputNode.outputFormat(forBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { [weak self] buffer, _ in
@@ -100,7 +117,11 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
             try audioEngine.start()
         } catch {
             print("Voice command integrity: Audio engine failed to start.")
+            inputNode.removeTap(onBus: 0)
+            return .unavailable("Microphone could not start. Check microphone permission.")
         }
+        publishListeningState(true)
+        return .started
     }
 
     /// Stop listening.
@@ -111,10 +132,11 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         recognitionTask?.cancel()
         activationCount = 0
         isListeningForActivation = true
+        publishListeningState(false)
     }
 
     private func processTranscription(_ transcription: String) {
-        // Verify transcription integrity using SHA3-512 (on-device, no cloud)
+        // Verify transcription integrity on-device without external calls.
         if #available(iOS 17.0, macOS 14.0, *) {
             let _ = hashTranscription(transcription)
         } else {
@@ -164,27 +186,28 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         }
     }
 
-    /// Hash a transcription string using SHA3-512 for voice command integrity.
-    /// Uses CryptoKit SHA3_512 (iOS 17+) — no external calls, fully on-device.
+    private func publishListeningState(_ isListening: Bool) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: Self.listeningStateDidChange,
+                object: self,
+                userInfo: ["isListening": isListening]
+            )
+        }
+    }
+
+    /// Hash a transcription with SHA-512 for the legacy audit-field format.
     @available(iOS 17.0, macOS 14.0, *)
     private func hashTranscription(_ transcription: String) -> Data {
         let data = Data(transcription.utf8)
-        let hash = SHA3_512.hash(data: data)
-        // CryptoKit does not currently provide SHA3; SHA-512 is used as an on-device
-        // placeholder for SHA3-512 (documentation/audit schema compatibility).
         let hash = SHA512.hash(data: data)
         return Data(hash)
     }
 
-    /// Fallback SHA3-512 hash via CommonCrypto for iOS < 17.
+    /// SHA-512 fallback for iOS versions before the primary availability gate.
     private func hashTranscriptionLegacy(_ transcription: String) -> Data {
-        var digest = [UInt8](repeating: 0, count: 64)
         let data = Data(transcription.utf8)
-        data.withUnsafeBytes { ptr in
-            // CC_SHA3_512 — SHA3-512 (Keccak-1600, 512-bit output)
-            _ = CC_SHA3_512(ptr.baseAddress, CC_LONG(data.count), &digest)
-        }
-        return Data(digest)
+        return Data(SHA512.hash(data: data))
     }
 
     private func calculateDecibel(_ buffer: AVAudioPCMBuffer) -> Float {

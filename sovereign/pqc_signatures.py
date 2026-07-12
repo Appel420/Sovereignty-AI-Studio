@@ -1,70 +1,102 @@
-"""Compatibility ML-DSA signer shim for workflow imports.
+"""Real ML-DSA-87 signer backed by the Open Quantum Safe liboqs-python library.
 
-This module provides a minimal signer API used by CI workflows when a full
-post-quantum implementation is not available in this repository checkout.
+Fail-closed design: every method raises PQCUnavailableError immediately when
+liboqs-python is not installed.  No HMAC, simulation, or other fallback is
+ever performed – doing so would silently undermine the post-quantum security
+guarantee this module is meant to provide.
+
+Install the provider:
+    pip install liboqs-python
+or add the ``pqc`` optional dependency group:
+    pip install -e ".[pqc]"
 """
 from __future__ import annotations
 
-import hashlib
-import hmac
-import secrets
 from dataclasses import dataclass, field
 
 
-@dataclass
-class MLDSASigner:
-    """Small compatibility signer with the same interface used in workflows."""
-
-    algorithm: str = "ML-DSA-87"
-    _secret_key: bytes = field(default=b"", init=False, repr=False)
-    _public_key: bytes = field(default=b"", init=False, repr=False)
-
-    def load_or_create_keypair(self) -> tuple[bytes, bytes]:
-        if not self._secret_key:
-            self._secret_key = secrets.token_bytes(32)
-            self._public_key = hashlib.sha256(self._secret_key).digest()
-        return self._public_key, self._secret_key
-
-    def sign(self, message: bytes) -> bytes:
-        _, secret_key = self.load_or_create_keypair()
-        return hmac.new(secret_key, message, hashlib.sha256).digest()
-
-    def verify(self, message: bytes, signature: bytes) -> bool:
-        expected = self.sign(message)
-
-from dataclasses import dataclass, field
+class PQCUnavailableError(RuntimeError):
+    """Raised when the liboqs post-quantum provider is not available."""
 
 
 _ALGORITHM_ALIASES = {
-    "ML-DSA-87": "ml-dsa-87",
-    "ML-DSA-65": "ml-dsa-65",
-    "Dilithium5": "ml-dsa-87",
-    "Dilithium3": "ml-dsa-65",
+    "ML-DSA-65": "ML-DSA-65",
+    "ML-DSA-87": "ML-DSA-87",
+    "Dilithium3": "ML-DSA-65",
+    "Dilithium5": "ML-DSA-87",
 }
 
 
-def _normalize_algorithm(algorithm: str) -> str:
-    return _ALGORITHM_ALIASES.get(algorithm, algorithm.lower())
+def _load_oqs() -> object:
+    """Return the ``oqs`` module or raise PQCUnavailableError.
+
+    The import is deferred so that the module can be loaded without liboqs;
+    the error is only raised when an actual signing operation is attempted.
+    """
+    try:
+        import oqs  # type: ignore[import-untyped]
+
+        return oqs
+    except ImportError as error:
+        raise PQCUnavailableError(
+            "Real ML-DSA requires a local liboqs-python installation; "
+            "no HMAC or simulated fallback is permitted.  "
+            "Install with: pip install liboqs-python"
+        ) from error
 
 
 @dataclass(slots=True)
 class MLDSASigner:
+    """Real ML-DSA-87 signer.
+
+    Keypairs are generated lazily on first use and cached in-memory for the
+    lifetime of the instance.  All operations are fail-closed: if liboqs is
+    not available, PQCUnavailableError is raised rather than silently falling
+    back to a weaker primitive.
+    """
+
     algorithm: str = "ML-DSA-87"
-    _private_key: bytes | None = field(default=None, init=False, repr=False)
     _public_key: bytes | None = field(default=None, init=False, repr=False)
+    _secret_key: bytes | None = field(default=None, init=False, repr=False)
+
+    @property
+    def oqs_algorithm(self) -> str:
+        """Return the liboqs algorithm name for the configured identifier."""
+        try:
+            return _ALGORITHM_ALIASES[self.algorithm]
+        except KeyError as error:
+            raise ValueError(f"Unsupported ML-DSA algorithm: {self.algorithm}") from error
 
     def load_or_create_keypair(self) -> tuple[bytes, bytes]:
-        if self._private_key is None or self._public_key is None:
-            seed = hashlib.sha256(_normalize_algorithm(self.algorithm).encode()).digest()
-            self._private_key = hashlib.sha512(seed + b":private").digest()
-            self._public_key = hashlib.sha256(self._private_key).digest()
-        return self._public_key, self._private_key
+        """Return ``(public_key, secret_key)``, generating a new pair if needed."""
+        if self._public_key is None or self._secret_key is None:
+            oqs = _load_oqs()
+            sig = oqs.Signature(self.oqs_algorithm)  # type: ignore[attr-defined]
+            try:
+                self._public_key = sig.generate_keypair()
+                self._secret_key = sig.export_secret_key()
+            finally:
+                sig.free()
+        return self._public_key, self._secret_key
 
     def sign(self, message: bytes) -> bytes:
-        _, private_key = self.load_or_create_keypair()
-        return hmac.new(private_key, message, hashlib.sha256).digest()
+        """Sign *message* with ML-DSA-87 and return the raw signature bytes."""
+        oqs = _load_oqs()
+        _, secret_key = self.load_or_create_keypair()
+        sig = oqs.Signature(  # type: ignore[attr-defined]
+            self.oqs_algorithm, secret_key=secret_key
+        )
+        try:
+            return sig.sign(message)  # type: ignore[no-any-return]
+        finally:
+            sig.free()
 
     def verify(self, message: bytes, signature: bytes) -> bool:
-        _, private_key = self.load_or_create_keypair()
-        expected = hmac.new(private_key, message, hashlib.sha256).digest()
-        return hmac.compare_digest(expected, signature)
+        """Return True iff *signature* is a valid ML-DSA-87 signature of *message*."""
+        oqs = _load_oqs()
+        public_key, _ = self.load_or_create_keypair()
+        sig = oqs.Signature(self.oqs_algorithm)  # type: ignore[attr-defined]
+        try:
+            return bool(sig.verify(message, signature, public_key))
+        finally:
+            sig.free()

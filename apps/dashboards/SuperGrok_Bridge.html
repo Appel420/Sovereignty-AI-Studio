@@ -1763,7 +1763,7 @@ function renderDDGPanel(){
 function renderBrowserPanel(){
 const url='https://duckduckgo.com';
 return `<div class="panel-hdr"><h2>🌐 Privacy Browser</h2>
-<p>// DuckDuckGo Default · No-Referrer · Sandboxed · ${ST.mode.toUpperCase()} Mode</p></div>
+<p>// DuckDuckGo Default · No-Referrer · Playground · ${ST.mode.toUpperCase()} Mode</p></div>
 
   <div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
     <button style="background:var(--sf2);border:1px solid var(--bd2);border-radius:6px;padding:7px 11px;cursor:pointer;color:var(--mu);font-size:11px" onclick="document.getElementById('bFrame').src=document.getElementById('bFrame').src" title="Reload">↻</button>
@@ -7184,7 +7184,7 @@ window.renderUniversalFinance = function() {
     '<div style="display:grid;grid-template-columns:2fr 1fr;gap:4px">' +
     '<input type="password" placeholder="Change Healthcare Bearer Token" style="padding:6px 8px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:7px" onchange="CFG.set(\'changehealthcare_token\',this.value)">' +
     '<select style="padding:6px;background:var(--sf2);border:1px solid var(--bd2);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:7px" onchange="CFG.set(\'plaid_env\',this.value)">' +
-    '<option value="sandbox"' + (CFG.get('plaid_env','sandbox')==='sandbox'?' selected':'') + '>Sandbox</option>' +
+    '<option value="sandbox"' + (CFG.get('plaid_env','sandbox')==='sandbox'?' selected':'') + '>Playground</option>' +
     '<option value="development"' + (CFG.get('plaid_env','sandbox')==='development'?' selected':'') + '>Development</option>' +
     '<option value="production"' + (CFG.get('plaid_env','sandbox')==='production'?' selected':'') + '>Production</option>' +
     '</select>' +
