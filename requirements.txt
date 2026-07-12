@@ -52,7 +52,7 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 
 # ── Keycloak (self-hosted auth) ────────────────────────────────────────────────
-# python-keycloak is included in Sovereignty_python-keycloak-master/
+# The vendored python-keycloak source is in external/python-keycloak/.
 
 # ── Multi-agent & observability ──────────────────────────────────────────────
 aiohttp==3.14.1

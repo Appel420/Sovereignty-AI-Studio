@@ -100,7 +100,11 @@ gateway/           Python multi-agent gateway
 agents/            Agent service definitions
 mcp_server.py      Offline MCP server
 docs/              Architecture, deployment, and developer documentation
+external/          Vendored third-party source; excluded from the Studio runtime
 ```
+
+See [the repository inventory](docs/REPOSITORY_INVENTORY.md) for ownership and
+maintenance boundaries.
 
 ## Development checks
 
