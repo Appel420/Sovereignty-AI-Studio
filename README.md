@@ -111,6 +111,25 @@ curl /api/agents/status
 
 For local development without TLS, use loopback only. For device, LAN, or production access, terminate TLS and use HTTPS.
 
+## Local-first MCP server
+
+`mcp_server.py` provides a standard JSON-RPC MCP server over stdio. It works
+without network access or API keys and deliberately never accepts, persists, or
+transmits credentials. Its built-in tools are bounded to a configured local
+workspace: `sovereignty_status`, `workspace_list`, and `workspace_read`.
+
+Start it from the repository root:
+
+```bash
+python3 mcp_server.py
+```
+
+It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to a specific
+directory when a client should access less than the repository. `hybrid` and
+`online` are explicit status modes only; this MCP server does not make network
+requests. Keep provider credentials in the existing self-hosted bridge or
+operator-managed secret store, never in MCP tool arguments.
+
 ## Security Notes
 
 - Do not commit API keys, OAuth secrets, certificates, or `.env` files.
