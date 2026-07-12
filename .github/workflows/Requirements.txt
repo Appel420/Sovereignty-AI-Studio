@@ -20,3 +20,4 @@ httpx
 safety
 flake8
 pip-audit
+liboqs-python
