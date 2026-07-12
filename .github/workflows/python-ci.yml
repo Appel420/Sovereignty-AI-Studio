@@ -37,24 +37,31 @@ jobs:
           import secrets
           import sys
           sys.path.insert(0, '.')
+
+          class LocalFallbackSigner:
+              def __init__(self, algorithm='ML-DSA-87'):
+                  self.algorithm = algorithm
+                  self._secret_key = b''
+                  self._public_key = b''
+
+              def load_or_create_keypair(self):
+                  if not self._secret_key:
+                      self._secret_key = secrets.token_bytes(32)
+                      self._public_key = hashlib.sha256(self._secret_key).digest()
+                  return self._public_key, self._secret_key
+
+              def sign(self, message):
+                  _, sk = self.load_or_create_keypair()
+                  return hmac.new(sk, message, hashlib.sha256).digest()
+
+              def verify(self, message, signature):
+                  return hmac.compare_digest(self.sign(message), signature)
+
           try:
-              from sovereign.pqc_signatures import MLDSASigner
+              from sovereign.pqc_signatures import MLDSASigner, PQCUnavailableError
           except ImportError:
-              class MLDSASigner:
-                  def __init__(self, algorithm='ML-DSA-87'):
-                      self.algorithm = algorithm
-                      self._secret_key = b''
-                      self._public_key = b''
-                  def load_or_create_keypair(self):
-                      if not self._secret_key:
-                          self._secret_key = secrets.token_bytes(32)
-                          self._public_key = hashlib.sha256(self._secret_key).digest()
-                      return self._public_key, self._secret_key
-                  def sign(self, message):
-                      _, sk = self.load_or_create_keypair()
-                      return hmac.new(sk, message, hashlib.sha256).digest()
-                  def verify(self, message, signature):
-                      return hmac.compare_digest(self.sign(message), signature)
+              MLDSASigner = LocalFallbackSigner
+              PQCUnavailableError = RuntimeError
 
           manifest = {
               'workflow': 'Python CI',
@@ -68,7 +75,15 @@ jobs:
           }
 
           signer = MLDSASigner(algorithm='ML-DSA-87')
-          pub, _ = signer.load_or_create_keypair()
+          try:
+              pub, _ = signer.load_or_create_keypair()
+              manifest['signing_backend'] = 'ml-dsa-87'
+          except PQCUnavailableError as error:
+              print(f'liboqs unavailable; using local fallback signer for Python CI manifest only: {error}')
+              signer = LocalFallbackSigner(algorithm='ML-DSA-87')
+              pub, _ = signer.load_or_create_keypair()
+              manifest['signing_backend'] = 'hmac-sha256-fallback'
+
           message = json.dumps(manifest, sort_keys=True).encode()
           signature = signer.sign(message)
 
@@ -79,7 +94,7 @@ jobs:
               json.dump(manifest, f, indent=2)
 
           assert signer.verify(message, signature), 'PQC verification failed'
-          print('PQC-signed Python CI manifest created (ML-DSA-87)')
+          print(f"Python CI manifest created ({manifest['signing_backend']})")
           PY
       - name: Upload Test Manifest
         if: always()
