@@ -2,7 +2,7 @@
 
 ## RFC Suite v1.0 — Consolidated Specification
 
-**Status:** Draft Foundation Release  
+**Status:** Draft Foundation Release
 **Canonical RFC mapping:** This document supersedes conflicting draft mappings of
 RFC-0001 through RFC-0013.
 
@@ -39,7 +39,7 @@ state MUST NOT independently create authority.
 
 ## RFC-0001 — Trust Boundary and Envelope
 
-**Status:** Frozen  
+**Status:** Frozen
 **Purpose:** Define the boundary between untrusted transport data and trusted
 protocol objects.
 
@@ -89,7 +89,7 @@ identity, authorization, cryptography, execution, or provenance.
 
 ## RFC-0002 — Identity and Authorization
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** No field has authority until explicitly classified.
 
 Every field MUST declare exactly one applicable authority class:
@@ -116,7 +116,7 @@ UI metadata, runtime behavior, provider preference, or hidden assumptions.
 
 ## RFC-0003 — Canonical Serialization
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** Equivalent protocol objects MUST produce identical bytes.
 
 Canonical representations MUST use:
@@ -140,7 +140,7 @@ bytes at their hash boundary.
 
 ## RFC-0004 — Capability Negotiation
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** An undeclared capability does not exist.
 
 ```text
@@ -168,7 +168,7 @@ An available capability is not necessarily a permitted capability.
 
 ## RFC-0005 — Identity Keys and Cryptographic Binding
 
-**Status:** Draft  
+**Status:** Draft
 **Purpose:** Define cryptographic identity relationships.
 
 This RFC defines identity keys, signing identities, verification chains, key
@@ -187,7 +187,7 @@ cryptographic algorithms.
 
 ## RFC-0006 — Policy Engine and Decision Evaluation
 
-**Status:** Draft  
+**Status:** Draft
 **Primary Invariant:** Policy decisions MUST be derived from classified inputs
 only.
 
@@ -207,7 +207,7 @@ provider behavior, or hidden state as decision inputs.
 
 ## RFC-0007 — Provenance Ledger
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** A protocol-significant action without provenance is
 incomplete.
 
@@ -237,7 +237,7 @@ events.
 
 ## RFC-0008 — Session Lifecycle and Secure Cleanup
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** Termination is a protocol state transition.
 
 ```text
@@ -255,7 +255,7 @@ and memory-release requests are insufficient proof of cleanup.
 
 ## RFC-0009 — Conformance and Interoperability
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** Identical canonical inputs MUST produce identical
 protocol outcomes.
 
@@ -268,7 +268,7 @@ artifact authority.
 
 ## RFC-0010 — Artifact Binding Authority
 
-**Status:** Frozen  
+**Status:** Frozen
 **Primary Invariant:** Artifacts cannot create authority; they bind only to
 already validated evidence.
 
@@ -283,7 +283,7 @@ identity, or emit an artifact from a rejected state.
 
 ## RFC-0011 — Governance and Registry Authority
 
-**Status:** Draft  
+**Status:** Draft
 **Purpose:** Define protocol evolution without breaking compatibility.
 
 This RFC defines the RFC, object, capability, error, and extension registries.
@@ -295,7 +295,7 @@ compatibility impact.
 
 ## RFC-0012 — Trust Federation and External Authority Bridges
 
-**Status:** Draft  
+**Status:** Draft
 **Purpose:** Define interoperability with external trust systems, including
 enterprise PKI, government roots, hardware roots, and provider identity
 systems.
@@ -312,7 +312,7 @@ identity binding, authorization, capability, or policy requirements.
 
 ## RFC-0013 — Sovereign Execution Boundary
 
-**Status:** Draft  
+**Status:** Draft
 **Purpose:** Define the complete execution authorization boundary.
 
 An SIA execution is valid only when all of the following are present:
