@@ -31460,6 +31460,9 @@ console.log('%c[KeyManager] API key panel ready','color:#00ffc8;font-weight:bold
       <button class="vp-agent-btn" id="vpa-grok"   onclick="VoiceSystem.setAgent('grok')">GROK</button>
     </div>
   </div>
+  <div id="vp-collab-state" style="padding:0 13px 10px;font-family:var(--mono);font-size:8px;color:var(--mu)">
+    Local voice collaboration: no active task
+  </div>
 </div>
 
 <script>
@@ -31474,6 +31477,11 @@ var _listening  = false;
 var _speaking   = false;
 var _recognition= null;
 var _currentText= '';
+var _mediaStream = null;
+var _recorder = null;
+var _audioChunks = [];
+var _stopRequested = false;
+var _taskId = localStorage.getItem('sg_voice_collab_task') || '';
 
 /* ── Helpers ──────────────────────────────────────────────────── */
 function el(id){return document.getElementById(id);}
@@ -31558,53 +31566,34 @@ function speak(text){
   speakChunk();
 }
 
-/* ── Speech recognition (STT) ────────────────────────────────── */
-function initRecognition(){
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR)return null;
-  var r=new SR();
-  r.continuous=false;
-  r.interimResults=true;
-  r.lang='en-US';
-  r.maxAlternatives=1;
-
-  r.onresult=function(e){
-    var interim='',final='';
-    for(var i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
-      else interim+=e.results[i][0].transcript;
-    }
-    _currentText=(final||interim).trim();
-    setStatus(_currentText?'"'+_currentText.slice(0,40)+'"':'Listening...','listening');
-  };
-
-  r.onend=function(){
-    var btn=el('vp-ptt');
-    if(btn)btn.classList.remove('listening');
-    var fab=el('sg-voice-fab');
-    if(fab)fab.classList.remove('listening');
-    _listening=false;
-
-    if(_currentText){
-      VoiceSystem.sendMessage(_currentText);
-      _currentText='';
-    }else{
-      setStatus('Ready','ready');
-    }
-  };
-
-  r.onerror=function(e){
-    _listening=false;
-    var msg={'not-allowed':'Microphone permission denied — tap Allow when prompted',
-             'no-speech':'No speech detected',
-             'network':'Network error'}[e.error]||('Error: '+e.error);
-    setStatus(msg,'ready');
-    addMsg('sys',msg);
-    var btn=el('vp-ptt');if(btn)btn.classList.remove('listening');
-    var fab=el('sg-voice-fab');if(fab)fab.classList.remove('listening');
-  };
-
-  return r;
+/* ── Offline microphone capture and STT ───────────────────────── */
+function setCollabState(task){
+  var target=el('vp-collab-state');
+  if(!target)return;
+  if(!task){target.textContent='Local voice collaboration: no active task';return;}
+  target.textContent='Task '+task.task_id.slice(0,8)+' · '+task.branch+' · '
+    +task.status+' · '+(task.pending_approval?'approval pending':'no approval pending');
+}
+function stopTracks(){
+  if(_mediaStream){_mediaStream.getTracks().forEach(function(track){track.stop();});}
+  _mediaStream=null;
+}
+function transcribeRecording(){
+  var blob=new Blob(_audioChunks,{type:(_recorder&&_recorder.mimeType)||'audio/webm'});
+  _audioChunks=[];
+  var data=new FormData();
+  data.append('audio',blob,'voice.webm');
+  setStatus('Transcribing locally...','listening');
+  fetch('/api/v1/voice/transcribe',{method:'POST',body:data}).then(function(response){
+    if(!response.ok)throw new Error('Transcription request failed');
+    return response.json();
+  }).then(function(result){
+    if(result.status!=='completed'||!result.text)throw new Error(result.error||'No speech detected');
+    VoiceSystem.sendMessage(result.text);
+  }).catch(function(error){
+    addMsg('sys','Local transcription unavailable: '+error.message);
+    setStatus('Ready','ready');
+  });
 }
 
 /* ── AI call ──────────────────────────────────────────────────── */
@@ -31613,14 +31602,35 @@ function callAI(message){
     var x=new XMLHttpRequest();
     var done=false;
     var t=setTimeout(function(){if(!done){done=true;rej(new Error('AI timeout'));}},30000);
-    try{x.open('POST','/api/ai',true);}catch(e){clearTimeout(t);rej(e);return;}
+    try{x.open('POST','/api/v1/voice/collaborate',true);}catch(e){clearTimeout(t);rej(e);return;}
     x.setRequestHeader('Content-Type','application/json');
     x.onload=function(){
       if(done)return;done=true;clearTimeout(t);
       try{res(JSON.parse(x.responseText));}catch(e){rej(e);}
     };
     x.onerror=function(){if(done)return;done=true;clearTimeout(t);rej(new Error('Bridge offline'));};
-    x.send(JSON.stringify({agent:_agent,message:message}));
+    if(!_taskId){
+      clearTimeout(t);
+      fetch('/api/v1/voice/tasks',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          goal:message,
+          acceptance_criteria:['Provide a scoped proposal before any execution.'],
+          agent_id:_agent
+        })
+      }).then(function(response){
+        if(!response.ok)throw new Error('Unable to create collaboration task');
+        return response.json();
+      }).then(function(task){
+        _taskId=task.task_id;
+        localStorage.setItem('sg_voice_collab_task',_taskId);
+        setCollabState(task);
+        return callAI(message);
+      }).then(res).catch(rej);
+      return;
+    }
+    x.send(JSON.stringify({task_id:_taskId,transcript:message}));
   });
 }
 
@@ -31655,38 +31665,38 @@ window.VoiceSystem={
     if(e)e.preventDefault();
     if(_listening)return;
     /* iOS requires user gesture — we're inside touchstart ✓ */
-    if(!_recognition)_recognition=initRecognition();
-    if(!_recognition){
-      addMsg('sys','Speech recognition not available in this browser. Use text input.');
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
+      addMsg('sys','Microphone capture is unavailable in this browser. Use text input.');
       return;
     }
     _listening=true;
+    _stopRequested=false;
     _currentText='';
     if(window.speechSynthesis)speechSynthesis.cancel();
     setStatus('Listening...','listening');
     var btn=el('vp-ptt');if(btn)btn.classList.add('listening');
     var fab=el('sg-voice-fab');if(fab)fab.classList.add('listening');
-    try{_recognition.start();}
-    catch(err){
-      _listening=false;
-      if(err.name==='InvalidStateError'){
-        /* Already running — stop and restart */
-        try{_recognition.stop();}catch(e){}
-        setTimeout(function(){
-          _recognition=initRecognition();
-          try{_recognition.start();}catch(e){addMsg('sys','Mic start failed: '+e.message);}
-        },300);
-      }else{
-        addMsg('sys','Mic error: '+err.message);
-        setStatus('Ready','ready');
-        var btn2=el('vp-ptt');if(btn2)btn2.classList.remove('listening');
-      }
-    }
+    navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+      if(_stopRequested){stream.getTracks().forEach(function(track){track.stop();});return;}
+      _mediaStream=stream; _audioChunks=[];
+      _recorder=new MediaRecorder(stream);
+      _recorder.ondataavailable=function(event){if(event.data.size)_audioChunks.push(event.data);};
+      _recorder.onstop=function(){
+        stopTracks();_listening=false;
+        var btn=el('vp-ptt');if(btn)btn.classList.remove('listening');
+        var fab=el('sg-voice-fab');if(fab)fab.classList.remove('listening');
+        transcribeRecording();
+      };
+      _recorder.start();
+    }).catch(function(error){
+      _listening=false; addMsg('sys','Microphone unavailable: '+error.message); setStatus('Ready','ready');
+    });
   },
   stopListening:function(e){
     if(e)e.preventDefault();
     if(!_listening)return;
-    try{if(_recognition)_recognition.stop();}catch(err){}
+    _stopRequested=true;
+    try{if(_recorder&&_recorder.state!=='inactive')_recorder.stop();}catch(err){stopTracks();}
   },
   sendText:function(){
     var inp=el('vp-text');
@@ -31705,6 +31715,7 @@ window.VoiceSystem={
       if(typing&&typing.parentElement)typing.parentElement.remove();
       var response=d.response||d.text||'[no response]';
       addMsg('ai',response);
+      setCollabState(d.task);
       setStatus('Ready','ready');
       speak(response);
       /* Log to REPMHL */

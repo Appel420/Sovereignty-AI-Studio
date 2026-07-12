@@ -25,6 +25,7 @@ redis==7.4.0
 
 # ── Web Frameworks ─────────────────────────────────────────────────────────────
 fastapi==0.135.3
+python-multipart==0.0.22
 uvicorn[standard]==0.44.0
 hypercorn==0.18.0
 quart==0.20.0
@@ -35,6 +36,7 @@ numpy==1.26.4
 torch==2.12.0
 pennylane==0.44.1
 pyttsx3==2.90
+vosk==0.3.45
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 websockets==16.0
