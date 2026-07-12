@@ -6,7 +6,7 @@
 argon2-cffi==25.1.0
 bcrypt==5.0.0
 blake3==1.0.7
-cryptography==48.0.1
+cryptography==49.0.0
 pyjwt==2.13.0
 python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
@@ -17,7 +17,7 @@ requests==2.33.0
 
 # ── Database ───────────────────────────────────────────────────────────────────
 psycopg2-binary==2.9.12
-asyncpg==0.30.0
+asyncpg==0.31.0
 sqlalchemy[asyncio]==2.0.29
 alembic==1.13.1
 # redis 4+ includes redis.asyncio — aioredis package removed (superseded)
@@ -33,7 +33,7 @@ Flask==3.1.3
 
 # ── AI / Inference (local only) ────────────────────────────────────────────────
 numpy==1.26.4
-torch==2.12.0
+torch==2.12.1
 pennylane==0.44.1
 pyttsx3==2.90
 vosk==0.3.45
