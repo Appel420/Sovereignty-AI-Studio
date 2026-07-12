@@ -214,8 +214,49 @@ function loadKCSession(wsId) {
 
 // ─── WebSocket Server ─────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain', 'X-Content-Type-Options': 'nosniff' });
-  res.end('SuperGrok Bridge 9899 — OK');
+  // Treat EPIPE / ECONNRESET as normal client-disconnect — not a crash.
+  res.on('error', (e) => {
+    if (e.code !== 'EPIPE' && e.code !== 'ECONNRESET') {
+      console.error('[HTTP] response error:', e.code, e.message);
+    }
+  });
+  if (req.socket) {
+    req.socket.on('error', (e) => {
+      if (e.code !== 'EPIPE' && e.code !== 'ECONNRESET') {
+        console.error('[HTTP] socket error:', e.code);
+      }
+    });
+  }
+
+  const pathname = (req.url || '/').split('?')[0];
+
+  // ── /api/health and /health  — JSON status for dashboard polling ──
+  if (pathname === '/api/health' || pathname === '/health') {
+    const body = JSON.stringify({
+      status: 'ok',
+      service: 'supergrok-bridge',
+      port: CFG.port,
+      piper: piperReady,
+      piperModel: piperReady ? CFG.piperModel : null,
+      connections: wss && wss.clients ? wss.clients.size : 0,
+      ts: Date.now(),
+    });
+    try {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'X-Content-Type-Options': 'nosniff',
+        'Cache-Control': 'no-store',
+      });
+      res.end(body);
+    } catch(_) {}
+    return;
+  }
+
+  // ── Root / fallback — plain text banner ──
+  try {
+    res.writeHead(200, { 'Content-Type': 'text/plain', 'X-Content-Type-Options': 'nosniff' });
+    res.end('SuperGrok Bridge 9899 — OK');
+  } catch(_) {}
 });
 
 const wss = new WebSocket.Server({ server });

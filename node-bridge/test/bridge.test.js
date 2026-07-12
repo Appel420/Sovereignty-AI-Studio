@@ -52,6 +52,25 @@ describe('Node Bridge – Health', () => {
     assert.ok(/^http:\/\/(localhost|127\.0\.0\.1):8001$/.test(r.body.backends.weather));
     assert.ok(r.body.timestamp);
   });
+
+  it('reports offline mode and local CA as the default transport policy', async () => {
+    const r = await request('/api/network/status');
+    assert.equal(r.status, 200);
+    assert.equal(r.body.offline_mode, true);
+    assert.equal(r.body.network_mode, 'offline');
+    assert.equal(r.body.remote_network_enabled, false);
+    assert.equal(r.body.tls_mode, 'local-ca');
+  });
+
+  it('blocks an external proxy target without opening an outbound connection', async () => {
+    const r = await request('/proxy/fetch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com/' }),
+    });
+    assert.equal(r.status, 503);
+    assert.equal(r.body.code, 'OFFLINE_NETWORK_BLOCKED');
+  });
 });
 
 describe('Node Bridge – Notify', () => {

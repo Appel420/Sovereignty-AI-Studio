@@ -1,6 +1,6 @@
 # Repository Organization Guide
 
-This document describes the organization structure of the Sovereignty AI Studio repository after cleanup.
+This document describes the organization structure of the Sovereignty AI Studio repository.
 
 ## Directory Structure
 
@@ -17,7 +17,7 @@ This document describes the organization structure of the Sovereignty AI Studio 
   - State management
 
 - **`node-bridge/`** - Node.js bridge server
-  - WebSocket bridge on port 9898
+  - HTTP/API bridge on port 9899
   - AI agent integration proxy
   - Service orchestration
 
@@ -77,10 +77,14 @@ This document describes the organization structure of the Sovereignty AI Studio 
 
 ### Other Directories
 
-- **`archives/`** - Archived files
-  - ZIP archives
-  - Third-party libraries
-  - Historical code snapshots
+- **`external/`** - Vendored third-party source
+  - `SuperGrok-Heavy-4-2-Skeleton/` is a managed external workspace
+  - `python-keycloak/` is the vendored Keycloak client distribution
+  - External projects are not imported by the root runtime or covered by root checks
+
+- **`archives/`** - Archived historical artifacts, if retained
+  - ZIP archives and immutable snapshots only
+  - No archive is a runtime dependency
 
 - **`resources/`** - Static resources and assets
 - **`tests/`** - Test files
@@ -115,7 +119,6 @@ The following files should remain in the root directory:
 - `bridge.py` - Python bridge server on port 9897
 - `unified_server.js` - Unified JavaScript server on port 9899
 - `server_9899.js` - Node bridge server on port 9899
-- `server_9898.py` - Legacy Python bridge/server reference
 - `security_backend.py` - Security backend service
 - `security_layer.js` - Security layer implementation
 - `weather_dashboard.py` - Weather dashboard service
@@ -135,7 +138,7 @@ Run the maintenance agent to check repository organization:
 python3 ai_agents/repo_maintenance_agent.py
 ```
 
-This will:
+This may:
 - Verify directory structure
 - Detect misplaced files
 - Find duplicate files
@@ -174,9 +177,9 @@ flake8 .
 1. **Keep root directory clean** - Only essential config and server files
 2. **Use descriptive names** - Avoid generic names like "test.py"
 3. **Remove duplicates** - Files with " 2" suffix should be reviewed
-4. **Document changes** - Update this guide when adding new directories
+4. **Document changes** - Update the repository inventory when ownership changes
 5. **Run maintenance agent** - Periodically check organization
-6. **Update .flake8** - Add new exclusions for specialized code
+6. **Do not add runtime code to `external/` or `archives/`** - Promote reviewed code into a canonical directory first
 
 ## CI/CD Integration
 
@@ -186,4 +189,5 @@ The repository uses GitHub Actions for CI/CD. The cleanup maintains compatibilit
 - Node.js testing
 - Docker builds
 
-All paths in CI configuration files have been verified to work with the new structure.
+Root CI and development checks deliberately exclude `external/`; each vendor
+project retains its own upstream checks and metadata.

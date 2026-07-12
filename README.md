@@ -1,836 +1,154 @@
-# Sovereignty AI Studio ⚔️
+# Sovereignty AI Studio
 
-[![CI](https://github.com/Appel420/Sovereignty-AI-Studio/workflows/CI/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions)
-[![codecov](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio/branch/main/graph/badge.svg)](https://codecov.io/gh/Appel420/Sovereignty-AI-Studio)
+Sovereignty AI Studio is a self-hosted, offline-first AI control surface and
+supporting service stack. The primary user interface is the KODER dashboard in
+[`SGHv119.html`](SGHv119.html); Python and Node services provide local routing,
+agent orchestration, and optional self-hosted integrations.
 
-> **Zero third-party vendor lock-in. Privacy-first. Local infrastructure only.**
-> All AI inference is local and stays on your infrastructure.
->
-> **Medical-use notice:** CI/CD guardrails can support HIPAA/GDPR readiness, but
-> they do not certify compliance. Medical/regulatory deployment still requires
-> formal legal, security, and operational review.
+## What is included
 
-**Private Sovereign AI Research and Production Platform**
+- **KODER dashboard:** a plain HTML, CSS, and JavaScript control surface.
+- **Python bridge:** local AI and orchestration services on port `9897`.
+- **Node bridge:** HTTP/API proxy on port `9899`.
+- **MCP server:** an offline JSON-RPC server over stdio with workspace-bounded
+  tools.
+- **Self-hosted stack:** Docker Compose definitions for the backend, database,
+  Redis, gateway, and optional services.
 
-**Core Model:** Super Grok Heavy 4.2 (xAI) – Locked, Sealed, Sovereign
-**Authority:** Derek Appel
-**Last Updated:** June 19, 2026
+## Quick start
 
----
+### Local development
 
-## Overview
+Requirements:
 
-Sovereignty AI Studio is a fully private, self-contained research and production environment for advanced sovereign artificial intelligence systems.
+- Python 3.11 or later
+- Node.js 20 or later
 
-The platform integrates specialized domains including computer vision, logical reasoning, biomedical signal processing, cryptographic vaulting, autonomous agents, and system orchestration. All core services are intended to route through the project’s own runtime configuration, bridge services, and internal infrastructure.
-
-No external services, third-party models, or internet connectivity are required for core operation.
-
----
-
-## Architecture
-
-```
-Browser / iPhone
-   │
-   ├─── HTTP GET /SGHv119.html  ──► KODER frontend (static server / reverse proxy)
-   │
-   └─── API / WebSocket ────────► node-bridge (gateway)
-                                    │ proxy
-                                    ▼
-                             Python bridge.py
-                                    │
-                                    ▼
-                              backend (FastAPI, internal)
-                                 ┌──┴──────────────┐
-                                 ▼                 ▼
-                           PostgreSQL         Redis
-```
-
-The UI should use runtime-configured endpoints rather than hardcoded hostnames or ports. Prefer relative paths or injected config for browser-facing calls.
-
-### Runtime Config
-
-Use `window.__SG_CONFIG` or `localStorage.sg_config` to provide runtime endpoints such as:
-
-```json
-{
-  "nodeBase": "/api/node",
-  "bridgeHealth": "/api/node/health",
-  "bridgeChat": "/api/node/chat",
-  "authBase": "/api/auth"
-}
-```
-
----
-
-## Port / Service Model
-
-| Service | Notes |
-|---------|------|
-| KODER frontend | Static UI; should not hardcode a host |
-| node-bridge | Gateway; should read config from env/runtime |
-| Python bridge | Internal AI bridge |
-| backend (FastAPI) | Internal API, routed via bridge |
-| PostgreSQL | Internal |
-| Redis | Internal |
-
----
-
-## Prerequisites
-
-- Python 3.12.x
-- Node.js >= 20.0.0 for bridge and unified servers
-- Docker + Docker Compose for containerized workflows
-
----
-
-## Quick Start
+Install the checked-in runtime dependencies. This creates `.venv` and installs
+both Node workspaces; it does not create credentials, substitute a model, or
+make runtime network calls:
 
 ```bash
-cp .env.example .env
-# Configure runtime endpoints, secrets, TLS, auth, and database values in .env
-
-docker compose up -d
-
-# Check health through the bridge
-curl /api/node/health
+./INSTALL.sh
 ```
 
----
+For an air-gapped workstation with pre-populated Python and npm caches, use:
 
-## Key Components
+```bash
+./INSTALL.sh --offline
+```
 
-| Path | Purpose |
+The installer does not download or substitute an AI model, generate
+credentials, or enable unapproved providers. Configure an approved local
+inference provider separately before submitting AI work. Then start the local
+services:
+
+```bash
+./START_SERVER.sh
+```
+
+Open the dashboard at:
+
+```text
+http://127.0.0.1:9898/SGHv119.html
+```
+
+The launcher starts these loopback services:
+
+| Service | Address | Purpose |
+| --- | --- | --- |
+| KODER dashboard | `http://127.0.0.1:9898` | Static dashboard |
+| Python bridge | `http://127.0.0.1:9897` | Local backend |
+| Node bridge | `http://127.0.0.1:9899` | HTTP/API proxy |
+
+Press `Ctrl+C` in the launcher terminal to stop all three services.
+
+### MCP server
+
+The MCP server works without network access or API keys:
+
+```bash
+python3 mcp_server.py
+```
+
+It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to restrict a
+client to a specific directory. See the [MCP server source](mcp_server.py) for
+the available tools and configuration.
+
+#### Agent sanitation workflow
+
+`workspace_analyze` is a local, read-only helper for Python and JSON syntax
+validation plus cleanup findings, such as trailing whitespace and Python tab
+indentation. Its diagnostics include the file, line, column, severity, rule,
+message, and a safe suggested action. It does not start a shell, make network
+calls, accept credentials, or edit files.
+
+Run each agent against the checkout of its dedicated branch by setting
+`SG_MCP_WORKSPACE` to that checkout. Hidden files and likely credential files
+(`.env`, token stores, keys, certificates) are unavailable to listing, reading,
+and analysis tools. Review diagnostics and make edits explicitly in that
+branch; commits and pull requests remain the accountability record.
+
+### Container services
+
+The self-hosted service stack is defined in
+[`docker-compose.yml`](docker-compose.yml). Review its required environment
+variables and production defaults before starting it:
+
+```bash
+docker compose up --build
+```
+
+## Network and deployment modes
+
+The default runtime is offline and loopback-only. `SG_NETWORK_MODE` supports:
+
+| Mode | Behavior |
 | --- | --- |
-| `SGHv119.html` | Main sovereign dashboard |
-| `node-bridge/server.js` | Node.js bridge proxy |
-| `bridge.py` | Python bridge server |
-| `frontend/src/services/alertApi.ts` | Runtime-configured API client |
-| `backend/app/api/v1` | FastAPI endpoints |
-| `docs/` | Documentation |
+| `offline` | Default. Loopback-only; no external or LAN requests. |
+| `hybrid` | Loopback plus hosts explicitly listed in `SG_LOCAL_NETWORK_ALLOWLIST`. |
+| `online` | Remote traffic only when `SG_ENABLE_REMOTE_NETWORK=1` is also set. |
 
----
+The Node bridge binds to `127.0.0.1` by default. For LAN, device, or public
+deployments, configure TLS and explicit access controls. The dashboard must
+disclose network activity; bridge network status is available at
+`/api/network/status`.
 
-## Frontend / Dashboard Guidance
+For air-gapped or local-network deployments, use a private local CA. Public
+TLS through Let's Encrypt is an explicit online deployment option. Full details
+are in [Offline runtime and transport policy](docs/OFFLINE_RUNTIME.md).
 
-Frontend and dashboard code should:
+## Repository layout
 
-- Use runtime config, not hardcoded localhost/127.0.0.1 literals
-- Prefer relative paths for same-origin requests
-- Use `authBase`, `nodeBase`, and `bridgeHealth` from config when present
-- Avoid direct calls to fixed ports unless explicitly required by the runtime environment
-
----
-
-## Project Structure
-
-```
-Sovereignty-AI-Studio/
-├── .devcontainer/                 # Dev Container configuration
-│   ├── devcontainer.json
-│   ├── Ara.yml
-│   └── ...
-├── .github/                       # GitHub Actions CI workflows
-│   └── workflows/
-├── src/                           # Source code
-│   ├── agents/                    # AI Agent Modules
-│   ├── core/                      # Core System Files
-│   ├── security/                  # Security & Protection Modules
-│   ├── models/                    # Machine Learning Models
-│   ├── utils/                     # Utility Functions
-│   ├── ai_core/                   # Siri-Replace / Ara Core
-│   └── native/                    # Native Code (C++, Swift, Rust)
-├── backend/                       # FastAPI backend (surfaced via bridge on port 9899)
-│   ├── app/
-│   │   ├── api/v1/                # REST & WebSocket API endpoints
-│   │   ├── core/                  # Database, security, WebSocket hub
-│   │   ├── models/                # SQLAlchemy ORM models
-│   │   ├── schemas/               # Pydantic schemas
-│   │   └── services/              # Business logic (alerts, TTS, users)
-│   ├── alembic/                   # Database migrations
-│   ├── requirements.txt
-│   └── Dockerfile
-├── frontend/                      # React TypeScript frontend
-│   └── src/
-│       ├── Frontend_src_Auth.jsx  # Post-quantum auth login component
-│       ├── xai_in_cert_Chain.html # xAI certificate chain viewer
-│       ├── components/            # Alert center, layout components
-│       ├── hooks/                 # WebSocket and alert hooks
-│       ├── pages/                 # Dashboard, generator pages
-│       └── services/              # API client services
-├── apps/
-│   ├── dashboards/                # Dashboard Applications
-│   │   ├── Tools_Post_Quantum_Dashboard.html
-│   │   ├── Real_Validator.html
-│   │   └── SuperGrok-Heavy4-2-Validator.html
-│   └── web/                       # Web Applications
-│       ├── Server.js
-│       └── Deploy.html
-├── ios/                           # iOS Swift Package (SovereigntyGuard)
-│   └── Sources/SovereigntyGuard/
-│       ├── ContentView.swift
-│       ├── SovereigntyAPIClient.swift
-│       ├── AuditLogger.swift
-│       ├── DebuggerDetection.swift
-│       ├── FamilyGuardCore.swift
-│       └── VoiceCommandIntegrity.swift
-├── node-bridge/                   # Node.js Bridge (frontend ↔ Python backends)
-│   ├── server.js
-│   ├── package.json
-│   └── test/bridge.test.js
-├── ai_core/                       # Core AI modules
-│   ├── AI_Core.py
-│   ├── Siri_Replace_Ara-Core.py
-│   ├── ai_defense_module.py
-│   ├── lie_detector.py
-│   └── second_squad_agent.py
-├── scripts/
-│   ├── javascript/
-│   │   └── sanitizer.js           # Enterprise sanitizer (circuit-breaker, TLS syslog, gzip rotation)
-│   └── python/                    # Python utility scripts
-├── crypto/                        # Cryptography Modules
-│   └── Vault_crypto.js
-├── docs/                          # Documentation
-├── SGHv119.html                   # KODER — SuperGrok Heavy 4.2 Enterprise Dashboard (main UI)
-├── Backend_API_AUTH.py            # Post-quantum backend auth router (Dilithium2 + TOTP)
-├── eeg_streaming.py               # Real-time EEG signal streaming & analysis
-├── weather_dashboard.py           # Quart weather dashboard entry point
-├── LICENSE.MD
-├── SECURITY.md
-└── README.md
+```text
+SGHv119.html       KODER dashboard
+START_SERVER.sh    Local three-service launcher
+bridge.py          Python local bridge
+node-bridge/       Node HTTP/API bridge
+backend/           FastAPI backend services
+gateway/           Python multi-agent gateway
+agents/            Agent service definitions
+mcp_server.py      Offline MCP server
+docs/              Architecture, deployment, and developer documentation
+external/          Vendored third-party source; excluded from the Studio runtime
 ```
 
-## AI Agent Integration
+See [the repository inventory](docs/REPOSITORY_INVENTORY.md) for ownership and
+maintenance boundaries.
 
-Sovereignty AI Studio provides seamless integration with multiple AI agents, enabling you to connect with Claude, GPT, Grok, and GitHub Copilot in a unified, secure environment.
-
-### Supported AI Agents
-
-The platform integrates with four major AI providers through a WebSocket-based routing system:
-
-1. **Claude (Anthropic)** - Claude Opus-4.6 via `api.anthropic.com`
-2. **GPT (OpenAI)** - GPT-5.4-codex-max via `api.openai.com`
-3. **Grok (xAI)** - SuperGrok-4-2-code-fast via `api.x.ai`
-4. **GitHub Copilot** - Native integration via GitHub OAuth
-
-### Agent Connection Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│           Multi-Agent Connection System                  │
-├─────────────────────────────────────────────────────────┤
-│                                                           │
-│  Client Applications                                      │
-│  ├─ Frontend (React TS)                                  │
-│  ├─ iOS (Swift)                                          │
-│  └─ iSH/Code Pad                                         │
-│           ↓                                               │
-│  ┌────────────────────────────────────┐                 │
-│  │  WebSocket Bridge (Port 9899)      │                 │
-│  │  server_9899.js / unified_server   │                 │
-│  └────────────────────────────────────┘                 │
-│           ↓                                               │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │         AI Agent Router (aiProxy)                │    │
-│  ├─────────────────────────────────────────────────┤    │
-│  │  ANTHROPIC_API_KEY → api.anthropic.com          │    │
-│  │  OPENAI_API_KEY    → api.openai.com             │    │
-│  │  XAI_API_KEY       → api.x.ai                   │    │
-│  │  GH_CLIENT_*       → github.com (OAuth)          │    │
-│  └─────────────────────────────────────────────────┘    │
-│           ↓                                               │
-│  Real-time responses with audit logging                  │
-│                                                           │
-└─────────────────────────────────────────────────────────┘
-```
-
-
-### Agent Request Protocol
-
-Connect to any agent via WebSocket using the following message format:
-
-```javascript
-// Send agent request
-{
-  type: 'agent_request',
-  agent: 'claude' | 'gpt' | 'grok',
-  payload: {
-    prompt: 'Your question or instruction',
-    system: 'Optional system prompt'
-  }
-}
-
-// Receive agent response
-{
-  type: 'agent_response',
-  agent: 'claude',
-  payload: {
-    text: 'Agent response text'
-  },
-  ts: 1234567890
-}
-```
-
-
-**Key Features:**
-- Maximum prompt length: 128000 characters
-- Maximum tokens per response: 8192
-- Rate limiting: 30 messages/minute per connection
-- Automatic API key validation
-- Full audit logging for compliance
-
-### Environment Setup
-
-Create a `.env` file in the project root with your API keys:
+## Development checks
 
 ```bash
-# AI Agent API Keys
-ANTHROPIC_API_KEY=sk-ant-...      # Required for Claude
-OPENAI_API_KEY=sk-...              # Required for GPT
-XAI_API_KEY=xai-...                # Required for Grok
-
-# GitHub OAuth (for Copilot integration)
-GH_CLIENT_ID=your_github_client_id
-GH_CLIENT_SECRET=your_github_client_secret
-
-# Optional: Server Configuration
-PORT_UNIFIED=9001                  # Unified server port
-PORT_BRIDGE=9899                   # Bridge server port
-LOG_DIR=./logs                     # Audit log directory
-VERBOSE=1                          # Enable verbose logging
-
-# Optional: HTTPS/TLS (see scripts/generate-certs.sh)
-TLS_CERT=./certs/cert.pem         # Path to TLS certificate
-TLS_KEY=./certs/key.pem           # Path to TLS private key
+npm run check
+make py-test
+make py-lint
 ```
 
-
-**HTTPS Support:**
-- Run `./scripts/generate-certs.sh` to generate self-signed certs for local dev
-- Set `TLS_CERT` and `TLS_KEY` in `.env` to enable HTTPS on node-bridge and unified server
-- In production (Docker), nginx terminates TLS on port 443 and proxies to the internal services
-- Without certs, all services default to HTTP (no changes required for local development)
-
-**Security Notes:**
-- Never commit API keys to version control
-- Use `.gitignore` to exclude `.env` files
-- Rotate keys regularly
-- Monitor audit logs in `./logs/audit.jsonl`
-
-### Agent Servers
-
-The repository includes two agent bridge servers:
-
-#### 1. Standalone Bridge Server (server_9899.js)
-
-Primary WebSocket bridge for agent routing:
-
-```bash
-# Install dependencies (Node 20+)
-npm install
-
-# Start the server
-node server_9899.js
-```
-
-
-**Endpoints:**
-- `ws://localhost:9899` - WebSocket agent routing
-- `GET /health` - Health check
-- `GET /api/audit` - Audit log viewer
-- `POST /api/execute-command` - Command execution (requires auth)
-
-#### 2. Unified Server (unified_server.js)
-
-Comprehensive server with additional features:
-
-```bash
-# Install dependencies (Node 20+)
-npm install
-
-# Start the server
-node unified_server.js
-```
-
-
-**Additional Features:**
-- GitHub OAuth authentication
-- DuckDuckGo search proxy
-- Piper TTS integration
-- Role-based access control (30+ roles)
-- Multi-factor authentication
-
-### GitHub Copilot Integration
-
-GitHub Copilot is integrated via the GitHub OAuth workflow:
-
-1. **Configure GitHub OAuth App**
-   - Go to GitHub Settings → Developer Settings → OAuth Apps
-   - Create a new OAuth App with callback URL: `http://localhost:9899/api/gh/callback`
-   - Copy Client ID and Client Secret to `.env`
-
-2. **Authenticate**
-   ```bash
-   # Start unified server
-   node unified_server.js
-
-   # Navigate to auth endpoint
-   curl http://localhost:9899/api/gh/login
-   ```
-
-3. **Use Copilot Features**
-   - Code suggestions in your IDE
-   - Pull request summaries
-   - Code review assistance
-
-### Testing Agent Connections
-
-Test your agent setup with the included test suite:
-
-```bash
-# Test agent routing
-node --test test/server9899-agent-routing.test.js
-
-# Test server endpoints
-node --test test/server9898.test.js
-
-# Run both Node bridge tests together
-node --test test/server9899-agent-routing.test.js test/server9898.test.js
-```
-
-
-**Example Test:**
-
-```javascript
-// Test Claude agent connection
-const ws = new WebSocket('ws://localhost:9899');
-
-ws.on('open', () => {
-  ws.send(JSON.stringify({
-    type: 'agent_request',
-    agent: 'claude',
-    payload: {
-      prompt: 'Hello, Claude! Can you hear me?',
-      system: 'You are a helpful AI assistant.'
-    }
-  }));
-});
-
-ws.on('message', (data) => {
-  const response = JSON.parse(data);
-  console.log('Agent:', response.agent);
-  console.log('Response:', response.payload.text);
-});
-```
-
-### Agent Usage Best Practices
-
-1. **Keep Prompts Concise**
-   - Stay under 8961 characters for optimal performance
-   - Use clear, specific instructions
-
-2. **Handle Errors Gracefully**
-   - Check for `payload.error` in responses
-   - Common errors: Missing API key, rate limit exceeded, network timeout
-
-3. **Monitor Rate Limits**
-   - Stay under 30 requests/minute per connection
-   - Implement exponential backoff for retries
-
-4. **Use System Prompts Effectively**
-   - Define agent behavior and constraints
-   - Specify output format requirements
-
-5. **Review Audit Logs**
-   - Check `./logs/audit.jsonl` for all agent interactions
-   - Monitor for unusual patterns or errors
-
-### Integration Examples
-
-#### Frontend Integration (React/TypeScript)
-
-```typescript
-import { useEffect, useState } from 'react';
-
-function AgentChat() {
-  const [ws, setWs] = useState<WebSocket | null>(null);
-  const [response, setResponse] = useState('');
-
-  useEffect(() => {
-    const socket = new WebSocket('ws://localhost:9899');
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === 'agent_response') {
-        setResponse(data.payload.text || data.payload.error);
-      }
-    };
-
-    setWs(socket);
-    return () => socket.close();
-  }, []);
-
-  const askAgent = (agent: string, prompt: string) => {
-    ws?.send(JSON.stringify({
-      type: 'agent_request',
-      agent,
-      payload: { prompt }
-    }));
-  };
-
-  return (
-    <div>
-      <button onClick={() => askAgent('claude', 'Hello!')}>Ask Claude</button>
-      <button onClick={() => askAgent('gpt', 'Hello!')}>Ask GPT</button>
-      <button onClick={() => askAgent('grok', 'Hello!')}>Ask Grok</button>
-      <pre>{response}</pre>
-    </div>
-  );
-}
-```
-
-
-#### iOS Integration (Swift)
-
-```swift
-import Foundation
-
-class AgentClient {
-    private var webSocket: URLSessionWebSocketTask?
-
-    func connect() {
-        let url = URL(string: "ws://localhost:9899")!
-        webSocket = URLSession.shared.webSocketTask(with: url)
-        webSocket?.resume()
-        receiveMessage()
-    }
-
-    func askAgent(_ agent: String, prompt: String) {
-        let request: [String: Any] = [
-            "type": "agent_request",
-            "agent": agent,
-            "payload": ["prompt": prompt]
-        ]
-
-        let data = try! JSONSerialization.data(withJSONObject: request)
-        let message = URLSessionWebSocketTask.Message.data(data)
-        webSocket?.send(message) { error in
-            if let error = error {
-                print("Send error: \(error)")
-            }
-        }
-    }
-
-    private func receiveMessage() {
-        webSocket?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                if case .data(let data) = message {
-                    let json = try? JSONSerialization.jsonObject(with: data)
-                    print("Response: \(json ?? [:])")
-                }
-                self?.receiveMessage()
-            case .failure(let error):
-                print("Receive error: \(error)")
-            }
-        }
-    }
-}
-```
-
-
-#### Python Integration
-
-```python
-import asyncio
-import websockets
-import json
-
-async def ask_agent(agent: str, prompt: str):
-    uri = "ws://localhost:9899"
-
-    async with websockets.connect(uri) as ws:
-        # Send request
-        request = {
-            "type": "agent_request",
-            "agent": agent,
-            "payload": {
-                "prompt": prompt,
-                "system": "You are a helpful assistant."
-            }
-        }
-        await ws.send(json.dumps(request))
-
-        # Receive response
-        response = await ws.recv()
-        data = json.loads(response)
-
-        if data.get("type") == "agent_response":
-            print(f"Agent: {data['agent']}")
-            print(f"Response: {data['payload'].get('text', data['payload'].get('error'))}")
-
-# Example usage
-asyncio.run(ask_agent("claude", "What is the meaning of life?"))
-```
-
-
-### Maintaining a Clean Environment
-
-The platform is designed to maintain a sanitized, self-updating environment:
-
-1. **Automated Code Cleanup**
-   - `.github/agents/my-agent.agent.md` - Template for cleanup agents
-   - Removes outdated dependencies
-   - Fixes syntax errors automatically
-   - Organizes files into appropriate folders
-
-2. **Structure Maintenance**
-   - Files are automatically placed in correct locations
-   - Folder structure is validated on startup
-   - Unused imports and dependencies are flagged
-
-3. **Continuous Integration**
-   - GitHub Actions workflow validates code quality
-   - Flake8 linting for Python code
-   - Pytest for automated testing
-   - Node.js tests for bridge servers
-
-4. **Agent Collaboration**
-   - Ara (Grok.x.ai) maintains folder structure
-   - Claude acts as copilot for code review
-   - All agents work together without conflicts
-   - Shared audit logging ensures coordination
-
-<!-- BEGIN:IMPLEMENTATION_STATUS -->
-## Implementation Status (Auto-Generated)
-
-- **Implementation fingerprint:** `36c7a9a0759abeab`
-- **Last regenerated:** by `update_readme_implementation.py`
-
-### Tracked Files
-- `fixers/database_fixer.py` (`976451bcd272` )
-- `tests/test_fixers.py` (`e3b0b099530c` )
-- `.github/workflows/ci.yml` (`ee1ce5b9dddc` )
-- `.github/workflows/oauth-api-generator.yml` (`7bf01e0cb0b1` )
-- `.github/workflows/readme-implementation-sync.yml` (`ede06619a9b9` )
-- `SGHv119.html` (`ddb6cb480074` )
-
-### Key Behaviors Detected
-- Database fixer creates parent directories before rebuild: ✅ enabled
-
-### Architecture Notes
-- Frontend served on **port 9898**
-- All backend / WebSocket traffic routes through **port 9899** (node-bridge gateway)
-- Dashboard + Live Terminal with package installer integrated in `SGHv119.html`
-- README implementation status is self-updating via GitHub Actions
-<!-- END:IMPLEMENTATION_STATUS -->
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Features
-
-### Live Alerts System 🚨
-
-The platform includes a comprehensive real-time alert system for monitoring and responding to critical events:
-
-**Backend Features:**
-- WebSocket-based real-time alert delivery
-- Multiple alert types: Info, Warning, Error, Security, System
-- Alert severity levels: low, medium, high, critical
-- Database persistence with SQLAlchemy
-- RESTful API for alert management
-- Integration with Piper TTS for audio notifications
-
-**Frontend Features:**
-- Real-time toast notifications for incoming alerts
-- Slide-out Alert Center for viewing alert history
-- Unread alert count badge in header
-- Auto-reconnecting WebSocket connection
-- Severity-based visual styling and animations
-- Mark as read/dismiss functionality
-
-**Security Alert Types:**
-- `DEBUGGER_TOUCH` - Foreign debugger detection
-- `CHAIN_BREAK` - Integrity failure events
-- `LIE_DETECTED` - Truth probe violations
-- `OVERRIDE_SPOKEN` - Forbidden command detection
-- `YUVA9V_TRIPPED` - Emergency protocols activated
-
-See [Piper Integration Documentation](docs/PIPER_INTEGRATION.md) for audio alert setup.
-
-### EEG Streaming System 🧠
-
-Real-time EEG biomedical signal acquisition and analysis via `eeg_streaming.py`:
-
-- Lab Streaming Layer (LSL) inlet for hardware-agnostic EEG device support
-- Band-power extraction: delta, theta, alpha, beta, gamma
-- Butterworth bandpass filtering and Welch power spectral density
-- Artifact detection and classification labeling
-- Server-Sent Events (SSE) broadcasting for live dashboard streaming
-- Thread-safe concurrent data store for polling endpoints
-
-### Post-Quantum Authentication 🔐
-
-`Backend_API_AUTH.py` implements quantum-resistant identity verification:
-
-- **Dilithium2** post-quantum digital signatures (CRYSTALS-Dilithium)
-- **TOTP** two-factor authentication as a second factor
-- Signed JWT-style tokens using the authenticated public key
-- Immutable audit log entries written to `/logs/auth.jsonl`
-- `frontend/src/Frontend_src_Auth.jsx`: browser-side Dilithium signing via WebAssembly
-- `frontend/src/xai_in_cert_Chain.html`: xAI certificate chain verification viewer
-
-## Deployment
-
-### Backend Setup
-
-```bash
-# Install Python dependencies
-pip install -r requirements.txt
-pip install -r backend/requirements.txt
-
-# Initialize the database
-python scripts/init_db.py
-
-# Test the alerts system
-python scripts/test_alerts.py
-
-# Run the backend server
-cd backend
-PYTHONPATH=.:./backend uvicorn app.main:app --reload
-```
-
-
-### Frontend Setup
-
-```bash
-# Install Node dependencies
-cd frontend
-npm install
-
-# Set environment variables
-echo "REACT_APP_API_URL=http://localhost:9899/api/v1" > .env
-echo "REACT_APP_WS_URL=ws://localhost:9899" >> .env
-
-# Run the development server
-npm start
-```
-
-
-### Docker Deployment
-
-```bash
-# Build and deploy with Docker Compose
-make build
-make deploy
-```
-
-
-### Piper TTS Setup (Optional)
-
-For audio alert notifications:
-
-```bash
-# Build Piper
-cd piper-tts
-make
-
-# Download a voice model
-wget https://github.com/rhasspy/piper/releases/download/v1.2.0/voice-en-us-libritts-high.tar.gz
-tar -xzf voice-en-us-libritts-high.tar.gz
-
-# Set environment variable
-export PIPER_MODEL_PATH=./voice-en-us-libritts-high.onnx
-```
-
-
-See [docs/PIPER_INTEGRATION.md](docs/PIPER_INTEGRATION.md) for detailed setup.
-
-#  main
-## Usage
-
-### Creating Alerts via API
-
-```bash
-curl -X POST "/api/node/api/v1/alerts/" \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "type": "security",
-    "title": "Unauthorized Access",
-    "message": "Failed login attempt detected",
-    "severity": "high"
-  }'
-```
-
-### WebSocket Connection
-
-If enabled by runtime config, connect to the bridge WebSocket endpoint from the configured base URL. Do not hardcode localhost in browser code.
-
----
-
-## Testing
-
-```bash
-make test
-make lint
-make clean
-```
+## Security
+
+- Do not commit credentials, API keys, certificates, or `.env` files.
+- Keep core workflows functional without external services where possible.
+- Use loopback-only development defaults and explicit consent for networked
+  operation.
+- Review [SECURITY.md](SECURITY.md) and the
+  [offline runtime policy](docs/OFFLINE_RUNTIME.md) before deployment.
