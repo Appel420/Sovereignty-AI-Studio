@@ -12,7 +12,6 @@ exclude =
     env,
     node_modules,
     .devcontainer,
-    Sovereignty_python-keycloak-master,
     piper-tts,
     resources,
     ai_core,

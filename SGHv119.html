@@ -3430,7 +3430,17 @@ window.renderPiperTTS = function() {
 window.renderGitHub = function() {
   var connected = !!GitHub.token;
   return '<div class="panel-hdr"><h2>GitHub Integration</h2>' +
-    '<p>// Real OAuth · IndexedDB storage · AES-256 · Push/Pull · Audit logged</p></div>' +
+    '<p>// Real OAuth \xb7 IndexedDB storage \xb7 AES-256 \xb7 Push/Pull \xb7 Audit logged</p></div>' +
+    /* OAuth opt-in notice — public deployment required */
+    '<div style="background:rgba(255,179,0,.07);border:1px solid rgba(255,179,0,.2);' +
+    'border-radius:var(--r2);padding:10px 13px;font-family:var(--mono);font-size:8px;' +
+    'color:var(--t2);margin-bottom:12px;line-height:1.8">' +
+    '<span style="color:var(--yl);font-weight:700">\u26a0\ufe0f OPT-IN \u2014 PUBLIC DEPLOYMENT REQUIRED</span><br>' +
+    'GitHub OAuth requires a publicly accessible redirect URI and a registered OAuth App. ' +
+    'For local or offline use, generate a token at <code>github.com/settings/tokens</code> ' +
+    'and supply it to the bridge as <code>GH_TOKEN</code>. ' +
+    'Never configure OAuth client secrets on local-only or air-gapped deployments.' +
+    '</div>' +
     '<div class="g4">' +
     mc(connected ? 'CONNECTED' : 'DISCONNECTED', 'GitHub', connected ? GitHub.user : 'Not auth', 'GH', connected ? 'var(--gn)' : 'var(--mu)') +
     mc(GitHub.clientId ? 'SET' : 'NOT SET', 'Client ID', 'OAuth App', 'ID', GitHub.clientId ? 'var(--gn)' : 'var(--rd)') +
@@ -3596,6 +3606,202 @@ window.renderLinearCard = function() {
 };
 
 // ─── 15. WIRE PANELS + UPGRADE ROLE NAVS ─────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════════════
+//  LOCAL CONTROL PLANE (LCP) v1.0 — offline-first loopback dashboard
+//  All fetches target 127.0.0.1 only. No polling. Explicit refresh only.
+//  Surfaces: repo status · agent status · CI/CD workflows · network audit
+//  SOC 2-aligned controls — not a certification claim.
+// ═══════════════════════════════════════════════════════════════════════
+window.LCP = (function(){
+  'use strict';
+  var BASE = 'http://127.0.0.1:9898';
+
+  function _el(id){ return document.getElementById(id); }
+  function _set(id, html){ var e=_el(id); if(e) e.innerHTML=html; }
+  function _badge(t,c){ return '<span class="sb2 '+c+'">'+t+'</span>'; }
+
+  function _fetchEndpoint(path, targetId, transform){
+    _set(targetId,'<span style="color:var(--t3);font-family:var(--mono);font-size:10px">⏳ fetching…</span>');
+    window.fetch(BASE+path,{method:'GET',headers:{'Accept':'application/json'}})
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        _set(targetId, transform(d));
+        if(typeof addAudit==='function') addAudit('LCP_FETCH', path+' ok');
+      })
+      .catch(function(e){
+        _set(targetId,'<span style="color:var(--rd);font-family:var(--mono);font-size:10px">⚠ '+
+          e.message+' — bridge offline or not running (start bridge/serve_dashboard.py)</span>');
+        if(typeof addAudit==='function') addAudit('LCP_FETCH_ERR', path+': '+e.message);
+      });
+  }
+
+  function _renderRepo(d){
+    var clean = d.clean ? _badge('CLEAN','b-ok') : _badge('DIRTY','b-warn');
+    return '<div class="srow"><span class="sl">Branch</span>' +
+      '<span style="font-family:var(--mono);font-size:10px;color:var(--acid)">'+(d.branch||'—')+'</span></div>'+
+      '<div class="srow"><span class="sl">Commit</span>' +
+      '<span style="font-family:var(--mono);font-size:10px;color:var(--t2)">'+(d.commit||'—')+'</span></div>'+
+      '<div class="srow"><span class="sl">Status</span>'+clean+'</div>'+
+      (d.staged_count?'<div class="srow"><span class="sl">Staged</span>'+_badge(d.staged_count+' file(s)','b-info')+'</div>':'')+
+      (d.unstaged_count?'<div class="srow"><span class="sl">Unstaged</span>'+_badge(d.unstaged_count+' file(s)','b-warn')+'</div>':'')+
+      (d.untracked_count?'<div class="srow"><span class="sl">Untracked</span>'+_badge(d.untracked_count+' file(s)','b-dim')+'</div>':'');
+  }
+
+  function _renderAgentMods(d){
+    var rows=(d.agent_modules||[]).slice(0,8).map(function(m){
+      return '<div class="srow"><span class="sl" style="font-family:var(--mono);font-size:9px">'+
+        m.replace('.py','')+'</span>'+_badge('REGISTERED','b-ok')+'</div>';
+    }).join('');
+    return '<div class="srow"><span class="sl">Modules found</span>'+_badge(d.count||0,'b-info')+'</div>'+rows;
+  }
+
+  function _renderCICD(d){
+    var rows=(d.workflows||[]).slice(0,12).map(function(w){
+      return '<div class="srow"><span class="sl" style="font-family:var(--mono);font-size:9px">'+
+        w.name+'</span>'+_badge('AVAILABLE','b-ok')+'</div>';
+    }).join('');
+    return '<div class="srow"><span class="sl">Local workflows</span>'+_badge(d.count||0,'b-info')+'</div>'+rows;
+  }
+
+  function _renderAudit(d){
+    /* Merge bridge audit entries with in-browser SGOfflinePolicy events */
+    var policy=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status():null;
+    var pAttempts=policy?policy.attempts.slice(-10):[];
+    var bEntries=(d.entries||[]).slice(-10);
+    var rows=pAttempts.map(function(e){
+      var cls=e.action==='NETWORK_BLOCKED'?'b-err':'b-ok';
+      return '<div class="audit-entry">'+
+        '<span class="audit-ts">'+(e.timestamp||'').slice(11,19)+'</span>'+
+        '<span class="audit-ev">'+_badge(e.action.slice(0,14),cls)+'</span>'+
+        '<span class="audit-data">'+String(e.detail||'').slice(0,60)+'</span></div>';
+    }).join('');
+    var bRows=bEntries.map(function(e){
+      return '<div class="audit-entry">'+
+        '<span class="audit-ts">'+new Date(e.ts*1000).toTimeString().slice(0,8)+'</span>'+
+        '<span class="audit-ev">'+_badge('BRIDGE','b-info')+'</span>'+
+        '<span class="audit-data">'+String(e.detail||e.event||'').slice(0,60)+'</span></div>';
+    }).join('');
+    return (rows||bRows)||
+      '<span style="color:var(--t3);font-family:var(--mono);font-size:10px">No network events yet.</span>';
+  }
+
+  return {
+    refresh: function(){
+      var ts=_el('lcp-last-refresh');
+      if(ts) ts.textContent='Refreshed: '+new Date().toTimeString().slice(0,8);
+      if(typeof addAudit==='function') addAudit('LCP_REFRESH','User-triggered control plane refresh');
+      /* All four fetches target loopback only — no external calls */
+      _fetchEndpoint('/api/repo-status',   'lcp-repo-body',   _renderRepo);
+      _fetchEndpoint('/api/agent-status',  'lcp-agent-body',  _renderAgentMods);
+      _fetchEndpoint('/api/cicd-status',   'lcp-cicd-body',   _renderCICD);
+      _fetchEndpoint('/api/network-audit', 'lcp-audit-body',  _renderAudit);
+    },
+    showLocalAudit: function(){
+      /* Render in-browser SGOfflinePolicy events without any bridge call */
+      var body=_el('lcp-audit-body'); if(!body) return;
+      var policy=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status():null;
+      if(!policy||!policy.attempts.length){
+        body.innerHTML='<span style="color:var(--t3);font-family:var(--mono);font-size:10px">No network events recorded yet.</span>';
+        return;
+      }
+      body.innerHTML=policy.attempts.slice(-20).map(function(e){
+        var cls=e.action==='NETWORK_BLOCKED'?'b-err':'b-ok';
+        return '<div class="audit-entry">'+
+          '<span class="audit-ts">'+(e.timestamp||'').slice(11,19)+'</span>'+
+          '<span class="audit-ev">'+'<span class="sb2 '+cls+'">'+e.action.slice(0,14)+'</span>'+'</span>'+
+          '<span class="audit-data">'+String(e.detail||'').slice(0,60)+'</span></div>';
+      }).join('');
+    }
+  };
+})();
+
+window.renderLocalCP = function(){
+  var mode=(typeof SGOfflinePolicy!=='undefined')?SGOfflinePolicy.status().mode:'offline';
+  var modeBadge=mode==='offline'||mode==='local'?
+    '<span class="sb2 b-ok">OFFLINE-FIRST</span>':
+    mode==='hybrid'?'<span class="sb2 b-warn">HYBRID</span>':
+    '<span class="sb2 b-err">ONLINE</span>';
+
+  return '<div class="panel-hdr">'+
+    '<h2>\uD83C\uDFE0 Local Control Plane</h2>'+
+    '<p>// Offline-first \xb7 Loopback only \xb7 Explicit refresh \xb7 Audit logged \xb7 No polling</p>'+
+    '</div>'+
+
+    /* Mode bar + refresh */
+    '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'+
+    modeBadge+
+    '<span style="font-family:var(--mono);font-size:9px;color:var(--t3)">All fetches \u2192 127.0.0.1 only. No automatic polling.</span>'+
+    '<button class="btn btn-p btn-sm" style="margin-left:auto" onclick="LCP.refresh()">\u27f3\u00a0Refresh</button>'+
+    '<span id="lcp-last-refresh" style="font-family:var(--mono);font-size:8px;color:var(--t3)">Not yet refreshed</span>'+
+    '</div>'+
+
+    '<div class="two">'+
+
+    /* Repo status */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDCC1 Repository Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 loopback \xb7 read-only \xb7 branch-aware</span></div>'+
+    '<div id="lcp-repo-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    /* Agent status */
+    '<div class="card">'+
+    '<div class="card-title">\uD83E\uDD16 Agent Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 local scan \xb7 no shell</span></div>'+
+    '<div id="lcp-agent-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    '</div>'+
+    '<div class="two">'+
+
+    /* CI/CD status */
+    '<div class="card">'+
+    '<div class="card-title">\u2699\uFE0F CI/CD Workflows '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 local availability</span></div>'+
+    '<div id="lcp-cicd-body" style="font-family:var(--mono);font-size:10px;color:var(--t3)">Click Refresh to load.</div>'+
+    '</div>'+
+
+    /* Network audit */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDD0D Network Request Audit '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 offline_policy events</span></div>'+
+    '<div id="lcp-audit-body" class="audit-live" style="height:180px;font-size:9px">'+
+    '<span style="color:var(--t3);font-family:var(--mono);font-size:10px">Click Refresh (bridge) or Show Local Events.</span>'+
+    '</div>'+
+    '<button class="btn btn-s btn-sm" style="margin-top:6px" onclick="LCP.showLocalAudit()">Show Local Policy Events</button>'+
+    '</div>'+
+
+    '</div>'+
+
+    /* MCP workspace status info */
+    '<div class="card">'+
+    '<div class="card-title">\uD83D\uDD17 MCP Workspace Status '+
+    '<span style="font-family:var(--mono);font-size:7px;color:var(--t3)">\xb7 branch-aware \xb7 stdio \xb7 no shell</span></div>'+
+    '<div style="font-family:var(--mono);font-size:9px;color:var(--t2);line-height:1.8">'+
+    'Server: <code style="color:var(--acid)">mcp_server.py</code> (JSON-RPC\u00a02.0 \xb7 stdio)<br>'+
+    'Tool: <code style="color:var(--acid)">workspace_repo_status</code> \u2014 reports branch, commit, staged/unstaged counts<br>'+
+    'Default mode: <code style="color:var(--acid)">offline</code> '+
+    '(set <code>SG_MCP_MODE=hybrid</code> or <code>online</code> to allow bridge endpoints)<br>'+
+    'No shell access: git is invoked with fixed read-only arguments and no user-controlled input.'+
+    '</div>'+
+    '</div>'+
+
+    /* SOC 2 / PKI / OAuth alignment notice */
+    '<div style="background:rgba(124,77,255,.06);border:1px solid rgba(124,77,255,.15);'+
+    'border-radius:var(--r2);padding:12px;font-family:var(--mono);font-size:8px;'+
+    'color:var(--t2);line-height:1.9;margin-top:10px">'+
+    '<span style="color:var(--vt);font-weight:700">SOC\u00a02-ALIGNED CONTROLS</span> \u2014 '+
+    'Access logging, loopback isolation, immutable audit trail, and explicit remote-access consent '+
+    'are implemented. This is not a SOC\u00a02 certification claim.<br>'+
+    '<span style="color:var(--yl)">PRIVATE PKI / LET\'S ENCRYPT</span> \u2014 '+
+    'TLS certificate generation is available in online mode only (opt-in via Presence Mode).<br>'+
+    '<span style="color:var(--yl)">GITHUB OAUTH</span> \u2014 '+
+    'OAuth requires a publicly accessible redirect URI and is an opt-in public-deployment feature '+
+    '(see GitHub Integration panel). Do not configure OAuth client secrets on local-only deployments.'+
+    '</div>';
+};
+
 if (typeof PANEL_MAP !== 'undefined') {
 PANEL_MAP.bridgecfg  = function() { return renderBridgeConfig(); };
 PANEL_MAP.pipertts   = function() { return renderPiperTTS(); };
@@ -3606,6 +3812,7 @@ PANEL_MAP.killswitch = function() { return renderKillswitch(); };
 PANEL_MAP.ids        = function() { return renderIDSPanel(); };
 PANEL_MAP.linearcard = function() { return renderLinearCard(); };
 PANEL_MAP.copilot_agent = function() { return renderCopilotAgent(); };
+PANEL_MAP.localcp    = function() { return renderLocalCP(); };
 /* Diagnostics / ops log panel — registered here so loadPanel('diagnostics') works */
 if(typeof PANELS !== 'undefined' && PANELS.diagnostics) PANEL_MAP.diagnostics = PANELS.diagnostics;
 }
@@ -3695,16 +3902,25 @@ return `<div class="panel-hdr">
 
   <div class="card gf" style="margin-bottom:12px">
     <div class="card-t"><div class="ctd"></div>ENCRYPTED USER MEMORY VAULT</div>
-    <div style="font-family:var(--mono);font-size:8px;color:var(--mu);line-height:1.5;margin-bottom:8px">Private model memory and collaboration records are encrypted in this device's IndexedDB. Unlocking is required each session; no transcript or provider credential is placed in localStorage.</div>
+    <div style="font-family:var(--mono);font-size:8px;color:var(--mu);line-height:1.5;margin-bottom:8px">Private model memory stays encrypted in this device's IndexedDB, binds to the active login, hydrates only after unlock, and is never silently exported or attached to outbound requests.</div>
     <div style="display:flex;gap:8px;margin-bottom:9px">
       <input id="agentVaultPassphrase" type="password" autocomplete="current-password" placeholder="Vault passphrase (12+ characters)" style="flex:1;padding:9px 12px;background:#0f1923;border:1px solid #2a3a55;color:#e2e8f0;border-radius:6px;font-family:var(--mono);font-size:10px">
       <button onclick="SGMemoryUI.unlock()" class="btn-p" style="width:auto;padding:9px 14px">🔓 Unlock</button>
       <button onclick="SGMemoryUI.lock()" class="btn-s" style="width:auto;padding:9px 14px">🔒 Lock</button>
     </div>
     <div id="agentVaultStatus" style="font-family:var(--mono);font-size:8px;color:var(--am);margin-bottom:9px">Locked — memory is unavailable to all models.</div>
+    <div id="agentVaultScope" style="font-family:var(--mono);font-size:8px;color:var(--cy);margin-bottom:9px">Awaiting session binding for login-scoped memory.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">
-      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentIncludePrivate" style="accent-color:var(--cy)"> Include this model's private memory in this request</label>
-      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentSharedConsent" style="accent-color:var(--cy)" onchange="SGMemoryUI.setConsent(this.checked)"> Consent to receive shared collaboration memory this session</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentAttachMemory" style="accent-color:var(--cy)"> Explicitly attach approved memory to outbound AI requests</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentIncludePrivate" style="accent-color:var(--cy)"> Include this model's private memory when attachment is enabled</label>
+      <label style="display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" id="agentSharedConsent" style="accent-color:var(--cy)" onchange="SGMemoryUI.setConsent(this.checked)"> Allow the selected model to receive approved shared memory this session</label>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px;align-items:center">
+      <span style="font-family:var(--mono);font-size:8px;color:var(--mu)">Share current model history with:</span>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="claude" style="accent-color:var(--cy)"> Claude</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="grok" style="accent-color:var(--cy)"> Grok</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="copilot" style="accent-color:var(--cy)"> Copilot</label>
+      <label style="display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:9px;color:var(--mu);cursor:pointer"><input type="checkbox" data-share-target="openai" style="accent-color:var(--cy)"> OpenAI</label>
     </div>
     <div style="display:flex;gap:7px;flex-wrap:wrap">
       <button onclick="SGMemoryUI.loadSelected()" class="btn-s" style="width:auto;padding:8px 12px">📖 Load Model History</button>
@@ -3862,11 +4078,13 @@ window.runCopilotAgent = async function(){
   var localOnly = onDevice || !sgExternalApisAllowed();
   var wantsAnalysis = mode === 'security' || mode === 'debug' || mode === 'review' || mode === 'explain';
   var memoryEntries = [];
-  if(window.SGMemoryUI.vault.key){
+  var attachApprovedMemory = !!(document.getElementById('agentAttachMemory')||{}).checked;
+  if(window.SGMemoryUI.vault.key && attachApprovedMemory && !localOnly){
     try{
       memoryEntries = await window.SGMemoryUI.contextForRequest(
         primary,
-        !!(document.getElementById('agentIncludePrivate')||{}).checked
+        !!(document.getElementById('agentIncludePrivate')||{}).checked,
+        {destination:primary+':remote'}
       );
     }catch(memoryError){ toast('Memory unavailable: '+memoryError.message,'err'); }
   }
@@ -5996,6 +6214,7 @@ var NAV_ITEMS=[
   {sec:'ADMIN',       ic:'\u2699',       lb:'Role Editor',         p:'roleeditor',  lv:4},
   {sec:'ADMIN',       ic:'\ud83d\udd34',lb:'Kill Switch',         p:'killswitch',  lv:4},
   {sec:'ADMIN',       ic:'\ud83c\udfd7',lb:'CI/CD',               p:'cicd',        lv:3},
+  {sec:'ADMIN',       ic:'\ud83c\udfe0',lb:'Local Control Plane', p:'localcp',     lv:3},
   {sec:'ADMIN',       ic:'\ud83d\udc51',lb:'Root Admin',          p:'rootadmin',   lv:5},
 ];
 
@@ -32150,118 +32369,220 @@ console.log('%c[VoiceSystem v2] Push-to-talk · AI conversation · iOS STT+TTS r
 window.SGProviderCredentials = window.SGProviderCredentials || {};
 window.SGMemoryUI = (function () {
   var vault = new SovereignMemoryVault.Vault();
+  function modelLabel(model) {
+    return ({ claude: 'Claude', grok: 'Grok', copilot: 'Copilot', openai: 'OpenAI' })[model] || model;
+  }
   function selectedModel() {
     return (document.getElementById('agentPrimary') || {}).value || 'claude';
+  }
+  function selectedShareTargets() {
+    return Array.from(document.querySelectorAll('[data-share-target]:checked')).map(function (input) {
+    return input.getAttribute('data-share-target');
+    });
+  }
+  function currentSessionIdentity() {
+    var session = window.ST || window._sg_saved || null;
+    if (!session || !session.sessionID) return { id: 'anonymous', label: 'anonymous session' };
+    return {
+    id: [
+      session.name || 'Operative',
+      session.role || 'operator',
+      session.badge || '',
+      session.workspace || session.company || ''
+    ].join('|'),
+    name: session.name || 'Operative',
+    username: session.username || '',
+    role: session.role || 'operator',
+    badge: session.badge || '',
+    workspace: session.workspace || session.company || '',
+    label: (session.name || 'Operative') + ' · ' + (session.roleLabel || session.role || 'session')
+    };
   }
   function status(message, color) {
     var element = document.getElementById('agentVaultStatus');
     if (element) { element.textContent = message; element.style.color = color || 'var(--am)'; }
   }
+  function scope(message, color) {
+    var element = document.getElementById('agentVaultScope');
+    if (element) { element.textContent = message; element.style.color = color || 'var(--cy)'; }
+  }
   function requireUnlocked() {
     if (!vault.key) { status('Locked — unlock the vault before using memory.', 'var(--rd)'); throw new Error('Vault is locked.'); }
   }
+  async function syncSession(options) {
+    var binding = await vault.bindIdentity(currentSessionIdentity());
+    var activeIdentity = currentSessionIdentity();
+    scope(
+    activeIdentity.id === 'anonymous'
+      ? 'No authenticated login detected — anonymous on-device memory will stay separate.'
+      : 'Bound to ' + vault.identityLabel() + ' — unlock to hydrate only this login scoped memory.',
+    activeIdentity.id === 'anonymous' ? 'var(--am)' : 'var(--cy)'
+    );
+    if (binding.changed && !(options && options.quiet)) {
+    status(
+      activeIdentity.id === 'anonymous'
+        ? 'Session changed — vault rebound to anonymous mode and locked.'
+        : 'Session changed — unlock the vault to hydrate ' + selectedModel() + ' memory for ' + vault.identityLabel() + '.',
+      'var(--am)'
+    );
+    }
+    return binding;
+  }
   async function refreshConsent() {
+    await syncSession({ quiet: true });
     var checkbox = document.getElementById('agentSharedConsent');
-    if (!checkbox || !vault.key) return;
-    checkbox.checked = await vault.hasConsent(selectedModel());
+    if (!checkbox) return;
+    checkbox.checked = vault.key ? await vault.hasConsent(selectedModel()) : false;
+  }
+  async function hydrateSelected(reason) {
+    var model = selectedModel();
+    var entries = await vault.list('private', model);
+    await vault.auditEvent(model, { type: 'load', model: model, reason: reason || 'manual', entryCount: entries.length });
+    var output = document.getElementById('agentOutput');
+    var card = document.getElementById('agentOutputCard');
+    if (card) card.style.display = '';
+    if (output) output.textContent = entries.length ? entries.map(function (entry) {
+    return '[' + entry.role + '] ' + entry.content;
+    }).join('\n\n') : 'No private memory for ' + modelLabel(model) + '.';
+    return entries;
   }
   return {
     vault: vault,
+    syncSession: syncSession,
     unlock: async function () {
-      try {
-        var passphrase = (document.getElementById('agentVaultPassphrase') || {}).value || '';
-        await vault.unlock(passphrase);
-        document.getElementById('agentVaultPassphrase').value = '';
-        status('Unlocked — encrypted user memory stays on this device.', 'var(--gn)');
-        await refreshConsent();
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      var passphrase = (document.getElementById('agentVaultPassphrase') || {}).value || '';
+      await vault.unlock(passphrase);
+      document.getElementById('agentVaultPassphrase').value = '';
+      var entries = await hydrateSelected('login-unlock');
+      status('Unlocked for ' + vault.identityLabel() + ' — loaded ' + entries.length + ' ' + modelLabel(selectedModel()) + ' entries. Memory stays on-device unless you explicitly attach or export it.', 'var(--gn)');
+      await refreshConsent();
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
-    lock: function () { vault.lock(); status('Locked — memory is unavailable to all models.', 'var(--am)'); },
+    lock: function () {
+    vault.lock();
+    status('Locked — memory is unavailable to all models.', 'var(--am)');
+    },
     refreshConsent: refreshConsent,
     setConsent: async function (allowed) {
-      try {
-        requireUnlocked();
-        await vault.setConsent(selectedModel(), allowed);
-        status(allowed ? 'Consent recorded: this model may receive collaboration memory.' : 'Consent revoked: shared memory will not be sent.', allowed ? 'var(--gn)' : 'var(--am)');
-      } catch (error) {
-        var checkbox = document.getElementById('agentSharedConsent'); if (checkbox) checkbox.checked = false;
-        status(error.message, 'var(--rd)');
-      }
-    },
-    contextForRequest: async function (model, includePrivate) {
+    try {
+      await syncSession({ quiet: true });
       requireUnlocked();
-      var entries = [];
-      if (includePrivate) entries = entries.concat((await vault.list('private', model)).slice(-12));
-      if (await vault.hasConsent(model)) {
-        var shared = await vault.list('shared', 'collaboration');
-        shared.slice(-1).forEach(function (event) { entries = entries.concat(event.entries || []); });
+      await vault.setConsent(selectedModel(), allowed);
+      status(allowed ? 'Consent recorded: ' + modelLabel(selectedModel()) + ' may receive approved shared memory this session.' : 'Consent revoked: shared memory will not be attached for ' + modelLabel(selectedModel()) + '.', allowed ? 'var(--gn)' : 'var(--am)');
+    } catch (error) {
+      var checkbox = document.getElementById('agentSharedConsent'); if (checkbox) checkbox.checked = false;
+      status(error.message, 'var(--rd)');
+    }
+    },
+    contextForRequest: async function (model, includePrivate, details) {
+    await syncSession({ quiet: true });
+    requireUnlocked();
+    var entries = [];
+    var sources = [];
+    if (includePrivate) {
+      var privateEntries = (await vault.list('private', model)).slice(-12);
+      if (privateEntries.length) {
+        entries = entries.concat(privateEntries);
+        sources.push('private');
       }
-      return entries;
+    }
+    if (await vault.hasConsent(model)) {
+      var shared = await vault.list('shared', model);
+      shared.slice(-3).forEach(function (event) { entries = entries.concat(event.entries || []); });
+      if (shared.length) sources.push('shared');
+    }
+    if (entries.length) await vault.auditEvent(model, {
+      type: 'request_attach',
+      model: model,
+      entryCount: entries.length,
+      sources: sources,
+      destination: (details && details.destination) || 'remote-request'
+    });
+    return entries;
     },
     record: async function (model, role, content) {
-      if (vault.key && content) await vault.saveConversation(model, role, content);
+    await syncSession({ quiet: true });
+    if (vault.key && content) await vault.saveConversation(model, role, content);
     },
     loadSelected: async function () {
-      try {
-        requireUnlocked();
-        var entries = await vault.list('private', selectedModel());
-        var output = document.getElementById('agentOutput');
-        var card = document.getElementById('agentOutputCard');
-        if (card) card.style.display = '';
-        if (output) output.textContent = entries.length ? entries.map(function (entry) { return '[' + entry.role + '] ' + entry.content; }).join('\n\n') : 'No private memory for ' + selectedModel() + '.';
-        status('Loaded only ' + selectedModel() + ' private memory.', 'var(--gn)');
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      await hydrateSelected('manual-load');
+      status('Loaded only ' + modelLabel(selectedModel()) + ' private memory for ' + vault.identityLabel() + '.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
     shareSelected: async function () {
-      try {
-        requireUnlocked();
-        var model = selectedModel();
-        var entries = await vault.list('private', model);
-        if (!entries.length) throw new Error('No private history exists for this model.');
-        await vault.share(model, entries.slice(-12));
-        status('Shared collaboration record created with your active consent.', 'var(--gn)');
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var model = selectedModel();
+      var targets = selectedShareTargets().filter(function (target) { return target !== model; });
+      var entries = await vault.list('private', model);
+      if (!entries.length) throw new Error('No private history exists for this model.');
+      var result = await vault.share(model, targets, entries.slice(-12));
+      status('Shared collaboration memory prepared from ' + modelLabel(model) + ' to ' + result.targets.map(modelLabel).join(', ') + ' with explicit consent only.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
     review: async function () {
-      try {
-        requireUnlocked();
-        var events = await vault.audit(selectedModel());
-        var output = document.getElementById('agentOutput');
-        var card = document.getElementById('agentOutputCard');
-        if (card) card.style.display = '';
-        if (output) output.textContent = events.length ? events.map(function (event) { return new Date(event.createdAt).toISOString() + ' ' + event.type + ' ' + JSON.stringify(event); }).join('\n') : 'No consent or sharing events for ' + selectedModel() + '.';
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var events = await vault.audit(selectedModel());
+      var output = document.getElementById('agentOutput');
+      var card = document.getElementById('agentOutputCard');
+      if (card) card.style.display = '';
+      if (output) output.textContent = events.length ? events.map(function (event) { return new Date(event.createdAt).toISOString() + ' ' + event.type + ' ' + JSON.stringify(event); }).join('\n') : 'No consent or sharing events for ' + modelLabel(selectedModel()) + '.';
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
     exportEncrypted: async function () {
-      try {
-        requireUnlocked();
-        var blob = new Blob([await vault.exportEncrypted()], { type: 'application/json' });
-        var url = URL.createObjectURL(blob), anchor = document.createElement('a');
-        anchor.href = url; anchor.download = 'sovereign-memory-vault-encrypted.json'; anchor.click();
-        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-        status('Encrypted vault exported; keep it with its passphrase.', 'var(--gn)');
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var blob = new Blob([await vault.exportEncrypted()], { type: 'application/json' });
+      var url = URL.createObjectURL(blob), anchor = document.createElement('a');
+      anchor.href = url; anchor.download = 'sovereign-memory-vault-encrypted.json'; anchor.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+      status('Encrypted vault exported locally for ' + vault.identityLabel() + '; nothing is silently transmitted or sold.', 'var(--gn)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
     deleteSelected: async function () {
-      try {
-        requireUnlocked();
-        var model = selectedModel();
-        if (!confirm('Delete all private, consent, and audit records for ' + model + '?')) return;
-        await vault.deleteModel(model);
-        status('Deleted ' + model + ' memory and consent records.', 'var(--am)');
-      } catch (error) { status(error.message, 'var(--rd)'); }
+    try {
+      await syncSession({ quiet: true });
+      requireUnlocked();
+      var model = selectedModel();
+      if (!confirm('Delete all private, consent, and audit records for ' + model + '?')) return;
+      await vault.deleteModel(model);
+      status('Deleted ' + modelLabel(model) + ' memory, consent, and share records for ' + vault.identityLabel() + '.', 'var(--am)');
+    } catch (error) { status(error.message, 'var(--rd)'); }
     },
     wipe: async function () {
-      if (!confirm('Wipe every encrypted model and collaboration record? This cannot be undone.')) return;
-      await vault.wipe();
-      status('Vault wiped and locked.', 'var(--rd)');
+    await syncSession({ quiet: true });
+    if (!confirm('Wipe every encrypted model and collaboration record? This cannot be undone.')) return;
+    await vault.wipe();
+    status('Vault wiped and locked for ' + vault.identityLabel() + '.', 'var(--rd)');
     },
     disconnect: function (model) {
-      delete window.SGProviderCredentials[model];
-      vault.lock();
-      status('Provider runtime context cleared; vault locked.', 'var(--am)');
+    delete window.SGProviderCredentials[model];
+    vault.lock();
+    status('Provider runtime context cleared; vault locked.', 'var(--am)');
     }
   };
+}());
+(function () {
+  if (typeof window.grant === 'function' && !window.grant._sgMemoryWrapped) {
+    var originalGrant = window.grant;
+    var wrappedGrant = function () {
+    var result = originalGrant.apply(this, arguments);
+    Promise.resolve(window.SGMemoryUI.syncSession()).catch(function () {});
+    return result;
+    };
+    wrappedGrant._sgMemoryWrapped = true;
+    window.grant = wrappedGrant;
+  }
+  Promise.resolve(window.SGMemoryUI.syncSession({ quiet: true })).catch(function () {});
 }());
 </script>
 

@@ -24,8 +24,24 @@ Requirements:
 - Python 3.11 or later
 - Node.js 20 or later
 
-From the repository root, install the required Python and Node dependencies
-using your preferred environment manager, then start the local services:
+Install the checked-in runtime dependencies. This creates `.venv` and installs
+both Node workspaces; it does not create credentials, substitute a model, or
+make runtime network calls:
+
+```bash
+./INSTALL.sh
+```
+
+For an air-gapped workstation with pre-populated Python and npm caches, use:
+
+```bash
+./INSTALL.sh --offline
+```
+
+The installer does not download or substitute an AI model, generate
+credentials, or enable unapproved providers. Configure an approved local
+inference provider separately before submitting AI work. Then start the local
+services:
 
 ```bash
 ./START_SERVER.sh
@@ -58,6 +74,20 @@ python3 mcp_server.py
 It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to restrict a
 client to a specific directory. See the [MCP server source](mcp_server.py) for
 the available tools and configuration.
+
+#### Agent sanitation workflow
+
+`workspace_analyze` is a local, read-only helper for Python and JSON syntax
+validation plus cleanup findings, such as trailing whitespace and Python tab
+indentation. Its diagnostics include the file, line, column, severity, rule,
+message, and a safe suggested action. It does not start a shell, make network
+calls, accept credentials, or edit files.
+
+Run each agent against the checkout of its dedicated branch by setting
+`SG_MCP_WORKSPACE` to that checkout. Hidden files and likely credential files
+(`.env`, token stores, keys, certificates) are unavailable to listing, reading,
+and analysis tools. Review diagnostics and make edits explicitly in that
+branch; commits and pull requests remain the accountability record.
 
 ### Container services
 
@@ -100,7 +130,11 @@ gateway/           Python multi-agent gateway
 agents/            Agent service definitions
 mcp_server.py      Offline MCP server
 docs/              Architecture, deployment, and developer documentation
+external/          Vendored third-party source; excluded from the Studio runtime
 ```
+
+See [the repository inventory](docs/REPOSITORY_INVENTORY.md) for ownership and
+maintenance boundaries.
 
 ## Development checks
 
