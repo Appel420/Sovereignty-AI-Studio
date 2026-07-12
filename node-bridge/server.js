@@ -58,6 +58,42 @@ const SG_BRIDGE_HTTP_URL = (process.env.SG_BRIDGE_HTTP_URL || (SG_BRIDGE_URL ? S
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
+const NETWORK_MODE = ['offline', 'hybrid', 'online'].includes(process.env.SG_NETWORK_MODE)
+  ? process.env.SG_NETWORK_MODE
+  : (process.env.SG_OFFLINE_MODE === '0' ? 'hybrid' : 'offline');
+const OFFLINE_MODE = NETWORK_MODE === 'offline';
+const REMOTE_NETWORK_ENABLED = process.env.SG_ENABLE_REMOTE_NETWORK === '1';
+const TLS_MODE = process.env.SG_TLS_MODE || 'local-ca';
+const REMOTE_AUDIT_LOG = [];
+const LOCAL_NETWORK_ALLOWLIST = new Set(
+  (process.env.SG_LOCAL_NETWORK_ALLOWLIST || '').split(',').map((host) => host.trim()).filter(Boolean),
+);
+
+function isLoopbackHost(hostname) {
+  const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
+  return host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host);
+}
+
+function networkAllowed(target) {
+  try {
+    const url = target instanceof URL ? target : new URL(target);
+    if (isLoopbackHost(url.hostname)) return true;
+    if (NETWORK_MODE === 'hybrid') return LOCAL_NETWORK_ALLOWLIST.has(url.hostname);
+    return NETWORK_MODE === 'online' && REMOTE_NETWORK_ENABLED;
+  } catch {
+    return false;
+  }
+}
+
+function recordRemoteAttempt(target, allowed, reason) {
+  REMOTE_AUDIT_LOG.push({
+    timestamp: new Date().toISOString(),
+    target: String(target),
+    allowed,
+    reason,
+  });
+  if (REMOTE_AUDIT_LOG.length > 100) REMOTE_AUDIT_LOG.shift();
+}
 
 // Reconnect tuning for Python-backend proxy
 const SG_BASE_RECONNECT_MS = 3000;
@@ -70,7 +106,7 @@ app.use(express.json());
 // CORS — default to bridge origin
 // ---------------------------------------------------------------------------
 app.use((_req, res, next) => {
-  const origin = process.env.CORS_ORIGIN || '*';
+  const origin = process.env.CORS_ORIGIN || 'null';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
@@ -87,7 +123,29 @@ app.get('/health', (_req, res) => {
     service: 'node-bridge',
     uptime: process.uptime(),
     backends: { api: BACKEND_URL, weather: WEATHER_URL, gateway: GATEWAY_URL },
+    network: {
+      offline_mode: OFFLINE_MODE,
+      network_mode: NETWORK_MODE,
+      remote_network_enabled: REMOTE_NETWORK_ENABLED,
+      tls_mode: TLS_MODE,
+    },
     timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/network/status', (_req, res) => {
+  res.json({
+    offline_mode: OFFLINE_MODE,
+    network_mode: NETWORK_MODE,
+    remote_network_enabled: REMOTE_NETWORK_ENABLED,
+    local_network_allowlist: [...LOCAL_NETWORK_ALLOWLIST],
+    tls_mode: TLS_MODE,
+    lets_encrypt: {
+      enabled: TLS_MODE === 'letsencrypt' && NETWORK_MODE === 'online' && REMOTE_NETWORK_ENABLED,
+      configured: Boolean(process.env.ACME_EMAIL && process.env.ACME_DOMAIN),
+      note: 'ACME issuance requires an explicitly enabled Internet-connected public deployment.',
+    },
+    recent_remote_attempts: REMOTE_AUDIT_LOG.slice(-20),
   });
 });
 
@@ -103,7 +161,19 @@ function resolveUpstreamPort(url) {
 }
 
 function proxyRequest(targetBase, req, res) {
-  const url = new URL(req.originalUrl, targetBase);
+  let url;
+  try {
+    url = new URL(req.originalUrl, targetBase);
+  } catch {
+    return res.status(400).json({ error: 'Invalid upstream URL' });
+  }
+  if (!networkAllowed(url)) {
+    recordRemoteAttempt(url, false, 'offline policy');
+    return res.status(503).json({
+      error: 'Outbound network disabled by offline policy',
+      code: 'OFFLINE_NETWORK_BLOCKED',
+    });
+  }
   const client = requestClientFor(url);
   const options = {
     hostname: url.hostname,
@@ -160,6 +230,13 @@ app.post('/ai/:agentId', (req, res) => {
   });
 
   const url = new URL('/api/chat', GATEWAY_URL);
+  if (!networkAllowed(url)) {
+    recordRemoteAttempt(url, false, 'offline policy');
+    return res.status(503).json({
+      error: 'Remote AI requires explicit network enablement',
+      code: 'OFFLINE_NETWORK_BLOCKED',
+    });
+  }
   const options = {
     hostname: url.hostname,
     port: resolveUpstreamPort(url),
@@ -242,6 +319,10 @@ app.get('/api/agents/status', async (_req, res) => {
       try {
         target = new URL('/health', baseUrl);
       } catch {
+        return resolve();
+      }
+      if (!networkAllowed(target)) {
+        recordRemoteAttempt(target, false, 'status probe blocked by offline policy');
         return resolve();
       }
 
@@ -444,6 +525,10 @@ wssRoot.on('connection', (browserWs) => {
 
   function connectPyBridge() {
     if (!SG_BRIDGE_URL) return;
+    if (!networkAllowed(SG_BRIDGE_URL)) {
+      recordRemoteAttempt(SG_BRIDGE_URL, false, 'WebSocket bridge blocked by offline policy');
+      return;
+    }
     if (browserWs.readyState > WsClient.OPEN) return;     // CLOSING or CLOSED
     if (pyBridgeWs && pyBridgeWs.readyState < WsClient.CLOSING) return; // CONNECTING or OPEN
 
@@ -470,10 +555,7 @@ wssRoot.on('connection', (browserWs) => {
 
       pyBridgeWs.on('close', () => {
         pyBridgeWs = null;
-        if (browserWs.readyState !== WsClient.OPEN) return;
-        const delay = Math.min(SG_MAX_RECONNECT_MS, SG_BASE_RECONNECT_MS * (1 + pyBridgeRetry++));
-        pyBridgeReconnectTimer = setTimeout(connectPyBridge, delay);
-        console.log(`[py-bridge] disconnected — retry in ${Math.round(delay / 1000)}s`);
+        console.log('[py-bridge] disconnected; reconnect requires a new user request');
       });
     } catch (err) {
       console.warn('[py-bridge] connect error:', err.message);
@@ -488,9 +570,6 @@ wssRoot.on('connection', (browserWs) => {
       pyBridgeWs.send(rawStr);
     }
   }
-
-  // Eagerly connect so the first ai_chat has a live upstream (if configured)
-  connectPyBridge();
 
   browserWs.on('message', (raw) => {
     try {
@@ -584,7 +663,16 @@ app.get('/api/bridge/status', async (_req, res) => {
 
   const checkService = (url, key) =>
     new Promise((resolve) => {
-      const target = new URL('/health', url);
+  let target;
+  try {
+    target = new URL('/health', url);
+  } catch {
+    return resolve();
+  }
+  if (!networkAllowed(target)) {
+    recordRemoteAttempt(target, false, 'status probe blocked by offline policy');
+    return resolve();
+  }
       const client = requestClientFor(target);
       const req = client.request({
         hostname: target.hostname,
@@ -610,6 +698,10 @@ app.get('/api/bridge/status', async (_req, res) => {
       if (!SG_BRIDGE_HTTP_URL) return resolve();
       try {
         const target = new URL('/health', SG_BRIDGE_HTTP_URL);
+        if (!networkAllowed(target)) {
+          recordRemoteAttempt(target, false, 'status probe blocked by offline policy');
+          return resolve();
+        }
         const client = requestClientFor(target);
         const req = client.request({
           hostname: target.hostname,
@@ -867,6 +959,10 @@ app.post('/proxy/fetch', rateLimit(60000, 30), (req, res) => {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
+  if (!networkAllowed(parsed)) {
+    recordRemoteAttempt(parsed, false, 'proxy/fetch blocked by offline policy');
+    return res.status(503).json({ error: 'Outbound network disabled by offline policy', code: 'OFFLINE_NETWORK_BLOCKED' });
+  }
   if (_isPrivateHost(parsed.hostname)) {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
@@ -895,6 +991,10 @@ app.post('/proxy/text', rateLimit(60000, 30), (req, res) => {
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
   }
+  if (!networkAllowed(parsed)) {
+    recordRemoteAttempt(parsed, false, 'proxy/text blocked by offline policy');
+    return res.status(503).json({ error: 'Outbound network disabled by offline policy', code: 'OFFLINE_NETWORK_BLOCKED' });
+  }
   if (_isPrivateHost(parsed.hostname)) {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
   }
@@ -919,6 +1019,10 @@ app.post('/proxy', rateLimit(60000, 30), (req, res) => {
   try { parsed = new URL(targetUrl); } catch (e) { console.error('[proxy] Invalid URL:', e.message); return res.status(400).json({ error: 'Invalid URL' }); }
   if (!['http:', 'https:'].includes(parsed.protocol)) {
     return res.status(400).json({ error: 'Only http/https URLs are allowed' });
+  }
+  if (!networkAllowed(parsed)) {
+    recordRemoteAttempt(parsed, false, 'proxy blocked by offline policy');
+    return res.status(503).json({ error: 'Outbound network disabled by offline policy', code: 'OFFLINE_NETWORK_BLOCKED' });
   }
   if (_isPrivateHost(parsed.hostname)) {
     return res.status(403).json({ error: 'Requests to private/internal addresses are not allowed' });
@@ -1291,11 +1395,16 @@ app.post('/api/bridge/notify', (req, res) => {
 // Start (only when run directly, not when imported for tests)
 // ---------------------------------------------------------------------------
 if (require.main === module) {
-  server.listen(PORT, () => {
+  const configuredHost = process.env.NODE_BRIDGE_HOST || '127.0.0.1';
+  const bindHost = configuredHost === '0.0.0.0' ? '127.0.0.1' : configuredHost;
+  if (configuredHost === '0.0.0.0') {
+    console.warn('[node-bridge] refusing wildcard bind; using loopback instead');
+  }
+  server.listen(PORT, bindHost, () => {
     const proto = useTLS ? 'https' : 'http';
     const wsproto = useTLS ? 'wss' : 'ws';
-    console.log(`[node-bridge] listening on ${proto}://0.0.0.0:${PORT}${useTLS ? ' (TLS)' : ''}`);
-    console.log(`[node-bridge] WebSocket   ${wsproto}://0.0.0.0:${PORT}/ws/alerts (optional)`);
+    console.log(`[node-bridge] listening on ${proto}://${bindHost}:${PORT}${useTLS ? ` (${TLS_MODE} TLS)` : ''}`);
+    console.log(`[node-bridge] WebSocket   ${wsproto}://${bindHost}:${PORT}/ws/alerts (optional)`);
     console.log(`[node-bridge] proxy /api/v1/*      → ${BACKEND_URL}`);
     console.log(`[node-bridge] proxy /api/weather/*  → ${WEATHER_URL}`);
     console.log(`[node-bridge] proxy /api/forecast/* → ${WEATHER_URL}`);
@@ -1311,4 +1420,6 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, server, wss, broadcast };
+module.exports = {
+  app, server, wss, broadcast, networkAllowed, OFFLINE_MODE, REMOTE_NETWORK_ENABLED,
+};
