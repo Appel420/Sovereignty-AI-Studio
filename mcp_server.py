@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -194,6 +195,16 @@ class SovereignMCPServer:
                     "additionalProperties": False,
                 },
             },
+            {
+                "name": "workspace_repo_status",
+                "description": (
+                    "Return the current Git branch, last commit hash, and working-tree change "
+                    "counts (staged, unstaged, untracked) for the configured local workspace. "
+                    "Read-only — no shell access is exposed; git is invoked with fixed arguments "
+                    "and no user-controlled input."
+                ),
+                "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+            },
         ]
 
     def _call_tool(self, request_id: Any, params: dict[str, Any]) -> dict[str, Any]:
@@ -221,6 +232,9 @@ class SovereignMCPServer:
             elif name == "workspace_analyze":
                 self._validate_arguments(arguments, {"path"}, {"path"})
                 payload = self._analyze_workspace(arguments["path"])
+            elif name == "workspace_repo_status":
+                self._validate_arguments(arguments, set())
+                payload = self._repo_status()
             else:
                 return self._error(request_id, -32602, f"Unknown tool: {name}")
         except (OSError, ValueError) as error:
@@ -298,6 +312,58 @@ class SovereignMCPServer:
         return WorkspaceAnalysisHelper().analyze(
             file_path, str(file_path.relative_to(self.workspace))
         )
+
+    def _repo_status(self) -> dict[str, Any]:
+        """Return Git branch, commit, and working-tree status for the workspace.
+
+        Each git invocation uses a fixed argv list — no user-controlled data is
+        interpolated into the command or passed through a shell.  ``shell=False``
+        is the subprocess default and is preserved here.
+        """
+
+        def _run(*args: str) -> str:
+            try:
+                result = subprocess.run(
+                    ["git", "-C", str(self.workspace), *args],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                return result.stdout.strip()
+            except (OSError, subprocess.TimeoutExpired):
+                return ""
+
+        branch = _run("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
+        commit_full = _run("log", "--format=%H", "-1")
+        commit = commit_full[:16] if commit_full else "unknown"
+        porcelain = _run("status", "--porcelain")
+
+        staged: list[str] = []
+        unstaged: list[str] = []
+        untracked: list[str] = []
+        for line in porcelain.splitlines():
+            if len(line) < 2:
+                continue
+            xy = line[:2]
+            path = line[3:]
+            if xy[0] not in (" ", "?", "!"):
+                staged.append(path)
+            if xy[1] not in (" ", "?", "!"):
+                unstaged.append(path)
+            if xy == "??":
+                untracked.append(path)
+
+        return {
+            "branch": branch,
+            "commit": commit,
+            "staged_count": len(staged),
+            "unstaged_count": len(unstaged),
+            "untracked_count": len(untracked),
+            "clean": not (staged or unstaged or untracked),
+            "workspace": str(self.workspace),
+            "shell_access": "disabled; git is invoked with fixed read-only arguments only",
+        }
 
     @staticmethod
     def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
