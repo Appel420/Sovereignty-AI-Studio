@@ -2,7 +2,8 @@
 Voice interaction API endpoints.
 Provides voice chat and TTS capabilities using Piper TTS.
 """
-from fastapi import APIRouter, File, HTTPException, UploadFile
+import hashlib
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from typing import Optional
 import logging
@@ -47,6 +48,47 @@ class ProgressRequest(BaseModel):
 class ApprovalRequest(BaseModel):
     action: str
     details: str = Field(min_length=1, max_length=4000)
+
+
+class VoiceProcessRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=8000)
+    session_id: Optional[str] = None
+    user_id: Optional[str] = Field(default=None, max_length=255)
+    voice_model: str = Field(default="en_US-lessac-medium", max_length=255)
+    device_fingerprint: Optional[str] = Field(default=None, max_length=4096)
+    offline_first: bool = True
+
+
+def _resolve_voice_user_id(
+    user_id: Optional[str],
+    device_fingerprint: Optional[str],
+) -> str:
+    if user_id and user_id.strip():
+        return user_id.strip()
+    if device_fingerprint and device_fingerprint.strip():
+        digest = hashlib.sha256(device_fingerprint.strip().encode("utf-8")).hexdigest()
+        return f"device-{digest[:24]}"
+    return "default"
+
+
+def _ensure_session(
+    session_id: Optional[str],
+    user_id: Optional[str],
+    voice_model: str,
+    device_fingerprint: Optional[str],
+) -> str:
+    from app.services.voice_interaction_service import voice_interaction_service
+
+    if session_id:
+        if not voice_interaction_service.get_session(session_id):
+            raise HTTPException(status_code=404, detail="Voice session not found")
+        return session_id
+
+    session = voice_interaction_service.create_session(
+        _resolve_voice_user_id(user_id, device_fingerprint),
+        voice_model,
+    )
+    return session.session_id
 
 
 @router.post("/speak", response_model=VoiceResponse)
@@ -111,6 +153,65 @@ async def voice_chat(request: VoiceRequest):
         logger.warning(f"Voice chat TTS failed: {e}")
 
     return result
+
+
+@router.post("/process", response_model=dict)
+async def process_voice(request: VoiceProcessRequest):
+    """Process a text turn with the local voice interaction service."""
+    from app.services.voice_interaction_service import voice_interaction_service
+
+    session_id = _ensure_session(
+        request.session_id,
+        request.user_id,
+        request.voice_model,
+        request.device_fingerprint,
+    )
+    result = voice_interaction_service.process_text_input(
+        session_id,
+        request.text,
+        offline_first=request.offline_first,
+    )
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    result["offline"] = request.offline_first
+    return result
+
+
+@router.post("/input", response_model=dict)
+async def process_voice_input(
+    audio: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+    user_id: Optional[str] = Form(None),
+    voice_model: str = Form("en_US-lessac-medium"),
+    device_fingerprint: Optional[str] = Form(None),
+    process_after_transcription: bool = Form(True),
+):
+    """Transcribe microphone audio locally and optionally process it offline."""
+    suffix = (audio.filename or "audio.webm").rsplit(".", 1)[-1]
+    payload = await audio.read()
+    from app.services.local_stt_service import local_stt_service
+
+    transcription = local_stt_service.transcribe_bytes(payload, suffix)
+    response = {
+        "status": transcription["status"],
+        "transcription": transcription,
+        "offline": True,
+    }
+    transcript_text = str(transcription.get("text", "")).strip()
+    if transcription["status"] != "completed" or not process_after_transcription or not transcript_text:
+        return response
+
+    response["processing"] = await process_voice(
+        VoiceProcessRequest(
+            text=transcript_text,
+            session_id=session_id,
+            user_id=user_id,
+            voice_model=voice_model,
+            device_fingerprint=device_fingerprint,
+            offline_first=True,
+        )
+    )
+    return response
 
 
 @router.post("/transcribe", response_model=dict)
