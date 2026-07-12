@@ -141,8 +141,12 @@
     var records = await this.store.all('records');
     var self = this;
     var decoded = await Promise.all(records.map(async function (record) { return { record: record, value: await self.open(record) }; }));
-    await Promise.all(decoded.filter(function (item) { return item.value.model === model; })
-      .map(function (item) { return self.store.remove('records', item.record.id); }));
+    await Promise.all(decoded.filter(function (item) {
+      if (item.value.model === model) return true;
+      // Also remove collaboration records whose payload was sourced from this model
+      if (item.value.model === 'collaboration' && item.value.payload && item.value.payload.source === model) return true;
+      return false;
+    }).map(function (item) { return self.store.remove('records', item.record.id); }));
   };
   Vault.prototype.exportEncrypted = async function () {
     return JSON.stringify({ version: 1, exportedAt: Date.now(), records: await this.store.all('records') });

@@ -43,7 +43,10 @@
   const nativeFetch = window.fetch.bind(window);
   window.fetch = function guardedFetch(input, init) {
     const target = typeof input === 'string' ? input : input.url;
-    if (!permitted(target)) return Promise.reject(block(target, 'fetch'));
+    if (!permitted(target)) {
+      audit('NETWORK_BLOCKED', `fetch: ${target}`);
+      return Promise.reject(new DOMException(`${mode()} mode denied this network request.`, 'NetworkError'));
+    }
     return nativeFetch(input, init);
   };
 
@@ -59,6 +62,10 @@
     return protocols === undefined ? new NativeWebSocket(url) : new NativeWebSocket(url, protocols);
   };
   window.WebSocket.prototype = NativeWebSocket.prototype;
+  window.WebSocket.CONNECTING = NativeWebSocket.CONNECTING;
+  window.WebSocket.OPEN       = NativeWebSocket.OPEN;
+  window.WebSocket.CLOSING    = NativeWebSocket.CLOSING;
+  window.WebSocket.CLOSED     = NativeWebSocket.CLOSED;
 
   window.sgExternalApisAllowed = () => mode() === 'online' && sessionStorage.getItem('sg_online_opt_in') === '1';
   window.SGOfflinePolicy = Object.freeze({

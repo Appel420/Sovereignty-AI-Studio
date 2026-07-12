@@ -96,8 +96,9 @@ class VoiceCollaborationService:
         next_step: str,
     ) -> dict[str, Any]:
         task = self._require(task_id)
+        normalized_scopes = [s if s.endswith('/') else s + '/' for s in task["allowed_paths"]]
         if task["allowed_paths"] and any(
-            not any(path.startswith(scope) for scope in task["allowed_paths"])
+            not any(path.startswith(scope) for scope in normalized_scopes)
             for path in files_changed
         ):
             raise ValueError("Changed files exceed the approved task scope")

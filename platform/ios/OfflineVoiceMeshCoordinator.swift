@@ -94,6 +94,9 @@ final class OfflineVoiceMeshCoordinator: NSObject {
 
     private func decryptEnvelope(_ data: Data) throws -> (Envelope, String) {
         let envelope = try JSONDecoder().decode(Envelope.self, from: data)
+        guard envelope.ciphertext.count >= 16 else {
+            throw CryptoKitError.incorrectParameterSize
+        }
         let tagStart = envelope.ciphertext.count - 16
         let box = try AES.GCM.SealedBox(
             nonce: AES.GCM.Nonce(data: envelope.nonce),
