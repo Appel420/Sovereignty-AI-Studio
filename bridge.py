@@ -454,7 +454,13 @@ class BridgeServer:
                     log.debug("Unhandled message type: %s", mtype)
 
         except Exception as e:
-            log.warning("Client %s error: %s", addr, e)
+            # BrokenPipeError / ConnectionResetError are normal client-disconnect
+            # events (e.g. browser tab closed mid-poll).  Log at DEBUG so they
+            # do not pollute the terminal as misleading "errors".
+            if isinstance(e, (BrokenPipeError, ConnectionResetError)):
+                log.debug("Client %s disconnected mid-stream: %s", addr, type(e).__name__)
+            else:
+                log.warning("Client %s error: %s", addr, e)
         finally:
             self.clients.discard(ws)
             log.info("Client disconnected: %s | total=%s", addr, len(self.clients))

@@ -107,7 +107,7 @@ class VoiceInteractionService:
     # ── Voice interaction ────────────────────────────────────────────
 
     def process_text_input(
-        self, session_id: str, text: str
+        self, session_id: str, text: str, offline_first: bool = False
     ) -> Dict[str, Any]:
         """Process user text input and generate AI voice response."""
         session = self.get_session(session_id)
@@ -121,7 +121,7 @@ class VoiceInteractionService:
         session.history.append({"role": "user", "content": text})
 
         # Generate AI response (stubbed – production connects to LLM)
-        ai_response = self._generate_response(text, session.history)
+        ai_response = self._generate_response(text, session.history, offline_first=offline_first)
         session.history.append({"role": "assistant", "content": ai_response})
 
         # Generate voice output path
@@ -140,13 +140,20 @@ class VoiceInteractionService:
         }
 
     def _generate_response(
-        self, user_text: str, history: List[Dict[str, str]]
+        self,
+        user_text: str,
+        history: List[Dict[str, str]],
+        offline_first: bool = False,
     ) -> str:
         """Generate an AI response via the sovereign AI router.
 
         Routes through xAI → Anthropic → OpenAI with automatic fallback.
         Falls back to echo acknowledgement only if no providers are configured.
         """
+        if offline_first:
+            logger.info("Offline-first voice response requested; skipping external AI providers")
+            return f"[Offline mode] Received: '{user_text}'"
+
         try:
             import asyncio
             from app.services.ai_router import ai_router

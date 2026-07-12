@@ -11,18 +11,6 @@ echo "== SGHV119 Local CI =="
 echo "Root: $ROOT_DIR"
 echo
 
-run_optional() {
-  local label="$1"
-  shift
-  echo "-- $label"
-  if command -v "$1" >/dev/null 2>&1; then
-    "$@"
-  else
-    echo "skip: command not found: $1"
-  fi
-  echo
-}
-
 # 1. Minimal Guardian. PLATFORM.json is the policy source.
 echo "-- Guardian Genesis-0-1"
 GUARDIAN_STATUS=0
@@ -52,16 +40,9 @@ else
 fi
 echo
 
-# 4. Local OAuth generator hook. This is intentionally local-only.
-# Set LOCAL_OAUTH_GENERATOR to your local script path if it differs.
-LOCAL_OAUTH_GENERATOR="${LOCAL_OAUTH_GENERATOR:-scripts/oauth-local-generator.sh}"
+# 4. Run the repository-owned OAuth generator without any remote provider.
 echo "-- local OAuth generator"
-if [[ -x "$LOCAL_OAUTH_GENERATOR" ]]; then
-  "$LOCAL_OAUTH_GENERATOR" --dry-run --report "$REPORT_DIR/oauth-local-report.json" || true
-else
-  echo "skip: no executable local OAuth generator at $LOCAL_OAUTH_GENERATOR"
-  echo "{\"status\":\"skipped\",\"reason\":\"local OAuth generator not configured\"}" > "$REPORT_DIR/oauth-local-report.json"
-fi
+python3 scripts/oauth_local_generator.py --dry-run --report "$REPORT_DIR/oauth-local-report.json"
 echo
 
 # 5. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
@@ -77,12 +58,36 @@ else
 fi
 echo
 
-# 6. Lightweight local checks. Keep them offline/local.
-run_optional "python syntax check" python3 -m compileall -q scripts backend ai_core . 2>/dev/null || true
+# 6. Actual project checks. These commands do not install packages or contact
+# external services, so missing local dependencies are a failure rather than a
+# successful-looking skip.
+echo "-- Python syntax check"
+python3 -m compileall -q scripts backend ai_core
+echo
 
-if [[ -f node-bridge/package.json ]]; then
-  echo "-- node bridge package check"
-  node -e "JSON.parse(require('fs').readFileSync('node-bridge/package.json','utf8')); console.log('node-bridge/package.json ok')" || true
+echo "-- Node syntax check"
+npm run check
+echo
+
+echo "-- Sovereign memory vault tests"
+node tests/test_sovereign_memory_vault.js
+echo
+
+echo "-- Local control-plane tests"
+python3 -m pytest tests/test_local_control_plane.py
+echo
+
+echo "-- OAuth local generator tests"
+python3 -m pytest tests/test_oauth_local_generator.py -v
+echo
+
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  echo "-- iPhone package build"
+  swift build --package-path ios
+  echo
+else
+  echo "-- iPhone package build"
+  echo "not run: iPhone validation requires macOS with Xcode; run this local CI on the iPhone build host."
   echo
 fi
 

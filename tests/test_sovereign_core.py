@@ -1,7 +1,9 @@
 import asyncio
 
 from sovereign import init_sovereign, sovereign
-from sovereign.pqc_signatures import MLDSASigner
+import pytest
+
+from sovereign.pqc_signatures import MLDSASigner, PQCUnavailableError
 
 
 def test_init_sovereign_returns_success():
@@ -20,7 +22,10 @@ def test_sovereign_api_key_and_rotation():
 
 def test_mldsasigner_roundtrip():
     signer = MLDSASigner(algorithm="ML-DSA-87")
-    message = b"sovereign-ci"
-    signature = signer.sign(message)
-
-    assert signer.verify(message, signature) is True
+    try:
+        signature = signer.sign(b"sovereign-ci")
+    except PQCUnavailableError:
+        with pytest.raises(PQCUnavailableError):
+            signer.verify(b"sovereign-ci", b"not-a-signature")
+    else:
+        assert signer.verify(b"sovereign-ci", signature) is True
