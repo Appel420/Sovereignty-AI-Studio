@@ -1,0 +1,3 @@
+# Dependencies required by START_SERVER.sh's local dashboard, bridge, and API proxy.
+# Optional backends remain in their component-specific requirements files.
+websockets==16.1

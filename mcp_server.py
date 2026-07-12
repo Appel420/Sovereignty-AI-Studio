@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,83 @@ MAX_FILE_BYTES = 1_000_000
 MAX_LIST_RESULTS = 200
 VALID_MODES = frozenset({"offline", "hybrid", "online"})
 REPOSITORY_ROOT = Path(__file__).resolve().parent
+SENSITIVE_FILE_NAMES = frozenset({".env", ".sg_token_key", ".sg_token_store"})
+SENSITIVE_FILE_SUFFIXES = frozenset({".key", ".pem", ".p12", ".pfx"})
+
+
+class WorkspaceAnalysisHelper:
+    """Run bounded, read-only syntax and hygiene checks for one workspace file."""
+
+    def analyze(self, file_path: Path, relative_path: str) -> dict[str, Any]:
+        source = file_path.read_text("utf-8")
+        diagnostics = self._syntax_diagnostics(source, file_path.suffix, relative_path)
+        diagnostics.extend(self._cleanup_diagnostics(source, file_path.suffix, relative_path))
+        return {
+            "path": relative_path,
+            "language": self._language_name(file_path.suffix),
+            "diagnostics": diagnostics,
+            "writeAccess": "disabled; review and apply fixes explicitly in the agent branch",
+        }
+
+    @staticmethod
+    def _language_name(suffix: str) -> str:
+        return {".py": "python", ".json": "json"}.get(suffix.lower(), "text")
+
+    def _syntax_diagnostics(
+        self, source: str, suffix: str, relative_path: str
+    ) -> list[dict[str, Any]]:
+        try:
+            if suffix.lower() == ".py":
+                compile(source, relative_path, "exec")
+            elif suffix.lower() == ".json":
+                json.loads(source)
+            else:
+                return []
+        except (SyntaxError, json.JSONDecodeError) as error:
+            return [
+                {
+                    "file": relative_path,
+                    "line": error.lineno or 1,
+                    "column": error.offset or 1,
+                    "severity": "error",
+                    "rule": "syntax-error",
+                    "message": error.msg,
+                    "suggestedAction": "Correct the reported syntax before applying any other cleanup.",
+                }
+            ]
+        return []
+
+    @staticmethod
+    def _cleanup_diagnostics(
+        source: str, suffix: str, relative_path: str
+    ) -> list[dict[str, Any]]:
+        diagnostics: list[dict[str, Any]] = []
+        for line_number, line in enumerate(source.splitlines(), start=1):
+            if line.rstrip(" \t") != line:
+                diagnostics.append(
+                    {
+                        "file": relative_path,
+                        "line": line_number,
+                        "column": len(line.rstrip(" \t")) + 1,
+                        "severity": "warning",
+                        "rule": "trailing-whitespace",
+                        "message": "Line contains trailing whitespace.",
+                        "suggestedAction": "Remove trailing spaces or tabs.",
+                    }
+                )
+            if suffix.lower() == ".py" and line.startswith("\t"):
+                diagnostics.append(
+                    {
+                        "file": relative_path,
+                        "line": line_number,
+                        "column": 1,
+                        "severity": "warning",
+                        "rule": "tab-indentation",
+                        "message": "Python indentation starts with a tab.",
+                        "suggestedAction": "Use spaces consistently for Python indentation.",
+                    }
+                )
+        return diagnostics
 
 
 class SovereignMCPServer:
@@ -99,26 +177,64 @@ class SovereignMCPServer:
                     "additionalProperties": False,
                 },
             },
+            {
+                "name": "workspace_analyze",
+                "description": (
+                    "Read-only local syntax and cleanup analysis for one Python or JSON file. "
+                    "It never modifies files or invokes a shell."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Required relative Python or JSON file path within the workspace.",
+                        }
+                    },
+                    "required": ["path"],
+                    "additionalProperties": False,
+                },
+            },
+            {
+                "name": "workspace_repo_status",
+                "description": (
+                    "Return the current Git branch, last commit hash, and working-tree change "
+                    "counts (staged, unstaged, untracked) for the configured local workspace. "
+                    "Read-only — no shell access is exposed; git is invoked with fixed arguments "
+                    "and no user-controlled input."
+                ),
+                "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+            },
         ]
 
     def _call_tool(self, request_id: Any, params: dict[str, Any]) -> dict[str, Any]:
         name = params.get("name")
         arguments = params.get("arguments", {})
         if not isinstance(name, str) or not isinstance(arguments, dict):
-            return self._error(request_id, -32602, "Tool name and arguments must be objects")
+            return self._error(request_id, -32602, "Tool name must be a string and arguments an object")
 
         try:
             if name == "sovereignty_status":
+                self._validate_arguments(arguments, set())
                 payload = {
                     "mode": self.mode,
                     "workspace": str(self.workspace),
                     "network": "disabled by this MCP server",
                     "credentials": "not accepted, stored, or transmitted",
+                    "writes": "disabled; this server only proposes diagnostics",
                 }
             elif name == "workspace_list":
+                self._validate_arguments(arguments, {"path"})
                 payload = self._list_workspace(arguments.get("path", ""))
             elif name == "workspace_read":
+                self._validate_arguments(arguments, {"path"}, {"path"})
                 payload = self._read_workspace(arguments.get("path"))
+            elif name == "workspace_analyze":
+                self._validate_arguments(arguments, {"path"}, {"path"})
+                payload = self._analyze_workspace(arguments["path"])
+            elif name == "workspace_repo_status":
+                self._validate_arguments(arguments, set())
+                payload = self._repo_status()
             else:
                 return self._error(request_id, -32602, f"Unknown tool: {name}")
         except (OSError, ValueError) as error:
@@ -132,6 +248,17 @@ class SovereignMCPServer:
             {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]},
         )
 
+    @staticmethod
+    def _validate_arguments(
+        arguments: dict[str, Any], allowed: set[str], required: set[str] | None = None
+    ) -> None:
+        unexpected = set(arguments).difference(allowed)
+        if unexpected:
+            raise ValueError(f"Unsupported tool arguments: {', '.join(sorted(unexpected))}")
+        missing = (required or set()).difference(arguments)
+        if missing:
+            raise ValueError(f"Missing required tool arguments: {', '.join(sorted(missing))}")
+
     def _resolve_workspace_path(self, relative_path: Any) -> Path:
         if not isinstance(relative_path, str) or not relative_path:
             raise ValueError("A non-empty relative path is required")
@@ -140,7 +267,17 @@ class SovereignMCPServer:
             candidate.relative_to(self.workspace)
         except ValueError as error:
             raise ValueError("Path must remain within the configured workspace") from error
+        relative_candidate = candidate.relative_to(self.workspace)
+        if self._is_restricted_path(relative_candidate):
+            raise ValueError("Hidden and sensitive files are not available through this MCP server")
         return candidate
+
+    @staticmethod
+    def _is_restricted_path(relative_path: Path) -> bool:
+        return any(part.startswith(".") for part in relative_path.parts) or (
+            relative_path.name.lower() in SENSITIVE_FILE_NAMES
+            or relative_path.suffix.lower() in SENSITIVE_FILE_SUFFIXES
+        )
 
     def _list_workspace(self, relative_path: Any) -> dict[str, Any]:
         directory = self.workspace if relative_path == "" else self._resolve_workspace_path(relative_path)
@@ -151,7 +288,8 @@ class SovereignMCPServer:
         for item in directory.rglob("*"):
             if len(files) >= MAX_LIST_RESULTS:
                 break
-            if item.is_file() and not any(part.startswith(".") for part in item.relative_to(directory).parts):
+            relative_item = item.relative_to(self.workspace)
+            if item.is_file() and not self._is_restricted_path(relative_item):
                 resolved = item.resolve()
                 if resolved.is_relative_to(self.workspace):
                     files.append(str(resolved.relative_to(self.workspace)))
@@ -164,6 +302,68 @@ class SovereignMCPServer:
         if file_path.stat().st_size > MAX_FILE_BYTES:
             raise ValueError(f"File exceeds {MAX_FILE_BYTES} byte read limit")
         return {"path": str(file_path.relative_to(self.workspace)), "content": file_path.read_text("utf-8")}
+
+    def _analyze_workspace(self, relative_path: Any) -> dict[str, Any]:
+        file_path = self._resolve_workspace_path(relative_path)
+        if not file_path.is_file():
+            raise ValueError("Path is not a file")
+        if file_path.stat().st_size > MAX_FILE_BYTES:
+            raise ValueError(f"File exceeds {MAX_FILE_BYTES} byte analysis limit")
+        return WorkspaceAnalysisHelper().analyze(
+            file_path, str(file_path.relative_to(self.workspace))
+        )
+
+    def _repo_status(self) -> dict[str, Any]:
+        """Return Git branch, commit, and working-tree status for the workspace.
+
+        Each git invocation uses a fixed argv list — no user-controlled data is
+        interpolated into the command or passed through a shell.  ``shell=False``
+        is the subprocess default and is preserved here.
+        """
+
+        def _run(*args: str) -> str:
+            try:
+                result = subprocess.run(
+                    ["git", "-C", str(self.workspace), *args],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
+                )
+                return result.stdout.strip()
+            except (OSError, subprocess.TimeoutExpired):
+                return ""
+
+        branch = _run("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
+        commit_full = _run("log", "--format=%H", "-1")
+        commit = commit_full[:16] if commit_full else "unknown"
+        porcelain = _run("status", "--porcelain")
+
+        staged: list[str] = []
+        unstaged: list[str] = []
+        untracked: list[str] = []
+        for line in porcelain.splitlines():
+            if len(line) < 2:
+                continue
+            xy = line[:2]
+            path = line[3:]
+            if xy[0] not in (" ", "?", "!"):
+                staged.append(path)
+            if xy[1] not in (" ", "?", "!"):
+                unstaged.append(path)
+            if xy == "??":
+                untracked.append(path)
+
+        return {
+            "branch": branch,
+            "commit": commit,
+            "staged_count": len(staged),
+            "unstaged_count": len(unstaged),
+            "untracked_count": len(untracked),
+            "clean": not (staged or unstaged or untracked),
+            "workspace": str(self.workspace),
+            "shell_access": "disabled; git is invoked with fixed read-only arguments only",
+        }
 
     @staticmethod
     def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:

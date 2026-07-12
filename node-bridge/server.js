@@ -1286,8 +1286,13 @@ app.get('/satellite/imagery', async (_req, res) => {
 
   // Try fetching NASA EONET events for live natural events
   let eonetEvents = [];
+  const eonetUrl = new URL('https://eonet.gsfc.nasa.gov/api/v3/events?limit=10&status=open');
+  if (!networkAllowed(eonetUrl)) {
+    recordRemoteAttempt(eonetUrl, false, 'blocked by network mode');
+    return res.json({ feeds, events: eonetEvents, network: 'blocked' });
+  }
+  recordRemoteAttempt(eonetUrl, true, 'satellite imagery request');
   try {
-    const eonetUrl = new URL('https://eonet.gsfc.nasa.gov/api/v3/events?limit=10&status=open');
     const eonetData = await new Promise((resolve, reject) => {
       const client = requestClientFor(eonetUrl);
       let body = '';

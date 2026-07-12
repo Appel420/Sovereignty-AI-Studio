@@ -279,6 +279,21 @@ RFC-0009 execution truth -> RFC-0010 artifact provenance -> bound artifact
 Artifact binding MUST NOT reconstruct, repair, substitute, synthesize
 identity, or emit an artifact from a rejected state.
 
+### Binding Order
+
+RFC-0010 implementations MUST preserve this authority sequence:
+
+```text
+schema validation
+  -> canonical serialization
+  -> hash derivation
+  -> binding verification
+  -> artifact emission
+```
+
+An invalid payload MUST NOT reach canonicalization or hashing. A binding that
+does not verify MUST NOT emit an artifact.
+
 ---
 
 ## RFC-0011 — Governance and Registry Authority
