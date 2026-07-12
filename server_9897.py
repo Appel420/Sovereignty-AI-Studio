@@ -6,13 +6,19 @@ Run: pip install fastapi uvicorn websockets && python server_9897.py
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn, datetime, hashlib, json, asyncio
+import asyncio
+import datetime
+import json
+import uuid
+from pathlib import Path
+import uvicorn
 from typing import List, Optional
 
 app = FastAPI(title="SuperGrok CI/CD Bridge", version="4.2.0")
 
 app.add_middleware(CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True,
+    allow_origins=["http://127.0.0.1:9898", "http://localhost:9898"],
+    allow_credentials=True,
     allow_methods=["*"], allow_headers=["*"])
 
 # Connected WebSocket clients
@@ -32,6 +38,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 build_logs: List[dict] = []
 start_time = datetime.datetime.now()
+REPOSITORY_ROOT = Path(__file__).resolve().parent
 
 class RunRequest(BaseModel):
     user: str = ""
@@ -64,46 +71,47 @@ async def status():
 @app.post("/build")
 async def build(req: RunRequest):
     entry = {
-        "id": f"BUILD-{hashlib.sha256(req.ts.encode()).hexdigest()[:8].upper()}",
+        "id": f"BUILD-{uuid.uuid4().hex[:8].upper()}",
         "triggered_by": req.user, "role": req.role,
         "ts": datetime.datetime.now().isoformat(), "status": "started"
     }
     build_logs.append(entry)
     await manager.broadcast({"type":"log","level":"info","msg":f"Build started by {req.user} ({req.role})"})
-    # Simulate build steps
+
     async def run_build():
-        await asyncio.sleep(0.5)
-        await manager.broadcast({"type":"log","level":"ok","msg":"SHA3-512 integrity check: PASS"})
-        await asyncio.sleep(0.3)
-        await manager.broadcast({"type":"log","level":"ok","msg":"Dilithium3 signature: VERIFIED"})
-        await asyncio.sleep(0.4)
-        await manager.broadcast({"type":"log","level":"ok","msg":"Q-RAC audit chain: INTACT"})
-        await asyncio.sleep(0.3)
-        await manager.broadcast({"type":"build_complete","status":"success","id":entry["id"]})
-        entry["status"] = "success"
+        process = await asyncio.create_subprocess_exec(
+            "bash", "scripts/local-ci.sh",
+            cwd=REPOSITORY_ROOT,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+        )
+        assert process.stdout is not None
+        async for line in process.stdout:
+            await manager.broadcast({
+                "type": "log",
+                "level": "info",
+                "msg": line.decode(errors="replace").rstrip(),
+            })
+        return_code = await process.wait()
+        entry["status"] = "success" if return_code == 0 else "failed"
+        entry["exit_code"] = return_code
+        await manager.broadcast({
+            "type": "build_complete",
+            "status": entry["status"],
+            "id": entry["id"],
+            "exit_code": return_code,
+        })
     asyncio.create_task(run_build())
     return {"triggered": True, "id": entry["id"], "by": req.user}
 
 @app.post("/test")
 async def run_tests(req: RunRequest = None):
     await manager.broadcast({"type":"log","level":"info","msg":"Test suite started"})
-    tests = [
-        ("Auth Flow", 12, 0), ("DDG Bridge", 8, 0), ("Role System", 14, 0),
-        ("Audit Chain", 9, 0), ("Voice Engine", 6, 0), ("CICD Port", 5, 1),
-        ("IndexedDB Vault", 8, 0), ("WebSocket", 4, 0)
-    ]
-    passed = sum(t[1] for t in tests)
-    failed = sum(t[2] for t in tests)
-    for name, p, f in tests:
-        await manager.broadcast({"type":"log","level":"ok" if f==0 else "err","msg":f"{name}: {p} passed, {f} failed"})
-        await asyncio.sleep(0.1)
-    await manager.broadcast({"type":"test_result","passed":passed,"failed":failed,"coverage":"94%"})
-    return {"passed": passed, "failed": failed, "coverage": "94%"}
+    return await build(req or RunRequest(trigger="test"))
 
 @app.post("/run")
 async def run_cmd(req: RunRequest):
-    await manager.broadcast({"type":"log","level":"info","msg":f"Command executed by {req.user}"})
-    return {"executed": True, "user": req.user, "ts": req.ts}
+    return {"executed": False, "reason": "Arbitrary commands are disabled. Use /build for local CI."}
 
 @app.get("/logs")
 async def get_logs(limit: int = 50):
@@ -141,4 +149,4 @@ if __name__ == "__main__":
     print("║  WebSocket: ws://localhost:9897/ws       ║")
     print("║  Health:    http://localhost:9897/health ║")
     print("╚══════════════════════════════════════════╝")
-    uvicorn.run(app, host="0.0.0.0", port=9897, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=9897, log_level="info")
