@@ -77,12 +77,14 @@ class TestJudgeAgent:
 # ── AIRouterAgent provider selection ─────────────────────────────────────────
 
 from agents.ai_router_agent.router import (
+    AIRouterAgent,
     _select_provider,
     _key_available,
     PROVIDER_OPENAI,
     PROVIDER_ANTHROPIC,
     PROVIDER_XAI,
 )
+import agents.ai_router_agent.router as router_module
 
 
 class TestAIRouterProviderSelection:
@@ -115,6 +117,80 @@ class TestAIRouterProviderSelection:
     def test_key_available_false(self, monkeypatch):
         monkeypatch.delenv("XAI_API_KEY", raising=False)
         assert _key_available(PROVIDER_XAI) is False
+
+
+class TestAIRouterAgent:
+    def setup_method(self):
+        self.judge = JudgeAgent()
+        self.agent = AIRouterAgent(self.judge)
+
+    @pytest.mark.asyncio
+    async def test_route_uses_preferred_provider_and_releases_lock(self, monkeypatch):
+        captured = {}
+
+        async def fake_call(prompt, system):
+            captured["prompt"] = prompt
+            captured["system"] = system
+            return "anthropic-result"
+
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("XAI_API_KEY", raising=False)
+        monkeypatch.setitem(router_module._PROVIDER_CALLERS, PROVIDER_ANTHROPIC, fake_call)
+
+        ok, result = await self.agent.route(
+            {"task_type": "analysis", "prompt": "summarise", "system": "system"}
+        )
+
+        assert ok is True
+        assert result == "anthropic-result"
+        assert captured == {"prompt": "summarise", "system": "system"}
+
+        approved, _ = await self.judge.approve_task(
+            "other_agent", {"resource": PROVIDER_ANTHROPIC}
+        )
+        assert approved is True
+
+    @pytest.mark.asyncio
+    async def test_route_rejects_when_judge_denies(self, monkeypatch):
+        called = False
+
+        async def fake_call(prompt, system):
+            nonlocal called
+            called = True
+            return "should-not-run"
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setitem(router_module._PROVIDER_CALLERS, PROVIDER_OPENAI, fake_call)
+
+        async def deny(agent_id, task):
+            return False, "locked"
+
+        monkeypatch.setattr(self.judge, "approve_task", deny)
+
+        ok, result = await self.agent.route({"task_type": "code", "prompt": "hi"})
+
+        assert ok is False
+        assert "Judge rejected task" in result
+        assert called is False
+
+    @pytest.mark.asyncio
+    async def test_route_releases_lock_after_provider_failure(self, monkeypatch):
+        async def boom(prompt, system):
+            raise RuntimeError("boom")
+
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        monkeypatch.setitem(router_module._PROVIDER_CALLERS, PROVIDER_OPENAI, boom)
+
+        ok, result = await self.agent.route({"task_type": "code", "prompt": "hi"})
+
+        assert ok is False
+        assert "Provider 'openai' error: boom" == result
+
+        approved, _ = await self.judge.approve_task(
+            "other_agent", {"resource": PROVIDER_OPENAI}
+        )
+        assert approved is True
 
 
 # ── PluginAgent ───────────────────────────────────────────────────────────────
@@ -231,6 +307,28 @@ class TestVoiceAssistAgent:
     async def test_help_command(self):
         resp = await self.agent.handle_command({"command": "help", "payload": {}})
         assert "voice commands" in resp["text"].lower()
+
+    @pytest.mark.asyncio
+    async def test_busy_judge_rejects_command(self, monkeypatch):
+        async def deny(agent_id, task):
+            return False, "locked"
+
+        monkeypatch.setattr(self.judge, "approve_task", deny)
+        dispatched = False
+
+        async def fake_dispatch(command, payload):
+            nonlocal dispatched
+            dispatched = True
+            return "should not happen"
+
+        monkeypatch.setattr(self.agent, "_dispatch", fake_dispatch)
+
+        resp = await self.agent.handle_command(
+            {"command": "help", "payload": {}}
+        )
+
+        assert resp["text"] == "Voice assistant busy: locked"
+        assert dispatched is False
 
 
 # ── EventBus ──────────────────────────────────────────────────────────────────
