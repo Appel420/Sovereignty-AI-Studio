@@ -26,7 +26,7 @@ def _load_oqs() -> object:
     the error is only raised when an actual signing operation is attempted.
     """
     try:
-        import oqs  # type: ignore[import-not-found, import-untyped]
+        import oqs  # type: ignore[import-untyped]
 
         return oqs
     except ImportError as error:
