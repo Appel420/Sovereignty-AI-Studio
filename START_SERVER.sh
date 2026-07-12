@@ -33,12 +33,8 @@ if [ ! -d "$NODE_BRIDGE_DIR/node_modules" ]; then
   echo "ERROR: Node bridge dependencies are not installed. Run ./INSTALL.sh first." >&2
   exit 1
 fi
-if [ -z "${SOVEREIGN_MODEL_PATH:-}" ] || [ ! -f "$SOVEREIGN_MODEL_PATH" ]; then
-  echo "ERROR: Set SOVEREIGN_MODEL_PATH to an existing local GGUF model; no model is simulated or downloaded at runtime." >&2
-  exit 1
-fi
-if ! "$PYTHON_BIN" -c "import llama_cpp, websockets" >/dev/null 2>&1; then
-  echo "ERROR: Local inference dependencies are missing. Run ./INSTALL.sh first." >&2
+if ! "$PYTHON_BIN" -c "import websockets" >/dev/null 2>&1; then
+  echo "ERROR: Python bridge dependencies are missing. Run ./INSTALL.sh first." >&2
   exit 1
 fi
 

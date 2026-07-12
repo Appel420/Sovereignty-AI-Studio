@@ -45,10 +45,10 @@ if (( OFFLINE )); then
 fi
 
 "$VENV_PYTHON" -m pip install "${PIP_ARGS[@]}" --upgrade pip
-"$VENV_PYTHON" -m pip install "${PIP_ARGS[@]}" -r requirements.txt
+"$VENV_PYTHON" -m pip install "${PIP_ARGS[@]}" -r requirements-runtime.txt
 npm ci "${NPM_ARGS[@]}" --ignore-scripts
 npm --prefix node-bridge ci "${NPM_ARGS[@]}" --ignore-scripts
 
-"$VENV_PYTHON" -c "import llama_cpp, websockets; print('Python runtime dependencies verified')"
+"$VENV_PYTHON" -c "import websockets; print('Python runtime dependencies verified')"
 node --check node-bridge/server.js
-echo "Installation complete. Set SOVEREIGN_MODEL_PATH to an existing local GGUF model, then run ./START_SERVER.sh."
+echo "Installation complete. Configure only an approved local inference provider, then run ./START_SERVER.sh."
