@@ -32,7 +32,7 @@ Flask==3.1.3
 
 # ── AI / Inference (local only) ────────────────────────────────────────────────
 numpy==1.26.4
-torch==2.12.0
+torch==2.12.1
 pennylane==0.44.1
 pyttsx3==2.90
 
