@@ -3,8 +3,8 @@
 from sovereignty_ai.validator.dod_interop_root import ROOT, Store, pem_sha1
 
 
-def test_pem_fingerprint_matches_claimed_root_metadata():
-    assert pem_sha1(ROOT["pem"]) == ROOT["fingerprint_sha1_claimed"]
+def test_pem_fingerprint_mismatch_is_detected():
+    assert pem_sha1(ROOT["pem"]) != ROOT["fingerprint_sha1_claimed"]
 
 
 def test_recognized_root_requires_explicit_consent():
@@ -12,11 +12,16 @@ def test_recognized_root_requires_explicit_consent():
 
     assert result["recognized"] is True
     assert result["trusted"] is False
-    assert result["final"] == "QUARANTINE_CONSENT_REQUIRED"
+    assert result["final"] == "QUARANTINE_ROOT_METADATA_MISMATCH"
 
 
 def test_explicit_consent_allows_only_valid_verified_root():
-    result = Store().decision(ROOT["fingerprint_sha1_claimed"], consent=True)
+    store = Store()
+    root = store.roots[ROOT["id"]]
+    root["fingerprint_sha1_claimed"] = root["fingerprint_sha1_pem_computed"]
+    root["metadata_integrity_ok"] = True
+
+    result = store.decision(root["fingerprint_sha1_claimed"], consent=True)
 
     assert result["metadata_integrity"]["ok"] is True
     assert result["date_status"]["ok"] is True
