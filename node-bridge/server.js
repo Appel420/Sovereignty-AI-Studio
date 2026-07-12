@@ -58,10 +58,16 @@ const SG_BRIDGE_HTTP_URL = (process.env.SG_BRIDGE_HTTP_URL || (SG_BRIDGE_URL ? S
 const TLS_CERT = process.env.TLS_CERT || '';
 const TLS_KEY = process.env.TLS_KEY || '';
 const UPSTREAM_DEFAULT_PORT = parseInt(process.env.UPSTREAM_DEFAULT_PORT || '9898', 10);
-const OFFLINE_MODE = process.env.SG_OFFLINE_MODE !== '0';
+const NETWORK_MODE = ['offline', 'hybrid', 'online'].includes(process.env.SG_NETWORK_MODE)
+  ? process.env.SG_NETWORK_MODE
+  : (process.env.SG_OFFLINE_MODE === '0' ? 'hybrid' : 'offline');
+const OFFLINE_MODE = NETWORK_MODE === 'offline';
 const REMOTE_NETWORK_ENABLED = process.env.SG_ENABLE_REMOTE_NETWORK === '1';
 const TLS_MODE = process.env.SG_TLS_MODE || 'local-ca';
 const REMOTE_AUDIT_LOG = [];
+const LOCAL_NETWORK_ALLOWLIST = new Set(
+  (process.env.SG_LOCAL_NETWORK_ALLOWLIST || '').split(',').map((host) => host.trim()).filter(Boolean),
+);
 
 function isLoopbackHost(hostname) {
   const host = String(hostname || '').toLowerCase().replace(/^\[|\]$/g, '');
@@ -71,7 +77,9 @@ function isLoopbackHost(hostname) {
 function networkAllowed(target) {
   try {
     const url = target instanceof URL ? target : new URL(target);
-    return isLoopbackHost(url.hostname) || (!OFFLINE_MODE && REMOTE_NETWORK_ENABLED);
+    if (isLoopbackHost(url.hostname)) return true;
+    if (NETWORK_MODE === 'hybrid') return LOCAL_NETWORK_ALLOWLIST.has(url.hostname);
+    return NETWORK_MODE === 'online' && REMOTE_NETWORK_ENABLED;
   } catch {
     return false;
   }
@@ -117,6 +125,7 @@ app.get('/health', (_req, res) => {
     backends: { api: BACKEND_URL, weather: WEATHER_URL, gateway: GATEWAY_URL },
     network: {
       offline_mode: OFFLINE_MODE,
+      network_mode: NETWORK_MODE,
       remote_network_enabled: REMOTE_NETWORK_ENABLED,
       tls_mode: TLS_MODE,
     },
@@ -127,10 +136,12 @@ app.get('/health', (_req, res) => {
 app.get('/api/network/status', (_req, res) => {
   res.json({
     offline_mode: OFFLINE_MODE,
+    network_mode: NETWORK_MODE,
     remote_network_enabled: REMOTE_NETWORK_ENABLED,
+    local_network_allowlist: [...LOCAL_NETWORK_ALLOWLIST],
     tls_mode: TLS_MODE,
     lets_encrypt: {
-      enabled: TLS_MODE === 'letsencrypt' && REMOTE_NETWORK_ENABLED,
+      enabled: TLS_MODE === 'letsencrypt' && NETWORK_MODE === 'online' && REMOTE_NETWORK_ENABLED,
       configured: Boolean(process.env.ACME_EMAIL && process.env.ACME_DOMAIN),
       note: 'ACME issuance requires an explicitly enabled Internet-connected public deployment.',
     },

@@ -57,6 +57,7 @@ describe('Node Bridge – Health', () => {
     const r = await request('/api/network/status');
     assert.equal(r.status, 200);
     assert.equal(r.body.offline_mode, true);
+    assert.equal(r.body.network_mode, 'offline');
     assert.equal(r.body.remote_network_enabled, false);
     assert.equal(r.body.tls_mode, 'local-ca');
   });
