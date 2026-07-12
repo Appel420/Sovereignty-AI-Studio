@@ -671,14 +671,18 @@ var _isLocalMode = function(){ var m=_cmode(); return m==='local'||m==='offline'
 
 function setConnected(yes, msg) {
 _connected = yes;
-/* Local mode: neutral blue bar, never red "Bridge offline" */
+/* Local mode: show mode label + any passed activity message (do NOT erase it).
+   This keeps the bar honest — loopback polls are still visible. */
 if(_isLocalMode()){
   if(bar) bar.style.background = '#1a3a5c';
-  if(txt) txt.textContent = '🏠 Local/Offline — no bridge required';
+  var localMsg = msg || '🏠 LOCAL — offline-first · loopback only';
+  if(txt) txt.textContent = localMsg;
   document.querySelectorAll('[id="bridgeStatus"],[id="ftBridge"]').forEach(function(el){
     el.textContent = 'LOCAL';
     el.style.color  = 'var(--cy,#00bcd4)';
   });
+  /* Emit to ops log so the activity is traceable */
+  if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode', 'bridge-status', localMsg, 'localhost');
   return;
 }
 if (bar) bar.style.background = yes ? 'var(--acid,#00ffc8)' : '#ff3d6e';
@@ -2246,19 +2250,27 @@ const BRIDGE = {
   },
 
   async pollHealth(){
+    var _mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
     try{
       // Try Python :9897 health (internal backend)
       let r;
       try {
         r = await new Promise(function(res){
           var _xhp=new XMLHttpRequest();
-          if(!_safeXhrOpen(_xhp,'GET','/api/health')){res({ok:false});return;}
+          if(!_safeXhrOpen(_xhp,'GET','/api/health')){res({ok:false,status:0});return;}
           _xhp.timeout=2000;
           _xhp.onload=function(){res({ok:_xhp.status<400,status:_xhp.status});}
-          _xhp.onerror=_xhp.ontimeout=function(){res({ok:false});}
+          _xhp.onerror=_xhp.ontimeout=function(){res({ok:false,status:0});}
           _xhp.send();
         });
-      } catch(e2) { r={ok:false}; }
+      } catch(e2) { r={ok:false,status:0}; }
+      /* Always emit to ops log — never hide loopback polls, even in local mode */
+      if(window.SG_OPS_LOG) SG_OPS_LOG.emit(
+        r.ok ? 'completed' : 'failed',
+        'health-poll',
+        'GET /api/health → '+(r.ok?'200 OK':'HTTP '+(r.status||'unreachable'))+' · mode:'+_mode,
+        'localhost:9899'
+      );
       if(r.ok){
         this.connected=true; this.lastPing=Date.now();
         if(ST && ST.cicd) ST.cicd.status = 'online';
@@ -2274,6 +2286,7 @@ const BRIDGE = {
     }catch(e){
       this.connected=false; if(ST && ST.cicd) ST.cicd.status = 'offline';
       this.updateUI('PORT 9897 OFFLINE','var(--am)');
+      if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','health-poll','GET /api/health → exception: '+e.message+' · mode:'+_mode,'localhost:9899');
     }
   },
 
@@ -3590,6 +3603,8 @@ PANEL_MAP.killswitch = function() { return renderKillswitch(); };
 PANEL_MAP.ids        = function() { return renderIDSPanel(); };
 PANEL_MAP.linearcard = function() { return renderLinearCard(); };
 PANEL_MAP.copilot_agent = function() { return renderCopilotAgent(); };
+/* Diagnostics / ops log panel — registered here so loadPanel('diagnostics') works */
+if(typeof PANELS !== 'undefined' && PANELS.diagnostics) PANEL_MAP.diagnostics = PANELS.diagnostics;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -4074,6 +4089,58 @@ console.log('%c Piper+KC+Merkle+Killswitch+DDQ+IDS+LinearCard+GitHub+BridgeCFG+Q
 </script>
 
 <script>
+/* ══ SG_OPS_LOG — Unified Operation Lifecycle Stream v1.0 ══
+   Captures all operations with timestamp, lifecycle state, subsystem, and provider.
+   States used: connecting · searching · waiting · generating · speaking · completed
+                cancelled · failed · health-poll · mode
+   Every entry is also mirrored to addAudit() and optionally shown in PANELS.diagnostics.
+*/
+(function(){
+'use strict';
+if(window.SG_OPS_LOG) return;
+var MAX_ENTRIES = 300;
+var _entries = [];
+var _listeners = [];
+
+function _ts(){
+  try{ return new Date().toISOString().slice(11,23); }catch(e){ return '??:??:??.???'; }
+}
+
+function emit(state, subsystem, detail, provider){
+  var entry = {
+    ts: _ts(),
+    wall: Date.now(),
+    state: String(state||'info'),
+    subsystem: String(subsystem||'system'),
+    detail: String(detail||''),
+    provider: String(provider||'—')
+  };
+  _entries.push(entry);
+  if(_entries.length > MAX_ENTRIES) _entries.shift();
+  // Mirror to audit chain so everything is traceable
+  try{
+    if(typeof window.addAudit === 'function'){
+      window.addAudit('OPS:'+entry.state.toUpperCase(), '['+entry.subsystem+'] '+(entry.provider!=='—'?'('+entry.provider+') ':'')+entry.detail);
+    }
+  }catch(_){}
+  // Notify live panel subscribers
+  for(var i=0;i<_listeners.length;i++){ try{_listeners[i](entry);}catch(_){} }
+  return entry;
+}
+
+window.SG_OPS_LOG = {
+  emit:    emit,
+  on:      function(fn){ _listeners.push(fn); },
+  off:     function(fn){ _listeners=_listeners.filter(function(f){return f!==fn;}); },
+  entries: function(){ return _entries.slice(); },
+  last:    function(n){ return _entries.slice(-(n||20)); },
+  clear:   function(){ _entries=[]; }
+};
+console.log('%c[SG_OPS_LOG] Lifecycle stream active (max '+MAX_ENTRIES+' entries)', 'color:#00ffc8;font-size:9px');
+})();
+</script>
+
+<script>
 /* ══ PIPER ══ */
 try {
 
@@ -4133,16 +4200,32 @@ try {
     if (typeof AIVoice !== 'undefined' && !AIVoice.enabled) return;
     if (!text || !text.trim()) return;
 
-    // Try Piper bridge first
+    // Try Piper bridge first (offline, on-device, port 9899)
     var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
     if (bridgeOk) {
       var rid = Date.now();
       try {
         PiperTTS.ws.send(JSON.stringify({ type: 'piper_speak', text: text, requestId: rid }));
+        /* Emit lifecycle event — engine is Piper (local bridge) */
+        if(window.SG_OPS_LOG) SG_OPS_LOG.emit('speaking','TTS',
+          'Piper TTS (port 9899): "'+text.slice(0,60)+(text.length>60?'…':'')+'"',
+          'Piper TTS — bridge ws:9899');
         return; // bridge handles it — no browser TTS needed
-      } catch(e) {}
+      } catch(e) {
+        /* Piper bridge WS send failed — fall through to browser */
+        if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','TTS',
+          'Piper send error: '+e.message+' — falling back to browser voice',
+          'Piper TTS — bridge ws:9899');
+      }
     }
     // Fallback: browser Web Speech API (on-device, no network)
+    var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
+    var _reason = bridgeOk
+      ? 'Piper send failed'
+      : 'Piper bridge not connected (ws readyState=' + _wsState + ')';
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('speaking','TTS',
+      'WebSpeech API fallback ['+_reason+']: "'+text.slice(0,60)+(text.length>60?'…':'')+'"',
+      'Web Speech API (browser built-in)');
     if (_origSpeak2) { _origSpeak2(text); return; }
     if (_nativeSynth) {
       _nativeSynth.cancel();
@@ -7672,6 +7755,86 @@ return hdr('\ud83c\udfa4 Voice Stack','On-Device \u00b7 Zero Cloud \u00b7 Picovo
 '</div>' +
 '</div>';
 };
+
+/* ══ DIAGNOSTICS PANEL — Live Operations / Process Log ══
+   Shows all lifecycle events from SG_OPS_LOG:
+   health polls, TTS engine selection, STT routing, vision analysis,
+   mode changes, and bridge status — nothing hidden.
+*/
+PANELS.diagnostics = function() {
+var _ops = (window.SG_OPS_LOG ? window.SG_OPS_LOG.last(80) : []).reverse();
+var _mode = (function(){ try{return localStorage.getItem('sgh_mode')||'local';}catch(e){return 'local';} })();
+var _ai   = (function(){ try{return localStorage.getItem('sgh_ai')||'—';}catch(e){return '—';} })();
+var bridgeWs   = (typeof PiperTTS!=='undefined'&&PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
+var bridgeLive = (typeof BRIDGE!=='undefined'&&BRIDGE.connected);
+var piperLive  = (typeof PiperTTS!=='undefined'&&PiperTTS.ready);
+var STATE_COLORS = {
+  completed:'#22c55e', speaking:'#00ffc8', connecting:'#f59e0b',
+  generating:'#a78bfa', searching:'#38bdf8', waiting:'#94a3b8',
+  failed:'#ef4444', cancelled:'#6b7280', mode:'#00bcd4', 'health-poll':'#3a5980', info:'#94a3b8'
+};
+function stateColor(s){ return STATE_COLORS[s] || '#94a3b8'; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+var rows = _ops.map(function(e){
+  var c = stateColor(e.state);
+  return '<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:8px;line-height:1.5">' +
+    '<span style="color:#3a5980;flex-shrink:0;width:72px;font-family:var(--mono)">'+esc(e.ts)+'</span>' +
+    '<span style="color:'+c+';flex-shrink:0;width:70px;font-family:var(--mono);font-weight:700">'+esc(e.state.toUpperCase())+'</span>' +
+    '<span style="color:#7c8fa8;flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.subsystem)+'">'+esc(e.subsystem)+'</span>' +
+    '<span style="color:var(--tx);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+esc(e.detail)+'">'+esc(e.detail)+'</span>' +
+    '<span style="color:#7c4dff;flex-shrink:0;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px" title="'+esc(e.provider)+'">'+esc(e.provider)+'</span>' +
+    '</div>';
+}).join('');
+
+return hdr('\ud83d\udd0e Diagnostics', 'Live Ops Log \u00b7 Network \u00b7 Voice \u00b7 Image \u00b7 Bridge \u00b7 Nothing Hidden') +
+/* ── Status summary ── */
+'<div class="kgrid">' +
+'<div class="kc"><div class="kv" style="color:'+((_mode==='local'||_mode==='offline')?'var(--cy)':(_mode==='hybrid'?'var(--am)':'var(--gn)'))+'">'+_mode.toUpperCase()+'</div><div class="kl">Mode</div></div>' +
+'<div class="kc"><div class="kv" style="color:'+(bridgeLive?'var(--gn)':'var(--rd)')+'">'+(bridgeLive?'LIVE':'OFFLINE')+'</div><div class="kl">Bridge 9897</div></div>' +
+'<div class="kc"><div class="kv" style="color:'+(piperLive?'var(--gn)':'var(--am)')+'">'+(piperLive?'READY':'OFF')+'</div><div class="kl">Piper TTS</div></div>' +
+'<div class="kc"><div class="kv" style="color:var(--cy)">'+_ai.toUpperCase()+'</div><div class="kl">AI Provider</div></div>' +
+'</div>' +
+/* ── Controls ── */
+'<div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.SG_OPS_LOG)SG_OPS_LOG.clear();loadPanel(\'diagnostics\')">🗑 Clear Log</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="loadPanel(\'diagnostics\')">↻ Refresh</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.BRIDGE)BRIDGE.pollHealth()">⬡ Poll /api/health</button>' +
+'<button class="btn-s" style="font-size:8px" onclick="if(window.PiperTTS)PiperTTS.checkStatus()">🎤 Piper Status</button>' +
+'</div>' +
+/* ── Column headers ── */
+'<div style="display:flex;gap:6px;padding:3px 0;margin-bottom:2px;font-size:7px;font-family:var(--mono);color:#3a5980;border-bottom:1px solid rgba(255,255,255,.1)">' +
+'<span style="width:72px">TIME</span>' +
+'<span style="width:70px">STATE</span>' +
+'<span style="width:80px">SUBSYSTEM</span>' +
+'<span style="flex:1">DETAIL</span>' +
+'<span style="width:110px;margin-left:4px">PROVIDER</span>' +
+'</div>' +
+/* ── Log entries ── */
+'<div id="sg-ops-log-panel" style="background:rgba(0,0,0,.4);border:1px solid var(--bd2);border-radius:6px;padding:8px;font-family:var(--mono);max-height:400px;overflow-y:auto">' +
+(rows || '<div style="color:#3a5980;font-size:9px">No events yet — operations will appear here in real time.</div>') +
+'</div>' +
+/* ── Live update wiring ── */
+'<script>(function(){' +
+'var _pan = document.getElementById("sg-ops-log-panel");' +
+'if(!_pan||!window.SG_OPS_LOG)return;' +
+'function _addRow(e){' +
+'var STATE_C={"completed":"#22c55e","speaking":"#00ffc8","connecting":"#f59e0b","generating":"#a78bfa","searching":"#38bdf8","waiting":"#94a3b8","failed":"#ef4444","cancelled":"#6b7280","mode":"#00bcd4","health-poll":"#3a5980","info":"#94a3b8"};' +
+'var c=STATE_C[e.state]||"#94a3b8";' +
+'function es(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}' +
+'var d=document.createElement("div");' +
+'d.style.cssText="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:8px;line-height:1.5";' +
+'d.innerHTML=\'<span style="color:#3a5980;flex-shrink:0;width:72px;font-family:monospace">\'+es(e.ts)+\'</span>\'+\'<span style="color:\'+c+\';flex-shrink:0;width:70px;font-family:monospace;font-weight:700">\'+es(e.state.toUpperCase())+\'</span>\'+\'<span style="color:#7c8fa8;flex-shrink:0;width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\'+es(e.subsystem)+\'">\'+es(e.subsystem)+\'</span>\'+\'<span style="color:var(--tx,#e2e8f0);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\'+es(e.detail)+\'">\'+es(e.detail)+\'</span>\'+\'<span style="color:#7c4dff;flex-shrink:0;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-left:4px" title="\'+es(e.provider)+\'">\'+es(e.provider)+\'</span>\';' +
+'_pan.insertBefore(d,_pan.firstChild);' +
+'while(_pan.children.length>100)_pan.removeChild(_pan.lastChild);' +
+'}' +
+'window.SG_OPS_LOG.on(_addRow);' +
+'window._sgOpsCleanup=window._sgOpsCleanup||[];window._sgOpsCleanup.push(function(){window.SG_OPS_LOG.off(_addRow);});' +
+'})()\u003c/script>';
+};
+
+/* Register diagnostics panel with PANEL_MAP (deferred — defined after PANEL_MAP block) */
+if(typeof PANEL_MAP !== 'undefined') PANEL_MAP.diagnostics = PANELS.diagnostics;
 
 PANELS.screen=function(){
 return hdr('\ud83d\udcfa Screen Share','On-Device Only \u00b7 getDisplayMedia \u00b7 Never Uploads Without Permission \u00b7 AI Analysis')+
@@ -14280,18 +14443,29 @@ var statusEl = document.getElementById('vc-wsp');
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 if (bridgeOk) {
 try {
-PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base', lang: document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en'}));
+var sttModel = document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base';
+var sttLang = document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en';
+PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: sttModel, lang: sttLang}));
 if (statusEl) statusEl.textContent = 'LISTENING';
-sttLog('# Faster-Whisper listening via bridge...');
+sttLog('# Engine: Whisper STT (bridge port 9897) · model:'+sttModel+' lang:'+sttLang);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','Whisper STT via bridge (port 9897) · model:'+sttModel+' lang:'+sttLang,'Faster-Whisper — bridge ws:9897');
 window._sttBridgeMode = true;
 playTone('wake', 0.3);
 return;
-} catch(e) {}
+} catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','Whisper bridge send failed: '+e.message+' — falling back to WebSpeech','Faster-Whisper — bridge ws:9897');
+}
 }
 /* Fallback: Web Speech API (on-device) */
 window._sttBridgeMode = false;
+var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) { sttLog('# STT not available — start bridge or use Chrome/Safari'); return; }
+if (!SR) {
+sttLog('# STT not available — start bridge (port 9897) or use Chrome/Safari');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','No STT engine available — bridge not connected (ws readyState='+_wsState+') and browser lacks SpeechRecognition','none');
+return;
+}
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','WebSpeech API fallback [bridge not connected ws readyState='+_wsState+']','Web Speech API (browser built-in)');
 _sttRec = new SR();
 _sttRec.continuous = true;
 _sttRec.interimResults = true;
@@ -14306,11 +14480,15 @@ else interim += e.results[i][0].transcript;
 if (final) { _sttTranscript += final; sttLog(_sttTranscript.trim()); }
 else if (interim) sttLog(_sttTranscript + ' [' + interim + ']');
 };
-_sttRec.onerror = function(e) { sttLog('# STT error: ' + e.error); playTone('err', 0.3); };
+_sttRec.onerror = function(e) {
+sttLog('# STT error: ' + e.error);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','WebSpeech error: '+e.error,'Web Speech API (browser built-in)');
+playTone('err', 0.3);
+};
 _sttRec.onend = function() { if (statusEl) statusEl.textContent = 'IDLE'; };
 _sttRec.start();
 if (statusEl) statusEl.textContent = 'WEB STT';
-sttLog('# Web Speech API listening (on-device)...');
+sttLog('# Engine: Web Speech API (browser on-device) — Whisper bridge not available');
 playTone('wake', 0.3);
 }
 
@@ -17548,9 +17726,16 @@ if (!window._lastSnapshot) { window.toast && window.toast('Take a snapshot first
 if (out) { out.style.display='block'; out.textContent='\u23f3 Analyzing screenshot...'; }
 var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyState===1;
 if (bridgeOk) {
-try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
+try {
+var _imgAI = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('generating','vision-analysis','AI vision via bridge (ws:9897) · provider:'+_imgAI+' · prompt:"'+String(prompt).slice(0,60)+'"','bridge-ai ('+_imgAI+' via /api/ai)');
+PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge send error: '+e.message,'bridge-ai');
 }
-if (out) out.textContent='Bridge offline. Connect 127.0.0.1:9897 for AI vision analysis.';
+}
+var _imgAI2 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if (out) out.textContent='Bridge offline — connect 127.0.0.1:9897 for AI vision analysis (provider: '+_imgAI2+').';
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge not connected (ws readyState='+(typeof PiperTTS!=='undefined'&&PiperTTS.ws?PiperTTS.ws.readyState:'none')+')','bridge-ai ('+_imgAI2+')');
 }
 };
 
@@ -19369,18 +19554,29 @@ var statusEl = document.getElementById('vc-wsp');
 var bridgeOk = (typeof PiperTTS !== 'undefined') && PiperTTS.ws && PiperTTS.ws.readyState === 1;
 if (bridgeOk) {
 try {
-PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base', lang: document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en'}));
+var sttModel = document.getElementById('vc-wsp-model') ? document.getElementById('vc-wsp-model').value : 'base';
+var sttLang = document.getElementById('vc-wsp-lang') ? document.getElementById('vc-wsp-lang').value : 'en';
+PiperTTS.ws.send(JSON.stringify({type:'stt_start', model: sttModel, lang: sttLang}));
 if (statusEl) statusEl.textContent = 'LISTENING';
-sttLog('# Faster-Whisper listening via bridge...');
+sttLog('# Engine: Whisper STT (bridge port 9897) · model:'+sttModel+' lang:'+sttLang);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','Whisper STT via bridge (port 9897) · model:'+sttModel+' lang:'+sttLang,'Faster-Whisper — bridge ws:9897');
 window._sttBridgeMode = true;
 playTone('wake', 0.3);
 return;
-} catch(e) {}
+} catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','Whisper bridge send failed: '+e.message+' — falling back to WebSpeech','Faster-Whisper — bridge ws:9897');
+}
 }
 /* Fallback: Web Speech API (on-device) */
 window._sttBridgeMode = false;
+var _wsState = (typeof PiperTTS !== 'undefined' && PiperTTS.ws) ? PiperTTS.ws.readyState : -1;
 var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (!SR) { sttLog('# STT not available — start bridge or use Chrome/Safari'); return; }
+if (!SR) {
+sttLog('# STT not available — start bridge (port 9897) or use Chrome/Safari');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','No STT engine available — bridge not connected (ws readyState='+_wsState+') and browser lacks SpeechRecognition','none');
+return;
+}
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('connecting','STT','WebSpeech API fallback [bridge not connected ws readyState='+_wsState+']','Web Speech API (browser built-in)');
 _sttRec = new SR();
 _sttRec.continuous = true;
 _sttRec.interimResults = true;
@@ -19395,11 +19591,15 @@ else interim += e.results[i][0].transcript;
 if (final) { _sttTranscript += final; sttLog(_sttTranscript.trim()); }
 else if (interim) sttLog(_sttTranscript + ' [' + interim + ']');
 };
-_sttRec.onerror = function(e) { sttLog('# STT error: ' + e.error); playTone('err', 0.3); };
+_sttRec.onerror = function(e) {
+sttLog('# STT error: ' + e.error);
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','STT','WebSpeech error: '+e.error,'Web Speech API (browser built-in)');
+playTone('err', 0.3);
+};
 _sttRec.onend = function() { if (statusEl) statusEl.textContent = 'IDLE'; };
 _sttRec.start();
 if (statusEl) statusEl.textContent = 'WEB STT';
-sttLog('# Web Speech API listening (on-device)...');
+sttLog('# Engine: Web Speech API (browser on-device) — Whisper bridge not available');
 playTone('wake', 0.3);
 }
 
@@ -22021,9 +22221,16 @@ if (!window._lastSnapshot) { window.toast && window.toast('Take a snapshot first
 if (out) { out.style.display='block'; out.textContent='\u23f3 Analyzing screenshot...'; }
 var bridgeOk=(typeof PiperTTS!=='undefined')&&PiperTTS.ws&&PiperTTS.ws.readyState===1;
 if (bridgeOk) {
-try { PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {}
+try {
+var _imgAI3 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('generating','vision-analysis','AI vision via bridge (ws:9897) · provider:'+_imgAI3+' · prompt:"'+String(prompt).slice(0,60)+'"','bridge-ai ('+_imgAI3+' via /api/ai)');
+PiperTTS.ws.send(JSON.stringify({type:'vision_analyze',image:window._lastSnapshot,prompt:prompt,context:'sc_analyze'})); return; } catch(e) {
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge send error: '+e.message,'bridge-ai');
 }
-if (out) out.textContent='Bridge offline. Connect 127.0.0.1:9897for AI vision analysis.';
+}
+var _imgAI4 = (window._sgAI || (typeof localStorage !== 'undefined' && localStorage.getItem('sgh_ai')) || 'ai-bridge');
+if (out) out.textContent='Bridge offline — connect 127.0.0.1:9897 for AI vision analysis (provider: '+_imgAI4+').';
+if(window.SG_OPS_LOG) SG_OPS_LOG.emit('failed','vision-analysis','Bridge not connected','bridge-ai ('+_imgAI4+')');
 }
 };
 
@@ -27486,6 +27693,7 @@ console.log('%c[Sovereign Patch v3.2] BRIDGE HTTP active → 127.0.0.1:9897','co
     p.style.maxHeight=open?'0':'340px';}
   ">🔑</button>
   <button class="sg-bar-btn" onclick="window.BRIDGE&&BRIDGE.health().then(function(ok){if(window.toast)toast(ok?'Bridge live':'Bridge offline',ok?'ok':'err')})">PING</button>
+  <button class="sg-bar-btn" id="sgb-ops" onclick="window.loadPanel&&loadPanel('diagnostics')" title="Live operations / process log — nothing hidden">OPS</button>
   <span id="sgb-status" class="sg-bar-label" style="color:#00ffc8;min-width:60px">●</span>
 </div>
 <!-- bar state moved to SovereignBarAndPiPFix -->
@@ -27702,6 +27910,8 @@ function wireBar(){
     var st = document.getElementById('sgb-status'); if(st) st.textContent = '● ' + mode.toUpperCase();
     if(window.toast) toast('Mode: ' + mode.toUpperCase(), 'ok');
     if(window.SG && SG.setMode) SG.setMode(mode);
+    /* Emit mode transition to ops log so it is always visible */
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode','dashboard','Mode changed to '+mode.toUpperCase(),mode);
     /* Notify bridge singleton so it adjusts retry behavior */
     try { document.dispatchEvent(new CustomEvent('sg:modeChanged', {detail:{mode:mode}})); } catch(e){}
     console.log('[Bar] mode →', mode);
@@ -27712,6 +27922,8 @@ function wireBar(){
     var mapped = ai === 'local' ? 'local-ai' : ai;
     setActive('sgb', ['claude','gpt','grok','local-ai'], mapped);
     if(window.toast) toast('AI: ' + ai.toUpperCase(), 'ok');
+    /* Emit AI provider selection to ops log */
+    if(window.SG_OPS_LOG) SG_OPS_LOG.emit('mode','dashboard','AI provider changed to '+ai.toUpperCase(),ai);
     console.log('[Bar] AI →', ai);
   }
 
@@ -27731,8 +27943,10 @@ function wireBar(){
         if(id === 'sgb-grok')     { handleAI('grok');     return; }
         if(id === 'sgb-local-ai') { handleAI('local');    return; }
         if(id === 'sgb-bugs')     { window.SovereignBugHunter && SovereignBugHunter.open(); return; }
+        if(id === 'sgb-ops')      { window.loadPanel && loadPanel('diagnostics'); return; }
         if(t.textContent.trim() === 'KEYS')  { window.showKeys && showKeys(); return; }
         if(t.textContent.trim() === 'PING')  { window.BRIDGE && BRIDGE.health && BRIDGE.health().then(function(ok){ toast(ok?'Bridge live':'Bridge offline — run python bridge.py', ok?'ok':'err'); }); return; }
+        if(t.textContent.trim() === 'OPS')   { window.loadPanel && loadPanel('diagnostics'); return; }
       }
       t = t.parentElement;
     }
