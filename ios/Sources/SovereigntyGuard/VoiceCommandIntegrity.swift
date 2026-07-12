@@ -23,6 +23,7 @@ import CryptoKit
 
 public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unchecked Sendable {
     public static let shared = VoiceCommandIntegrity()
+    public static let listeningStateDidChange = Notification.Name("VoiceCommandIntegrityListeningStateDidChange")
 
     private let speechRecognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-US"))!
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
@@ -119,6 +120,7 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
             inputNode.removeTap(onBus: 0)
             return .unavailable("Microphone could not start. Check microphone permission.")
         }
+        publishListeningState(true)
         return .started
     }
 
@@ -130,6 +132,7 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         recognitionTask?.cancel()
         activationCount = 0
         isListeningForActivation = true
+        publishListeningState(false)
     }
 
     private func processTranscription(_ transcription: String) {
@@ -180,6 +183,16 @@ public class VoiceCommandIntegrity: NSObject, SFSpeechRecognizerDelegate, @unche
         if audioEngine.isRunning {
             stopListening()
             startListening()
+        }
+    }
+
+    private func publishListeningState(_ isListening: Bool) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: Self.listeningStateDidChange,
+                object: self,
+                userInfo: ["isListening": isListening]
+            )
         }
     }
 

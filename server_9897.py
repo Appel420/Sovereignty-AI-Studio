@@ -3,7 +3,7 @@
 SuperGrok 4.2 CI/CD Bridge — Port 9897
 Run: pip install fastapi uvicorn websockets && python server_9897.py
 """
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import asyncio
@@ -39,6 +39,7 @@ manager = ConnectionManager()
 build_logs: List[dict] = []
 start_time = datetime.datetime.now()
 REPOSITORY_ROOT = Path(__file__).resolve().parent
+build_running = False
 
 class RunRequest(BaseModel):
     user: str = ""
@@ -69,7 +70,12 @@ async def status():
     }
 
 @app.post("/build")
-async def build(req: RunRequest):
+async def build(req: RunRequest, is_test: bool = False):
+    global build_running
+    if build_running:
+        raise HTTPException(status_code=409, detail="A local CI run is already in progress.")
+
+    build_running = True
     entry = {
         "id": f"BUILD-{uuid.uuid4().hex[:8].upper()}",
         "triggered_by": req.user, "role": req.role,
@@ -79,35 +85,45 @@ async def build(req: RunRequest):
     await manager.broadcast({"type":"log","level":"info","msg":f"Build started by {req.user} ({req.role})"})
 
     async def run_build():
-        process = await asyncio.create_subprocess_exec(
-            "bash", "scripts/local-ci.sh",
-            cwd=REPOSITORY_ROOT,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.STDOUT,
-        )
-        assert process.stdout is not None
-        async for line in process.stdout:
+        global build_running
+        try:
+            process = await asyncio.create_subprocess_exec(
+                "bash", "scripts/local-ci.sh",
+                cwd=REPOSITORY_ROOT,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+            assert process.stdout is not None
+            async for line in process.stdout:
+                await manager.broadcast({
+                    "type": "log",
+                    "level": "info",
+                    "msg": line.decode(errors="replace").rstrip(),
+                })
+            return_code = await process.wait()
+            entry["status"] = "success" if return_code == 0 else "failed"
+            entry["exit_code"] = return_code
             await manager.broadcast({
-                "type": "log",
-                "level": "info",
-                "msg": line.decode(errors="replace").rstrip(),
+                "type": "build_complete",
+                "status": entry["status"],
+                "id": entry["id"],
+                "exit_code": return_code,
             })
-        return_code = await process.wait()
-        entry["status"] = "success" if return_code == 0 else "failed"
-        entry["exit_code"] = return_code
-        await manager.broadcast({
-            "type": "build_complete",
-            "status": entry["status"],
-            "id": entry["id"],
-            "exit_code": return_code,
-        })
+            if is_test:
+                await manager.broadcast({
+                    "type": "test_result",
+                    "passed": 1 if return_code == 0 else 0,
+                    "failed": 0 if return_code == 0 else 1,
+                })
+        finally:
+            build_running = False
     asyncio.create_task(run_build())
     return {"triggered": True, "id": entry["id"], "by": req.user}
 
 @app.post("/test")
 async def run_tests(req: RunRequest = None):
     await manager.broadcast({"type":"log","level":"info","msg":"Test suite started"})
-    return await build(req or RunRequest(trigger="test"))
+    return await build(req or RunRequest(trigger="test"), is_test=True)
 
 @app.post("/run")
 async def run_cmd(req: RunRequest):

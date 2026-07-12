@@ -8,6 +8,7 @@ import UIKit
 #endif
 import SwiftUI
 import CryptoKit
+import Combine
 
 public struct ContentView: View {
     @State private var chainStatus = "🔴 OFFLINE"
@@ -65,6 +66,16 @@ public struct ContentView: View {
             .navigationTitle("Sovereignty Guard")
             .onAppear {
                 chainStatus = verifyHardware() ? "🟢 LIVE" : "🔴 OFFLINE"
+            }
+            .onReceive(NotificationCenter.default.publisher(
+                for: VoiceCommandIntegrity.listeningStateDidChange,
+                object: VoiceCommandIntegrity.shared
+            )) { notification in
+                let isListening = notification.userInfo?["isListening"] as? Bool ?? false
+                voiceIsListening = isListening
+                voiceStatus = isListening
+                    ? "Listening with the installed on-device speech model"
+                    : "Voice commands are off"
             }
         }
     }

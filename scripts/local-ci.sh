@@ -40,16 +40,9 @@ else
 fi
 echo
 
-# 4. Local OAuth generator hook. This is intentionally local-only.
-# Set LOCAL_OAUTH_GENERATOR to your local script path if it differs.
-LOCAL_OAUTH_GENERATOR="${LOCAL_OAUTH_GENERATOR:-scripts/oauth-local-generator.sh}"
+# 4. Run the repository-owned OAuth generator without any remote provider.
 echo "-- local OAuth generator"
-if [[ -x "$LOCAL_OAUTH_GENERATOR" ]]; then
-  "$LOCAL_OAUTH_GENERATOR" --dry-run --report "$REPORT_DIR/oauth-local-report.json" || true
-else
-  echo "skip: no executable local OAuth generator at $LOCAL_OAUTH_GENERATOR"
-  echo "{\"status\":\"skipped\",\"reason\":\"local OAuth generator not configured\"}" > "$REPORT_DIR/oauth-local-report.json"
-fi
+python3 scripts/oauth_local_generator.py --dry-run --report "$REPORT_DIR/oauth-local-report.json"
 echo
 
 # 5. SBOM hook. Prefer local tools. Do not call SaaS scanners by default.
