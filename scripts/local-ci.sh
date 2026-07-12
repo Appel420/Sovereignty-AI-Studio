@@ -77,6 +77,10 @@ echo "-- Local control-plane tests"
 python3 -m pytest tests/test_local_control_plane.py
 echo
 
+echo "-- OAuth local generator tests"
+python3 -m pytest tests/test_oauth_local_generator.py -v
+echo
+
 if [[ "$(uname -s)" == "Darwin" ]]; then
   echo "-- iPhone package build"
   swift build --package-path ios
