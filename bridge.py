@@ -22,13 +22,18 @@ import time
 import urllib.request
 
 try:
-    import websockets
-    from websockets.server import serve
-
-    WS_OK = True
+    from websockets.asyncio.server import serve
 except ImportError:
+    try:
+        from websockets.server import serve
+    except ImportError:
+        serve = None
+
+if serve is None:
     WS_OK = False
     print("WARNING: websockets not installed. Run: pip3 install websockets")
+else:
+    WS_OK = True
 
 PORT = int(os.environ.get("SG_PORT", 9897))
 HOST = os.environ.get("SG_HOST", "localhost")
@@ -449,7 +454,13 @@ class BridgeServer:
                     log.debug("Unhandled message type: %s", mtype)
 
         except Exception as e:
-            log.warning("Client %s error: %s", addr, e)
+            # BrokenPipeError / ConnectionResetError are normal client-disconnect
+            # events (e.g. browser tab closed mid-poll).  Log at DEBUG so they
+            # do not pollute the terminal as misleading "errors".
+            if isinstance(e, (BrokenPipeError, ConnectionResetError)):
+                log.debug("Client %s disconnected mid-stream: %s", addr, type(e).__name__)
+            else:
+                log.warning("Client %s error: %s", addr, e)
         finally:
             self.clients.discard(ws)
             log.info("Client disconnected: %s | total=%s", addr, len(self.clients))
@@ -520,4 +531,3 @@ if __name__ == "__main__":
         asyncio.run(_main())
     except KeyboardInterrupt:
         print("\nBridge stopped.")
-

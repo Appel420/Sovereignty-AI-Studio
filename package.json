@@ -2,12 +2,13 @@
   "name": "supergrok-unified",
   "version": "13.1.0",
   "description": "SuperGrok Enterprise — Unified Server",
-  "main": "unified_server.js",
+  "main": "node-bridge/server.js",
   "scripts": {
-    "start": "node unified_server.js",
-    "dev": "VERBOSE=1 node unified_server.js",
-    "shell": "ALLOW_SHELL=1 node unified_server.js",
-    "check": "node --check unified_server.js && echo OK",
+    "start": "node node-bridge/server.js",
+    "dev": "VERBOSE=1 node node-bridge/server.js",
+    "shell": "ALLOW_SHELL=1 node node-bridge/server.js",
+    "check": "node --check node-bridge/server.js && echo OK",
+    "test:memory-vault": "node tests/test_sovereign_memory_vault.js",
     "keygen": "node -e \"const k=require('crypto').randomBytes(64);require('fs').writeFileSync('.sg_master_key',k,{mode:0o600});console.log('MASTER_KEY_B64='+k.toString('base64'));\""
   },
   "engines": {

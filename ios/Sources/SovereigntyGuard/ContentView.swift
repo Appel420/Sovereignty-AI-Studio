@@ -8,9 +8,12 @@ import UIKit
 #endif
 import SwiftUI
 import CryptoKit
+import Combine
 
 public struct ContentView: View {
     @State private var chainStatus = "🔴 OFFLINE"
+    @State private var voiceStatus = "Voice commands are off"
+    @State private var voiceIsListening = false
 
     public init() {}
 
@@ -38,10 +41,41 @@ public struct ContentView: View {
                 .tint(.red)
                 .foregroundColor(.white)
                 .disabled(chainStatus != "🟢 LIVE")
+
+                Button(voiceIsListening ? "Stop Local Voice Commands" : "Start Local Voice Commands") {
+                    if voiceIsListening {
+                        VoiceCommandIntegrity.shared.stopListening()
+                        voiceIsListening = false
+                        voiceStatus = "Voice commands are off"
+                    } else {
+                        switch VoiceCommandIntegrity.shared.startListening() {
+                        case .started:
+                            voiceIsListening = true
+                            voiceStatus = "Listening with the installed on-device speech model"
+                        case .unavailable(let message):
+                            voiceStatus = message
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+
+                Text(voiceStatus)
+                    .font(.footnote)
+                    .multilineTextAlignment(.center)
             }
             .navigationTitle("Sovereignty Guard")
             .onAppear {
                 chainStatus = verifyHardware() ? "🟢 LIVE" : "🔴 OFFLINE"
+            }
+            .onReceive(NotificationCenter.default.publisher(
+                for: VoiceCommandIntegrity.listeningStateDidChange,
+                object: VoiceCommandIntegrity.shared
+            )) { notification in
+                let isListening = notification.userInfo?["isListening"] as? Bool ?? false
+                voiceIsListening = isListening
+                voiceStatus = isListening
+                    ? "Listening with the installed on-device speech model"
+                    : "Voice commands are off"
             }
         }
     }

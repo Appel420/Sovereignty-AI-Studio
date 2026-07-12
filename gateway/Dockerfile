@@ -11,8 +11,8 @@ COPY plugin_sdk/ ./plugin_sdk/
 COPY gateway/ ./gateway/
 
 ENV PLUGIN_SDK_DIR=/app/plugin_sdk
-ENV GATEWAY_PORT=9898
+ENV GATEWAY_PORT=9001
 
-EXPOSE 9898
+EXPOSE 9001
 
 CMD ["python", "-m", "gateway.main"]

@@ -1,0 +1,54 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module": ["<SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module>"]
+  "main": ["<SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module>"]
+  "test": ["<SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module>"]
+default: "main"
+nodes:
+  "/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/SovereigntyGuard.swiftmodule.o":
+    tool: shell
+    inputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules/SovereigntyGuard.swiftmodule"]
+    outputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/SovereigntyGuard.swiftmodule.o"]
+    description: "Wrapping AST for SovereigntyGuard for debugging"
+    args: ["/usr/share/swift/usr/bin/swiftc","-modulewrap","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules/SovereigntyGuard.swiftmodule","-o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/SovereigntyGuard.swiftmodule.o","-target","x86_64-unknown-linux-gnu"]
+
+  "/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/AuditLogger.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/ContentView.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/DebuggerDetection.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/FamilyGuardCore.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/SovereigntyAPIClient.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/VoiceCommandIntegrity.swift"]
+    outputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/sources"]
+    description: "Write auxiliary file /home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/sources"
+
+  "/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/usr/share/swift/usr/bin/swiftc"]
+    outputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt"
+
+  "<SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module>":
+    tool: phony
+    inputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/AuditLogger.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/ContentView.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/DebuggerDetection.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/FamilyGuardCore.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/SovereigntyAPIClient.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/VoiceCommandIntegrity.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules/SovereigntyGuard.swiftmodule"]
+    outputs: ["<SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module>"]
+
+  "C.SovereigntyGuard-x86_64-unknown-linux-gnu-debug.module":
+    tool: shell
+    inputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/AuditLogger.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/ContentView.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/DebuggerDetection.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/FamilyGuardCore.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/SovereigntyAPIClient.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/VoiceCommandIntegrity.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/swift-version--1BFCD5C06E9F820A.txt","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/sources"]
+    outputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/AuditLogger.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/ContentView.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/DebuggerDetection.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/FamilyGuardCore.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/SovereigntyAPIClient.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/VoiceCommandIntegrity.swift.o","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules/SovereigntyGuard.swiftmodule"]
+    description: "Compiling Swift Module 'SovereigntyGuard' (6 sources)"
+    args: ["/usr/share/swift/usr/bin/swiftc","-module-name","SovereigntyGuard","-emit-dependencies","-emit-module","-emit-module-path","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules/SovereigntyGuard.swiftmodule","-output-file-map","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/output-file-map.json","-parse-as-library","-incremental","-c","@/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/sources","-I","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/Modules","-target","x86_64-unknown-linux-gnu","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/index/store","-Onone","-enable-testing","-j2","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/.build/x86_64-unknown-linux-gnu/debug/SovereigntyGuard.build/include/SovereigntyGuard-Swift.h","-swift-version","6","-g","-Xcc","-fPIC","-Xcc","-g","-package-name","ios","-Xcc","-fno-omit-frame-pointer"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Sources/SovereigntyGuard/","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Package.swift","/home/runner/work/Sovereignty-AI-Studio/Sovereignty-AI-Studio/ios/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
