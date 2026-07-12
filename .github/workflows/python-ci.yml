@@ -37,13 +37,20 @@ jobs:
           import secrets
           import sys
           sys.path.insert(0, '.')
+          copilot/fix-github-actions-job
 
           class LocalFallbackSigner:
+
+          class FallbackMLDSASigner:
+          main
               def __init__(self, algorithm='ML-DSA-87'):
                   self.algorithm = algorithm
                   self._secret_key = b''
                   self._public_key = b''
+         copilot/fix-github-actions-job
 
+
+         main
               def load_or_create_keypair(self):
                   if not self._secret_key:
                       self._secret_key = secrets.token_bytes(32)
@@ -61,6 +68,15 @@ jobs:
               from sovereign.pqc_signatures import MLDSASigner, PQCUnavailableError
           except ImportError:
               MLDSASigner = LocalFallbackSigner
+              def sign(self, message):
+                  _, sk = self.load_or_create_keypair()
+                  return hmac.new(sk, message, hashlib.sha256).digest()
+              def verify(self, message, signature):
+                  return hmac.compare_digest(self.sign(message), signature)
+          try:
+              from sovereign.pqc_signatures import MLDSASigner, PQCUnavailableError
+          except ImportError:
+              MLDSASigner = FallbackMLDSASigner
               PQCUnavailableError = RuntimeError
 
           manifest = {
@@ -75,6 +91,7 @@ jobs:
           }
 
           signer = MLDSASigner(algorithm='ML-DSA-87')
+         copilot/fix-github-actions-job
           try:
               pub, _ = signer.load_or_create_keypair()
               manifest['signing_backend'] = 'ml-dsa-87'
@@ -84,8 +101,16 @@ jobs:
               pub, _ = signer.load_or_create_keypair()
               manifest['signing_backend'] = 'hmac-sha256-fallback'
 
+
+          main
           message = json.dumps(manifest, sort_keys=True).encode()
-          signature = signer.sign(message)
+          try:
+              pub, _ = signer.load_or_create_keypair()
+              signature = signer.sign(message)
+          except PQCUnavailableError:
+              signer = FallbackMLDSASigner(algorithm='ML-DSA-87')
+              pub, _ = signer.load_or_create_keypair()
+              signature = signer.sign(message)
 
           manifest['ml_dsa_87_signature'] = signature.hex()
           manifest['public_key'] = pub.hex()
