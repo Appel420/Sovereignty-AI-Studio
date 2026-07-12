@@ -19,6 +19,14 @@ class PQCUnavailableError(RuntimeError):
     """Raised when the liboqs post-quantum provider is not available."""
 
 
+_ALGORITHM_ALIASES = {
+    "ML-DSA-65": "ML-DSA-65",
+    "ML-DSA-87": "ML-DSA-87",
+    "Dilithium3": "ML-DSA-65",
+    "Dilithium5": "ML-DSA-87",
+}
+
+
 def _load_oqs() -> object:
     """Return the ``oqs`` module or raise PQCUnavailableError.
 
@@ -51,11 +59,19 @@ class MLDSASigner:
     _public_key: bytes | None = field(default=None, init=False, repr=False)
     _secret_key: bytes | None = field(default=None, init=False, repr=False)
 
+    @property
+    def oqs_algorithm(self) -> str:
+        """Return the liboqs algorithm name for the configured identifier."""
+        try:
+            return _ALGORITHM_ALIASES[self.algorithm]
+        except KeyError as error:
+            raise ValueError(f"Unsupported ML-DSA algorithm: {self.algorithm}") from error
+
     def load_or_create_keypair(self) -> tuple[bytes, bytes]:
         """Return ``(public_key, secret_key)``, generating a new pair if needed."""
         if self._public_key is None or self._secret_key is None:
             oqs = _load_oqs()
-            sig = oqs.Signature(self.algorithm)  # type: ignore[attr-defined]
+            sig = oqs.Signature(self.oqs_algorithm)  # type: ignore[attr-defined]
             try:
                 self._public_key = sig.generate_keypair()
                 self._secret_key = sig.export_secret_key()
@@ -68,7 +84,7 @@ class MLDSASigner:
         oqs = _load_oqs()
         _, secret_key = self.load_or_create_keypair()
         sig = oqs.Signature(  # type: ignore[attr-defined]
-            self.algorithm, secret_key=secret_key
+            self.oqs_algorithm, secret_key=secret_key
         )
         try:
             return sig.sign(message)  # type: ignore[no-any-return]
@@ -79,7 +95,7 @@ class MLDSASigner:
         """Return True iff *signature* is a valid ML-DSA-87 signature of *message*."""
         oqs = _load_oqs()
         public_key, _ = self.load_or_create_keypair()
-        sig = oqs.Signature(self.algorithm)  # type: ignore[attr-defined]
+        sig = oqs.Signature(self.oqs_algorithm)  # type: ignore[attr-defined]
         try:
             return bool(sig.verify(message, signature, public_key))
         finally:

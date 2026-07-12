@@ -99,3 +99,7 @@ certs/
 
 # Generated media output
 media/generated/
+
+# Token storage (contains sensitive credentials)
+.sg_token_key
+.sg_token_store
