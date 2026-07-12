@@ -14,6 +14,8 @@ class SovereignMCPServerTests(unittest.TestCase):
         self.workspace = Path(self.temp_dir.name)
         (self.workspace / "notes.txt").write_text("local data", encoding="utf-8")
         (self.workspace / ".secret").write_text("hidden", encoding="utf-8")
+        (self.workspace / ".env").write_text("TOKEN=private", encoding="utf-8")
+        (self.workspace / "private.pem").write_text("private", encoding="utf-8")
         self.server = SovereignMCPServer(workspace=self.workspace)
 
     def tearDown(self) -> None:
@@ -48,6 +50,32 @@ class SovereignMCPServerTests(unittest.TestCase):
 
         response = self.request("tools/call", {"name": "workspace_read", "arguments": {"path": "../etc/passwd"}})
         self.assertTrue(response["result"]["isError"])
+
+    def test_workspace_tools_exclude_hidden_and_sensitive_files(self) -> None:
+        for path in (".secret", ".env", "private.pem"):
+            response = self.request("tools/call", {"name": "workspace_read", "arguments": {"path": path}})
+            self.assertTrue(response["result"]["isError"])
+            self.assertIn("Hidden and sensitive files", response["result"]["content"][0]["text"])
+
+    def test_analysis_returns_structured_syntax_and_cleanup_diagnostics(self) -> None:
+        (self.workspace / "broken.py").write_text("def bad(:  \n", encoding="utf-8")
+        result = self.tool_text("workspace_analyze", {"path": "broken.py"})
+        self.assertEqual(result["path"], "broken.py")
+        self.assertEqual(result["writeAccess"], "disabled; review and apply fixes explicitly in the agent branch")
+        self.assertEqual(result["diagnostics"][0]["rule"], "syntax-error")
+        self.assertEqual(result["diagnostics"][0]["line"], 1)
+        self.assertTrue(any(item["rule"] == "trailing-whitespace" for item in result["diagnostics"]))
+
+    def test_analysis_reports_unsupported_arguments_and_restricted_paths(self) -> None:
+        malformed = self.request(
+            "tools/call", {"name": "workspace_analyze", "arguments": {"path": "notes.txt", "extra": True}}
+        )
+        self.assertTrue(malformed["result"]["isError"])
+        self.assertIn("Unsupported tool arguments", malformed["result"]["content"][0]["text"])
+
+        restricted = self.request("tools/call", {"name": "workspace_analyze", "arguments": {"path": ".env"}})
+        self.assertTrue(restricted["result"]["isError"])
+        self.assertIn("Hidden and sensitive files", restricted["result"]["content"][0]["text"])
 
     def test_notifications_do_not_receive_a_response(self) -> None:
         self.assertIsNone(self.server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}))

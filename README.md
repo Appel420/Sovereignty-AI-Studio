@@ -59,6 +59,20 @@ It defaults to `SG_MCP_MODE=offline`. Set `SG_MCP_WORKSPACE` to restrict a
 client to a specific directory. See the [MCP server source](mcp_server.py) for
 the available tools and configuration.
 
+#### Agent sanitation workflow
+
+`workspace_analyze` is a local, read-only helper for Python and JSON syntax
+validation plus cleanup findings, such as trailing whitespace and Python tab
+indentation. Its diagnostics include the file, line, column, severity, rule,
+message, and a safe suggested action. It does not start a shell, make network
+calls, accept credentials, or edit files.
+
+Run each agent against the checkout of its dedicated branch by setting
+`SG_MCP_WORKSPACE` to that checkout. Hidden files and likely credential files
+(`.env`, token stores, keys, certificates) are unavailable to listing, reading,
+and analysis tools. Review diagnostics and make edits explicitly in that
+branch; commits and pull requests remain the accountability record.
+
 ### Container services
 
 The self-hosted service stack is defined in
