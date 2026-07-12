@@ -8,8 +8,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from app.services.ai_router import ai_router
-
 AGENT_BRANCHES = {"grok": "ara-hardened", "claude": "claude", "gpt": "gpt", "copilot": "copilot"}
 APPROVAL_ACTIONS = {"scope_change", "execution", "commit", "pull_request"}
 
@@ -140,6 +138,8 @@ class VoiceCollaborationService:
                 task,
                 "Local task state was saved. Configure a local coding agent, or explicitly enable a permitted remote agent to receive a proposal.",
             )
+        from app.services.ai_router import ai_router
+
         prompt = (
             f"Task goal: {task['goal']}\nAcceptance criteria: {task['acceptance_criteria']}\n"
             f"Approved branch: {task['branch']}\nAllowed paths: {task['allowed_paths']}\n"
