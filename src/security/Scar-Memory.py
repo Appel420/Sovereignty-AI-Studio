@@ -40,7 +40,7 @@ def check_lock():
     with open(LOCK, 'r') as f:
         holder = f.read().strip()
     if holder != OWNER_NAME:
-        print("LOCK HEID BY OTHER: ", holder)
+        print("LOCK HELD BY OTHER: ", holder)
         sys.exit(1)
 
 def scar_exists():
