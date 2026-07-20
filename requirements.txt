@@ -24,7 +24,7 @@ alembic==1.18.5
 redis==8.0.1
 
 # ── Web Frameworks ─────────────────────────────────────────────────────────────
-fastapi==0.139.0
+fastapi==0.139.2
 python-multipart==0.0.32
 uvicorn[standard]==0.51.0
 hypercorn==0.18.0
