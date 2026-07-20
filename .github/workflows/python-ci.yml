@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[test,lint]" || pip install ruff mypy pytest
+          python -m pip install -e ".[test,lint,pqc]"
       - name: Lint
         run: ruff check . || true
       - name: Type check
@@ -32,11 +32,9 @@ jobs:
           python3 <<'PY'
           import json
           import time
-          import hashlib
-          import hmac
-          import secrets
           import sys
           sys.path.insert(0, '.')
+         main
           copilot/fix-github-actions-job
 
           class LocalFallbackSigner:
@@ -78,6 +76,9 @@ jobs:
           except ImportError:
               MLDSASigner = FallbackMLDSASigner
               PQCUnavailableError = RuntimeError
+
+          from sovereign.pqc_signatures import MLDSASigner
+         copilot/fix-python-ci-job-655
 
           manifest = {
               'workflow': 'Python CI',
