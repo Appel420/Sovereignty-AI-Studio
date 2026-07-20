@@ -7,7 +7,7 @@ python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
 httpx==0.28.1
 requests==2.34.2
-psycopg2-binary==2.9.11
+psycopg2-binary==2.9.12
 asyncpg==0.31.0
 sqlalchemy[asyncio]==2.0.51
 alembic==1.18.5

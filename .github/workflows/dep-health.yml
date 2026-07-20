@@ -43,7 +43,7 @@ jobs:
   # ── Python CVE audit ─────────────────────────────────────────────────────
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux
     timeout-minutes: 15
     permissions:
       contents: read
@@ -120,7 +120,7 @@ jobs:
   # ── Python outdated check ─────────────────────────────────────────────────
   python-outdated:
     name: Python — outdated packages
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux
     timeout-minutes: 15
     permissions:
       contents: read
@@ -130,7 +130,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -181,7 +181,7 @@ jobs:
   # ── Node.js CVE audit ────────────────────────────────────────────────────
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux
     timeout-minutes: 10
     permissions:
       contents: read
@@ -233,7 +233,7 @@ jobs:
   # ── Sanitize requirements syntax ─────────────────────────────────────────
   requirements-lint:
     name: Lint requirements files
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux
     timeout-minutes: 5
     permissions:
       contents: read

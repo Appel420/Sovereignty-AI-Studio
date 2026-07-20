@@ -1,5 +1,10 @@
 # Sovereignty AI Studio
 
+@claude @codex @copilot @grok
+
+This is the main dedicated branch. All changes by Claude Grok/Ara GPT/Codex Copilot must be made in their dedicated branch. Do not push directly to main. Create a Pull Request for review.
+
+
 Sovereignty AI Studio is a self-hosted, offline-first AI control surface and
 supporting service stack. The primary user interface is the KODER dashboard in
 [`SGHv119.html`](SGHv119.html); Python and Node services provide local routing,
