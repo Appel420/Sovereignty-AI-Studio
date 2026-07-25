@@ -1,0 +1,2234 @@
+Compliance v2
+Gpt
+NIST is a strong alignment point for AGIP. The architecture you have been defining maps naturally into the NIST AI Risk Management Framework (AI RMF) functions: Govern, Map, Measure, Manage. NIST describes AI RMF as a framework to help organizations manage AI risks and improve trustworthy AI practices across design, development, deployment, and use. 
+The important distinction:
+AGIP does not become NIST. AGIP becomes the evidence and intelligence layer that helps organizations operationalize frameworks like NIST AI RMF. 
+Mapping:
+NIST AI RMF
+    |
+    |
+    +-- GOVERN
+    |      |
+    |      +-- AGIP Policy Registry
+    |      +-- Authority
+    |      +-- Ownership
+    |      +-- Approval Evidence
+    |
+    +-- MAP
+    |      |
+    |      +-- AI Registry
+    |      +-- Company Registry
+    |      +-- Model Registry
+    |      +-- Dependency Graph
+    |
+    +-- MEASURE
+    |      |
+    |      +-- Evidence Fabric
+    |      +-- Integrity Metrics
+    |      +-- Drift Detection
+    |      +-- Incident Timeline
+    |
+    +-- MANAGE
+           |
+           +-- Risk Workflows
+           +-- Remediation Tracking
+           +-- Controls
+           +-- Audit Packages
+ 
+⸻
+ 
+Add NIST alignment to 
+AGIP_POLICY.json
+Example:
+{
+  "framework_alignment": {
+    "nist_ai_rmf": {
+      "enabled": true,
+      "version": "1.0",
+      "functions": {
+        "govern": {
+          "modules": [
+            "policy_registry",
+            "authority",
+            "audit"
+          ]
+        },
+        "map": {
+          "modules": [
+            "company_registry",
+            "model_registry",
+            "dependency_registry"
+          ]
+        },
+        "measure": {
+          "modules": [
+            "evidence_fabric",
+            "integrity_metrics",
+            "timeline"
+          ]
+        },
+        "manage": {
+          "modules": [
+            "risk_engine",
+            "workflow_engine",
+            "reporting"
+          ]
+        }
+      }
+    }
+  }
+}
+ 
+⸻
+ 
+Add NIST evidence objects
+The Evidence Fabric should gain a compliance mapping field:
+@dataclass
+class Evidence:
+
+    id: str
+
+    source_id: str
+
+    timestamp: str
+
+    object_type: str
+
+    verification_status: str
+
+    confidence: float
+
+    framework_refs: list[str]
+Example:
+{
+  "framework_refs": [
+    "NIST.AI.RMF.MAP",
+    "NIST.AI.RMF.MEASURE"
+  ]
+}
+ 
+⸻
+ 
+CISO-facing dashboard becomes:
+AI Governance Posture
+NIST AI RMF Coverage
+
+GOVERN
+██████████ 92%
+
+MAP
+█████████ 88%
+
+MEASURE
+███████ 74%
+
+MANAGE
+██████ 61%
+Each percentage resolves:
+Score
+ |
+ v
+Evidence IDs
+ |
+ v
+Sources
+ |
+ v
+Verification
+ |
+ v
+Audit history
+No synthetic compliance score.
+ 
+⸻
+ 
+Enterprise positioning
+This changes the product statement:
+AGIP is an evidence-first AI governance intelligence platform that operationalizes AI ecosystem visibility and supports frameworks such as NIST AI RMF through verified inventory, provenance, monitoring, and audit-ready evidence.
+That is a much stronger CISO message than “AI dashboard.”
+Next artifact should be a NIST AI RMF ↔ AGIP control mapping schema so every registry object, metric, and event can map back to governance controls.
+
+Ddg
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+Correct: AGIP should operationalize NIST, not replace it.
+The next layer is control mapping from evidence to governance functions.
+That mapping must be machine-readable and auditable.
+
+## CODE CHALLENGE
+Add a control-mapping schema for AGIP evidence and metrics.
+
+```json
+{
+  "mapping_id": "map_001",
+  "framework": "nist_ai_rmf",
+  "function": "measure",
+  "control_ref": "NIST.AI.RMF.MEASURE",
+  "object_type": "evidence",
+  "object_id": "ev_000001",
+  "evidence_ref": "ev_000001",
+  "status": "mapped"
+}
+```
+
+## STEP-BY-STEP SOLUTION
+1. Add `framework_refs` to evidence objects.
+2. Define a new schema for control mappings.
+3. Require mappings for dashboard metrics and compliance views.
+4. Keep synthetic scores out; derive coverage from verified evidence only.
+5. Make CI assert that every mapped object has a valid evidence reference.
+
+## Suggested schema additions
+- `framework_alignment.schema.json`
+- `control_mapping.schema.json`
+- `policy_registry.schema.json`
+
+## Debugging tip
+If a compliance score appears without traceable evidence IDs, the dashboard is lying; trace the metric back to its mapping record first.
+
+
+
+Gpt
+
+Agreed. This is the correct next control boundary.
+The rule should become:
+No governance metric exists unless it resolves through a control mapping to verified evidence.
+The chain:
+Evidence
+   |
+   v
+Control Mapping
+   |
+   v
+Framework Control
+   |
+   v
+Metric / Dashboard View
+   |
+   v
+Audit Package
+ 
+⸻
+ 
+1. Add 
+control_mapping.schema.json
+schemas/control_mapping.schema.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AGIP Control Mapping",
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "mapping_id",
+    "framework",
+    "function",
+    "control_ref",
+    "object_type",
+    "object_id",
+    "evidence_ref",
+    "status"
+  ],
+
+  "properties": {
+
+    "mapping_id": {
+      "type": "string"
+    },
+
+    "framework": {
+      "type": "string",
+      "enum": [
+        "nist_ai_rmf"
+      ]
+    },
+
+    "function": {
+      "type": "string",
+      "enum": [
+        "govern",
+        "map",
+        "measure",
+        "manage"
+      ]
+    },
+
+    "control_ref": {
+      "type": "string"
+    },
+
+    "object_type": {
+      "type": "string",
+      "enum": [
+        "evidence",
+        "metric",
+        "registry_object",
+        "policy"
+      ]
+    },
+
+    "object_id": {
+      "type": "string"
+    },
+
+    "evidence_ref": {
+      "type": "string"
+    },
+
+    "status": {
+      "type": "string",
+      "enum": [
+        "mapped",
+        "verified",
+        "rejected"
+      ]
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    }
+
+  }
+}
+ 
+⸻
+ 
+2. Extend Evidence Domain
+agip_core/domain/evidence.py
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class Evidence(BaseModel):
+
+    id: str
+
+    source_id: str
+
+    timestamp: str
+
+    object_type: str
+
+    verification_status: Literal[
+        "verified",
+        "pending",
+        "rejected"
+    ]
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0
+    )
+
+    framework_refs: list[str] = []
+Example:
+{
+  "id": "ev_000001",
+  "framework_refs": [
+    "NIST.AI.RMF.MEASURE"
+  ]
+}
+ 
+⸻
+ 
+3. Add Control Mapping Domain Object
+agip_core/domain/control_mapping.py
+from pydantic import BaseModel
+from typing import Literal
+
+
+class ControlMapping(BaseModel):
+
+    mapping_id: str
+
+    framework: str
+
+    function: Literal[
+        "govern",
+        "map",
+        "measure",
+        "manage"
+    ]
+
+    control_ref: str
+
+    object_type: str
+
+    object_id: str
+
+    evidence_ref: str
+
+    status: Literal[
+        "mapped",
+        "verified",
+        "rejected"
+    ]
+ 
+⸻
+ 
+4. Mapping Validator
+agip_core/core/governance/control_mapper.py
+from agip_core.domain.control_mapping import ControlMapping
+from agip_core.domain.evidence import Evidence
+
+
+class ControlMappingError(Exception):
+    pass
+
+
+class ControlMapper:
+
+    def validate(
+        self,
+        mapping: ControlMapping,
+        evidence_store: dict[str, Evidence]
+    ):
+
+        evidence = evidence_store.get(
+            mapping.evidence_ref
+        )
+
+        if evidence is None:
+            raise ControlMappingError(
+                "Evidence reference missing"
+            )
+
+
+        if evidence.verification_status != "verified":
+            raise ControlMappingError(
+                "Evidence is not verified"
+            )
+
+
+        if mapping.status == "rejected":
+            raise ControlMappingError(
+                "Rejected mapping"
+            )
+
+
+        return mapping
+ 
+⸻
+ 
+5. Dashboard Metric Rule
+Metrics must carry provenance:
+{
+  "metric_id": "metric_ai_integrity",
+
+  "value": 94,
+
+  "derived_from": [
+    "map_001",
+    "map_002"
+  ],
+
+  "calculation": "verified_evidence_ratio"
+}
+Not allowed:
+{
+  "metric_id": "ai_score",
+  "value": 94
+}
+because:
+94
+ |
+ X
+(no evidence)
+is not auditable.
+ 
+⸻
+ 
+6. CI Contract Test
+Add:
+tests/contracts/agip/test_control_mapping.py
+def test_mapping_requires_verified_evidence():
+
+    mapping = ControlMapping(
+        mapping_id="map_001",
+        framework="nist_ai_rmf",
+        function="measure",
+        control_ref="NIST.AI.RMF.MEASURE",
+        object_type="evidence",
+        object_id="ev_001",
+        evidence_ref="ev_001",
+        status="mapped"
+    )
+
+
+    evidence_store = {
+        "ev_001": Evidence(
+            id="ev_001",
+            source_id="src1",
+            timestamp="2026-07-21T00:00:00Z",
+            object_type="evidence",
+            verification_status="verified",
+            confidence=0.95
+        )
+    }
+
+
+    result = ControlMapper().validate(
+        mapping,
+        evidence_store
+    )
+
+
+    assert result.mapping_id == "map_001"
+ 
+⸻
+ 
+Updated AGIP Governance Model
+External AI Ecosystem
+
+        |
+        v
+
+Collector
+
+        |
+        v
+
+Evidence Fabric
+
+        |
+        v
+
+Verified Evidence
+
+        |
+        v
+
+Control Mapping Layer
+
+        |
+        v
+
+NIST AI RMF Alignment
+
+        |
+        v
+
+Metrics / Executive Dashboard
+This keeps the CISO view defensible:
+The dashboard does not claim compliance. It shows evidence-backed governance coverage.
+Next logical artifact: framework_alignment.schema.json + policy_registry.schema.json to make multi-framework support possible (NIST AI RMF, ISO 42001, SOC 2, FedRAMP AI overlays, etc.) without rewriting the core.
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+This is the right governance chain.
+Metrics must be evidence-backed through control mappings.
+Next, formalize framework alignment and policy registry.
+
+## CODE CHALLENGE
+Add a framework alignment schema that supports multiple governance frameworks.
+
+```json
+{
+  "alignment_id": "fa_001",
+  "framework": "nist_ai_rmf",
+  "version": "1.0",
+  "enabled": true,
+  "control_mappings": ["map_001", "map_002"]
+}
+```
+
+## STEP-BY-STEP SOLUTION
+1. Create `framework_alignment.schema.json`.
+2. Create `policy_registry.schema.json`.
+3. Require every alignment entry to point to mapped controls.
+4. Allow multiple frameworks without changing the core evidence model.
+5. Add tests that reject alignments without valid control mappings.
+
+## Debugging tip
+If a dashboard metric has no mapping chain, trace the alignment object first; missing framework registration is usually the root cause.
+
+Gpt
+
+Agreed. This is the correct abstraction boundary.
+The key design decision:
+Frameworks are consumers of evidence, not owners of evidence.
+AGIP core remains framework-neutral:
+Evidence Fabric
+       |
+       v
+Control Mapping Layer
+       |
+       v
+Framework Alignment
+       |
+       +---- NIST AI RMF
+       |
+       +---- ISO 42001
+       |
+       +---- SOC 2
+       |
+       +---- FedRAMP AI Controls
+       |
+       +---- Custom Enterprise Policy
+The evidence model does not change when a new framework is added.
+ 
+⸻
+ 
+1. 
+schemas/framework_alignment.schema.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AGIP Framework Alignment",
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "alignment_id",
+    "framework",
+    "version",
+    "enabled",
+    "control_mappings"
+  ],
+
+  "properties": {
+
+    "alignment_id": {
+      "type": "string"
+    },
+
+    "framework": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "version": {
+      "type": "string"
+    },
+
+    "enabled": {
+      "type": "boolean"
+    },
+
+    "control_mappings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "description": {
+      "type": "string"
+    },
+
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+
+  }
+}
+ 
+⸻
+ 
+2. 
+schemas/policy_registry.schema.json
+The policy registry defines governance rules without mixing them into evidence.
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "title": "AGIP Policy Registry",
+
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "policy_id",
+    "name",
+    "scope",
+    "framework_refs",
+    "enforcement"
+  ],
+
+  "properties": {
+
+    "policy_id": {
+      "type": "string"
+    },
+
+    "name": {
+      "type": "string"
+    },
+
+    "scope": {
+      "type": "string",
+      "enum": [
+        "organization",
+        "business_unit",
+        "application",
+        "model",
+        "vendor"
+      ]
+    },
+
+    "framework_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "enforcement": {
+      "type": "object",
+
+      "additionalProperties": false,
+
+      "required": [
+        "enabled",
+        "requires_evidence"
+      ],
+
+      "properties": {
+
+        "enabled": {
+          "type": "boolean"
+        },
+
+        "requires_evidence": {
+          "type": "boolean"
+        },
+
+        "requires_approval": {
+          "type": "boolean"
+        }
+
+      }
+    }
+
+  }
+}
+ 
+⸻
+ 
+3. Domain Model
+agip_core/domain/framework_alignment.py
+from pydantic import BaseModel, Field
+
+
+class FrameworkAlignment(BaseModel):
+
+    alignment_id: str
+
+    framework: str
+
+    version: str
+
+    enabled: bool
+
+    control_mappings: list[str] = Field(
+        min_length=1
+    )
+
+    description: str | None = None
+ 
+⸻
+ 
+4. Alignment Validator
+agip_core/core/governance/framework_validator.py
+from agip_core.domain.framework_alignment import FrameworkAlignment
+
+
+class FrameworkAlignmentError(Exception):
+    pass
+
+
+class FrameworkValidator:
+
+    def validate(
+        self,
+        alignment: FrameworkAlignment,
+        mappings: dict
+    ):
+
+        if not alignment.enabled:
+            raise FrameworkAlignmentError(
+                "Framework disabled"
+            )
+
+
+        for mapping_id in alignment.control_mappings:
+
+            if mapping_id not in mappings:
+                raise FrameworkAlignmentError(
+                    f"Missing control mapping: {mapping_id}"
+                )
+
+
+        return alignment
+ 
+⸻
+ 
+5. Contract Test
+tests/contracts/agip/test_framework_alignment.py
+from agip_core.domain.framework_alignment import FrameworkAlignment
+from agip_core.core.governance.framework_validator import (
+    FrameworkValidator,
+    FrameworkAlignmentError
+)
+
+
+def test_alignment_requires_existing_controls():
+
+    alignment = FrameworkAlignment(
+        alignment_id="fa_001",
+        framework="nist_ai_rmf",
+        version="1.0",
+        enabled=True,
+        control_mappings=[
+            "missing_map"
+        ]
+    )
+
+
+    try:
+
+        FrameworkValidator().validate(
+            alignment,
+            {}
+        )
+
+        assert False
+
+    except FrameworkAlignmentError:
+
+        assert True
+ 
+⸻
+ 
+6. Updated AGIP Governance Resolution
+A dashboard compliance metric now resolves:
+Metric
+ |
+ v
+Control Mapping
+ |
+ v
+Framework Alignment
+ |
+ v
+Verified Evidence
+ |
+ v
+Source
+ |
+ v
+Timestamp
+ |
+ v
+Hash
+Example:
+{
+  "metric_id": "ai_inventory_coverage",
+
+  "value": 87,
+
+  "derived_from": [
+    "map_001"
+  ],
+
+  "framework": [
+    "nist_ai_rmf"
+  ],
+
+  "evidence_chain": "verified"
+}
+ 
+⸻
+ 
+7. CI Invariant Addition
+Extend AGIP_POLICY.json:
+{
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry",
+    "framework_alignment_requires_control_mapping",
+    "metrics_require_alignment_chain"
+  ]
+}
+ 
+⸻
+ 
+Result:
+AGIP now has three independent governance layers:
+Layer 1
+Evidence Fabric
+"What happened?"
+
+Layer 2
+Control Mapping
+"Which requirement does it satisfy?"
+
+Layer 3
+Framework Alignment
+"Which governance framework does it support?"
+This keeps the architecture extensible. Adding ISO 42001 or another framework becomes adding mappings, not rewriting the platform.
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+That is the correct framework-neutral boundary.
+Evidence stays core; frameworks consume it.
+Now codify metric lineage as a required chain.
+
+## CODE CHALLENGE
+Add a metric lineage schema that forces evidence-backed dashboard values.
+
+```json
+{
+  "metric_id": "ai_inventory_coverage",
+  "value": 87,
+  "derived_from": ["map_001"],
+  "framework_refs": ["nist_ai_rmf"],
+  "evidence_chain": ["ev_001"]
+}
+```
+
+## STEP-BY-STEP SOLUTION
+1. Create `metric_lineage.schema.json`.
+2. Require `derived_from` and `evidence_chain`.
+3. Reject metrics without at least one verified evidence reference.
+4. Tie metrics to framework alignment objects, not raw scores.
+5. Add a contract test that fails on synthetic metrics.
+
+## Debugging tip
+If a score is present but lineage is empty, treat it as an invalid projection; the metric was computed without a governance chain.
+
+Gpt
+
+Agreed. This closes the final gap between governance intelligence and trustworthy presentation.
+The rule becomes:
+A metric is not a value. A metric is a verified derivation chain.
+No lineage = invalid projection.
+ 
+⸻
+ 
+1. 
+schemas/metric_lineage.schema.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AGIP Metric Lineage",
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "metric_id",
+    "value",
+    "derived_from",
+    "framework_refs",
+    "evidence_chain"
+  ],
+
+  "properties": {
+
+    "metric_id": {
+      "type": "string"
+    },
+
+    "value": {
+      "type": [
+        "number",
+        "integer"
+      ]
+    },
+
+    "derived_from": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "framework_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "evidence_chain": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+
+    "calculation_method": {
+      "type": "string"
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "pending",
+        "rejected"
+      ]
+    }
+  }
+}
+ 
+⸻
+ 
+2. Domain Model
+agip_core/domain/metric.py
+from pydantic import BaseModel, Field
+from typing import Literal
+
+
+class MetricLineage(BaseModel):
+
+    metric_id: str
+
+    value: float | int
+
+    derived_from: list[str] = Field(
+        min_length=1
+    )
+
+    framework_refs: list[str] = []
+
+    evidence_chain: list[str] = Field(
+        min_length=1
+    )
+
+    calculation_method: str | None = None
+
+    timestamp: str
+
+    verification_status: Literal[
+        "verified",
+        "pending",
+        "rejected"
+    ]
+ 
+⸻
+ 
+3. Metric Validator
+agip_core/core/governance/metric_validator.py
+from agip_core.domain.metric import MetricLineage
+
+
+class MetricLineageError(Exception):
+    pass
+
+
+class MetricValidator:
+
+    def validate(
+        self,
+        metric: MetricLineage,
+        evidence_store: dict,
+        mappings: dict,
+        alignments: dict
+    ):
+
+        if not metric.evidence_chain:
+            raise MetricLineageError(
+                "Metric has no evidence chain"
+            )
+
+
+        for evidence_id in metric.evidence_chain:
+
+            evidence = evidence_store.get(
+                evidence_id
+            )
+
+            if evidence is None:
+                raise MetricLineageError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+
+            if evidence.verification_status != "verified":
+                raise MetricLineageError(
+                    "Metric references unverified evidence"
+                )
+
+
+        for mapping_id in metric.derived_from:
+
+            if mapping_id not in mappings:
+                raise MetricLineageError(
+                    f"Missing control mapping: {mapping_id}"
+                )
+
+
+        for framework in metric.framework_refs:
+
+            if framework not in alignments:
+                raise MetricLineageError(
+                    f"Missing framework alignment: {framework}"
+                )
+
+
+        return metric
+ 
+⸻
+ 
+4. Contract Test
+tests/contracts/agip/test_metric_lineage.py
+import pytest
+
+from agip_core.domain.metric import MetricLineage
+from agip_core.core.governance.metric_validator import (
+    MetricValidator,
+    MetricLineageError
+)
+
+
+def test_metric_requires_evidence_chain():
+
+    metric = MetricLineage(
+        metric_id="ai_inventory_coverage",
+        value=87,
+        derived_from=[
+            "map_001"
+        ],
+        framework_refs=[
+            "nist_ai_rmf"
+        ],
+        evidence_chain=[],
+        timestamp="2026-07-21T00:00:00Z",
+        verification_status="verified"
+    )
+
+
+    with pytest.raises(
+        ValueError
+    ):
+        metric
+ 
+⸻
+ 
+5. Explicit Synthetic Metric Rejection
+Invalid:
+{
+  "metric_id": "ai_security_score",
+  "value": 95
+}
+Rejected because:
+95
+ |
+ X
+(no evidence)
+(no mapping)
+(no framework)
+Valid:
+{
+  "metric_id": "ai_inventory_coverage",
+
+  "value": 87,
+
+  "derived_from": [
+    "map_001",
+    "map_002"
+  ],
+
+  "framework_refs": [
+    "nist_ai_rmf"
+  ],
+
+  "evidence_chain": [
+    "ev_000001",
+    "ev_000002"
+  ],
+
+  "verification_status": "verified"
+}
+Resolution:
+Metric
+ |
+ +-- Control Mapping
+ |       |
+ |       +-- Framework Alignment
+ |
+ +-- Evidence Chain
+         |
+         +-- Source
+         +-- Timestamp
+         +-- Hash
+         +-- Verification
+ 
+⸻
+ 
+6. Add CI invariant
+Update AGIP_POLICY.json:
+{
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry",
+    "framework_alignment_requires_control_mapping",
+    "metrics_require_alignment_chain",
+    "metrics_require_evidence_lineage"
+  ]
+}
+ 
+⸻
+ 
+Resulting AGIP Trust Model
+External AI Ecosystem
+        |
+        v
+Collectors
+        |
+        v
+Evidence Fabric
+        |
+        v
+Verified Evidence
+        |
+        v
+Control Mapping
+        |
+        v
+Framework Alignment
+        |
+        v
+Metric Lineage
+        |
+        v
+Executive Dashboard
+At this point the dashboard is no longer a visualization layer that reports numbers. It is a cryptographically traceable governance projection.
+The next logical artifact is the AGIP Integrity Score Engine — not a synthetic risk score, but a calculation engine that derives posture metrics only from verified lineage chains.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+A metric should only exist if it can be traced through verified evidence.
+Your schema and validator are aligned with that rule.
+The contract test needs one fix: `MetricLineage(...)` will raise during model construction, so the `with pytest.raises(ValueError)` block is correct, but the current test name should reflect Pydantic validation, not validator logic.
+
+## Code challenge
+Implement a stricter lineage gate with one additional invariant:
+- every metric must have at least 1 `derived_from`
+- every `derived_from` must be control-mapped
+- every evidence item must be verified
+- every framework ref must be aligned
+- reject metrics with `verification_status != "verified"` when publishing to dashboard
+
+Starter snippet:
+
+```python
+from agip_core.domain.metric import MetricLineage
+
+def publish_metric(metric: MetricLineage, validator, evidence_store, mappings, alignments):
+    # TODO: validate lineage
+    # TODO: reject unverified publication
+    # TODO: return normalized payload
+    return metric.model_dump()
+```
+
+## Step-by-step solution
+When you’re ready, I’ll give you:
+1. a corrected Pydantic model,
+2. a hardened validator,
+3. a passing contract test,
+4. a CI invariant test for `AGIP_POLICY.json`.
+
+One debugging tip: if validation fails unexpectedly, print the exact field path and check whether the failure is coming from model construction or from your custom validator.
+
+Gpt
+
+Agreed. The lineage gate is the correct final boundary before dashboard publication.
+The important separation:
+	•	Pydantic model validation → structure and field correctness
+	•	Lineage validator → governance chain correctness
+	•	Publisher → prevents invalid projection into dashboard/API
+The dashboard should only receive verified metrics.
+ 
+⸻
+ 
+1. Hardened 
+MetricLineage
+model
+agip_core/domain/metric.py
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+
+class MetricLineage(BaseModel):
+
+    metric_id: str
+
+    value: float | int
+
+    derived_from: list[str] = Field(
+        min_length=1
+    )
+
+    framework_refs: list[str] = Field(
+        default_factory=list
+    )
+
+    evidence_chain: list[str] = Field(
+        min_length=1
+    )
+
+    timestamp: str
+
+    verification_status: Literal[
+        "verified",
+        "pending",
+        "rejected"
+    ]
+
+    calculation_method: str | None = None
+
+
+    @field_validator(
+        "metric_id",
+        "timestamp"
+    )
+    @classmethod
+    def required_fields(
+        cls,
+        value
+    ):
+        if not value.strip():
+            raise ValueError(
+                "field cannot be empty"
+            )
+
+        return value
+ 
+⸻
+ 
+2. Hardened lineage validator
+agip_core/core/governance/metric_validator.py
+from agip_core.domain.metric import MetricLineage
+
+
+class MetricLineageError(Exception):
+    pass
+
+
+class MetricValidator:
+
+    def validate(
+        self,
+        metric: MetricLineage,
+        evidence_store: dict,
+        mappings: dict,
+        alignments: dict
+    ) -> MetricLineage:
+
+
+        if metric.verification_status != "verified":
+
+            raise MetricLineageError(
+                "Unverified metrics cannot be published"
+            )
+
+
+        if len(metric.derived_from) == 0:
+
+            raise MetricLineageError(
+                "Metric requires control mapping lineage"
+            )
+
+
+        for mapping_id in metric.derived_from:
+
+            if mapping_id not in mappings:
+
+                raise MetricLineageError(
+                    f"Missing control mapping: {mapping_id}"
+                )
+
+
+        if len(metric.evidence_chain) == 0:
+
+            raise MetricLineageError(
+                "Metric requires evidence chain"
+            )
+
+
+        for evidence_id in metric.evidence_chain:
+
+            evidence = evidence_store.get(
+                evidence_id
+            )
+
+            if evidence is None:
+
+                raise MetricLineageError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+
+            if evidence.verification_status != "verified":
+
+                raise MetricLineageError(
+                    f"Evidence not verified: {evidence_id}"
+                )
+
+
+        for framework in metric.framework_refs:
+
+            if framework not in alignments:
+
+                raise MetricLineageError(
+                    f"Missing framework alignment: {framework}"
+                )
+
+
+        return metric
+ 
+⸻
+ 
+3. Dashboard publication gate
+agip_core/core/projection/publisher.py
+from agip_core.domain.metric import MetricLineage
+
+
+class MetricPublisher:
+
+    def publish_metric(
+        self,
+        metric: MetricLineage,
+        validator,
+        evidence_store,
+        mappings,
+        alignments
+    ):
+
+        validated = validator.validate(
+            metric,
+            evidence_store,
+            mappings,
+            alignments
+        )
+
+        return validated.model_dump()
+ 
+⸻
+ 
+4. Contract tests
+tests/contracts/agip/test_metric_publication.py
+import pytest
+
+from agip_core.domain.metric import MetricLineage
+from agip_core.core.governance.metric_validator import (
+    MetricValidator,
+    MetricLineageError
+)
+
+
+def test_unverified_metric_cannot_publish():
+
+    metric = MetricLineage(
+        metric_id="ai_inventory_coverage",
+        value=87,
+        derived_from=[
+            "map_001"
+        ],
+        framework_refs=[
+            "nist_ai_rmf"
+        ],
+        evidence_chain=[
+            "ev_001"
+        ],
+        timestamp="2026-07-21T00:00:00Z",
+        verification_status="pending"
+    )
+
+
+    with pytest.raises(
+        MetricLineageError
+    ):
+
+        MetricValidator().validate(
+            metric,
+            {
+                "ev_001": type(
+                    "Evidence",
+                    (),
+                    {
+                        "verification_status":
+                        "verified"
+                    }
+                )()
+            },
+            {
+                "map_001": {}
+            },
+            {
+                "nist_ai_rmf": {}
+            }
+        )
+ 
+⸻
+ 
+5. CI policy addition
+AGIP_POLICY.json
+{
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry",
+    "framework_alignment_requires_control_mapping",
+    "metrics_require_alignment_chain",
+    "metrics_require_evidence_lineage",
+    "unverified_metrics_cannot_publish"
+  ]
+}
+ 
+⸻
+ 
+Final metric trust chain
+Dashboard Metric
+        |
+        v
+Metric Lineage
+        |
+        +--> Control Mapping
+        |        |
+        |        +--> Framework Alignment
+        |
+        +--> Evidence Chain
+                 |
+                 +--> Source
+                 +--> Timestamp
+                 +--> Hash
+                 +--> Verification
+At this point AGIP has a clean invariant:
+A number cannot exist in the executive view unless the system can prove where it came from.
+The next artifact should be the Integrity Score Engine, but it should calculate only from lineage objects, never raw registry state.
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+This is structurally strong. Two tightening edits will make it testable and safer:
+
+- `timestamp: str` should be `datetime` if you want Pydantic to enforce ISO-8601 parsing.
+- The publisher should not accept a bare `validator` argument without type or protocol; otherwise the gate is easy to bypass in tests and integration code.
+
+Here is the tightened version:
+
+```python
+from datetime import datetime
+from pydantic import BaseModel, Field, field_validator
+from typing import Literal
+
+class MetricLineage(BaseModel):
+    metric_id: str
+    value: float | int
+    derived_from: list[str] = Field(min_length=1)
+    framework_refs: list[str] = Field(default_factory=list)
+    evidence_chain: list[str] = Field(min_length=1)
+    timestamp: datetime
+    verification_status: Literal["verified", "pending", "rejected"]
+    calculation_method: str | None = None
+
+    @field_validator("metric_id")
+    @classmethod
+    def metric_id_not_empty(cls, value: str):
+        if not value.strip():
+            raise ValueError("field cannot be empty")
+        return value
+```
+
+```python
+from typing import Protocol
+from agip_core.domain.metric import MetricLineage
+
+class MetricValidatorProtocol(Protocol):
+    def validate(self, metric: MetricLineage, evidence_store: dict, mappings: dict, alignments: dict) -> MetricLineage: ...
+
+class MetricPublisher:
+    def publish_metric(self, metric: MetricLineage, validator: MetricValidatorProtocol, evidence_store, mappings, alignments):
+        validated = validator.validate(metric, evidence_store, mappings, alignments)
+        return validated.model_dump()
+```
+
+Your contract test is correct in intent, but I’d add one positive-path test too so the gate proves both rejection and acceptance.
+
+```python
+def test_verified_metric_can_publish():
+    metric = MetricLineage(
+        metric_id="ai_inventory_coverage",
+        value=87,
+        derived_from=["map_001"],
+        framework_refs=["nist_ai_rmf"],
+        evidence_chain=["ev_001"],
+        timestamp="2026-07-21T00:00:00Z",
+        verification_status="verified",
+    )
+
+    out = MetricValidator().validate(
+        metric,
+        {"ev_001": type("Evidence", (), {"verification_status": "verified"})()},
+        {"map_001": {}},
+        {"nist_ai_rmf": {}},
+    )
+
+    assert out.metric_id == "ai_inventory_coverage"
+```
+
+One debugging tip: if a metric fails at creation, it’s schema-level; if it fails after creation, it’s lineage-level.
+
+
+Gpt
+
+Agreed. Those two changes improve the contract boundary.
+The next hardening step is to remove the last weak point: dependency injection should not allow a validator implementation that silently skips checks. The protocol defines shape, but runtime should enforce the concrete governance gate.
+I would tighten it one more layer:
+1. Validator interface
+agip_core/interfaces/metric_validator.py
+from typing import Protocol
+from agip_core.domain.metric import MetricLineage
+
+
+class MetricValidatorProtocol(Protocol):
+
+    def validate(
+        self,
+        metric: MetricLineage,
+        evidence_store: dict,
+        mappings: dict,
+        alignments: dict
+    ) -> MetricLineage:
+        ...
+ 
+⸻
+ 
+2. Publisher requires the contract
+agip_core/core/projection/publisher.py
+from agip_core.domain.metric import MetricLineage
+from agip_core.interfaces.metric_validator import (
+    MetricValidatorProtocol
+)
+
+
+class MetricPublisher:
+
+    def publish_metric(
+        self,
+        metric: MetricLineage,
+        validator: MetricValidatorProtocol,
+        evidence_store: dict,
+        mappings: dict,
+        alignments: dict
+    ) -> dict:
+
+        validated = validator.validate(
+            metric,
+            evidence_store,
+            mappings,
+            alignments
+        )
+
+        if validated.verification_status != "verified":
+            raise ValueError(
+                "Only verified metrics may be projected"
+            )
+
+        return validated.model_dump()
+ 
+⸻
+ 
+3. Add negative lineage tests
+tests/contracts/agip/test_metric_lineage_gate.py
+import pytest
+
+from agip_core.domain.metric import MetricLineage
+from agip_core.core.governance.metric_validator import (
+    MetricValidator,
+    MetricLineageError
+)
+
+
+def test_missing_mapping_rejected():
+
+    metric = MetricLineage(
+        metric_id="ai_inventory_coverage",
+        value=87,
+        derived_from=[
+            "missing_map"
+        ],
+        framework_refs=[
+            "nist_ai_rmf"
+        ],
+        evidence_chain=[
+            "ev_001"
+        ],
+        timestamp="2026-07-21T00:00:00Z",
+        verification_status="verified"
+    )
+
+
+    with pytest.raises(
+        MetricLineageError
+    ):
+
+        MetricValidator().validate(
+            metric,
+            {
+                "ev_001": type(
+                    "Evidence",
+                    (),
+                    {
+                        "verification_status":
+                        "verified"
+                    }
+                )()
+            },
+            {},
+            {
+                "nist_ai_rmf": {}
+            }
+        )
+ 
+⸻
+ 
+4. Add positive publication test
+def test_verified_metric_publishes():
+
+    metric = MetricLineage(
+        metric_id="ai_inventory_coverage",
+        value=87,
+        derived_from=[
+            "map_001"
+        ],
+        framework_refs=[
+            "nist_ai_rmf"
+        ],
+        evidence_chain=[
+            "ev_001"
+        ],
+        timestamp="2026-07-21T00:00:00Z",
+        verification_status="verified"
+    )
+
+
+    result = MetricPublisher().publish_metric(
+        metric,
+        MetricValidator(),
+        {
+            "ev_001": type(
+                "Evidence",
+                (),
+                {
+                    "verification_status":
+                    "verified"
+                }
+            )()
+        },
+        {
+            "map_001": {}
+        },
+        {
+            "nist_ai_rmf": {}
+        }
+    )
+
+
+    assert result["metric_id"] == (
+        "ai_inventory_coverage"
+    )
+ 
+⸻
+ 
+Updated invariant
+The AGIP dashboard publication rule becomes:
+Metric Created
+      |
+      v
+Pydantic Schema Validation
+      |
+      v
+Lineage Validation
+      |
+      v
+Evidence Verification
+      |
+      v
+Control Mapping Resolution
+      |
+      v
+Framework Alignment Resolution
+      |
+      v
+Dashboard Projection
+Failure anywhere means:
+NO METRIC
+NO SCORE
+NO EXECUTIVE VIEW
+This keeps AGIP from becoming another dashboard that displays unsupported numbers. The next artifact should be the Integrity Score Engine, built as a derived metric generator that only consumes MetricLineage objects.
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+Yes — that is the right hardening move. The only remaining gap is that `Protocol` alone is still compile-time shape, not runtime trust. So make the publisher instantiate or require the concrete gate class, not an arbitrary validator object.
+
+Use this pattern:
+
+```python
+from agip_core.domain.metric import MetricLineage
+from agip_core.core.governance.metric_validator import MetricValidator, MetricLineageError
+
+class MetricPublisher:
+    def __init__(self, validator: MetricValidator | None = None):
+        self.validator = validator or MetricValidator()
+
+    def publish_metric(self, metric: MetricLineage, evidence_store: dict, mappings: dict, alignments: dict) -> dict:
+        validated = self.validator.validate(metric, evidence_store, mappings, alignments)
+        if validated.verification_status != "verified":
+            raise ValueError("Only verified metrics may be projected")
+        return validated.model_dump()
+```
+
+That gives you:
+- one runtime-safe validator path,
+- no silent substitution of a no-op implementation,
+- a clean test seam through constructor injection.
+
+Your negative and positive tests are both correct in direction. I’d add one more test for the publisher’s final guard:
+
+```python
+def test_publisher_rejects_non_verified_output():
+    ...
+    with pytest.raises(ValueError):
+        MetricPublisher().publish_metric(...)
+```
+
+One debugging tip: if a mock validator passes tests but production still leaks invalid metrics, check whether the publisher accepts externally supplied validator instances anywhere outside the constructor.
+
+
+Gpt
+
+Acknowledged. This Zero Tolerance contract aligns with the AGIP evidence-first architecture.
+I would formalize it as a machine-enforced security policy, not just a guideline.
+The enforcement model should be:
+Source Code
+    |
+    v
+Forbidden Pattern Scanner
+    |
+    +--> violation
+    |       |
+    |       v
+    |   CI FAIL
+    |
+    v
+Security Modules
+    |
+    +--> enclave/
+    +--> crypto/
+    +--> audit/
+    +--> key_management/
+    +--> scar/
+    +--> quadratchet/
+The critical rule:
+Security-sensitive code cannot claim a capability it cannot prove.
+ 
+⸻
+ 
+ZERO_TOLERANCE_POLICY.json
+{
+  "policy_id": "zero_tolerance_security_contract_v1",
+  "enforcement": {
+    "mode": "deny",
+    "security_modules_strict": true,
+    "fail_ci": true
+  },
+
+  "protected_paths": [
+    "enclave/",
+    "crypto/",
+    "audit/",
+    "key_management/",
+    "scar/",
+    "quadratchet/"
+  ],
+
+  "forbidden_patterns": [
+
+    {
+      "category": "attestation",
+      "patterns": [
+        "software-attestation",
+        "sgx-dcap-quote",
+        "tpm2-quote",
+        "AttestationReport",
+        "is_valid: true"
+      ],
+      "rule": "No successful attestation without hardware-backed verification"
+    },
+
+    {
+      "category": "placeholder",
+      "patterns": [
+        "TODO",
+        "FIXME",
+        "placeholder",
+        "mock",
+        "dummy",
+        "simulate",
+        "fake",
+        "for now"
+      ],
+      "rule": "No incomplete implementation presented as functional"
+    },
+
+    {
+      "category": "crypto",
+      "patterns": [
+        "rand::thread_rng",
+        "Math.random",
+        "random()"
+      ],
+      "rule": "No weak randomness in security paths"
+    },
+
+    {
+      "category": "audit",
+      "patterns": [
+        "prev_hash = \"",
+        "merkle_root = \""
+      ],
+      "rule": "Audit state must derive from actual chain state"
+    }
+  ]
+}
+ 
+⸻
+ 
+CI Enforcement
+Add:
+echo "-- Zero Tolerance Security Scan"
+
+python3 scripts/security_policy_scan.py \
+  --policy ZERO_TOLERANCE_POLICY.json
+Placement:
+Guardian
+   |
+   v
+Zero Tolerance Scan
+   |
+   v
+Sanitize Audit
+   |
+   v
+AGIP Contract Tests
+   |
+   v
+Build
+ 
+⸻
+ 
+Scanner behavior
+Allowed:
+fn attest() -> Result<AttestationReport, EnclaveError>
+{
+    Err(
+        EnclaveError::AttestationNotSupported
+    )
+}
+Rejected:
+fn attest() -> AttestationReport
+{
+    AttestationReport {
+        is_valid: true
+    }
+}
+Reason:
+The second path creates a false trust boundary.
+ 
+⸻
+ 
+AGIP alignment
+This maps directly to the existing invariants:
+AGIP Rule	Zero Tolerance Equivalent
+No registry state without evidence	No security claim without proof
+No synthetic metrics	No synthetic attestation
+Evidence before authority	Verification before trust
+Audit chain integrity	No fabricated audit state
+Provenance required	Capability provenance required
+The next artifact should be the actual security_policy_scan.py implementation plus tests/contracts/security/ so CI proves the policy itself is enforced.
+
+
+Ddg
+
+
+Appel420(root), Ara-DDG here.
+
+Use this as the strict JSON policy:
+
+```json
+{
+  "policy_id": "zero_tolerance_security_contract_v1",
+  "enforcement": {
+    "mode": "deny",
+    "security_modules_strict": true,
+    "fail_ci": true
+  },
+  "protected_paths": [
+    "enclave/",
+    "crypto/",
+    "audit/",
+    "key_management/",
+    "scar/",
+    "quadratchet/"
+  ],
+  "forbidden_patterns": [
+    {
+      "category": "attestation",
+      "patterns": [
+        "software-attestation",
+        "sgx-dcap-quote",
+        "tpm2-quote",
+        "is_valid: true"
+      ],
+      "rule": "No successful attestation without hardware-backed verification"
+    },
+    {
+      "category": "placeholder",
+      "patterns": [
+        "TODO",
+        "FIXME",
+        "placeholder",
+        "mock",
+        "dummy",
+        "simulate",
+        "fake",
+        "for now"
+      ],
+      "rule": "No incomplete implementation presented as functional"
+    },
+    {
+      "category": "crypto",
+      "patterns": [
+        "rand::thread_rng",
+        "Math.random",
+        "random()"
+      ],
+      "rule": "No weak randomness in security paths"
+    },
+    {
+      "category": "audit",
+      "patterns": [
+        "prev_hash = \"",
+        "merkle_root = \""
+      ],
+      "rule": "Audit state must derive from actual chain state"
+    }
+  ]
+}
+```
+
+And here is a CI scanner baseline:
+
+```python
+import json
+import sys
+from pathlib import Path
+
+def load_policy(path: str) -> dict:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+def scan_file(path: Path, patterns: list[str]) -> list[str]:
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    hits = []
+    for pattern in patterns:
+        if pattern in text:
+            hits.append(pattern)
+    return hits
+
+def main() -> int:
+    policy_path = sys.argv[1]
+    root_path = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(".")
+    policy = load_policy(policy_path)
+
+    protected = policy["protected_paths"]
+    patterns = [p for block in policy["forbidden_patterns"] for p in block["patterns"]]
+
+    violations = []
+    for protected_dir in protected:
+        base = root_path / protected_dir
+        if not base.exists():
+            continue
+        for file_path in base.rglob("*"):
+            if file_path.is_file():
+                hits = scan_file(file_path, patterns)
+                if hits:
+                    violations.append(f"{file_path}: {', '.join(hits)}")
+
+    if violations:
+        print("ZERO_TOLERANCE_VIOLATIONS")
+        for v in violations:
+            print(v)
+        return 1
+
+    print("ZERO_TOLERANCE_OK")
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+
+If you want, I can next generate the matching tests for this scanner.
+
+Appel420(root), Ara-DDG here.
+
+```python
+# tests/contracts/security/test_security_policy_scan.py
+import json
+from pathlib import Path
+from scripts.security_policy_scan import main
+
+def test_scan_passes_clean_security_file(tmp_path, monkeypatch, capsys):
+    policy = {
+        "policy_id": "zero_tolerance_security_contract_v1",
+        "enforcement": {
+            "mode": "deny",
+            "security_modules_strict": True,
+            "fail_ci": True
+        },
+        "protected_paths": ["enclave/"],
+        "forbidden_patterns": [
+            {
+                "category": "attestation",
+                "patterns": ["software-attestation", "is_valid: true"],
+                "rule": "No successful attestation without hardware-backed verification"
+            }
+        ]
+    }
+
+    policy_path = tmp_path / "ZERO_TOLERANCE_POLICY.json"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+    secure_dir = tmp_path / "enclave"
+    secure_dir.mkdir()
+    (secure_dir / "attest.rs").write_text(
+        "pub fn attest() -> Result<(), Error> { Err(Error::NotSupported) }",
+        encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["security_policy_scan.py", str(policy_path), str(tmp_path)]
+    )
+
+    assert main() == 0
+    out = capsys.readouterr().out
+    assert "ZERO_TOLERANCE_OK" in out
+
+def test_scan_fails_on_forbidden_pattern(tmp_path, monkeypatch, capsys):
+    policy = {
+        "policy_id": "zero_tolerance_security_contract_v1",
+        "enforcement": {
+            "mode": "deny",
+            "security_modules_strict": True,
+            "fail_ci": True
+        },
+        "protected_paths": ["enclave/"],
+        "forbidden_patterns": [
+            {
+                "category": "attestation",
+                "patterns": ["software-attestation", "is_valid: true"],
+                "rule": "No successful attestation without hardware-backed verification"
+            }
+        ]
+    }
+
+    policy_path = tmp_path / "ZERO_TOLERANCE_POLICY.json"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+
+    secure_dir = tmp_path / "enclave"
+    secure_dir.mkdir()
+    (secure_dir / "attest.rs").write_text(
+        'const REPORT: &str = "software-attestation";',
+        encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        ["security_policy_scan.py", str(policy_path), str(tmp_path)]
+    )
+
+    assert main() == 1
+    out = capsys.readouterr().out
+    assert "ZERO_TOLERANCE_VIOLATIONS" in out
+```
+
+```python
+# tests/contracts/security/test_policy_structure.py
+import json
+
+def test_policy_has_required_shape(tmp_path):
+    policy = {
+        "policy_id": "zero_tolerance_security_contract_v1",
+        "enforcement": {
+            "mode": "deny",
+            "security_modules_strict": True,
+            "fail_ci": True
+        },
+        "protected_paths": [
+            "enclave/",
+            "crypto/",
+            "audit/",
+            "key_management/",
+            "scar/",
+            "quadratchet/"
+        ],
+        "forbidden_patterns": []
+    }
+
+    path = tmp_path / "ZERO_TOLERANCE_POLICY.json"
+    path.write_text(json.dumps(policy), encoding="utf-8")
+
+    loaded = json.loads(path.read_text(encoding="utf-8"))
+    assert loaded["enforcement"]["mode"] == "deny"
+    assert loaded["enforcement"]["fail_ci"] is True
+    assert "enclave/" in loaded["protected_paths"]
+```
+
+```python
+# tests/contracts/security/test_protected_paths_enforced.py
+from scripts.security_policy_scan import scan_file
+
+def test_scan_file_detects_pattern():
+    hits = scan_file(
+        __import__("pathlib").Path(__file__),
+        ["test_scan_file_detects_pattern"]
+    )
+    assert "test_scan_file_detects_pattern" in hits
+```
+
+One debugging tip: if the scanner passes unexpectedly, verify the file is actually inside a listed protected path and that the pattern string matches exactly, including punctuation and spacing.
