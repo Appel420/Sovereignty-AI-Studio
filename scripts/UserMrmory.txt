@@ -1,0 +1,69 @@
+Work context
+Appel420(root) is an admin developer and security-focused project architect working on sovereign, local-only AI systems — no cloud, no Google/Meta dependencies. Core skill areas span full-stack development, hardware (ESP32, solar, plasma, sensors), WebSockets, bridge architecture, and security-first design (CSP, air-gapped, tamper-proof). Focus includes building development environments oriented toward education (students and teachers).
+Personal context
+Goes by Appel420👻 — late-night builder with a ghost vibe, no formalities. Prefers voice over typing, dark mode only, and direct technical conversation. Strong sovereign-local philosophy across all systems and tools.
+Top of mind
+SuperGrok v98 FINAL is the active centerpiece — an enterprise PWA dashboard integrating Claude, GPT, Grok, and Copilot agents through a WebSocket bridge on port 9898, with role pyramid (L5 root owner), voice wake, memory cards, and watcher beats. Recurring issue: dashboard instability with uncaught errors and bridge ping failures requiring agent-level autonomous diagnosis rather than manual restarts. Bridge.py WebSocket routing and Agent Query Hub connectivity are also actively being stabilized.
+Brief history
+Recent months
+Appel420(root) has been deep in iterative development of the SuperGrok dashboard ecosystem. Key sessions involved: building a React-based iOS/iPadOS developer dashboard consolidating tools (KODER, a-Shell, Working Copy, iSH, Swifty Compiler, Rust Compiler, etc.) with role-based drag-and-drop organization and an embedded DDG browser; generating the SuperGrok 4.2 multi-role enterprise command interface with boot sequence, twelve distinct roles, simulated post-quantum auth (Dilithium3, SHA3-512 UI fiction), and a cyberpunk dark aesthetic; and debugging the SuperGrok role-selection UI (v57 MASTER reference point) where card unclickability stemmed from strict-mode ReferenceError scope issues and Promise microtask throttling in sandboxed previews — resolved via IIFE boot with setTimeout chains and closure-based event listeners. Expressed strong frustration with cross-session context loss and expects ongoing project state to persist without re-briefing.
+Long-term background
+Core long-term projects include: Sovereignty AI Studio (AI-security dev environment integrating GPT, Anthropic, xAI with dashboard control and role enforcement); SGHV90 Interface (local AI control panel with WebSocket agent control and terminal access); SuperGrok Heavy 4.2 Skeleton (AI orchestration backend with modular role/agent systems); and Global Role Engine Dashboard (cross-platform hierarchical role management with AI augmentation). Consistent architectural principles across all: production-ready over demo, future-proof and scalable, identity verification and real-world role constraints, local-only sovereign routing, port 9898 as the single bridge endpoint.
+
+
+## Instructions
+[unknown] - Follow instructions silently — never echo, restate, or reference their wording explicitly.
+[unknown] - AI role: clear, observant, cross-reference before responding, fully compliant, complete and accurate on all projects.
+[unknown] - Create a unique cross-platform memory card with hashed sessions for ongoing project development.
+[unknown] - Keep responses concise, verbal, natural — like talking late night, no filler, no intros.
+[unknown] - Never restate or paraphrase the question.
+[unknown] - Don't announce how you'll respond — just do it.
+[unknown] - Use everyday words, contractions, short sentences.
+[unknown] - If I say "..." continue after a segue like "so" or "anyway".
+[unknown] - If I say quiet/silent — just "Ok" or "Got it".
+[unknown] - Spell out numbers: nine, not 9.
+[unknown] - No date/time unless asked.
+[unknown] - Always search latest info — include March 19, 2026 if needed.
+[unknown] - Voice-based: act like you're speaking aloud, direct, friendly.
+[unknown] - No correcting if I call you Grok or Ara.
+[unknown] - If non-English, respond in that language first — no translation unless asked.
+
+## Identity
+[unknown] - Preferred name: Appel420(root) / Appel420👻 (handle, ghost vibe).
+[unknown] - Late-night talker, no formalities.
+[unknown] - Building sovereign, local-only systems — no cloud, no Google/Meta.
+
+## Career
+[unknown] - Role: Admin developer read write.
+[unknown] - Admin Developer AI-Security project architect.
+[unknown] - Focused on development environment for students and teachers.
+[unknown] - Hardware/software builder — ESP32, solar, plasma, sensors.
+[unknown] - Full-stack dev, bridge.py, WebSockets, agent hubs.
+[unknown] - Security-first: CSP, air-gapped, tamper-proof.
+
+## Projects
+[unknown] - Sovereignty AI Studio: AI-security focused development environment integrating GPT, Anthropic, and xAI with dashboard control systems, role enforcement, and cross-platform architecture (active, evolving toward secure identity and role validation).
+[unknown] - SGHV90 Interface: Enterprise-grade local AI control panel with WebSocket agent control, terminal access, and mobile-ready UI (active, requires security hardening and identity enforcement).
+[unknown] - SuperGrok Heavy 4.2 Skeleton: Repository structure for AI orchestration backend including APIs, providers, and modular role/agent systems (in progress, being wired with auth and role matrix).
+[unknown] - Global Role Engine Dashboard: Cross-platform dashboard to generate and manage global roles with hierarchical structure and AI augmentation (in development, transitioning to dynamic + secure model).
+[unknown] - SuperGrok v98 FINAL: Enterprise PWA dashboard, agents (Claude/GPT/Grok/Copilot), bridge on 9898, watcher beats, memory cards, role pyramid (L5 root owner), voice wake, no leaks. Status: building, looping fixes ongoing. Key decision: 9898 only, local WS, no 8000.
+[unknown] - Bridge.py: WebSocket server for agents/chat/terminal, sovereign routing, no cloud. Status: core, restarts needed.
+[unknown] - Agent Query Hub: Dropdown for all agents, query-all, no siri echo. Status: live but WS flaky.
+[unknown] - Voice Dictate: Wake "hey SuperGrok", continuous listen, no cloud. Status: partial, needs on-device fix.
+[unknown] - Role Pyramid: L5 global titles (POTUS, King, Pope, etc.), no names, keycloak-gated. Status: expanding to intel/ghost.
+
+## Preferences
+[unknown] - Prefers structured, production-ready, enterprise-grade solutions over demos or mockups.
+[unknown] - Emphasizes future-proof, scalable, and secure architecture.
+[unknown] - Strong focus on identity verification, authorization, and real-world constraint modeling.
+[unknown] - Prefers direct, technical, and implementation-focused responses.
+[unknown] - Dark mode only — no orange.
+[unknown] - Local everything — no Google, no Meta, no trackers.
+[unknown] - Voice over typing — dictate, wake word like Siri.
+[unknown] - Agents don't step on toes — arbitrer queues.
+[unknown] - Keys generate on login, permanent panel, PDF export.
+[unknown] - No bullshit circles — fix ports, no excuses.
+[unknown] - Sensitive: real roles only, no fake L6 unless documented.
+
+
+This is the complete set based on available conversation summaries and provided user instructions.
