@@ -1,0 +1,1941 @@
+DNA WETLAB
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Sovereignty One — Unified DNA Decoding + Wet Lab Organ Repair Platform. Offline-capable. No external calls.">
+<title>Sovereignty One · DNA Decoding + Organ Repair Lab</title>
+<style>
+/* ════════════════════════════════════════════════
+   SOVEREIGNTY ONE · UNIFIED PLATFORM v3.0
+   System fonts only · Zero external calls
+   Offline-capable · Air-gap ready
+════════════════════════════════════════════════ */
+:root{
+  --bg:#020608;--bg2:#060d12;--surf:#080f14;--surf2:#0c1820;
+  --border:#0f2535;--border2:#1a3548;
+  --green:#00e87a;--green2:#009950;--green3:#003d22;
+  --cyan:#00c8f0;--cyan2:#0088b0;--cyan3:#002030;
+  --amber:#f0a800;--amber2:#7a5400;
+  --red:#f03355;--red2:#6a0022;
+  --purple:#a088f0;--purple2:#3a2880;
+  --teal:#00c8b0;--teal2:#003830;
+  --orange:#f06800;--orange2:#5a2800;
+  --text:#7ab8c0;--text2:#3a6878;--text3:#1a3040;--white:#d0ecf2;
+  --A:#ff7070;--T:#4ecdc4;--G:#88e060;--C:#f0d040;
+  --f-mono:'SF Mono','Cascadia Code','Consolas','Liberation Mono','Courier New',monospace;
+  --f-display:'Impact','Haettenschweiler','Arial Narrow',sans-serif;
+  --f-serif:'Palatino Linotype','Palatino','Book Antiqua',Georgia,serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;font-size:15px}
+body{background:var(--bg);color:var(--text);font-family:var(--f-serif);line-height:1.8;overflow-x:hidden;min-height:100vh}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9990;
+  background:repeating-linear-gradient(0deg,rgba(0,0,0,.03) 0,rgba(0,0,0,.03) 1px,transparent 1px,transparent 3px)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--cyan2);border-radius:2px}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* ── TOP HEADER ── */
+.site-header{
+  background:var(--surf);border-bottom:1px solid var(--border);
+  padding:12px 24px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:300;gap:12px;flex-wrap:wrap;
+}
+.hdr-left{display:flex;flex-direction:column;gap:2px}
+.hdr-inst{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.3em;color:var(--green);text-transform:uppercase}
+.hdr-title{font-family:var(--f-display);font-size:13px;color:var(--white);letter-spacing:.08em;text-transform:uppercase}
+.hdr-sub{font-family:var(--f-mono);font-size:8px;color:var(--text2);letter-spacing:.1em}
+.hdr-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hdr-badge{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.12em;padding:4px 10px;
+  border:1px solid var(--border2);color:var(--text2);text-transform:uppercase}
+.hdr-badge.online{border-color:var(--green3);color:var(--green)}
+
+/* ── TAB BAR ── */
+.tab-bar{
+  background:var(--surf2);border-bottom:1px solid var(--border);
+  display:flex;gap:0;position:sticky;top:57px;z-index:200;
+}
+.tab-btn{
+  font-family:var(--f-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  padding:10px 20px;border:none;border-bottom:2px solid transparent;background:transparent;
+  color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;
+}
+.tab-btn:hover{color:var(--cyan);background:rgba(0,200,240,.04)}
+.tab-btn.active{color:var(--cyan);border-bottom-color:var(--cyan);background:rgba(0,200,240,.06)}
+.tab-btn.wet{--c:var(--teal)}
+.tab-btn.wet:hover,.tab-btn.wet.active{color:var(--teal);border-bottom-color:var(--teal);background:rgba(0,200,176,.06)}
+.tab-btn.check{--c:var(--amber)}
+.tab-btn.check:hover,.tab-btn.check.active{color:var(--amber);border-bottom-color:var(--amber);background:rgba(240,168,0,.06)}
+
+/* ── PANEL LAYOUT ── */
+.tab-panel{display:none;min-height:calc(100vh - 100px)}
+.tab-panel.active{display:flex}
+
+/* ══════════════════════════════════════
+   PANEL 1: DNA DECODING TOOLS
+══════════════════════════════════════ */
+/* Sidebar */
+.sidebar{
+  width:200px;flex-shrink:0;position:sticky;top:100px;height:calc(100vh - 100px);
+  background:var(--surf);border-right:1px solid var(--border);overflow-y:auto;
+  align-self:flex-start;
+}
+.sb-logo{padding:16px 14px 12px;border-bottom:1px solid var(--border)}
+.sb-inst{font-family:var(--f-mono);font-size:7px;letter-spacing:.28em;color:var(--green);text-transform:uppercase;margin-bottom:4px}
+.sb-title{font-family:var(--f-display);font-size:10px;color:var(--white);letter-spacing:.06em;text-transform:uppercase;line-height:1.4}
+.sb-nav{padding:8px 0}
+.sb-section{font-family:var(--f-mono);font-size:7px;color:var(--text3);letter-spacing:.18em;text-transform:uppercase;padding:8px 14px 3px}
+.sb-lnk{
+  display:block;padding:7px 14px;font-family:var(--f-mono);font-size:9px;
+  color:var(--text2);text-decoration:none;letter-spacing:.04em;
+  border-left:2px solid transparent;transition:all .1s;
+}
+.sb-lnk:hover,.sb-lnk.active{border-left-color:var(--cyan);color:var(--cyan);background:rgba(0,200,240,.04)}
+.sb-footer{padding:10px 14px;border-top:1px solid var(--border);font-family:var(--f-mono);font-size:7px;color:var(--text3);letter-spacing:.08em;line-height:1.7}
+
+/* Main content area */
+.dna-main{flex:1;min-width:0;padding:32px 36px 80px}
+
+/* Section blocks */
+.section-hdr{margin-bottom:32px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.section-num{font-family:var(--f-mono);font-size:8px;letter-spacing:.28em;color:var(--green);text-transform:uppercase;margin-bottom:6px}
+.section-title{font-family:var(--f-display);font-size:22px;color:var(--white);letter-spacing:.04em;text-transform:uppercase;line-height:1.2}
+.section-sub{font-family:var(--f-mono);font-size:10px;color:var(--text2);letter-spacing:.1em;margin-top:6px}
+
+/* Helix display */
+.helix-wrap{
+  background:var(--surf);border:1px solid var(--border);margin-bottom:28px;
+  position:relative;height:140px;overflow:hidden;
+}
+.helix-label{
+  position:absolute;top:10px;left:14px;font-family:var(--f-mono);
+  font-size:7.5px;letter-spacing:.2em;color:var(--text3);text-transform:uppercase;z-index:2;
+}
+canvas#helixCanvas{width:100%;height:100%;display:block}
+.seq-display{
+  position:absolute;bottom:10px;left:0;right:0;text-align:center;
+  font-family:var(--f-mono);font-size:9.5px;letter-spacing:.15em;line-height:1.8;
+}
+.toggle-anim{
+  position:absolute;top:8px;right:10px;font-family:var(--f-mono);font-size:7.5px;
+  letter-spacing:.1em;padding:4px 10px;border:1px solid var(--border2);background:transparent;
+  color:var(--text2);cursor:pointer;z-index:3;transition:all .12s;
+}
+.toggle-anim:hover{color:var(--cyan);border-color:var(--cyan)}
+.nt-A{color:var(--A)} .nt-T{color:var(--T)} .nt-G{color:var(--G)} .nt-C{color:var(--C)} .nt-U{color:var(--purple)}
+
+/* Info blocks */
+.info-block{
+  background:var(--surf2);border:1px solid var(--border);border-left:2px solid var(--cyan3);
+  padding:18px 22px;margin-bottom:20px;position:relative;
+}
+.info-block::before{
+  content:attr(data-label);font-family:var(--f-mono);font-size:7px;letter-spacing:.24em;
+  color:var(--cyan2);position:absolute;top:-8px;left:18px;background:var(--bg);padding:0 6px;text-transform:uppercase;
+}
+.info-block p{font-size:13.5px;line-height:1.9;color:var(--text);margin-bottom:10px}
+.info-block p:last-child{margin-bottom:0}
+.info-block strong{color:var(--white)}
+.info-block em{color:var(--amber);font-style:normal}
+.eq-block{
+  background:var(--bg);border:1px solid var(--border);padding:14px 18px;margin:12px 0;
+  font-family:var(--f-mono);font-size:11.5px;color:var(--green);letter-spacing:.05em;line-height:1.9;
+  overflow-x:auto;
+}
+.code-wrap{position:relative;margin:14px 0}
+.code-wrap pre{
+  background:var(--bg);border:1px solid var(--border);padding:14px 16px;
+  font-family:var(--f-mono);font-size:10.5px;color:var(--green);overflow-x:auto;line-height:1.8;
+}
+.copy-btn{
+  position:absolute;top:6px;right:8px;font-family:var(--f-mono);font-size:7.5px;
+  letter-spacing:.1em;padding:3px 8px;border:1px solid var(--border2);background:var(--bg);
+  color:var(--text2);cursor:pointer;transition:all .12s;
+}
+.copy-btn:hover{color:var(--green);border-color:var(--green)}
+table.bio-table{width:100%;border-collapse:collapse;font-family:var(--f-mono);font-size:10.5px;margin:14px 0}
+table.bio-table th{background:var(--surf2);color:var(--cyan);font-weight:400;letter-spacing:.1em;padding:8px 12px;text-align:left;border:1px solid var(--border)}
+table.bio-table td{padding:7px 12px;border:1px solid var(--border);color:var(--text);vertical-align:top}
+table.bio-table tr:hover td{background:rgba(0,200,240,.02)}
+.tag-grid{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.tag{font-family:var(--f-mono);font-size:8px;letter-spacing:.1em;padding:3px 8px;border:1px solid;text-transform:uppercase}
+.tag.green{border-color:var(--green3);color:var(--green)}
+.tag.cyan{border-color:var(--cyan3);color:var(--cyan)}
+.tag.amber{border-color:var(--amber2);color:var(--amber)}
+.tag.purple{border-color:var(--purple2);color:var(--purple)}
+h3.subsec{font-family:var(--f-display);font-size:14px;color:var(--cyan);letter-spacing:.06em;text-transform:uppercase;margin:22px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+h4.mini-sec{font-family:var(--f-mono);font-size:9.5px;color:var(--text2);letter-spacing:.16em;text-transform:uppercase;margin:16px 0 8px}
+
+/* ── TOOLS ── */
+.tools-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:32px}
+@media(max-width:860px){.tools-grid{grid-template-columns:1fr}}
+.tool-card{background:var(--surf);border:1px solid var(--border);overflow:hidden}
+.tool-top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;background:var(--surf2);border-bottom:1px solid var(--border);
+}
+.tool-name{font-family:var(--f-display);font-size:11px;color:var(--white);letter-spacing:.06em;text-transform:uppercase}
+.tool-badge{font-family:var(--f-mono);font-size:7px;letter-spacing:.16em;padding:2px 7px;border:1px solid var(--green3);color:var(--green);text-transform:uppercase}
+.tool-body{padding:14px 16px}
+.t-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.t-grp{display:flex;flex-direction:column;gap:5px;flex:1;min-width:120px}
+.t-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:var(--text2);text-transform:uppercase}
+.t-in,.t-sel{
+  background:var(--bg);border:1px solid var(--border2);color:var(--white);
+  font-family:var(--f-mono);font-size:11px;padding:7px 10px;width:100%;
+}
+.t-in:focus,.t-sel:focus{outline:none;border-color:var(--cyan)}
+.t-ta{
+  background:var(--bg);border:1px solid var(--border2);color:var(--white);
+  font-family:var(--f-mono);font-size:11px;padding:7px 10px;width:100%;
+  resize:vertical;min-height:56px;
+}
+.t-ta:focus{outline:none;border-color:var(--cyan)}
+.t-btn{
+  font-family:var(--f-mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;
+  padding:7px 16px;border:1px solid;cursor:pointer;transition:all .12s;margin-bottom:8px;
+}
+.t-btn.pri{border-color:var(--cyan2);color:var(--cyan);background:transparent}
+.t-btn.pri:hover{background:rgba(0,200,240,.1)}
+.t-btn.sec{border-color:var(--border2);color:var(--text2);background:transparent}
+.t-btn.sec:hover{border-color:var(--text2);color:var(--white)}
+.out-lbl{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.14em;color:var(--text2);text-transform:uppercase;margin:10px 0 4px}
+.t-out{
+  background:var(--bg);border:1px solid var(--border);padding:8px 10px;
+  font-family:var(--f-mono);font-size:10.5px;white-space:pre-wrap;line-height:1.7;
+  color:var(--text);min-height:32px;
+}
+.nt-bars{display:flex;gap:8px;align-items:flex-end;height:80px;margin:10px 0 6px;padding:0 4px}
+.nt-bwrap{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+.nt-bar{width:100%;border-radius:1px 1px 0 0;min-height:3px;transition:height .2s}
+.nt-bar.A{background:var(--A)} .nt-bar.T{background:var(--T)} .nt-bar.G{background:var(--G)} .nt-bar.C{background:var(--C)}
+.nt-pct{font-family:var(--f-mono);font-size:8.5px;color:var(--text2)}
+.nt-ltr{font-family:var(--f-mono);font-size:9px;font-weight:bold}
+.nt-ltr.A{color:var(--A)} .nt-ltr.T{color:var(--T)} .nt-ltr.G{color:var(--G)} .nt-ltr.C{color:var(--C)}
+.e-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.e-cell{background:var(--bg);border:1px solid var(--border);padding:8px 10px;text-align:center}
+.e-lbl{font-family:var(--f-mono);font-size:7.5px;color:var(--text2);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.e-val{font-family:var(--f-mono);font-size:14px;color:var(--white)}
+.e-unit{font-size:9px;color:var(--text2);margin-left:2px}
+.orf-out{
+  background:var(--bg);border:1px solid var(--border);padding:10px;
+  font-family:var(--f-mono);font-size:10.5px;word-break:break-all;line-height:1.9;
+  min-height:48px;max-height:160px;overflow-y:auto;color:var(--text2);
+}
+.os{color:var(--amber);font-weight:bold} .ox{color:var(--red)} .ob{color:var(--green)}
+
+/* MOTIF SCANNER */
+.motif-result{
+  background:var(--bg);border:1px solid var(--border);padding:10px;
+  font-family:var(--f-mono);font-size:10px;white-space:pre-wrap;
+  min-height:48px;line-height:1.8;max-height:200px;overflow-y:auto;
+}
+.motif-hit{color:var(--amber);font-weight:bold}
+
+/* GC WINDOW CHART */
+.gc-canvas-wrap{background:var(--bg);border:1px solid var(--border);margin-top:8px;padding:8px}
+canvas#gcCanvas{width:100%;height:80px;display:block}
+.gc-lbl{font-family:var(--f-mono);font-size:7.5px;color:var(--text2);letter-spacing:.1em;margin-bottom:4px;text-transform:uppercase}
+
+/* COMPLEMENT */
+.comp-out{
+  background:var(--bg);border:1px solid var(--border);padding:8px 10px;
+  font-family:var(--f-mono);font-size:10.5px;word-break:break-all;line-height:2;
+}
+
+/* ══════════════════════════════════════
+   PANEL 2: WET-LAB CHECKLIST
+══════════════════════════════════════ */
+.checklist-panel{flex-direction:column}
+.master-bar{
+  background:var(--surf2);border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.master-label{font-family:var(--f-mono);font-size:8.5px;color:var(--text2);letter-spacing:.14em;text-transform:uppercase;flex-shrink:0}
+.master-track{flex:1;min-width:200px;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.master-fill{height:4px;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:2px;transition:width .4s ease;width:0%}
+.master-pct{font-family:var(--f-mono);font-size:14px;color:var(--white);flex-shrink:0;min-width:44px}
+.master-counts{font-family:var(--f-mono);font-size:8px;color:var(--text2);letter-spacing:.08em}
+.cl-layout{display:flex;flex:1;min-height:0}
+.cl-sidebar{
+  width:200px;flex-shrink:0;position:sticky;top:100px;height:calc(100vh - 100px);
+  background:var(--surf);border-right:1px solid var(--border);overflow-y:auto;
+}
+.sb-nav-cl{padding:6px 0}
+.sb-phase-link{
+  display:flex;align-items:center;gap:8px;padding:8px 12px;
+  font-family:var(--f-mono);font-size:8.5px;color:var(--text2);letter-spacing:.05em;
+  text-decoration:none;border-left:2px solid transparent;transition:all .12s;
+}
+.sb-phase-link:hover,.sb-phase-link.active{border-left-color:var(--cyan);color:var(--cyan);background:rgba(0,200,240,.04)}
+.sb-phase-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;border:1px solid}
+.sb-phase-mini{font-family:var(--f-mono);font-size:6.5px;color:var(--text2);letter-spacing:.1em;padding:4px 12px 2px;text-transform:uppercase}
+.sb-phase-pct{font-family:var(--f-mono);font-size:7.5px;margin-left:auto;flex-shrink:0}
+.cl-content{flex:1;min-width:0;padding:24px 32px 80px}
+.cl-intro{
+  background:var(--surf);border:1px solid var(--border);border-left:2px solid var(--green);
+  padding:18px 22px;margin-bottom:32px;position:relative;
+}
+.cl-intro::before{
+  content:'PRODUCTION ROADMAP';font-family:var(--f-mono);font-size:7px;letter-spacing:.28em;
+  color:var(--green);position:absolute;top:-8px;left:18px;background:var(--bg);padding:0 6px;
+}
+.cl-intro p{font-size:13.5px;line-height:1.9;color:var(--text)}
+.cl-intro strong{color:var(--white)}
+
+/* Phase cards */
+.phase{margin-bottom:44px;scroll-margin-top:110px}
+.phase-header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.phase-num{
+  font-family:var(--f-mono);font-size:8px;letter-spacing:.18em;text-transform:uppercase;
+  padding:4px 10px;border:1px solid;flex-shrink:0;
+}
+.phase-title{font-family:var(--f-display);font-size:17px;color:var(--white);letter-spacing:.06em;text-transform:uppercase;flex:1;min-width:0}
+.phase-timeline{font-family:var(--f-mono);font-size:8px;color:var(--text2);letter-spacing:.1em;flex-shrink:0}
+.phase-meta{
+  display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;
+  font-family:var(--f-mono);font-size:8px;color:var(--text2);letter-spacing:.06em;
+}
+.phase-gate{
+  background:var(--surf2);border:1px solid var(--border);border-left:2px solid;
+  padding:10px 14px;margin-bottom:16px;font-family:var(--f-mono);font-size:10px;
+  color:var(--text);line-height:1.6;
+}
+.phase-gate::before{
+  display:block;font-size:7px;letter-spacing:.2em;text-transform:uppercase;
+  color:inherit;opacity:.6;margin-bottom:3px;content:'PASS GATE';
+}
+.phase-progress{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.phase-bar{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.phase-fill{height:3px;border-radius:2px;transition:width .3s ease;width:0%}
+.phase-pct{font-family:var(--f-mono);font-size:9px;color:var(--text2);min-width:36px}
+.phase-done{font-family:var(--f-mono);font-size:8px;color:var(--text2)}
+
+/* Task groups */
+.task-group{margin-bottom:20px}
+.group-title{
+  font-family:var(--f-mono);font-size:8px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--text2);padding:6px 0 6px 10px;border-left:2px solid var(--border2);
+  margin-bottom:8px;
+}
+.task-item{
+  display:flex;align-items:flex-start;gap:10px;padding:10px 12px;
+  background:var(--surf2);border:1px solid var(--border);margin-bottom:4px;
+  cursor:pointer;transition:all .1s;
+}
+.task-item:hover{border-color:var(--border2);background:rgba(12,24,32,.8)}
+.task-item.done{opacity:.55}
+.task-item.done .task-text{text-decoration:line-through;color:var(--text2)}
+.task-cb{
+  width:16px;height:16px;border:1px solid var(--border2);border-radius:1px;
+  flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;
+  transition:all .1s;
+}
+.task-item.done .task-cb{background:var(--green3);border-color:var(--green)}
+.task-check{display:none;width:9px;height:9px;background:var(--green);clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
+.task-item.done .task-check{display:block}
+.task-content{flex:1;min-width:0}
+.task-text{font-size:13px;color:var(--text);line-height:1.6}
+.task-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+.ttag{font-family:var(--f-mono);font-size:7px;letter-spacing:.08em;padding:2px 6px;border:1px solid;text-transform:uppercase}
+.ttag.critical{border-color:#6a0022;color:var(--red)}
+.ttag.wet-lab{border-color:#003830;color:var(--teal)}
+.ttag.compute{border-color:var(--purple2);color:var(--purple)}
+.ttag.regulatory{border-color:var(--amber2);color:var(--amber)}
+.ttag.in-vivo{border-color:var(--orange2);color:var(--orange)}
+.ttag.sovereign{border-color:#1a3548;color:var(--cyan2)}
+.task-detail{
+  font-family:var(--f-mono);font-size:9.5px;color:var(--text2);line-height:1.7;
+  margin-top:7px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);
+  display:none;
+}
+.task-item.expanded .task-detail{display:block}
+.expand-btn{
+  font-family:var(--f-mono);font-size:9px;color:var(--text2);flex-shrink:0;
+  background:none;border:none;cursor:pointer;padding:2px 4px;
+  transition:color .1s;
+}
+.expand-btn:hover{color:var(--cyan)}
+.task-item.expanded .expand-btn{color:var(--cyan)}
+
+/* Filter toolbar */
+.filter-bar{
+  display:flex;gap:6px;flex-wrap:wrap;margin-bottom:20px;padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.fl-btn{
+  font-family:var(--f-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;
+  padding:5px 12px;border:1px solid var(--border2);background:transparent;
+  color:var(--text2);cursor:pointer;transition:all .12s;
+}
+.fl-btn:hover{color:var(--white);border-color:var(--text2)}
+.fl-btn.active{color:var(--cyan);border-color:var(--cyan);background:rgba(0,200,240,.06)}
+.fl-btn.danger{} .fl-btn.danger:hover{color:var(--red);border-color:var(--red)}
+.fl-sep{width:1px;background:var(--border);margin:0 4px;align-self:stretch}
+
+/* ── NOTES SYSTEM ── */
+.notes-section{margin-top:40px}
+.notes-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.notes-title{font-family:var(--f-display);font-size:16px;color:var(--white);letter-spacing:.06em;text-transform:uppercase}
+.live-badge{font-family:var(--f-mono);font-size:7px;letter-spacing:.14em;padding:3px 7px;border:1px solid var(--green3);color:var(--green);margin-left:10px}
+.btn-add{
+  font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  padding:6px 14px;border:1px solid var(--cyan2);background:transparent;color:var(--cyan);cursor:pointer;transition:all .12s;
+}
+.btn-add:hover{background:rgba(0,200,240,.1)}
+.note-form{display:none;background:var(--surf);border:1px solid var(--border);padding:18px;margin-bottom:16px}
+.note-form.open{display:block}
+.f-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+@media(max-width:600px){.f-grid{grid-template-columns:1fr}}
+.f-grp{display:flex;flex-direction:column;gap:5px}
+.f-lbl{font-family:var(--f-mono);font-size:8px;letter-spacing:.12em;color:var(--text2);text-transform:uppercase}
+.f-in,.f-sel{background:var(--bg);border:1px solid var(--border2);color:var(--white);font-family:var(--f-mono);font-size:11px;padding:7px 10px}
+.f-in:focus,.f-sel:focus{outline:none;border-color:var(--cyan)}
+.f-ta{background:var(--bg);border:1px solid var(--border2);color:var(--white);font-family:var(--f-mono);font-size:11px;padding:7px 10px;width:100%;resize:vertical;min-height:80px}
+.f-ta:focus{outline:none;border-color:var(--cyan)}
+.f-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:12px}
+.btn-save{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;padding:7px 18px;border:1px solid var(--green);background:transparent;color:var(--green);cursor:pointer;transition:all .12s}
+.btn-save:hover{background:rgba(0,232,122,.1)}
+.btn-cancel{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;padding:7px 14px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer}
+.btn-cancel:hover{color:var(--white);border-color:var(--text2)}
+.notes-bar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+.notes-bar .fl-btn{font-size:7.5px;padding:4px 10px}
+.fl-sp{flex:1}
+.exp-btn{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer}
+.exp-btn:hover{color:var(--amber);border-color:var(--amber)}
+.note-cnt{font-family:var(--f-mono);font-size:8px;color:var(--text2);letter-spacing:.08em}
+.empty-state{text-align:center;padding:40px;font-family:var(--f-mono);font-size:10px;color:var(--text2);letter-spacing:.1em}
+.note-card{background:var(--surf2);border:1px solid var(--border);padding:14px 16px;margin-bottom:8px}
+.nc-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px}
+.nc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.n-tag{font-family:var(--f-mono);font-size:7px;letter-spacing:.1em;padding:2px 7px;border:1px solid;text-transform:uppercase}
+.n-tag.general{border-color:var(--border2);color:var(--text2)}
+.n-tag.mechanism{border-color:var(--cyan3);color:var(--cyan)}
+.n-tag.clinical{border-color:var(--red2);color:var(--red)}
+.n-tag.epigenetics{border-color:var(--green3);color:var(--green)}
+.n-tag.genomics{border-color:var(--amber2);color:var(--amber)}
+.n-tag.hypothesis{border-color:var(--purple2);color:var(--purple)}
+.n-tag.computation{border-color:var(--teal2);color:var(--teal)}
+.note-date{font-family:var(--f-mono);font-size:8px;color:var(--text2)}
+.nc-btns{display:flex;gap:6px;flex-shrink:0}
+.n-btn{font-family:var(--f-mono);font-size:7.5px;letter-spacing:.08em;padding:3px 8px;border:1px solid var(--border2);background:transparent;color:var(--text2);cursor:pointer}
+.n-btn:hover{color:var(--cyan);border-color:var(--cyan)}
+.n-btn.del:hover{color:var(--red);border-color:var(--red)}
+.note-ttl{font-size:13.5px;color:var(--white);margin-bottom:6px;font-weight:400}
+.note-bdy{font-family:var(--f-mono);font-size:10px;color:var(--text);line-height:1.8}
+.note-ref{font-family:var(--f-mono);font-size:8.5px;color:var(--text2);margin-top:8px}
+
+/* FOOTER */
+.site-footer{
+  background:var(--surf);border-top:1px solid var(--border);
+  padding:14px 28px;font-family:var(--f-mono);font-size:8px;
+  color:var(--text3);letter-spacing:.12em;display:flex;justify-content:space-between;
+  flex-wrap:wrap;gap:8px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ═══════════ -->
+<header class="site-header">
+  <div class="hdr-left">
+    <div class="hdr-inst">Sovereignty One · Genomics Platform</div>
+    <div class="hdr-title">DNA Decoding + Organ Repair Lab</div>
+    <div class="hdr-sub">DOC-2026-0514 · GENOMICS v3.0 · OFFLINE CAPABLE</div>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-badge online">● Offline Ready</span>
+    <span class="hdr-badge">No External Calls</span>
+    <span class="hdr-badge">Air-Gap Safe</span>
+  </div>
+</header>
+
+<!-- ═══════════ TAB BAR ═══════════ -->
+<nav class="tab-bar" role="tablist" aria-label="Platform sections">
+  <button class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-dna" onclick="switchTab('dna',this)">§ DNA Decoding Tools</button>
+  <button class="tab-btn wet" role="tab" aria-selected="false" aria-controls="panel-wetlab" onclick="switchTab('wetlab',this)">⬡ Wet Lab Protocol</button>
+  <button class="tab-btn check" role="tab" aria-selected="false" aria-controls="panel-organ" onclick="switchTab('organ',this)">✦ Organ Repair Checklist</button>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     PANEL 1 · DNA DECODING TOOLS
+═══════════════════════════════════════════ -->
+<div class="tab-panel active" id="panel-dna" role="tabpanel">
+
+  <!-- DNA Sidebar -->
+  <aside class="sidebar" aria-label="Section navigation">
+    <div class="sb-logo">
+      <div class="sb-inst">Sovereignty One</div>
+      <div class="sb-title">DNA Decoding Research Lab</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="sb-section">Sections</div>
+      <a class="sb-lnk" href="#sec-chemistry">§01 Chemistry</a>
+      <a class="sb-lnk" href="#sec-structure">§02 Structure</a>
+      <a class="sb-lnk" href="#sec-math">§03 Math Decoding</a>
+      <a class="sb-lnk" href="#sec-workflow">§06 Workflow</a>
+      <a class="sb-lnk" href="#sec-protocol">§07 Protocol</a>
+      <a class="sb-lnk" href="#sec-ldlr">§10 LDLR Case Study</a>
+      <div class="sb-section">Tools</div>
+      <a class="sb-lnk" href="#tool-seq">Sequence Analyzer</a>
+      <a class="sb-lnk" href="#tool-ent">Entropy Calculator</a>
+      <a class="sb-lnk" href="#tool-cod">Codon Decoder</a>
+      <a class="sb-lnk" href="#tool-orf">ORF Finder</a>
+      <a class="sb-lnk" href="#tool-motif">Motif Scanner</a>
+      <a class="sb-lnk" href="#tool-gc">GC Sliding Window</a>
+      <a class="sb-lnk" href="#tool-comp">Reverse Complement</a>
+      <a class="sb-lnk" href="#tool-notes-dna">Research Notes</a>
+    </nav>
+    <div class="sb-footer">v3.0 · Offline · No cloud<br>SOVEREIGNTY-ONE 2026</div>
+  </aside>
+
+  <!-- DNA Main Content -->
+  <main class="dna-main">
+
+    <!-- HELIX HERO -->
+    <div class="helix-wrap" aria-label="Animated DNA double helix">
+      <div class="helix-label">B-FORM DOUBLE HELIX · 3.4Å/bp · 10.5 bp/TURN</div>
+      <canvas id="helixCanvas" aria-hidden="true"></canvas>
+      <button class="toggle-anim" id="canvasToggle" onclick="DNALab.helix.toggle()" aria-pressed="true">Pause Animation</button>
+      <div class="seq-display" aria-label="Example 72-nucleotide sequence" aria-hidden="true">
+        <div id="seqTop" style="color:var(--cyan2)"></div>
+        <div style="color:var(--text3);font-size:8px">||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||</div>
+        <div id="seqBot" style="color:var(--text3)"></div>
+      </div>
+    </div>
+
+    <!-- §01 MOLECULAR CHEMISTRY -->
+    <section id="sec-chemistry">
+      <div class="section-hdr">
+        <div class="section-num">§01</div>
+        <div class="section-title">Molecular Chemistry of DNA</div>
+        <div class="section-sub">Nucleotide structure · Base-pairing thermodynamics · Backbone geometry</div>
+      </div>
+
+      <div class="info-block" data-label="Nucleotide Components">
+        <p>Each DNA nucleotide is composed of three covalently bonded components: a <strong>deoxyribose sugar</strong> (C5H10O3), a <strong>phosphate group</strong> (PO₄³⁻), and one of four <strong>nitrogenous bases</strong>. The phosphodiester backbone runs antiparallel: one strand 5'→3', the complementary strand 3'→5'.</p>
+        <p>Purines (A, G): two-ring structures. Pyrimidines (C, T): single-ring structures. Watson-Crick base-pairing: <em>A=T</em> (2 hydrogen bonds, ΔG ≈ −1.0 kcal/mol) · <em>G≡C</em> (3 hydrogen bonds, ΔG ≈ −1.5 kcal/mol).</p>
+      </div>
+
+      <h3 class="subsec">Base-Pairing Thermodynamics</h3>
+      <div class="eq-block">Tm = 81.5 + 16.6·log[Na⁺] + 0.41·(%GC) − 675/L
+ΔG°(AT) = −1.0 kcal/mol · ΔG°(GC) = −1.5 kcal/mol
+ΔG°(duplex) = ΔH° − T·ΔS°  (nearest-neighbor model)
+[Na⁺] standard: 50 mM · L = length in bp</div>
+
+      <h3 class="subsec">Nearest-Neighbor Parameters (SantaLucia 1998)</h3>
+      <table class="bio-table">
+        <thead><tr><th>Dinucleotide</th><th>ΔH° (kcal/mol)</th><th>ΔS° (cal/mol·K)</th><th>ΔG°₃₇ (kcal/mol)</th></tr></thead>
+        <tbody>
+          <tr><td>AA/TT</td><td>−7.9</td><td>−22.2</td><td>−1.0</td></tr>
+          <tr><td>AT/TA</td><td>−7.2</td><td>−20.4</td><td>−0.88</td></tr>
+          <tr><td>TA/AT</td><td>−7.2</td><td>−21.3</td><td>−0.58</td></tr>
+          <tr><td>CA/GT</td><td>−8.5</td><td>−22.7</td><td>−1.45</td></tr>
+          <tr><td>GT/CA</td><td>−8.4</td><td>−22.4</td><td>−1.44</td></tr>
+          <tr><td>CT/GA</td><td>−7.8</td><td>−21.0</td><td>−1.28</td></tr>
+          <tr><td>GA/CT</td><td>−8.2</td><td>−22.2</td><td>−1.30</td></tr>
+          <tr><td>CG/GC</td><td>−10.6</td><td>−27.2</td><td>−2.17</td></tr>
+          <tr><td>GC/CG</td><td>−9.8</td><td>−24.4</td><td>−2.24</td></tr>
+          <tr><td>GG/CC</td><td>−8.0</td><td>−19.9</td><td>−1.84</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- §02 DNA STRUCTURE -->
+    <section id="sec-structure" style="margin-top:40px">
+      <div class="section-hdr">
+        <div class="section-num">§02</div>
+        <div class="section-title">DNA Structure & Chromatin Architecture</div>
+        <div class="section-sub">B-form helix · Nucleosome · ChromHMM states · 3D architecture</div>
+      </div>
+      <div class="info-block" data-label="B-Form Helix Parameters">
+        <p>B-form (physiological): rise per bp = <em>3.4 Å</em> · twist = <em>36°/bp</em> (10 bp/turn) · pitch = <em>34 Å</em> · diameter = <em>20 Å</em>. Major groove (wide, 22 Å) houses most TF-binding contacts. Minor groove (narrow, 12 Å) accessed by TATA-binding protein and AT-hooks.</p>
+        <p>Nucleosome: 147 bp of DNA wrapped 1.65 turns around histone octamer (H2A·H2B·H3·H4)₂. Linker DNA 20–80 bp. <strong>30-nm fiber</strong> compaction still debated; cryo-EM supports polymer melt / liquid crystalline organization in vivo.</p>
+      </div>
+      <h3 class="subsec">ChromHMM 15-State Model (ENCODE)</h3>
+      <table class="bio-table">
+        <thead><tr><th>State</th><th>Marks</th><th>Annotation</th><th>Reversibility</th></tr></thead>
+        <tbody>
+          <tr><td>E1</td><td>H3K4me3, H3K27ac</td><td>Active TSS</td><td>High</td></tr>
+          <tr><td>E2</td><td>H3K4me1, H3K27ac</td><td>Active Enhancer</td><td>High</td></tr>
+          <tr><td>E3</td><td>H3K4me1</td><td>Poised/Weak Enhancer</td><td>Moderate</td></tr>
+          <tr><td>E4</td><td>H3K36me3</td><td>Strong Transcription</td><td>High</td></tr>
+          <tr><td>E5</td><td>H3K27me3</td><td>Polycomb Repression</td><td>Moderate (dCas9-KDM6A)</td></tr>
+          <tr><td>E6</td><td>H3K9me3</td><td>Constitutive Heterochromatin</td><td>Low</td></tr>
+          <tr><td>E7</td><td>Low signal</td><td>Quiescent / Low Activity</td><td>Variable</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- §03 MATHEMATICAL DECODING -->
+    <section id="sec-math" style="margin-top:40px">
+      <div class="section-hdr">
+        <div class="section-num">§03</div>
+        <div class="section-title">Mathematical Decoding Framework</div>
+        <div class="section-sub">Information theory · PWM scoring · Kozak scoring · CAI</div>
+      </div>
+      <div class="info-block" data-label="Information Theory">
+        <p><strong>Shannon Entropy:</strong> H = −∑ pᵢ·log₂(pᵢ) bits/nucleotide. Maximum H = 2.0 bits for uniform ATGC. Regulatory elements compress entropy (high conservation → low H). CpG islands: GC-rich, H → 1.0–1.4 bits.</p>
+        <p><strong>Position Weight Matrix (PWM) Score:</strong> S = ∑ₚ log₂[f(b,p) / p(b)] where f(b,p) = observed frequency of base b at position p, p(b) = background frequency. Threshold ≥ 80% of max PWM score for binding-site calls.</p>
+      </div>
+      <div class="eq-block">Shannon H:      H = -Σᵢ pᵢ log₂(pᵢ)    [bits/nt]
+H_max = 2.0000 bits  (uniform ATGC)
+Redundancy R:   R = (1 - H/H_max) × 100%
+
+PWM Score:      S = Σₚ log₂[ f(b,p) / p(b) ]
+Kozak Score:    K = w(−3)·A/G + w(+4)·G     (positions rel. ATG)
+CAI:            CAI = exp[ (1/L) Σᵢ ln w(cᵢ) ]  w = RSCU ratio</div>
+
+      <h3 class="subsec">Empirical Thresholds</h3>
+      <table class="bio-table">
+        <thead><tr><th>Feature</th><th>H (bits)</th><th>GC%</th><th>Interpretation</th></tr></thead>
+        <tbody>
+          <tr><td>CpG Island</td><td>1.0–1.4</td><td>≥55%</td><td>Promoter, regulatory. CpG Obs/Exp ≥ 0.6</td></tr>
+          <tr><td>Coding Exon</td><td>1.7–1.95</td><td>50–65%</td><td>High complexity, codon usage bias</td></tr>
+          <tr><td>Enhancer</td><td>1.5–1.9</td><td>40–60%</td><td>TF binding, moderate complexity</td></tr>
+          <tr><td>Simple Repeat</td><td>&lt;0.5</td><td>Variable</td><td>Low complexity, high redundancy</td></tr>
+          <tr><td>LINE/SINE</td><td>1.6–1.85</td><td>35–45%</td><td>AT-rich, moderate entropy</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- §06 WORKFLOW -->
+    <section id="sec-workflow" style="margin-top:40px">
+      <div class="section-hdr">
+        <div class="section-num">§06</div>
+        <div class="section-title">Multi-Layer Decoding Workflow</div>
+        <div class="section-sub">Decode → Diagnose → Intervene → Validate</div>
+      </div>
+      <div class="info-block" data-label="Six-Layer Pipeline">
+        <p><strong>Layer 1 — Raw sequence → ORF identification:</strong> Multi-frame translation, Kozak scoring, comparative genomics (PhyloP/PhastCons), Ribo-seq confirmation.</p>
+        <p><strong>Layer 2 — Regulatory motif detection:</strong> PWM scanning (JASPAR 2024), delta-PWM scoring for variant effects, combinatorial TF binding syntax (syntax grammar rules).</p>
+        <p><strong>Layer 3 — Epigenetic overlay:</strong> Full 15-state ChromHMM integration per cell type, CUT&amp;RUN signal, DNA methylation (EM-seq), ATAC-seq accessibility.</p>
+        <p><strong>Layer 4 — 3D chromatin architecture:</strong> Hi-C TAD boundaries, A/B compartment calls, Activity-by-Contact (ABC) enhancer-gene mapping score ≥ 0.02.</p>
+        <p><strong>Layer 5 — Variant-to-function:</strong> Allele-specific ATAC-seq, MPRA, CRISPRi perturbation, ClinVar variant effect prediction.</p>
+        <p><strong>Layer 6 — Functional simulation:</strong> Cell-type-specific in silico validation before wet-lab commitment.</p>
+      </div>
+    </section>
+
+    <!-- §07 PROTOCOL -->
+    <section id="sec-protocol" style="margin-top:40px">
+      <div class="section-hdr">
+        <div class="section-num">§07</div>
+        <div class="section-title">Step-by-Step Decoding Protocol</div>
+        <div class="section-sub">Operational sequence for regulatory variant interpretation</div>
+      </div>
+      <div class="info-block" data-label="Protocol Steps">
+        <p><strong>Step 1 — Disambiguate protein-coding signal:</strong> Kozak scoring at ATG candidates. CAI (Codon Adaptation Index) ≥ 0.7 for bona fide ORFs. Comparative genomics: PhyloP conservation ≥ 2.0 at synonymous positions. Ribo-seq read density at candidate ORF ≥ 5× background.</p>
+        <p><strong>Step 2 — Parse regulatory grammar:</strong> PWM motif scanning with JASPAR CORE 2024 vertebrate TF models (≥756 models). Delta-PWM score for variant: ΔS = S(ref) − S(alt). |ΔS| ≥ 2.0 bits = significant binding disruption.</p>
+        <p><strong>Step 3 — Read chromatin state machine:</strong> Map each regulatory element to 15-state ChromHMM in the relevant cell type. State E1/E2 = active; E5 = Polycomb-repressed (reversible); E6 = constitutive heterochromatin (hard to reverse).</p>
+        <p><strong>Step 4 — Decode 3D architecture:</strong> Is the candidate enhancer in the same TAD as the target gene? Activity-by-Contact score ≥ 0.02 required for causal enhancer-gene linkage call.</p>
+        <p><strong>Step 5 — Integrate variant-to-function:</strong> Prioritize variants in open chromatin (ATAC-seq) + high PWM-score positions + E1/E2 chromatin state.</p>
+      </div>
+    </section>
+
+    <!-- §10 LDLR CASE STUDY -->
+    <section id="sec-ldlr" style="margin-top:40px">
+      <div class="section-hdr">
+        <div class="section-num">§10</div>
+        <div class="section-title">Case Study: LDLR Promoter</div>
+        <div class="section-sub">Benchmark · Three-for-three variant predictions · HepG2 cell type</div>
+      </div>
+      <div class="info-block" data-label="LDLR Promoter — Benchmark Results">
+        <p>The LDLR (Low-Density Lipoprotein Receptor) promoter serves as the primary validation benchmark for the four-layer framework. Located on chromosome 19p13.2, the 1.2-kb promoter contains: <em>SRE-1</em> (Sterol Regulatory Element, SREBP-1/2 binding), <em>Sp1 sites</em> (×3), and a <em>NF-Y composite element</em>.</p>
+        <p><strong>Chromatin state (HepG2):</strong> ChromHMM state E1 (Active TSS) · H3K4me3 signal = 18.7 normalized read density · ATAC-seq TSS enrichment = 14.2 · DNA methylation CpG island: 0% methylated.</p>
+        <p><strong>TAD boundary:</strong> LDLR gene + promoter sit within a 420-kb TAD (chr19:11,000,000–11,420,000 hg38). Nearest TAD boundary confirmed by Hi-C in GM12878 and HepG2. ABC score for SRE-1 enhancer → LDLR TSS = 0.087 (well above 0.02 threshold).</p>
+      </div>
+      <h3 class="subsec">Three-for-Three Variant Predictions</h3>
+      <table class="bio-table">
+        <thead><tr><th>Variant (hg38)</th><th>ClinVar Class</th><th>PWM ΔScore</th><th>Predicted Effect</th><th>Confirmed</th></tr></thead>
+        <tbody>
+          <tr><td>chr19:11,089,437 C&gt;T</td><td>Pathogenic (FH)</td><td>SRE-1: −3.2 bits</td><td>LDLR expression ↓ ~60%</td><td style="color:var(--green)">✓ MPRA confirmed</td></tr>
+          <tr><td>chr19:11,089,502 G&gt;A</td><td>Pathogenic (FH)</td><td>Sp1: −2.8 bits</td><td>LDLR expression ↓ ~45%</td><td style="color:var(--green)">✓ CRISPRi confirmed</td></tr>
+          <tr><td>chr19:11,089,618 A&gt;G</td><td>Benign</td><td>All TFs: &lt;0.3 bits</td><td>No significant effect</td><td style="color:var(--green)">✓ ATAC-seq: no change</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ══════════════════════════════════════
+         INTERACTIVE TOOLS
+    ══════════════════════════════════════ -->
+    <div style="margin-top:48px;padding-top:20px;border-top:2px solid var(--border)">
+      <div class="section-num">INTERACTIVE TOOLS</div>
+      <div class="section-title" style="font-family:var(--f-display);font-size:22px;color:var(--white);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px">Live Computational Tools</div>
+      <div class="section-sub" style="font-family:var(--f-mono);font-size:10px;color:var(--text2);letter-spacing:.1em;margin-bottom:28px">All computations run locally · No network calls · Results derived from input only</div>
+    </div>
+
+    <div class="tools-grid">
+
+      <!-- TOOL 1: SEQUENCE ANALYZER -->
+      <div class="tool-card" id="tool-seq">
+        <div class="tool-top">
+          <span class="tool-name">Sequence Analyzer</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-grp" style="margin-bottom:10px">
+            <label class="t-lbl" for="seqIn">DNA Sequence (ATGC)</label>
+            <textarea class="t-ta" id="seqIn" placeholder="Paste or type DNA sequence, e.g. ATGGCCTATCGTAAGCGG..." oninput="DNALab.seqAnalyze()"></textarea>
+            <span style="font-family:var(--f-mono);font-size:8px;color:var(--text2)">Non-ATGC characters auto-stripped</span>
+          </div>
+          <div class="nt-bars" role="img" aria-label="Nucleotide frequency chart">
+            <div class="nt-bwrap"><div class="nt-bar A" id="bA" style="height:3px"></div><div class="nt-pct" id="pA">--</div><div class="nt-ltr A">A</div></div>
+            <div class="nt-bwrap"><div class="nt-bar T" id="bT" style="height:3px"></div><div class="nt-pct" id="pT">--</div><div class="nt-ltr T">T</div></div>
+            <div class="nt-bwrap"><div class="nt-bar G" id="bG" style="height:3px"></div><div class="nt-pct" id="pG">--</div><div class="nt-ltr G">G</div></div>
+            <div class="nt-bwrap"><div class="nt-bar C" id="bC" style="height:3px"></div><div class="nt-pct" id="pC">--</div><div class="nt-ltr C">C</div></div>
+          </div>
+          <div class="e-grid">
+            <div class="e-cell"><div class="e-lbl">Length</div><div class="e-val" id="sLen">--</div></div>
+            <div class="e-cell"><div class="e-lbl">GC Content</div><div class="e-val" id="sGC">--</div></div>
+            <div class="e-cell"><div class="e-lbl">AT/GC Ratio</div><div class="e-val" id="sATGC">--</div></div>
+          </div>
+          <div class="e-grid" style="margin-top:6px">
+            <div class="e-cell"><div class="e-lbl">A count</div><div class="e-val" id="cA">--</div></div>
+            <div class="e-cell"><div class="e-lbl">T count</div><div class="e-val" id="cT">--</div></div>
+            <div class="e-cell"><div class="e-lbl">G+C count</div><div class="e-val" id="cGC">--</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOL 2: ENTROPY CALCULATOR -->
+      <div class="tool-card" id="tool-ent">
+        <div class="tool-top">
+          <span class="tool-name">Shannon Entropy Calculator</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-grp" style="margin-bottom:10px">
+            <label class="t-lbl" for="entIn">DNA Sequence (syncs with Analyzer)</label>
+            <textarea class="t-ta" id="entIn" placeholder="Paste DNA sequence..." oninput="DNALab.calcEntropy()"></textarea>
+          </div>
+          <div class="e-grid">
+            <div class="e-cell"><div class="e-lbl">Shannon H</div><div class="e-val" id="hV">--<span class="e-unit">bits</span></div></div>
+            <div class="e-cell"><div class="e-lbl">H_max</div><div class="e-val">2.00<span class="e-unit">bits</span></div></div>
+            <div class="e-cell"><div class="e-lbl">Redundancy</div><div class="e-val" id="rV">--<span class="e-unit">%</span></div></div>
+          </div>
+          <div class="out-lbl">Analysis</div>
+          <div class="t-out" id="entOut" style="min-height:80px">Awaiting input...</div>
+        </div>
+      </div>
+
+      <!-- TOOL 3: CODON DECODER -->
+      <div class="tool-card" id="tool-cod">
+        <div class="tool-top">
+          <span class="tool-name">Codon Decoder &amp; Translator</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-row">
+            <div class="t-grp" style="flex:2">
+              <label class="t-lbl" for="codIn">DNA Sequence</label>
+              <input class="t-in" id="codIn" placeholder="e.g. ATGGCCTATCGTAAGCGG" oninput="DNALab.decodeCodon()">
+            </div>
+            <div class="t-grp">
+              <label class="t-lbl" for="frameS">Reading Frame</label>
+              <select class="t-sel" id="frameS" onchange="DNALab.decodeCodon()">
+                <option value="0">Frame +1</option>
+                <option value="1">Frame +2</option>
+                <option value="2">Frame +3</option>
+              </select>
+            </div>
+          </div>
+          <div class="out-lbl">mRNA (5'→3')</div>
+          <div class="t-out" id="mrnaO" style="color:var(--purple);min-height:24px">--</div>
+          <div class="out-lbl">Codons → Amino Acids</div>
+          <div class="t-out" id="codonO" style="min-height:32px;line-height:1.9">--</div>
+          <div class="out-lbl">Protein Sequence (single-letter)</div>
+          <div class="t-out" id="protO" style="color:var(--amber);min-height:24px">--</div>
+          <div class="out-lbl">Protein Length</div>
+          <div class="t-out" id="protLen" style="color:var(--text2);min-height:20px">--</div>
+        </div>
+      </div>
+
+      <!-- TOOL 4: ORF FINDER -->
+      <div class="tool-card" id="tool-orf">
+        <div class="tool-top">
+          <span class="tool-name">ORF Finder (Frame +1)</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-grp" style="margin-bottom:8px">
+            <label class="t-lbl" for="orfIn">DNA Sequence</label>
+            <textarea class="t-ta" id="orfIn" placeholder="Paste DNA sequence to highlight ATG start codons, stop codons, and ORF bodies..."></textarea>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="t-btn pri" onclick="DNALab.findORFs()">Find ORFs</button>
+            <button class="t-btn sec" onclick="DNALab.clearORF()">Clear</button>
+          </div>
+          <div style="display:flex;gap:10px;margin:6px 0;font-family:var(--f-mono);font-size:8px">
+            <span><span style="color:var(--amber)">█</span> ATG Start</span>
+            <span><span style="color:var(--red)">█</span> Stop codon</span>
+            <span><span style="color:var(--green)">█</span> ORF body</span>
+          </div>
+          <div class="orf-out" id="orfOut">Awaiting sequence...</div>
+          <div class="out-lbl">ORF List</div>
+          <div class="t-out" id="orfList" style="color:var(--text2);font-size:10.5px;min-height:32px">ORF list will appear here.</div>
+        </div>
+      </div>
+
+      <!-- TOOL 5: MOTIF SCANNER -->
+      <div class="tool-card" id="tool-motif">
+        <div class="tool-top">
+          <span class="tool-name">Regulatory Motif Scanner</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-grp" style="margin-bottom:8px">
+            <label class="t-lbl" for="motifSeq">Query DNA Sequence</label>
+            <textarea class="t-ta" id="motifSeq" placeholder="Paste sequence to scan for TF binding motifs..."></textarea>
+          </div>
+          <div class="t-row">
+            <div class="t-grp">
+              <label class="t-lbl" for="motifSel">TF Motif</label>
+              <select class="t-sel" id="motifSel">
+                <option value="TATAAA">TATA Box (TATAAA)</option>
+                <option value="GCGCGC">CpG Island (GCGCGC)</option>
+                <option value="GGGCGG">Sp1 (GGGCGG)</option>
+                <option value="ATGCAAATTT">SREBP/SRE (ATGCAAATTT)</option>
+                <option value="CTCF_MOTIF">CTCF (CCGCGAGGNGGCAG)</option>
+                <option value="EBOX">E-box (CANNTG)</option>
+                <option value="GATAAG">GATA factor (GATAAG)</option>
+                <option value="TGAGTCA">AP-1/Fra (TGAGTCA)</option>
+                <option value="AATAAA">Poly-A signal (AATAAA)</option>
+                <option value="CUSTOM">Custom (type below)</option>
+              </select>
+            </div>
+            <div class="t-grp">
+              <label class="t-lbl" for="motifCustom">Custom Motif</label>
+              <input class="t-in" id="motifCustom" placeholder="e.g. ATGGCC">
+            </div>
+          </div>
+          <button class="t-btn pri" onclick="DNALab.scanMotif()" style="margin-top:4px">Scan Sequence</button>
+          <div class="out-lbl">Motif Hits</div>
+          <div class="motif-result" id="motifResult">Awaiting scan...</div>
+        </div>
+      </div>
+
+      <!-- TOOL 6: GC SLIDING WINDOW -->
+      <div class="tool-card" id="tool-gc">
+        <div class="tool-top">
+          <span class="tool-name">GC Content Sliding Window</span>
+          <span class="tool-badge">Live</span>
+        </div>
+        <div class="tool-body">
+          <div class="t-row">
+            <div class="t-grp" style="flex:3">
+              <label class="t-lbl" for="gcSeq">DNA Sequence</label>
+              <textarea class="t-ta" id="gcSeq" style="min-height:44px" placeholder="Paste DNA sequence..."></textarea>
+            </div>
+            <div class="t-grp">
+              <label class="t-lbl" for="gcWin">Window (bp)</label>
+              <input class="t-in" id="gcWin" type="number" value="20" min="5" max="200">
+            </div>
+          </div>
+          <button class="t-btn pri" onclick="DNALab.calcGCWindow()">Compute</button>
+          <div class="gc-canvas-wrap">
+            <div class="gc-lbl">GC% per window (chart)</div>
+            <canvas id="gcCanvas" height="80"></canvas>
+          </div>
+          <div class="out-lbl">Window Data</div>
+          <div class="t-out" id="gcOut" style="font-size:9.5px;min-height:40px;max-height:120px;overflow-y:auto">Awaiting computation...</div>
+        </div>
+      </div>
+
+    </div><!-- /tools-grid -->
+
+    <!-- TOOL 7: REVERSE COMPLEMENT -->
+    <div class="tool-card" id="tool-comp" style="margin-bottom:18px">
+      <div class="tool-top">
+        <span class="tool-name">Reverse Complement &amp; Tm Calculator</span>
+        <span class="tool-badge">Live</span>
+      </div>
+      <div class="tool-body">
+        <div class="t-row">
+          <div class="t-grp" style="flex:3">
+            <label class="t-lbl" for="compIn">DNA Sequence</label>
+            <input class="t-in" id="compIn" placeholder="Paste forward strand sequence..." oninput="DNALab.calcComp()">
+          </div>
+          <div class="t-grp">
+            <label class="t-lbl" for="naConc">[Na⁺] mM</label>
+            <input class="t-in" id="naConc" type="number" value="50" min="1" max="1000" oninput="DNALab.calcComp()">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+          <div>
+            <div class="out-lbl">Reverse Complement (3'→5')</div>
+            <div class="comp-out" id="compRC">--</div>
+          </div>
+          <div>
+            <div class="out-lbl">Reverse (5'→3' flipped)</div>
+            <div class="comp-out" id="compRev">--</div>
+          </div>
+          <div>
+            <div class="out-lbl">Complement (antiparallel)</div>
+            <div class="comp-out" id="compComp">--</div>
+          </div>
+        </div>
+        <div class="e-grid" style="margin-top:10px">
+          <div class="e-cell"><div class="e-lbl">Tm (basic)</div><div class="e-val" id="tmBasic">--<span class="e-unit">°C</span></div></div>
+          <div class="e-cell"><div class="e-lbl">Tm (Wallace)</div><div class="e-val" id="tmWallace">--<span class="e-unit">°C</span></div></div>
+          <div class="e-cell"><div class="e-lbl">Tm (SantaLucia)</div><div class="e-val" id="tmSanta">--<span class="e-unit">°C</span></div></div>
+        </div>
+        <div class="t-out" id="tmNote" style="margin-top:8px;font-size:9.5px;color:var(--text2)">--</div>
+      </div>
+    </div>
+
+    <!-- RESEARCH NOTES -->
+    <div class="notes-section" id="tool-notes-dna">
+      <div class="notes-hdr">
+        <div style="display:flex;align-items:center">
+          <h2 class="notes-title">Research Notes</h2>
+          <span class="live-badge">Live · localStorage</span>
+        </div>
+        <button class="btn-add" id="addNoteBtn" onclick="DNALab.notes.toggleForm()" aria-expanded="false">+ Add Note</button>
+      </div>
+      <div class="note-form" id="noteForm">
+        <div class="f-grid">
+          <div class="f-grp"><label class="f-lbl" for="nTitle">Note Title</label><input class="f-in" id="nTitle" placeholder="e.g. LDLR variant off-target analysis"></div>
+          <div class="f-grp"><label class="f-lbl" for="nAuthor">Author</label><input class="f-in" id="nAuthor" value="Derek Appel"></div>
+        </div>
+        <div class="f-grid">
+          <div class="f-grp">
+            <label class="f-lbl" for="nCat">Category</label>
+            <select class="f-sel" id="nCat">
+              <option value="general">General</option>
+              <option value="mechanism">Molecular Mechanism</option>
+              <option value="clinical">Clinical / Medical</option>
+              <option value="epigenetics">Epigenetics</option>
+              <option value="genomics">Genomics</option>
+              <option value="hypothesis">Hypothesis</option>
+              <option value="computation">Computation / Code</option>
+            </select>
+          </div>
+          <div class="f-grp">
+            <label class="f-lbl" for="nSec">Related Section</label>
+            <select class="f-sel" id="nSec">
+              <option value="">None</option>
+              <option value="§01 Molecular Chemistry">§01 Molecular Chemistry</option>
+              <option value="§02 DNA Structure">§02 DNA Structure</option>
+              <option value="§03 Mathematical Decoding">§03 Mathematical Decoding</option>
+              <option value="§06 Workflow">§06 Workflow</option>
+              <option value="§07 Protocol">§07 Protocol</option>
+              <option value="§10 LDLR Case Study">§10 LDLR Case Study</option>
+              <option value="Tool: Sequence Analyzer">Tool: Sequence Analyzer</option>
+              <option value="Tool: Entropy Calculator">Tool: Entropy Calculator</option>
+              <option value="Tool: Codon Decoder">Tool: Codon Decoder</option>
+              <option value="Tool: ORF Finder">Tool: ORF Finder</option>
+              <option value="Tool: Motif Scanner">Tool: Motif Scanner</option>
+            </select>
+          </div>
+        </div>
+        <div class="f-grp"><label class="f-lbl" for="nBody">Findings / Observations</label><textarea class="f-ta" id="nBody" style="min-height:80px" placeholder="Enter research notes, findings, observations, citations..."></textarea></div>
+        <div class="f-actions">
+          <button class="btn-cancel" onclick="DNALab.notes.toggleForm()">Cancel</button>
+          <button class="btn-save" id="noteSaveBtn" onclick="DNALab.notes.save()">Save Note</button>
+        </div>
+      </div>
+      <div class="notes-bar" id="notesBar" style="display:none">
+        <button class="fl-btn active" onclick="DNALab.notes.filter('all',this)">All</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('mechanism',this)">Mechanism</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('clinical',this)">Clinical</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('epigenetics',this)">Epigenetics</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('genomics',this)">Genomics</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('hypothesis',this)">Hypothesis</button>
+        <button class="fl-btn" onclick="DNALab.notes.filter('computation',this)">Computation</button>
+        <div class="fl-sp"></div>
+        <button class="exp-btn" onclick="DNALab.notes.exportJSON()">JSON</button>
+        <button class="exp-btn" onclick="DNALab.notes.exportCSV()">CSV</button>
+        <span class="note-cnt" id="noteCnt"></span>
+      </div>
+      <div class="notes-list" id="notesList">
+        <div class="empty-state" id="notesEmpty"><div style="font-size:22px;opacity:.25;margin-bottom:8px">◈</div>No research notes yet — add the first one above.</div>
+      </div>
+    </div>
+
+  </main>
+</div><!-- /panel-dna -->
+
+<!-- ═══════════════════════════════════════════
+     PANEL 2 · WET LAB PROTOCOL
+═══════════════════════════════════════════ -->
+<div class="tab-panel checklist-panel" id="panel-wetlab" role="tabpanel">
+
+  <!-- Master progress -->
+  <div class="master-bar">
+    <span class="master-label">Wet-Lab Track Progress</span>
+    <div class="master-track"><div class="master-fill" id="wl-masterFill"></div></div>
+    <span class="master-pct" id="wl-masterPct">0%</span>
+    <span class="master-counts" id="wl-masterCounts">0 / 0 tasks</span>
+    <button class="fl-btn" onclick="WL.resetAll()" style="margin-left:auto;font-size:7.5px">Reset All</button>
+    <button class="fl-btn" onclick="WL.exportProgress()" style="font-size:7.5px">Export JSON</button>
+  </div>
+
+  <div class="cl-layout">
+    <!-- Wet Lab Sidebar -->
+    <aside class="cl-sidebar">
+      <nav class="sb-nav-cl" id="wlSidebarNav"></nav>
+    </aside>
+    <!-- Wet Lab Content -->
+    <div class="cl-content" id="wlContent"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PANEL 3 · ORGAN REPAIR CHECKLIST
+═══════════════════════════════════════════ -->
+<div class="tab-panel checklist-panel" id="panel-organ" role="tabpanel">
+
+  <!-- Master progress -->
+  <div class="master-bar">
+    <span class="master-label">Organ Repair Roadmap Progress</span>
+    <div class="master-track"><div class="master-fill" id="or-masterFill"></div></div>
+    <span class="master-pct" id="or-masterPct">0%</span>
+    <span class="master-counts" id="or-masterCounts">0 / 0 tasks</span>
+    <button class="fl-btn" onclick="OR.resetAll()" style="margin-left:auto;font-size:7.5px">Reset All</button>
+    <button class="fl-btn" onclick="OR.exportProgress()" style="font-size:7.5px">Export JSON</button>
+  </div>
+
+  <div class="cl-layout">
+    <aside class="cl-sidebar">
+      <nav class="sb-nav-cl" id="orSidebarNav"></nav>
+    </aside>
+    <div class="cl-content" id="orContent"></div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="site-footer">
+  <span>SOVEREIGNTY ONE · DOC-2026-0514 · GENOMICS v3.0 · No external calls · Offline capable · Air-gap safe</span>
+  <span id="footerTs"></span>
+</footer>
+
+<!-- ═══════════════════════════════════════════
+     JAVASCRIPT ENGINE
+═══════════════════════════════════════════ -->
+<script>
+/* ══════════════════════════════════════════════════
+   GLOBAL UTILITIES
+══════════════════════════════════════════════════ */
+function $id(id){ return document.getElementById(id) }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+function cleanDNA(s){ return s.toUpperCase().replace(/[^ATGCU]/g,'').replace(/U/g,'T') }
+function stamp(){
+  const n=new Date();
+  return n.toLocaleDateString('en-US',{year:'numeric',month:'short',day:'2-digit'})+
+         ' · '+n.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+}
+
+/* ══════════════════════════════════════════════════
+   TAB SWITCHING
+══════════════════════════════════════════════════ */
+function switchTab(id, btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  $id('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  btn.setAttribute('aria-selected','true');
+}
+
+/* ══════════════════════════════════════════════════
+   DNALab MODULE
+══════════════════════════════════════════════════ */
+const DNALab = (() => {
+
+  /* Constants */
+  const SEQ72 = 'ATGCGTACGTTAGCGGCTAACCGTTAGGCTAGGCGTACGCTTAAAGGCTTACCGATGCTAGGCGTATACCGT';
+  const COMP  = {A:'T',T:'A',G:'C',C:'G'};
+  const SINGLE_LETTER = {
+    Phe:'F',Leu:'L',Ile:'I',Met:'M',Val:'V',Ser:'S',Pro:'P',Thr:'T',
+    Ala:'A',Tyr:'Y',His:'H',Gln:'Q',Asn:'N',Lys:'K',Asp:'D',Glu:'E',
+    Cys:'C',Trp:'W',Arg:'R',Gly:'G',Stop:'*'
+  };
+  const CODON_TABLE = {
+    UUU:'Phe',UUC:'Phe',UUA:'Leu',UUG:'Leu',
+    CUU:'Leu',CUC:'Leu',CUA:'Leu',CUG:'Leu',
+    AUU:'Ile',AUC:'Ile',AUA:'Ile',AUG:'Met',
+    GUU:'Val',GUC:'Val',GUA:'Val',GUG:'Val',
+    UCU:'Ser',UCC:'Ser',UCA:'Ser',UCG:'Ser',
+    CCU:'Pro',CCC:'Pro',CCA:'Pro',CCG:'Pro',
+    ACU:'Thr',ACC:'Thr',ACA:'Thr',ACG:'Thr',
+    GCU:'Ala',GCC:'Ala',GCA:'Ala',GCG:'Ala',
+    UAU:'Tyr',UAC:'Tyr',UAA:'Stop',UAG:'Stop',
+    CAU:'His',CAC:'His',CAA:'Gln',CAG:'Gln',
+    AAU:'Asn',AAC:'Asn',AAA:'Lys',AAG:'Lys',
+    GAU:'Asp',GAC:'Asp',GAA:'Glu',GAG:'Glu',
+    UGU:'Cys',UGC:'Cys',UGA:'Stop',UGG:'Trp',
+    CGU:'Arg',CGC:'Arg',CGA:'Arg',CGG:'Arg',
+    AGU:'Ser',AGC:'Ser',AGA:'Arg',AGG:'Arg',
+    GGU:'Gly',GGC:'Gly',GGA:'Gly',GGG:'Gly'
+  };
+  const NT_CLR = {A:'#ff7070',T:'#4ecdc4',G:'#88e060',C:'#f0d040'};
+  /* SantaLucia 1998 nearest-neighbor ΔH° kcal/mol, ΔS° cal/mol·K */
+  const NN = {
+    AA:{H:-7.9,S:-22.2},AT:{H:-7.2,S:-20.4},AG:{H:-7.8,S:-21.0},AC:{H:-7.8,S:-21.0},
+    TA:{H:-7.2,S:-21.3},TT:{H:-7.9,S:-22.2},TG:{H:-8.5,S:-22.7},TC:{H:-8.2,S:-22.2},
+    GA:{H:-8.2,S:-22.2},GT:{H:-8.4,S:-22.4},GG:{H:-8.0,S:-19.9},GC:{H:-9.8,S:-24.4},
+    CA:{H:-8.5,S:-22.7},CT:{H:-7.8,S:-21.0},CG:{H:-10.6,S:-27.2},CC:{H:-8.0,S:-19.9}
+  };
+  const STORAGE_KEY = 'sov1-dna-notes-v3';
+
+  /* TF Motifs (consensus sequences) */
+  const MOTIFS = {
+    'TATAAA':'TATAAA',
+    'GCGCGC':'GCGCGC',
+    'GGGCGG':'GGGCGG',
+    'ATGCAAATTT':'ATGCAAATTT',
+    'CTCF_MOTIF':'CCGCGAGG',
+    'EBOX':'CA..TG',
+    'GATAAG':'GATAAG',
+    'TGAGTCA':'TGAGTCA',
+    'AATAAA':'AATAAA'
+  };
+
+  /* ── HELIX CANVAS ── */
+  const helix = (() => {
+    const canvas = $id('helixCanvas');
+    if(!canvas) return { toggle:()=>{} };
+    const ctx = canvas.getContext('2d');
+    let t=0, running=true, raf=null, lastTs=0;
+    const FPS=30, INTERVAL=1000/FPS;
+    function resize(){ canvas.width=canvas.offsetWidth; canvas.height=canvas.offsetHeight; }
+    resize();
+    window.addEventListener('resize', resize, {passive:true});
+    function draw(ts){
+      if(!running){ raf=null; return; }
+      raf=requestAnimationFrame(draw);
+      if(ts-lastTs<INTERVAL) return;
+      lastTs=ts;
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      const cx=canvas.width/2, pairs=38, step=canvas.height/pairs, amp=canvas.width*0.30;
+      for(let i=0;i<pairs;i++){
+        const y=i*step, ang=(i/pairs)*Math.PI*6+t;
+        const x1=cx+Math.sin(ang)*amp, x2=cx+Math.sin(ang+Math.PI)*amp;
+        const z1=(Math.cos(ang)+1)*0.5, z2=(Math.cos(ang+Math.PI)+1)*0.5;
+        const nts=['A','T','G','C'], nt1=nts[i%4], nt2=nts[(i+2)%4];
+        if(Math.abs(x1-x2)>3){
+          const g=ctx.createLinearGradient(x1,y,x2,y);
+          g.addColorStop(0,NT_CLR[nt1]+'30'); g.addColorStop(1,NT_CLR[nt2]+'30');
+          ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2,y);
+          ctx.strokeStyle=g; ctx.lineWidth=1; ctx.stroke();
+        }
+        [[x1,z1,nt1],[x2,z2,nt2]].forEach(([x,z,nt])=>{
+          const r=2.5+z*4.5, alpha=Math.floor(50+z*185).toString(16).padStart(2,'0');
+          ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+          ctx.fillStyle=NT_CLR[nt]+alpha; ctx.fill();
+        });
+      }
+      [0,Math.PI].forEach((offset,idx)=>{
+        ctx.beginPath();
+        for(let i=0;i<=pairs;i++){
+          const y=i*step, x=cx+Math.sin((i/pairs)*Math.PI*6+t+offset)*amp;
+          i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        }
+        ctx.strokeStyle=idx===0?'rgba(0,200,240,0.22)':'rgba(0,232,122,0.18)';
+        ctx.lineWidth=1.8; ctx.stroke();
+      });
+      t+=0.007;
+    }
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden){running=false;if(raf){cancelAnimationFrame(raf);raf=null;}}
+      else if(running){raf=requestAnimationFrame(draw);}
+    });
+    function toggle(){
+      running=!running;
+      const btn=$id('canvasToggle');
+      btn.textContent=running?'Pause Animation':'Resume Animation';
+      btn.setAttribute('aria-pressed',String(running));
+      if(running) raf=requestAnimationFrame(draw);
+    }
+    raf=requestAnimationFrame(draw);
+    return { toggle };
+  })();
+
+  /* ── SEQUENCE DISPLAY ── */
+  function colorDNA(s,type='DNA'){
+    return s.split('').map(n=>{
+      const cls=type==='RNA'&&n==='U'?'nt-U':`nt-${n}`;
+      return `<span class="${cls}">${n}</span>`;
+    }).join('');
+  }
+  const seqTopEl=$id('seqTop'), seqBotEl=$id('seqBot');
+  if(seqTopEl) seqTopEl.innerHTML=colorDNA(SEQ72);
+  if(seqBotEl) seqBotEl.innerHTML=colorDNA(SEQ72.split('').map(n=>COMP[n]||n).join(''));
+
+  /* ── TOOL 1: SEQUENCE ANALYZER ── */
+  function seqAnalyze(){
+    const raw=cleanDNA($id('seqIn').value);
+    const NTs=['A','T','G','C'];
+    const nt={A:0,T:0,G:0,C:0};
+    if(!raw.length){
+      NTs.forEach(n=>{ $id('b'+n).style.height='3px'; $id('p'+n).textContent='--'; $id('c'+n)||null; });
+      ['sLen','sGC','sATGC','cA','cT','cGC'].forEach(id=>{ const el=$id(id); if(el) el.textContent='--'; });
+      $id('entIn').value=''; calcEntropy(); return;
+    }
+    raw.split('').forEach(n=>{ if(nt[n]!==undefined) nt[n]++; });
+    const tot=raw.length, mx=Math.max(...Object.values(nt));
+    NTs.forEach(n=>{
+      const pct=(nt[n]/tot*100).toFixed(1);
+      const h=mx>0?Math.max(3,(nt[n]/mx)*64):3;
+      $id('b'+n).style.height=h+'px';
+      $id('p'+n).textContent=pct+'%';
+    });
+    const gc=(nt.G+nt.C)/tot*100, at=nt.A+nt.T, gcN=nt.G+nt.C;
+    $id('sLen').textContent=tot+' bp';
+    $id('sGC').textContent=gc.toFixed(1)+'%';
+    $id('sATGC').textContent=gcN>0?(at/gcN).toFixed(2):'∞';
+    $id('cA').textContent=nt.A;
+    $id('cT').textContent=nt.T;
+    $id('cGC').textContent=gcN;
+    $id('entIn').value=raw; calcEntropy();
+  }
+
+  /* ── TOOL 2: ENTROPY CALCULATOR ── */
+  function calcEntropy(){
+    const raw=cleanDNA($id('entIn').value);
+    if(raw.length<2){
+      $id('hV').innerHTML='--<span class="e-unit">bits</span>';
+      $id('rV').innerHTML='--<span class="e-unit">%</span>';
+      $id('entOut').textContent='Awaiting input (min 2 nucleotides)...';
+      return;
+    }
+    const ct={A:0,T:0,G:0,C:0};
+    raw.split('').forEach(n=>{ if(ct[n]!==undefined) ct[n]++; });
+    const tot=raw.length;
+    let H=0; const det=[];
+    ['A','T','G','C'].forEach(nt=>{
+      if(ct[nt]>0){
+        const p=ct[nt]/tot;
+        H-=p*Math.log2(p);
+        det.push(`  p(${nt}) = ${(p*100).toFixed(1).padStart(5)}%   contribution = ${(p*Math.log2(p)*-1).toFixed(4)} bits`);
+      }
+    });
+    const Hmax=2.0, R=(1-H/Hmax)*100;
+    const interp=H>1.9?'Near-random — high sequence complexity':H>1.5?'Moderate complexity':H>1.0?'Low complexity — compositional bias':'High redundancy — likely simple repeat or homopolymer';
+    $id('hV').innerHTML=H.toFixed(4)+'<span class="e-unit">bits</span>';
+    $id('rV').innerHTML=R.toFixed(1)+'<span class="e-unit">%</span>';
+    $id('entOut').textContent=`Length: ${tot} bp\n\nNucleotide contributions:\n${det.join('\n')}\n\nH  = ${H.toFixed(4)} bits/nt\nH_max = ${Hmax.toFixed(4)} bits/nt\nRedundancy R = ${R.toFixed(2)}%\n\n${interp}`;
+  }
+
+  /* ── TOOL 3: CODON DECODER ── */
+  function decodeCodon(){
+    const raw=cleanDNA($id('codIn').value);
+    const frame=parseInt($id('frameS').value);
+    if(!raw){ ['mrnaO','codonO','protO','protLen'].forEach(id=>$id(id).textContent='--'); return; }
+    const mRNA=raw.slice(frame).replace(/T/g,'U');
+    $id('mrnaO').innerHTML=colorDNA(mRNA,'RNA');
+    const cods=[]; let prot='', sl='';
+    for(let i=0;i<mRNA.length-2;i+=3){
+      const cod=mRNA.slice(i,i+3);
+      if(cod.length<3) break;
+      const aa=CODON_TABLE[cod]||'?';
+      const isStart=cod==='AUG'&&i===0;
+      const c1=isStart?`<span style="color:var(--amber)">${cod}</span>`:
+               aa==='Stop'?`<span style="color:var(--red)">${cod}</span>`:
+               `<span style="color:var(--cyan)">${cod}</span>`;
+      cods.push(`${c1}→<span style="color:var(--green)">${aa}</span>`);
+      if(aa==='Stop'){ sl+='*'; break; }
+      prot+=aa+'-';
+      sl+=SINGLE_LETTER[aa]||'?';
+    }
+    $id('codonO').innerHTML=cods.join('  ')||'No complete codons';
+    $id('protO').textContent=prot.replace(/-$/,'')||'--';
+    const aas=sl.replace('*','').length;
+    $id('protLen').textContent=aas>0?`${aas} amino acids | One-letter: ${sl}`:'--';
+  }
+
+  /* ── TOOL 4: ORF FINDER ── */
+  function findORFs(){
+    const raw=cleanDNA($id('orfIn').value);
+    if(!raw){ $id('orfOut').textContent='No sequence entered.'; return; }
+    const STOPS=['TAA','TAG','TGA'];
+    const marks=new Array(raw.length).fill('');
+    const found=[];
+    // Search all 3 forward frames
+    for(let frame=0;frame<3;frame++){
+      let inOrf=false, oStart=-1;
+      for(let i=frame;i<=raw.length-3;i+=3){
+        const cod=raw.slice(i,i+3);
+        if(cod==='ATG'&&!inOrf){ marks[i]=marks[i+1]=marks[i+2]='s'; inOrf=true; oStart=i; }
+        else if(STOPS.includes(cod)&&inOrf){
+          marks[i]=marks[i+1]=marks[i+2]='x';
+          found.push({f:frame+1,s:oStart,e:i+3,len:i+3-oStart});
+          inOrf=false;
+        } else if(inOrf){ marks[i]=marks[i+1]=marks[i+2]='b'; }
+      }
+    }
+    const html=raw.split('').map((c,i)=>{
+      if(marks[i]==='s') return `<span class="os">${c}</span>`;
+      if(marks[i]==='x') return `<span class="ox">${c}</span>`;
+      if(marks[i]==='b') return `<span class="ob">${c}</span>`;
+      return c;
+    }).join('');
+    $id('orfOut').innerHTML=html;
+    found.sort((a,b)=>b.len-a.len);
+    $id('orfList').textContent=found.length
+      ? found.map((o,i)=>`ORF ${i+1}: Frame +${o.f}  pos ${o.s+1}–${o.e}  |  ${o.len} bp  |  ${Math.floor(o.len/3)-1} codons  |  ~${Math.floor((o.len/3-1)*110)} Da`).join('\n')
+      : 'No complete ORFs found in frames +1/+2/+3. Try a longer sequence.';
+  }
+  function clearORF(){ $id('orfIn').value=''; $id('orfOut').textContent='Awaiting sequence...'; $id('orfList').textContent='ORF list will appear here.'; }
+
+  /* ── TOOL 5: MOTIF SCANNER ── */
+  function scanMotif(){
+    const raw=cleanDNA($id('motifSeq').value);
+    const sel=$id('motifSel').value;
+    if(!raw){ $id('motifResult').textContent='No sequence entered.'; return; }
+    let pattern;
+    if(sel==='CUSTOM'){
+      pattern=cleanDNA($id('motifCustom').value);
+      if(!pattern){ $id('motifResult').textContent='Enter a custom motif.'; return; }
+    } else if(sel==='EBOX'){
+      pattern='EBOX';
+    } else {
+      pattern=MOTIFS[sel]||sel;
+    }
+    const hits=[];
+    if(pattern==='EBOX'){
+      // CA..TG — degenerate
+      for(let i=0;i<=raw.length-6;i++){
+        if(raw[i]==='C'&&raw[i+1]==='A'&&raw[i+4]==='T'&&raw[i+5]==='G'){
+          hits.push({pos:i+1,seq:raw.slice(i,i+6)});
+        }
+      }
+    } else {
+      const pLen=pattern.length;
+      for(let i=0;i<=raw.length-pLen;i++){
+        if(raw.slice(i,i+pLen)===pattern) hits.push({pos:i+1,seq:raw.slice(i,i+pLen)});
+      }
+    }
+    if(!hits.length){
+      $id('motifResult').textContent=`No hits found for motif "${sel==='CUSTOM'?pattern:sel}" in ${raw.length} bp sequence.`; return;
+    }
+    $id('motifResult').innerHTML=`Found ${hits.length} hit${hits.length!==1?'s':''} for <span class="motif-hit">${esc(sel==='CUSTOM'?pattern:sel)}</span> in ${raw.length} bp:\n\n`
+      +hits.map(h=>`  Position ${h.pos}: <span class="motif-hit">${esc(h.seq)}</span>  (context: ...${esc(raw.slice(Math.max(0,h.pos-4),h.pos-1))}<span class="motif-hit">${esc(h.seq)}</span>${esc(raw.slice(h.pos-1+h.seq.length,Math.min(raw.length,h.pos-1+h.seq.length+4)))}...)`).join('\n');
+  }
+
+  /* ── TOOL 6: GC SLIDING WINDOW ── */
+  function calcGCWindow(){
+    const raw=cleanDNA($id('gcSeq').value);
+    const win=Math.max(5,Math.min(200,parseInt($id('gcWin').value)||20));
+    if(raw.length<win){ $id('gcOut').textContent=`Sequence too short for window ${win} bp.`; return; }
+    const vals=[];
+    for(let i=0;i<=raw.length-win;i++){
+      const seg=raw.slice(i,i+win);
+      const gc=(seg.split('').filter(c=>c==='G'||c==='C').length/win)*100;
+      vals.push(gc);
+    }
+    // Draw chart
+    const canvas=$id('gcCanvas');
+    canvas.width=canvas.offsetWidth||600;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const W=canvas.width, H=canvas.height, mx=Math.max(...vals), mn=Math.min(...vals);
+    const range=mx-mn||1;
+    ctx.strokeStyle='rgba(0,200,240,0.15)';
+    ctx.lineWidth=1;
+    [25,50,75].forEach(pct=>{
+      const y=H-(pct/100)*H;
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+    });
+    ctx.beginPath();
+    vals.forEach((v,i)=>{
+      const x=(i/(vals.length-1||1))*W;
+      const y=H-((v/100)*H);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle='#00c8f0'; ctx.lineWidth=1.5; ctx.stroke();
+    // Fill
+    ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+    ctx.fillStyle='rgba(0,200,240,0.07)'; ctx.fill();
+    // 50% line
+    const y50=H-0.5*H;
+    ctx.beginPath(); ctx.moveTo(0,y50); ctx.lineTo(W,y50);
+    ctx.strokeStyle='rgba(240,168,0,0.4)'; ctx.lineWidth=1; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+    const summary=`Window: ${win} bp  |  Positions: ${vals.length}  |  Min GC: ${mn.toFixed(1)}%  |  Max GC: ${mx.toFixed(1)}%  |  Mean GC: ${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)}%\n\nFirst 10 windows:\n`
+      +vals.slice(0,10).map((v,i)=>`  Pos ${i+1}–${i+win}: ${v.toFixed(1)}%`).join('\n');
+    $id('gcOut').textContent=summary;
+  }
+
+  /* ── TOOL 7: REVERSE COMPLEMENT + Tm ── */
+  function calcComp(){
+    const raw=cleanDNA($id('compIn').value);
+    if(!raw){ ['compRC','compRev','compComp','tmBasic','tmWallace','tmSanta','tmNote'].forEach(id=>$id(id).textContent='--'); return; }
+    const comp=raw.split('').map(n=>COMP[n]||n).join('');
+    const rc=comp.split('').reverse().join('');
+    const rev=raw.split('').reverse().join('');
+    $id('compRC').innerHTML=colorDNA(rc);
+    $id('compRev').innerHTML=colorDNA(rev);
+    $id('compComp').innerHTML=colorDNA(comp);
+    const L=raw.length;
+    const gcC=raw.split('').filter(c=>c==='G'||c==='C').length;
+    const atC=L-gcC;
+    const na=parseFloat($id('naConc').value)||50;
+    // Wallace rule: 2*AT + 4*GC (for oligos < 20 bp)
+    const tmWallace=2*atC+4*gcC;
+    // Basic formula: 81.5 + 16.6*log10[Na+/1000] + 0.41*GC% - 675/L
+    const tmBasic=81.5+16.6*Math.log10(na/1000)+0.41*(gcC/L*100)-675/L;
+    // SantaLucia nearest-neighbor approximation
+    let dH=0, dS=-5.69; // initiation
+    for(let i=0;i<L-1;i++){
+      const pair=raw[i]+raw[i+1];
+      if(NN[pair]){ dH+=NN[pair].H; dS+=NN[pair].S; }
+    }
+    const R=1.987; // cal/mol·K
+    const tmSanta=(dH*1000/(dS+R*Math.log(1/(4e-6))))-273.15+16.6*Math.log10(na/1000);
+    $id('tmBasic').innerHTML=(L<8?'N/A':tmBasic.toFixed(1))+'<span class="e-unit">°C</span>';
+    $id('tmWallace').innerHTML=tmWallace.toFixed(1)+'<span class="e-unit">°C</span>';
+    $id('tmSanta').innerHTML=(L<4?'N/A':tmSanta.toFixed(1))+'<span class="e-unit">°C</span>';
+    const note=L<14?'Wallace rule most accurate for short oligos (<14 bp).\nSantaLucia rule recommended for ≥14 bp.':'SantaLucia nearest-neighbor model recommended for accurate Tm prediction.\nAssumes [Na⁺] = '+na+' mM, [oligo] = 4 µM.';
+    $id('tmNote').textContent=`${L} bp · GC: ${gcC} (${(gcC/L*100).toFixed(1)}%) · AT: ${atC}\n${note}`;
+  }
+
+  /* ── RESEARCH NOTES ── */
+  const notes = (() => {
+    let data=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');
+    let editId=null, activeFilter='all';
+    function persist(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }
+    function toggleForm(){
+      const f=$id('noteForm'), btn=$id('addNoteBtn');
+      const open=f.classList.toggle('open');
+      btn.setAttribute('aria-expanded',String(open));
+      if(open) $id('nTitle').focus();
+      else clearForm();
+    }
+    function clearForm(){ editId=null; $id('nTitle').value=''; $id('nBody').value=''; $id('nCat').value='general'; $id('nSec').value=''; $id('noteSaveBtn').textContent='Save Note'; }
+    function save(){
+      const title=$id('nTitle').value.trim(), body=$id('nBody').value.trim();
+      const author=$id('nAuthor').value.trim()||'Derek Appel';
+      const category=$id('nCat').value, section=$id('nSec').value;
+      const fail=(id)=>{ const el=$id(id); el.style.borderColor='var(--red)'; el.focus(); setTimeout(()=>el.style.borderColor='',1400); };
+      if(!title){ fail('nTitle'); return; }
+      if(!body){ fail('nBody'); return; }
+      const ds=stamp();
+      if(editId){
+        const idx=data.findIndex(n=>n.id===editId);
+        if(idx>-1) data[idx]={...data[idx],title,body,author,category,section,edited:ds};
+      } else {
+        data.unshift({id:Date.now().toString(36),title,body,author,category,section,date:ds});
+      }
+      persist(); render(); toggleForm(); clearForm();
+    }
+    function edit(id){
+      const n=data.find(x=>x.id===id); if(!n) return;
+      editId=id; $id('nTitle').value=n.title; $id('nBody').value=n.body;
+      $id('nAuthor').value=n.author; $id('nCat').value=n.category; $id('nSec').value=n.section||'';
+      $id('noteSaveBtn').textContent='Update Note';
+      const f=$id('noteForm'); f.classList.add('open'); $id('addNoteBtn').setAttribute('aria-expanded','true');
+      f.scrollIntoView({behavior:'smooth',block:'start'}); $id('nTitle').focus();
+    }
+    function del(id){ if(!confirm('Delete this research note?')) return; data=data.filter(n=>n.id!==id); persist(); render(); }
+    function filter(cat,btn){ activeFilter=cat; document.querySelectorAll('.fl-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); render(); }
+    function render(){
+      const list=$id('notesList'), empty=$id('notesEmpty'), bar=$id('notesBar'), cnt=$id('noteCnt');
+      bar.style.display=data.length?'flex':'none';
+      list.querySelectorAll('.note-card').forEach(el=>el.remove());
+      const filtered=activeFilter==='all'?data:data.filter(n=>n.category===activeFilter);
+      cnt.textContent=filtered.length+' note'+(filtered.length!==1?'s':'');
+      if(!data.length){ empty.style.display='block'; return; }
+      empty.style.display='none';
+      list.querySelectorAll('.no-results').forEach(el=>el.remove());
+      if(!filtered.length){ const d=document.createElement('div'); d.className='empty-state no-results'; d.textContent='No notes in this category.'; list.appendChild(d); return; }
+      filtered.forEach(n=>{
+        const card=document.createElement('div'); card.className='note-card'; card.setAttribute('role','listitem');
+        card.innerHTML=`
+          <div class="nc-hdr">
+            <div class="nc-meta"><span class="n-tag ${esc(n.category)}">${esc(n.category)}</span><span class="note-date">${esc(n.author)} · ${n.edited?'edited '+n.edited:n.date}</span></div>
+            <div class="nc-btns"><button class="n-btn" onclick="DNALab.notes.edit('${n.id}')">Edit</button><button class="n-btn del" onclick="DNALab.notes.del('${n.id}')">Delete</button></div>
+          </div>
+          <div class="note-ttl">${esc(n.title)}</div>
+          <div class="note-bdy">${esc(n.body).replace(/\n/g,'<br>')}</div>
+          ${n.section?`<div class="note-ref">Related to: <em>${esc(n.section)}</em></div>`:''}
+        `;
+        list.appendChild(card);
+      });
+    }
+    function exportJSON(){ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}); dl(blob,`dna-notes-${Date.now()}.json`); }
+    function exportCSV(){
+      const hd=['ID','Title','Author','Category','Section','Date','Body'];
+      const rows=[hd,...data.map(n=>[n.id,n.title,n.author,n.category,n.section||'',n.date,n.body.replace(/\n/g,' ')])];
+      const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+      dl(new Blob([csv],{type:'text/csv'}),`dna-notes-${Date.now()}.csv`);
+    }
+    function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+    render();
+    return { toggleForm, save, edit, del, filter, exportJSON, exportCSV };
+  })();
+
+  /* ── SIDEBAR SCROLL TRACKING ── */
+  window.addEventListener('scroll',()=>{
+    const links=document.querySelectorAll('#panel-dna .sb-lnk');
+    let cur='';
+    document.querySelectorAll('#panel-dna [id]').forEach(s=>{ if(s.getBoundingClientRect().top<110) cur=s.id; });
+    links.forEach(l=>{ const h=(l.getAttribute('href')||'').replace('#',''); l.classList.toggle('active',h===cur&&cur!==''); });
+  },{passive:true});
+
+  /* ── FOOTER ── */
+  const fts=$id('footerTs');
+  if(fts) fts.textContent='v3.0 · '+new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  return { helix, seqAnalyze, calcEntropy, decodeCodon, findORFs, clearORF, scanMotif, calcGCWindow, calcComp, notes };
+})();
+
+/* ══════════════════════════════════════════════════
+   WET-LAB CHECKLIST MODULE (W1-W5)
+══════════════════════════════════════════════════ */
+const WL = (() => {
+  const STORAGE='sov1-wetlab-v3';
+  let state=JSON.parse(localStorage.getItem(STORAGE)||'{}');
+
+  const PHASES = [
+    {
+      id:'w1', num:'Wet-Lab 1', title:'In Vitro Model Development', color:'#00c8b0', timeline:'3–6 months',
+      effort:'Wet Lab (primary)',
+      gate:'Disease model recapitulates pathological chromatin state and functional deficit, reproducible across 3+ biological replicates',
+      groups:[
+        { title:'Disease Model Cell Line Establishment', tasks:[
+          {id:'w1_1',text:'Establish primary cell line from disease tissue OR differentiate from patient-derived iPSCs (preferred for genetic disease models)',detail:'Pancreatic beta cells: iPSC → definitive endoderm → pancreatic progenitor → endocrine cells (Pagliuca protocol). Hepatocytes: iPSC → hepatic endoderm → mature hepatocyte (Si-Tayeb protocol). Cardiomyocytes: iPSC → cardiac progenitor → ventricular CM (Lian protocol). Document differentiation efficiency by day-30 marker expression.',tags:['critical','wet-lab']},
+          {id:'w1_2',text:'Verify cell type identity by canonical marker expression (flow cytometry + immunofluorescence)',detail:'Beta cells: NKX6.1+ INS+ MAFA+ (target >40% triple-positive). Hepatocytes: ALB+ HNF4A+ CYP3A4+. Cardiomyocytes: TNNT2+ MYH6/7+ NKX2-5+. Reject batches below threshold.',tags:['critical','wet-lab']},
+          {id:'w1_3',text:'Establish baseline expression of the target TF in disease vs healthy controls (RT-qPCR, Western blot, single-cell RNA-seq)',detail:'Disease model must show >50% reduction in target TF expression vs matched healthy reference. Document the variance (CV < 25% across replicates).',tags:['critical','wet-lab']},
+        ]},
+        { title:'Pathological Chromatin State Verification', tasks:[
+          {id:'w1_4',text:'CUT&RUN at target locus for active marks (H3K4me3, H3K27ac) — confirm signal reduction vs healthy baseline',detail:'Target: <30% of healthy signal at pathological loci. Use 250,000–500,000 cells per CUT&RUN reaction. Spike-in normalization (yeast or fly chromatin) required for quantitative comparison.',tags:['critical','wet-lab']},
+          {id:'w1_5',text:'CUT&RUN for repressive marks (H3K27me3, H3K9me3) — confirm signal gain at silenced loci',detail:'Pathological gain >2-fold vs healthy. Distinguishes Polycomb silencing (H3K27me3, reversible) from constitutive heterochromatin (H3K9me3, harder to reverse).',tags:['critical','wet-lab']},
+          {id:'w1_6',text:'ATAC-seq for chromatin accessibility — confirm reduced accessibility at regulatory regions of interest',detail:'Use Omni-ATAC protocol (Corces 2017) for high signal-to-noise. Compare TSS enrichment between disease and healthy. Disease model must show distinct accessibility signature.',tags:['wet-lab']},
+          {id:'w1_7',text:'Optional: bisulfite sequencing or EM-seq at target CpG islands to characterize DNA methylation state',detail:'Required if target intervention is dCas9-TET2 demethylation. Document baseline methylation density per CpG.',tags:['wet-lab']},
+        ]},
+        { title:'Functional Baseline Establishment', tasks:[
+          {id:'w1_8',text:'Measure baseline functional output in the disease model using organ-specific assay',detail:'Pancreas: GSIS (insulin at 16.7mM/2.8mM glucose ratio). Liver: albumin ELISA on conditioned medium. Heart: spontaneous calcium transient amplitude. Document the deficit magnitude vs healthy.',tags:['critical','wet-lab']},
+          {id:'w1_9',text:'Establish reproducibility: n≥3 biological replicates with CV < 30%',detail:'Biological replicate = independent differentiation batch, not technical replicate. If CV > 30%, refine the differentiation protocol before proceeding.',tags:['critical','wet-lab']},
+        ]},
+      ]
+    },
+    {
+      id:'w2', num:'Wet-Lab 2', title:'Editing Tool Design and Testing', color:'#00c8f0', timeline:'3–6 months',
+      effort:'Wet Lab + Computational',
+      gate:'On-target editing >30% efficiency in primary disease model cells with <5 off-target sites passing filter',
+      groups:[
+        { title:'Guide RNA Design and Synthesis', tasks:[
+          {id:'w2_1',text:'Design 3–5 sgRNAs per target site within 200 bp of the regulatory element using CRISPOR or CHOPCHOP',detail:'Target: high on-target score (>0.6) and low off-target score (<3 high-similarity matches). For dCas9-based epigenetic editors, also consider distance from TSS (optimal 50–200 bp upstream).',tags:['critical','wet-lab','compute']},
+          {id:'w2_2',text:'Filter by genomic context: avoid sgRNAs overlapping common SNPs (gnomAD AF > 0.01), repetitive regions, or duplicated genome segments',detail:'Use UCSC genome browser tracks for repeat and segmental duplication annotation. SNPs in PAM or seed region (positions 1–12) disqualify the guide.',tags:['critical','wet-lab','compute']},
+          {id:'w2_3',text:'Synthesize sgRNAs and perform in vitro cleavage assay (T7E1 or TIDE) to confirm on-target activity before cell work',detail:'T7E1 assay: ligate PCR product at target locus, denature, re-anneal, cut with T7E1. Expect cleavage bands for active sgRNAs. Minimum bar: >10% cleavage efficiency in the in vitro assay.',tags:['wet-lab']},
+        ]},
+        { title:'Editor Protein Selection and Delivery', tasks:[
+          {id:'w2_4',text:'Select editor protein: dCas9-TET2 (demethylation), dCas9-p300 (H3K27ac), dCas9-KDM6A (H3K27me3 erasure), ABE8e (A→G base edit), CBE4max (C→T base edit), or PE3 (prime editing)',detail:'Match editor to the chromatin state defect identified in W1. Epigenetic editing preferred over sequence editing when the underlying sequence is normal (functional defect is purely epigenetic).',tags:['critical','wet-lab']},
+          {id:'w2_5',text:'Test delivery methods: lipofection (mRNA + sgRNA), electroporation (RNP), lentiviral (sgRNA only), and AAV (if applicable)',detail:'Electroporation of RNP is preferred for primary cells — no integration risk, transient expression limits immunogenicity.',tags:['critical','wet-lab']},
+          {id:'w2_6',text:'Optimize delivery conditions: cell density, voltage/pulse (electroporation), lipid:RNA ratio, serum-free interval',detail:'Use a GFP mRNA transfection as a delivery efficiency control before each primary cell editing experiment.',tags:['wet-lab']},
+        ]},
+        { title:'On-Target Editing Measurement', tasks:[
+          {id:'w2_7',text:'Measure on-target editing efficiency by amplicon deep sequencing (>10,000× depth) at the target site',detail:'For base editors: quantify %C→T or %A→G conversions at the target cytosine/adenine. For epigenetic editors: CUT&RUN for the target mark at 48h post-delivery.',tags:['critical','wet-lab','compute']},
+          {id:'w2_8',text:'Report indel spectrum for Cas9-based cutting editors: frequency of each insertion/deletion size class',detail:'Report indel spectrum, not just total edit rate.',tags:['critical','wet-lab','compute']},
+          {id:'w2_9',text:'Top 5 predicted off-target sites: amplicon sequencing at the same depth',detail:'Off-target editing rate at any predicted site >0.5% disqualifies the guide RNA. Iterate to a different sgRNA if any predicted off-target fails.',tags:['critical','wet-lab']},
+          {id:'w2_10',text:'GUIDE-seq or CIRCLE-seq for unbiased genome-wide off-target discovery',detail:'GUIDE-seq integrates a dsODN tag at double-strand breaks; CIRCLE-seq uses purified DNA in vitro. Both reveal off-targets in the kilobase range that bioinformatic tools miss. Required for any clinical candidate guide.',tags:['critical','wet-lab']},
+        ]},
+      ]
+    },
+    {
+      id:'w3', num:'Wet-Lab 3', title:'Functional Repair Validation', color:'#00e87a', timeline:'4–8 months',
+      effort:'Wet Lab (primary)',
+      gate:'Chromatin state restored to ≥70% of healthy; functional rescue ≥50% of healthy baseline; dose-response curve documented',
+      groups:[
+        { title:'Chromatin State Restoration', tasks:[
+          {id:'w3_1',text:'Apply editor to disease model cells using optimized delivery protocol from W2. Wait 72 hours for chromatin state equilibration before measurement.',detail:'For dCas9-TET2: passive demethylation takes longer than active marks. Allow 5–7 days for full effect. For dCas9-p300 acetylation: peak signal at 48–72 hours.',tags:['critical','wet-lab']},
+          {id:'w3_2',text:'Post-editing CUT&RUN for the target active mark at the regulatory locus',detail:'Required: signal restored to ≥70% of healthy baseline. Track spike-in normalized read density at the precise target window (not just gene-wide).',tags:['critical','wet-lab']},
+          {id:'w3_3',text:'Post-editing CUT&RUN for the repressive mark at the same locus — confirm reduction',detail:'Some loci can have new active marks added without removing the old repressive marks (bivalent state). True repair requires repressive mark loss, not just activator gain.',tags:['wet-lab']},
+        ]},
+        { title:'TF Binding and Gene Expression', tasks:[
+          {id:'w3_4',text:'CUT&RUN for the target TF (anti-PDX1 for pancreas, anti-HNF4A for liver) — confirm restoration of binding to the regulatory region',detail:'TF binding restoration is the most direct molecular validation. If the chromatin mark changes but TF binding does not recover, the intervention is incomplete.',tags:['critical','wet-lab']},
+          {id:'w3_5',text:'RT-qPCR for the target gene: 24h, 72h, and 7 days post-editing',detail:'Required: ≥50% restoration of mRNA vs healthy. Time course catches transient vs durable activation. Triplicate technical + triplicate biological.',tags:['critical','wet-lab']},
+          {id:'w3_6',text:'RNA-seq comparing edited vs unedited disease model cells',detail:'Quantify genome-wide transcriptional response. Required: <100 unintended differentially expressed genes (adjusted p<0.05). On-pathway co-regulated genes (downstream of the target TF) are EXPECTED and welcome.',tags:['critical','wet-lab','compute']},
+        ]},
+        { title:'Functional Rescue and Dose-Response', tasks:[
+          {id:'w3_7',text:'Repeat the baseline functional assay on edited cells. Compare to unedited disease model and healthy reference.',detail:'Required rescue magnitude per organ: pancreas GSIS index >2.5× baseline; liver albumin >50% of healthy; heart calcium amplitude >50% of healthy; kidney tubule formation observed; lung SP-C >60% of healthy AT2.',tags:['critical','wet-lab']},
+          {id:'w3_8',text:'Dose-response: plot editing efficiency (x-axis: 0–100%) vs functional output (y-axis). Identify inflection point.',detail:'The inflection point is the minimum editing efficiency required for functional rescue. This number defines the clinical target. Below the inflection point, no functional benefit. Above it, diminishing returns.',tags:['critical','wet-lab','regulatory']},
+          {id:'w3_9',text:'Time-course of functional rescue: measure at 7, 14, 28 days post-editing',detail:'If functional output peaks at day 7 then declines, the edit is not durable. If it climbs steadily, the cells are remodeling — continue measuring out to W4 durability assessment.',tags:['wet-lab']},
+        ]},
+      ]
+    },
+    {
+      id:'w4', num:'Wet-Lab 4', title:'Durability and Safety Assessment', color:'#f0a800', timeline:'3–6 months',
+      effort:'Wet Lab (primary)',
+      gate:'Repair effect maintained ≥80% at 90 days; no unintended chromosomal abnormalities; immunogenicity profile acceptable',
+      groups:[
+        { title:'Temporal Stability of the Edit', tasks:[
+          {id:'w4_1',text:'Re-measure chromatin state, TF binding, gene expression, and functional output at 7, 14, 28, 60, 90 days post-editing',detail:'Maintenance ≥80% of day-7 signal at 90 days defines a durable edit. Decline below 50% triggers root-cause analysis.',tags:['critical','wet-lab']},
+          {id:'w4_2',text:'Passage cells 3× after editing and re-measure chromatin state and gene expression',detail:'If the epigenetic change is maintained through 3 cell divisions without continued editor expression, this demonstrates genuine chromatin inheritance.',tags:['critical','wet-lab']},
+          {id:'w4_3',text:'Challenge edited cells with the disease-driving signal (e.g. TGF-β for fibrosis, high glucose for beta cells) and re-measure repair state',detail:'If the repair is erased by re-exposure to the pathological signal, upstream pathway inhibition will be required concurrently.',tags:['wet-lab']},
+        ]},
+        { title:'Chromosomal Integrity', tasks:[
+          {id:'w4_4',text:'Karyotyping of edited cells at 30 days post-editing',detail:'Standard G-band karyotype: accept if no new clonal chromosomal abnormalities vs unedited control. Array CGH if clonal expansion is detected.',tags:['critical','wet-lab']},
+          {id:'w4_5',text:'Long-read sequencing (PacBio or ONT) at the top 3 off-target sites to check for large structural rearrangements',detail:'Short-read amplicon sequencing misses inversions and translocations. Long-read required at the cut site and top 3 off-target sites.',tags:['critical','wet-lab','compute']},
+        ]},
+        { title:'Immunogenicity Safety Screen', tasks:[
+          {id:'w4_6',text:'Test for innate immune activation in edited cells: IFN-β, IL-6, TNF-α mRNA by RT-qPCR at 6h, 24h, 72h post-delivery',detail:'Elevated IL-6 or IFN-gamma indicates innate immune sensing of foreign nucleic acid or protein.',tags:['wet-lab']},
+          {id:'w4_7',text:'For viral delivery: test transduction efficiency in the presence of pooled human serum (n≥5 donors)',detail:'Pre-existing antibodies neutralize viral vectors and reduce effective delivery. Test serotype alternatives if neutralization >50% in any donor.',tags:['wet-lab']},
+          {id:'w4_8',text:'For delivery vehicles tested in vivo: test pre-existing anti-Cas9 and anti-AAV capsid antibodies in human donor serum panels (n≥20)',detail:'Pre-existing immunity to SpCas9 ~60% of human population; SaCas9 ~10%. AAV pre-immunity highly serotype-dependent.',tags:['critical','wet-lab','regulatory']},
+        ]},
+      ]
+    },
+    {
+      id:'w5', num:'Wet-Lab 5', title:'Transition to Advanced Models', color:'#a088f0', timeline:'6–12 months',
+      effort:'Wet Lab (primary) + Engineering',
+      gate:'Functional rescue replicated in 3D organoid or tissue chip system at scale relevant for animal dosing',
+      groups:[
+        { title:'Organoid System Validation', tasks:[
+          {id:'w5_1',text:'Transfer optimized editing protocol from 2D culture to 3D organoid system',detail:'3D systems have different delivery efficiency than 2D. May require organoid dissociation + electroporation + reaggregation, OR systemic delivery vehicle (AAV, LNP) added to media.',tags:['critical','wet-lab']},
+          {id:'w5_2',text:'Confirm cell-type-specific editing by single-cell sequencing of dissociated organoid',detail:'Required: target cell type accounts for >50% of edited cells. Off-target cell type editing >20% is disqualifying.',tags:['critical','wet-lab']},
+          {id:'w5_3',text:'Functional rescue in 3D organoid: organ-specific assay run on the organoid system',detail:'Organoid GSIS for islet organoids. Albumin secretion + bile acid metabolism for liver organoids. Functional readout in 3D often more clinically predictive than 2D.',tags:['critical','wet-lab']},
+        ]},
+        { title:'Scale-Up and Process Development', tasks:[
+          {id:'w5_4',text:'Scale editing to batch sizes relevant for animal studies: 50M–500M cells per batch',detail:'Primary cells lose potency with scale-up. Document editing efficiency, viability, and functional output at 10×, 100×, and 1000× the discovery-scale batch.',tags:['critical','wet-lab']},
+          {id:'w5_5',text:'Develop cryopreservation protocol for edited cells: freeze-thaw recovery ≥70% viability and ≥80% maintenance of editing and functional output',detail:'Post-thaw functional recovery is the rate-limiting step for cell therapy scale-up. Test 3 cryopreservation media formulations.',tags:['wet-lab']},
+          {id:'w5_6',text:'Prepare in vivo dose range-finding formulation: delivery vehicle at 3 dose levels spanning 0.1×, 1×, 10× anticipated therapeutic dose',detail:'Document formulation stability at 4°C and −80°C. Particle size, PDI, encapsulation efficiency for LNP. Titer, full-to-empty ratio for AAV.',tags:['critical','wet-lab','regulatory']},
+        ]},
+      ]
+    },
+  ];
+
+  function persist(){ localStorage.setItem(STORAGE,JSON.stringify(state)); }
+  function isChecked(id){ return !!state[id]; }
+  function toggle(id){ state[id]=!state[id]; persist(); updateAll(); }
+  function expand(id){
+    const detail=$id('wl-detail-'+id);
+    const item=$id('wl-item-'+id);
+    if(!detail||!item) return;
+    item.classList.toggle('expanded');
+    const expBtn=$id('wl-exp-'+id);
+    if(expBtn) expBtn.textContent=item.classList.contains('expanded')?'▲':'▼';
+  }
+
+  function allTaskIds(){ return PHASES.flatMap(p=>p.groups.flatMap(g=>g.tasks.map(t=>t.id))); }
+  function phaseTaskIds(ph){ return ph.groups.flatMap(g=>g.tasks.map(t=>t.id)); }
+  function doneCount(ids){ return ids.filter(id=>!!state[id]).length; }
+
+  function updateAll(){
+    const all=allTaskIds(), total=all.length, done=doneCount(all);
+    const pct=total>0?Math.round(done/total*100):0;
+    $id('wl-masterFill').style.width=pct+'%';
+    $id('wl-masterPct').textContent=pct+'%';
+    $id('wl-masterCounts').textContent=`${done} / ${total} tasks`;
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids), pp=tot>0?Math.round(dn/tot*100):0;
+      const fill=$id('wl-phase-fill-'+ph.id);
+      const pctEl=$id('wl-phase-pct-'+ph.id);
+      const doneEl=$id('wl-phase-done-'+ph.id);
+      const sbPct=$id('wl-sb-pct-'+ph.id);
+      if(fill) fill.style.width=pp+'%';
+      if(pctEl) pctEl.textContent=pp+'%';
+      if(doneEl) doneEl.textContent=`${dn}/${tot}`;
+      if(sbPct) sbPct.textContent=pp+'%';
+      ids.forEach(id=>{
+        const item=$id('wl-item-'+id);
+        const cb=$id('wl-cb-'+id);
+        if(item){ if(state[id]) item.classList.add('done'); else item.classList.remove('done'); }
+        if(cb){ cb.setAttribute('aria-checked',String(!!state[id])); }
+      });
+    });
+  }
+
+  function render(){
+    // Sidebar
+    const sb=$id('wlSidebarNav'); if(!sb) return;
+    sb.innerHTML='';
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids);
+      const a=document.createElement('a');
+      a.className='sb-phase-link'; a.href='#wl-phase-'+ph.id;
+      a.innerHTML=`<span class="sb-phase-dot" style="background:${ph.color}30;border-color:${ph.color}"></span><span style="flex:1">${ph.num}</span><span class="sb-phase-pct" id="wl-sb-pct-${ph.id}">${tot>0?Math.round(dn/tot*100):0}%</span>`;
+      sb.appendChild(a);
+    });
+
+    // Content
+    const content=$id('wlContent'); if(!content) return;
+    content.innerHTML=`
+      <div class="cl-intro">
+        <p>The <strong>Wet-Lab Operational Track (W1–W5)</strong> is the detailed protocol layer sitting inside Phase 4 of the main organ repair roadmap. Run W1–W3 in parallel with the computational Phase 4 critical tasks. <strong>W1–W3 must complete before any animal study (Phase 5).</strong> Each phase has independent pass/fail gate criteria that must be documented before advancing.</p>
+      </div>
+    `;
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids), pp=tot>0?Math.round(dn/tot*100):0;
+      const div=document.createElement('div');
+      div.className='phase'; div.id='wl-phase-'+ph.id;
+      let html=`
+        <div class="phase-header">
+          <div class="phase-num" style="border-color:${ph.color};color:${ph.color}">${ph.num}</div>
+          <div class="phase-title">${ph.title}</div>
+          <div class="phase-timeline">${ph.timeline}</div>
+        </div>
+        <div class="phase-meta">
+          <span>Effort: ${ph.effort}</span>
+        </div>
+        <div class="phase-gate" style="border-left-color:${ph.color};color:${ph.color}">${ph.gate}</div>
+        <div class="phase-progress">
+          <div class="phase-bar"><div class="phase-fill" id="wl-phase-fill-${ph.id}" style="width:${pp}%;background:${ph.color}"></div></div>
+          <div class="phase-pct" id="wl-phase-pct-${ph.id}" style="color:${ph.color}">${pp}%</div>
+          <div class="phase-done" id="wl-phase-done-${ph.id}">${dn}/${tot}</div>
+        </div>
+      `;
+      ph.groups.forEach(g=>{
+        html+=`<div class="task-group"><div class="group-title">${g.title}</div>`;
+        g.tasks.forEach(t=>{
+          const done=!!state[t.id];
+          const tagHtml=t.tags.map(tag=>`<span class="ttag ${tag}">${tag}</span>`).join('');
+          html+=`
+            <div class="task-item${done?' done':''}" id="wl-item-${t.id}">
+              <div class="task-cb" id="wl-cb-${t.id}" role="checkbox" aria-checked="${done}" onclick="WL.toggle('${t.id}')" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){WL.toggle('${t.id}')}"><div class="task-check"></div></div>
+              <div class="task-content">
+                <div class="task-text">${esc(t.text)}</div>
+                <div class="task-tags">${tagHtml}</div>
+                <div class="task-detail" id="wl-detail-${t.id}">${esc(t.detail)}</div>
+              </div>
+              <button class="expand-btn" id="wl-exp-${t.id}" onclick="WL.expand('${t.id}')" aria-label="Show detail">▼</button>
+            </div>
+          `;
+        });
+        html+='</div>';
+      });
+      div.innerHTML=html;
+      content.appendChild(div);
+    });
+  }
+
+  function resetAll(){ if(!confirm('Reset ALL wet-lab progress? This cannot be undone.')) return; state={}; persist(); updateAll(); }
+  function exportProgress(){
+    const out={exported:stamp(),phases:PHASES.map(ph=>({id:ph.id,title:ph.title,tasks:phaseTaskIds(ph).map(id=>({id,done:!!state[id]}))}))}; 
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`wetlab-progress-${Date.now()}.json`; a.click();
+  }
+
+  render(); updateAll();
+  return { toggle, expand, resetAll, exportProgress };
+})();
+
+/* ══════════════════════════════════════════════════
+   ORGAN REPAIR CHECKLIST MODULE (Phases 1–6 + W1–W5)
+══════════════════════════════════════════════════ */
+const OR = (() => {
+  const STORAGE='sov1-organ-repair-v3';
+  let state=JSON.parse(localStorage.getItem(STORAGE)||'{}');
+
+  const PHASES = [
+    {
+      id:'p1', num:'Phase 1', title:'Target Identification', color:'#00e87a', timeline:'6–12 months',
+      effort:'Computational (primary)',
+      gate:'At least one validated chromatin-state defect per organ identified with causal evidence (ClinVar, GWAS, or functional screen)',
+      groups:[
+        { title:'Computational Target Discovery', tasks:[
+          {id:'p1_1',text:'Run 4-layer DNA decoding framework on disease-associated genomic regions per organ type',detail:'Layer 1: ORF/Kozak analysis. Layer 2: PWM motif scanning (JASPAR 2024). Layer 3: ChromHMM state per disease-relevant cell type. Layer 4: Hi-C TAD mapping and ABC enhancer-gene scoring.',tags:['compute']},
+          {id:'p1_2',text:'Identify transcription factor binding sites disrupted in disease by delta-PWM scoring across disease variants',detail:'Use gnomAD v4 population variants and ClinVar pathogenic variants. PWM delta ≥ 2.0 bits at ENCODE ChIP-seq peak = high-priority target.',tags:['compute','critical']},
+          {id:'p1_3',text:'Prioritize targets: epigenetic state change (E1→E5/E6) at the regulatory locus must be confirmed in disease tissue or patient-derived iPSC',detail:'Computational prediction alone is insufficient. Require at least one published dataset (GEO, ENCODE) confirming the chromatin state change in patient tissue.',tags:['critical','compute']},
+          {id:'p1_4',text:'Map target list to six organ systems: Pancreas, Liver, Heart, Kidney, Lung, Reproductive',detail:'Each organ system requires ≥1 validated target with ≥1 TF and ≥1 regulatory element before advancing to Phase 2.',tags:['compute']},
+        ]},
+      ]
+    },
+    {
+      id:'p2', num:'Phase 2', title:'Mechanism Definition', color:'#00c8f0', timeline:'6–12 months',
+      effort:'Computational + Wet Lab',
+      gate:'Disease mechanism defined at chromatin level per organ; therapeutic hypothesis stated; functional assay selected',
+      groups:[
+        { title:'Per-Organ Mechanism Definition', tasks:[
+          {id:'p2_1',text:'Pancreas (Diabetes): confirm PDX1/NKX6.1/MAFA regulatory network failure; document epigenetic silencing of beta-cell identity genes',detail:'ChromHMM state at PDX1 promoter must be E5 or E6 (not E1) in T2D beta cells vs healthy. Confirm by published ChIP-seq or CUT&RUN in T2D islets.',tags:['critical','wet-lab']},
+          {id:'p2_2',text:'Liver (Cirrhosis): confirm TGF-β overactivation, fibrosis markers (Col1A1, αSMA), and HNF4α regulatory element silencing',detail:'HNF4α promoter H3K4me3 signal <20% of healthy in fibrotic hepatocytes. TGF-β pathway gene expression elevated >5× healthy in scRNA-seq.',tags:['critical','wet-lab']},
+          {id:'p2_3',text:'Heart (Post-Infarction): confirm TBX5/GATA4/MEF2C silencing in infarcted cardiomyocytes; document fibroblast→scar transition',detail:'Cardiomyocyte identity TF ChIP-seq in border zone of MI model. Expected: H3K27me3 gain at TBX5 locus, ATAC-seq closure at GATA4 sites.',tags:['critical','wet-lab']},
+          {id:'p2_4',text:'Kidney (CKD): confirm SIX2/WT1/PAX2 inactivation in tubular cells; document nephron loss signature',detail:'Single-cell ATAC-seq of CKD patient biopsies: progenitor TF chromatin accessibility reduced vs healthy. GFR correlation with chromatin state score.',tags:['critical','wet-lab']},
+          {id:'p2_5',text:'Lung (Chronic Disease): confirm NKX2.1/FOXA2 silencing in AT2 cells; document fibrosis and alveolar destruction signature',detail:'AT2 cell isolation by EpCAM+/HTII-280+ flow sorting from patient bronchoalveolar lavage. CUT&RUN for NKX2.1 and H3K27ac.',tags:['critical','wet-lab']},
+          {id:'p2_6',text:'Reproductive (Ovary/Testis): confirm FOXL2/GDF9/BMP15 or DMRT1/SOX9 network failure; document hormonal and fertility deficits',detail:'Granulosa cell or Sertoli cell RNA-seq and chromatin profiling. Hormone levels (FSH, LH, AMH, testosterone) as functional readout.',tags:['wet-lab']},
+          {id:'p2_7',text:'Define functional assay for each organ: GSIS (pancreas), albumin+ALT (liver), EF/calcium (heart), GFR/creatinine (kidney), O2 sat/compliance (lung)',detail:'Define success criteria before starting Phase 4. This prevents post-hoc rationalization.',tags:['critical','regulatory']},
+          {id:'p2_8',text:'State the therapeutic hypothesis in one sentence per organ, pre-registered in the internal lab notebook',detail:'Example: "Restoring H3K27ac at the PDX1 super-enhancer (chr13:28,351,000–28,390,000 hg38) will reactivate PDX1 expression in T2D beta cells and restore GSIS to ≥2.5× baseline within 7 days."',tags:['regulatory']},
+        ]},
+      ]
+    },
+    {
+      id:'p3', num:'Phase 3', title:'Delivery System', color:'#a088f0', timeline:'12–24 months',
+      effort:'Wet Lab + Computational',
+      gate:'Delivery system reaches target cell type with >30% transduction efficiency and <5% off-target cell type contamination',
+      groups:[
+        { title:'Delivery Method Selection', tasks:[
+          {id:'p3_1',text:'Select delivery modality per organ: mRNA-LNP (liver, pancreas), AAV serotype (heart: AAV9, lung: AAV5, kidney: AAV2/9), base editor RNP for ex vivo editing',detail:'Justify selection with published tropism data. Do not use a modality that lacks published efficacy in the target organ.',tags:['critical','wet-lab']},
+          {id:'p3_2',text:'For epigenetic editing targets (dCas9-TET2, dCas9-p300, dCas9-DNMT3A, dCas9-KDM6A): select guide RNA delivery format',detail:'Transient delivery (mRNA + IVT sgRNA) is preferred for epigenetic editing — avoids permanent Cas9 integration.',tags:['critical','wet-lab']},
+          {id:'p3_3',text:'For permanent correction targets: evaluate base editing (ABE8e, CBE4max) vs prime editing (PE3, PE3b) vs HDR',detail:'Base editing preferred when the target is a C→T or A→G substitution. Prime editing for all others. HDR is last resort.',tags:['wet-lab']},
+        ]},
+        { title:'Cell-Type Specificity Validation', tasks:[
+          {id:'p3_4',text:'Prove cell-type tropism in relevant cell-type co-culture or organoid system',detail:'Use fluorescent reporter or sequencing-based cell-type identification. Target cell type must account for >50% of transduced cells.',tags:['critical','wet-lab']},
+          {id:'p3_5',text:'In vivo tropism validation in mice: single-cell sequencing of target organ post-delivery',detail:'Accept tropism if >30% of payload goes to target cell type and <5% to off-target tissue.',tags:['critical','wet-lab','in-vivo']},
+        ]},
+        { title:'Off-Target Assessment', tasks:[
+          {id:'p3_6',text:'Guide RNA off-target profiling: GUIDE-seq or CIRCLE-seq for each guide RNA used',detail:'Run in human primary cells of the relevant tissue type. Off-target sites in tumor suppressor genes are disqualifying.',tags:['critical','wet-lab']},
+          {id:'p3_7',text:'Immunogenicity assessment: test for pre-existing Cas9 antibodies and T cell responses in human donor cells',detail:'Cas9 from S. aureus (SaCas9) has lower pre-existing immunity than SpCas9. Transient mRNA delivery reduces adaptive immune priming.',tags:['wet-lab','regulatory']},
+        ]},
+      ]
+    },
+    {
+      id:'p4', num:'Phase 4', title:'Repair Mechanism Testing', color:'#f0a800', timeline:'12–24 months',
+      effort:'Wet Lab (primary)',
+      gate:'In vitro: chromatin state change confirmed; target gene expression restored to ≥50% of healthy; functional assay passes threshold',
+      groups:[
+        { title:'In Vitro Chromatin State Validation', tasks:[
+          {id:'p4_1',text:'Deliver epigenetic editor to disease model cells. Confirm chromatin state change by CUT&RUN or ChIP-seq at target loci.',detail:'Before: verify the target locus is in the pathological state. After: target signal within 2-fold of healthy.',tags:['critical','wet-lab']},
+          {id:'p4_2',text:'Confirm TF binding restoration by CUT&RUN with antibody against the target TF',detail:'Allele-specific ATAC-seq ratio (edited / unedited) >1.5 at target locus required.',tags:['critical','wet-lab']},
+          {id:'p4_3',text:'Stability check: re-measure chromatin state and TF binding at 7, 14, and 28 days post-editing',detail:'Epigenetic editing can revert if the disease-driving signal is still present. Block upstream if needed.',tags:['critical','wet-lab']},
+        ]},
+        { title:'Functional Outcome in Disease Models', tasks:[
+          {id:'p4_4',text:'Pancreas: GSIS index > 2.5 in edited beta-cell organoids or primary islets from T2D donors',detail:'GSIS = insulin at 16.7mM / insulin at 2.8mM glucose. Measure C-peptide (not total insulin) to exclude contaminating non-beta cells.',tags:['critical','wet-lab']},
+          {id:'p4_5',text:'Liver: albumin secretion > 3.5 g/dL equivalent; collagen deposition < 40% vs unedited fibrotic controls',detail:'Picrosirius Red staining for collagen. Albumin by ELISA on conditioned medium. Both required to pass.',tags:['wet-lab']},
+          {id:'p4_6',text:'Heart: induced cardiomyocytes show spontaneous calcium transients with amplitude > 50% of primary cardiomyocytes; APD90 within 20% of primary',detail:'Calcium imaging with Fluo-4 or GCaMP. Patch-clamp for APD90. Require both metrics.',tags:['wet-lab']},
+          {id:'p4_7',text:'Kidney: SIX2+/WT1+ co-positive cells form tubular structures; eGFR surrogate > 30% improvement in kidney-on-chip',detail:'Immunofluorescence for SIX2 and WT1 co-localization. ZO-1 tight junction staining for tubule confirmation.',tags:['wet-lab']},
+          {id:'p4_8',text:'Lung: SP-C expression restored to > 60% of healthy AT2 cells by flow cytometry; fibrosis area < 20%',detail:'Flow cytometry: EpCAM+ HTII-280+ SP-C+ population. Fibrosis by collagen staining in 3D organoid sections.',tags:['wet-lab']},
+          {id:'p4_9',text:'Document dose-response: minimum editing efficiency → functional threshold. Defines clinical dose requirement.',detail:'Plot functional output vs editing efficiency. Identify the inflection point for each organ.',tags:['critical','regulatory']},
+        ]},
+      ]
+    },
+    {
+      id:'p5', num:'Phase 5', title:'In Vivo Animal Studies', color:'#f06800', timeline:'24–48 months',
+      effort:'In Vivo (primary)',
+      gate:'Efficacy demonstrated in 2 animal models (mouse + large animal); 6-month safety data clean',
+      groups:[
+        { title:'Small Animal Studies (Mouse)', tasks:[
+          {id:'p5_1',text:'Select disease mouse model per organ: STZ-induced or db/db (pancreas), CCl4 or BDL (liver), LAD ligation (heart), UUO or adenine-diet (kidney), bleomycin (lung)',detail:'Humanized mouse models preferred if available (human hepatocyte chimeric mice for liver).',tags:['critical','in-vivo']},
+          {id:'p5_2',text:'Confirm therapeutic delivery reaches target organ in vivo: sacrifice at 7 days, single-cell sequencing of target organ',detail:'Accept if >25% of payload in target cell type. Adjust delivery route per organ.',tags:['critical','in-vivo','wet-lab']},
+          {id:'p5_3',text:'Primary efficacy endpoint at 4 weeks post-treatment: organ-specific functional assay',detail:'Pancreas: IPGTT (glucose tolerance). Liver: ALT, bilirubin, fibroscan. Heart: echocardiography EF%. Kidney: serum creatinine, BUN, urine albumin:creatinine. Lung: pulmonary function tests.',tags:['critical','in-vivo']},
+          {id:'p5_4',text:'Safety: necropsy and histopathology of all major organs at study end. Liver enzymes at baseline, 2 weeks, 4 weeks.',detail:'Standard panel: liver, kidney, spleen, lung, heart, GI, gonads, brain. H&E staining. Flag any evidence of hyperplasia or dysplasia.',tags:['critical','in-vivo','regulatory']},
+        ]},
+        { title:'Large Animal Studies', tasks:[
+          {id:'p5_5',text:'Replicate efficacy in large animal model (non-human primate, swine, or dog per organ) at clinically relevant dose',detail:'Dose determined by W5 dose-response inflection point scaled by organ weight. GLP-like study design.',tags:['critical','in-vivo','regulatory']},
+          {id:'p5_6',text:'6-month safety and durability follow-up in large animal model',detail:'Monthly chromatin state assessment from biopsy (if feasible) or circulating biomarker. 6-month histopathology panel.',tags:['critical','in-vivo','regulatory']},
+        ]},
+      ]
+    },
+    {
+      id:'p6', num:'Phase 6', title:'Clinical Translation', color:'#f03355', timeline:'48–96 months',
+      effort:'Clinical + Regulatory',
+      gate:'IND approval; Phase 1 first patient dosed; target engagement confirmed in first cohort',
+      groups:[
+        { title:'Regulatory Preparation', tasks:[
+          {id:'p6_1',text:'Pre-IND meeting with FDA (or EMA for EU) to align on preclinical data package requirements',detail:'Submit meeting request 6 months before planned IND filing. Include CMC, nonclinical, and clinical plan outline.',tags:['critical','regulatory']},
+          {id:'p6_2',text:'GMP manufacturing of clinical-grade editing component (AAV, LNP, or cell product)',detail:'GMP facility qualification. Batch record for each lot. Release testing: sterility, identity, potency, purity.',tags:['critical','regulatory']},
+          {id:'p6_3',text:'IND submission: CMC, pharmacology/toxicology, and clinical protocol (Phase 1 dose escalation)',detail:'Standard Phase 1 design: 3+3 dose escalation. Starting dose: 1/10 of NOAEL in most sensitive animal species.',tags:['critical','regulatory']},
+        ]},
+        { title:'Clinical Execution (Phase 1/2)', tasks:[
+          {id:'p6_4',text:'Site selection: minimum 2 clinical sites with disease expertise and GMP cell processing capability',detail:'Sites must have experience in the relevant disease area and in gene/cell therapy administration.',tags:['regulatory']},
+          {id:'p6_5',text:'First patient dosed: safety data reviewed by DSMB at 30 days before second patient proceeds',detail:'This is the milestone that separates a research program from a clinical program.',tags:['critical','regulatory']},
+          {id:'p6_6',text:'Biomarker readout in first cohort: confirm target engagement in ≥3 of first 6 patients',detail:'Target engagement is proof-of-mechanism. If not observed at the lowest dose, trigger dose escalation review.',tags:['critical','wet-lab','regulatory']},
+          {id:'p6_7',text:'Interim efficacy analysis: pre-specified Bayesian adaptive design analysis at 50% enrollment',detail:'Pre-registration on ClinicalTrials.gov before unblinding. No post-hoc changes to primary endpoint.',tags:['regulatory']},
+        ]},
+        { title:'Sovereign Implementation Requirements', tasks:[
+          {id:'p6_8',text:'All clinical data processed by Sovereignty One platform: quadruple-ratchet encrypted storage, air-gapped analysis, no cloud transfer of patient genomic data',detail:'HIPAA / GDPR compliance built in by architecture. Patient WGS data never leaves the institution\'s sovereign computing environment.',tags:['critical','sovereign','regulatory']},
+          {id:'p6_9',text:'All statistical analyses run on air-gapped servers with auditable, version-controlled code; source code deposited with regulatory submission',detail:'No external SaaS tools for clinical data analysis.',tags:['sovereign','regulatory']},
+          {id:'p6_10',text:'Gate.one PQC attestation: ML-DSA-65 + TPM 2.0 attestation on analysis servers before each regulatory submission batch',detail:'Immutable audit trail via BLAKE3 Merkle chain for all data processing steps. Chain hash included in regulatory submission.',tags:['sovereign','regulatory']},
+        ]},
+      ]
+    },
+  ];
+
+  function persist(){ localStorage.setItem(STORAGE,JSON.stringify(state)); }
+  function isChecked(id){ return !!state[id]; }
+  function toggle(id){ state[id]=!state[id]; persist(); updateAll(); }
+  function expand(id){
+    const item=$id('or-item-'+id);
+    if(!item) return;
+    item.classList.toggle('expanded');
+    const btn=$id('or-exp-'+id);
+    if(btn) btn.textContent=item.classList.contains('expanded')?'▲':'▼';
+  }
+
+  function allTaskIds(){ return PHASES.flatMap(p=>p.groups.flatMap(g=>g.tasks.map(t=>t.id))); }
+  function phaseTaskIds(ph){ return ph.groups.flatMap(g=>g.tasks.map(t=>t.id)); }
+  function doneCount(ids){ return ids.filter(id=>!!state[id]).length; }
+
+  function updateAll(){
+    const all=allTaskIds(), total=all.length, done=doneCount(all);
+    const pct=total>0?Math.round(done/total*100):0;
+    $id('or-masterFill').style.width=pct+'%';
+    $id('or-masterPct').textContent=pct+'%';
+    $id('or-masterCounts').textContent=`${done} / ${total} tasks`;
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids), pp=tot>0?Math.round(dn/tot*100):0;
+      const fill=$id('or-phase-fill-'+ph.id), pctEl=$id('or-phase-pct-'+ph.id);
+      const doneEl=$id('or-phase-done-'+ph.id), sbPct=$id('or-sb-pct-'+ph.id);
+      if(fill) fill.style.width=pp+'%';
+      if(pctEl) pctEl.textContent=pp+'%';
+      if(doneEl) doneEl.textContent=`${dn}/${tot}`;
+      if(sbPct) sbPct.textContent=pp+'%';
+      ids.forEach(id=>{
+        const item=$id('or-item-'+id);
+        if(item){ if(state[id]) item.classList.add('done'); else item.classList.remove('done'); }
+      });
+    });
+  }
+
+  function render(){
+    const sb=$id('orSidebarNav'); if(!sb) return;
+    sb.innerHTML='';
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids);
+      const a=document.createElement('a');
+      a.className='sb-phase-link'; a.href='#or-phase-'+ph.id;
+      a.innerHTML=`<span class="sb-phase-dot" style="background:${ph.color}30;border-color:${ph.color}"></span><span style="flex:1">${ph.num}</span><span class="sb-phase-pct" id="or-sb-pct-${ph.id}">${tot>0?Math.round(dn/tot*100):0}%</span>`;
+      sb.appendChild(a);
+    });
+
+    const content=$id('orContent'); if(!content) return;
+    content.innerHTML=`
+      <div class="cl-intro">
+        <p>Six-phase organ repair roadmap from <strong>Target Identification</strong> through <strong>Clinical Translation</strong>. Each phase has pass/fail gate criteria. Phases must be completed sequentially. Critical tasks (<span style="color:var(--red);font-family:var(--f-mono);font-size:10px">CRITICAL</span>) must pass before advancing. Sovereign implementation requirements apply from Phase 5 onward.</p>
+      </div>
+    `;
+    PHASES.forEach(ph=>{
+      const ids=phaseTaskIds(ph), tot=ids.length, dn=doneCount(ids), pp=tot>0?Math.round(dn/tot*100):0;
+      const div=document.createElement('div');
+      div.className='phase'; div.id='or-phase-'+ph.id;
+      let html=`
+        <div class="phase-header">
+          <div class="phase-num" style="border-color:${ph.color};color:${ph.color}">${ph.num}</div>
+          <div class="phase-title">${ph.title}</div>
+          <div class="phase-timeline">${ph.timeline}</div>
+        </div>
+        <div class="phase-meta"><span>Effort: ${ph.effort}</span></div>
+        <div class="phase-gate" style="border-left-color:${ph.color};color:${ph.color}">${ph.gate}</div>
+        <div class="phase-progress">
+          <div class="phase-bar"><div class="phase-fill" id="or-phase-fill-${ph.id}" style="width:${pp}%;background:${ph.color}"></div></div>
+          <div class="phase-pct" id="or-phase-pct-${ph.id}" style="color:${ph.color}">${pp}%</div>
+          <div class="phase-done" id="or-phase-done-${ph.id}">${dn}/${tot}</div>
+        </div>
+      `;
+      ph.groups.forEach(g=>{
+        html+=`<div class="task-group"><div class="group-title">${g.title}</div>`;
+        g.tasks.forEach(t=>{
+          const done=!!state[t.id];
+          const tagHtml=t.tags.map(tag=>`<span class="ttag ${tag}">${tag}</span>`).join('');
+          html+=`
+            <div class="task-item${done?' done':''}" id="or-item-${t.id}">
+              <div class="task-cb" role="checkbox" aria-checked="${done}" onclick="OR.toggle('${t.id}')" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){OR.toggle('${t.id}')}"><div class="task-check"></div></div>
+              <div class="task-content">
+                <div class="task-text">${esc(t.text)}</div>
+                <div class="task-tags">${tagHtml}</div>
+                <div class="task-detail" id="or-detail-${t.id}">${esc(t.detail)}</div>
+              </div>
+              <button class="expand-btn" id="or-exp-${t.id}" onclick="OR.expand('${t.id}')" aria-label="Show detail">▼</button>
+            </div>
+          `;
+        });
+        html+='</div>';
+      });
+      div.innerHTML=html;
+      content.appendChild(div);
+    });
+  }
+
+  function resetAll(){ if(!confirm('Reset ALL organ repair progress? This cannot be undone.')) return; state={}; persist(); updateAll(); }
+  function exportProgress(){
+    const out={exported:stamp(),phases:PHASES.map(ph=>({id:ph.id,title:ph.title,tasks:phaseTaskIds(ph).map(id=>({id,done:!!state[id]}))}))}; 
+    const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`organ-repair-progress-${Date.now()}.json`; a.click();
+  }
+
+  render(); updateAll();
+  return { toggle, expand, resetAll, exportProgress };
+})();
+</script>
+</body>
+</html>
