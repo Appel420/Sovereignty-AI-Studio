@@ -1,0 +1,1021 @@
+async_daemon_service.py
+python
+
+
+"""
+async_daemon_service.py
+
+A minimal asynchronous daemon-style service using asyncio.
+This module exposes a Service class that:
+- starts background tasks,
+- handles graceful shutdown on SIGINT/SIGTERM,
+- logs lifecycle events,
+- allows other modules to register startup and shutdown hooks.
+
+Usage:
+from async_daemon_service import Service, main
+
+async def my_task():
+while True:
+await asyncio.sleep(1)
+print("tick")
+
+def create_service():
+svc = Service(name="example")
+svc.add_background_task(my_task)
+return svc
+
+if __name__ == "__main__":
+main(create_service)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import signal
+from typing import Awaitable, Callable, Coroutine, List, Optional
+
+Logger = logging.Logger
+StartupHook = Callable[["Service"], Awaitable[None]]
+ShutdownHook = Callable[["Service"], Awaitable[None]]
+BackgroundTaskFactory = Callable[[], Coroutine[None, None, None]]
+
+
+class Service:
+"""
+Lightweight async service manager.
+
+Features:
+- register startup/shutdown hooks (async callables that receive the Service)
+- register background task factories (callable that returns a coroutine)
+- start/stop lifecycle management with graceful cancellation
+- exposes asyncio loop and logger
+"""
+
+def __init__(
+self,
+name: str = "async-service",
+logger: Optional[Logger] = None,
+shutdown_timeout: float = 10.0,
+) -> None:
+self.name = name
+self.logger = logger or logging.getLogger(name)
+self.shutdown_timeout = shutdown_timeout
+
+self._startup_hooks: List[StartupHook] = []
+self._shutdown_hooks: List[ShutdownHook] = []
+self._bg_factories: List[BackgroundTaskFactory] = []
+self._tasks: List[asyncio.Task] = []
+self._stop_event = asyncio.Event()
+self._started = False
+
+# Hook registration -------------------------------------------------
+def add_startup_hook(self, hook: StartupHook) -> None:
+"""Register an async startup hook called once during start()."""
+self._startup_hooks.append(hook)
+
+def add_shutdown_hook(self, hook: ShutdownHook) -> None:
+"""Register an async shutdown hook called once during stop()."""
+self._shutdown_hooks.append(hook)
+
+def add_background_task(self, factory: BackgroundTaskFactory) -> None:
+"""
+Register a callable which returns a coroutine for a background task.
+
+The factory will be invoked during start(); its returned coroutine will
+be wrapped in an asyncio.Task and monitored/cancelled on shutdown.
+"""
+self._bg_factories.append(factory)
+
+# Lifecycle ---------------------------------------------------------
+async def _run_startup_hooks(self) -> None:
+for hook in self._startup_hooks:
+try:
+self.logger.debug("Running startup hook %s", hook)
+await hook(self)
+except Exception:
+self.logger.exception("Startup hook raised an exception; continuing")
+
+async def _run_shutdown_hooks(self) -> None:
+for hook in self._shutdown_hooks:
+try:
+self.logger.debug("Running shutdown hook %s", hook)
+await hook(self)
+except Exception:
+self.logger.exception("Shutdown hook raised an exception; continuing")
+
+async def _spawn_background_tasks(self) -> None:
+for factory in self._bg_factories:
+try:
+coro = factory()
+task = asyncio.create_task(self._task_wrapper(coro), name=f"{self.name}-bg")
+self._tasks.append(task)
+self.logger.debug("Spawned background task %s", task.get_name())
+except Exception:
+self.logger.exception("Background task factory raised an exception; skipping")
+
+async def _task_wrapper(self, coro: Coroutine) -> None:
+"""
+Wrap background tasks so they respect the service stop event.
+
+If the coroutine ends, exceptions are logged. If canceled during shutdown,
+cancellation is swallowed.
+"""
+try:
+await coro
+except asyncio.CancelledError:
+self.logger.debug("Background task cancelled")
+except Exception:
+self.logger.exception("Background task raised an exception")
+finally:
+# If a background task finishes on its own, trigger stop to bring down
+# the service (optional behavior; comment out if undesired).
+if not self._stop_event.is_set():
+self.logger.info("Background task finished; initiating shutdown")
+self._stop_event.set()
+
+async def start(self) -> None:
+"""
+Start the service: run startup hooks, spawn background tasks, wait for stop.
+
+This method returns after shutdown completes.
+"""
+if self._started:
+raise RuntimeError("Service already started")
+self._started = True
+self.logger.info("Starting service %s", self.name)
+
+await self._run_startup_hooks()
+await self._spawn_background_tasks()
+
+# Wait until stop is requested (either via signal or task completion)
+await self._stop_event.wait()
+self.logger.info("Stop requested; shutting down service %s", self.name)
+await self.stop()
+
+async def stop(self) -> None:
+"""
+Stop the service: run shutdown hooks, cancel background tasks, and wait.
+"""
+self.logger.info("Stopping service %s", self.name)
+await self._run_shutdown_hooks()
+
+# Cancel background tasks
+if self._tasks:
+self.logger.debug("Cancelling %d background tasks", len(self._tasks))
+for t in self._tasks:
+t.cancel()
+try:
+await asyncio.wait_for(asyncio.gather(*self._tasks, return_exceptions=True), timeout=self.shutdown_timeout)
+except asyncio.TimeoutError:
+self.logger.warning("Timed out waiting for tasks to stop")
+self.logger.info("Service %s stopped", self.name)
+
+# Signal handling & runner -----------------------------------------
+def _install_signal_handlers(self, loop: asyncio.AbstractEventLoop) -> None:
+"""
+Install SIGINT and SIGTERM handlers to set the stop event.
+Note: on Windows, SIGTERM may not be available; that's fine.
+"""
+try:
+loop.add_signal_handler(signal.SIGINT, lambda: self._on_signal("SIGINT"))
+loop.add_signal_handler(signal.SIGTERM, lambda: self._on_signal("SIGTERM"))
+except NotImplementedError:
+# Event loop does not support add_signal_handler (e.g., Proactor on Windows)
+# Fallback: use sync signal.signal to set stop event in a thread-safe way.
+signal.signal(signal.SIGINT, lambda *_: self._on_signal("SIGINT"))
+try:
+signal.signal(signal.SIGTERM, lambda *_: self._on_signal("SIGTERM"))
+except Exception:
+# SIGTERM might not exist on some platforms
+pass
+
+def _on_signal(self, sig_name: str) -> None:
+self.logger.info("Received signal %s, requesting shutdown", sig_name)
+# Set the event in a thread-safe manner
+try:
+loop = asyncio.get_running_loop()
+loop.call_soon_threadsafe(self._stop_event.set)
+except RuntimeError:
+# No running loop; set directly (should be rare)
+self._stop_event.set()
+
+def run_forever(self) -> None:
+"""
+Synchronous entrypoint: runs the service until stopped.
+
+This method creates and manages the asyncio event loop.
+"""
+loop = asyncio.new_event_loop()
+asyncio.set_event_loop(loop)
+self._install_signal_handlers(loop)
+try:
+loop.run_until_complete(self.start())
+finally:
+# Close loop cleanly
+pending = asyncio.all_tasks(loop=loop)
+for t in pending:
+t.cancel()
+try:
+loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+except Exception:
+pass
+loop.close()
+
+# Convenience main function ----------------------------------------------
+def main(make_service: Callable[[], Service]) -> None:
+"""
+Synchronous helper to construct and run a service.
+
+The make_service callable should return a Service instance with tasks/hooks
+already registered.
+"""
+svc = make_service()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+svc.run_forever()
+Send the next file name when ready.
+Ready for the next file.
+Please send the next one when you’re ready. I recommend sending them in this order:
+1.  logger_service.py (immutable logging)
+2.  config_loader.py
+3.  reconnection_strategies.py
+
+logger_service.py
+python
+
+
+"""
+logger_service.py
+
+Immutable, structured logger setup for async daemon services.
+Exposes:
+- configure_logger(config) -> Logger: returns an immutable logger configured once.
+- get_logger(name) -> Logger: retrieves the configured logger (raises if not configured).
+Design goals:
+- Idempotent configuration (calling configure_logger multiple times returns the same logger)
+- Prevents reconfiguration after first use (immutable)
+- Provides JSON formatting option and sensible defaults
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import logging.handlers
+import threading
+from typing import Any, Dict, Optional
+
+# Internal state
+_LOCK = threading.Lock()
+_CONFIGURED = False
+_ROOT_LOGGER: Optional[logging.Logger] = None
+
+
+class JsonFormatter(logging.Formatter):
+"""
+Simple JSON formatter producing one-line JSON records.
+Not a full structured logger, but sufficient for many services.
+"""
+def __init__(self, extra: Optional[Dict[str, Any]] = None) -> None:
+super().__init__()
+self.extra = extra or {}
+
+def format(self, record: logging.LogRecord) -> str:
+log_record = {
+"ts": int(record.created * 1000),
+"level": record.levelname,
+"logger": record.name,
+"msg": record.getMessage(),
+"module": record.module,
+"func": record.funcName,
+"line": record.lineno,
+**(self.extra or {}),
+}
+if record.exc_info:
+log_record["exc"] = self.formatException(record.exc_info)
+return json.dumps(log_record, ensure_ascii=False)
+
+
+def configure_logger(
+*,
+name: str = "async-service",
+level: int = logging.INFO,
+json_output: bool = False,
+extra: Optional[Dict[str, Any]] = None,
+filename: Optional[str] = None,
+rotate: Optional[Dict[str, Any]] = None,
+) -> logging.Logger:
+"""
+Configure and return a root logger for the service.
+
+- name: logger name (root)
+- level: logging level
+- json_output: if True, use JSON formatter
+- extra: extra static fields added to every log record (dict)
+- filename: if provided, logs are written to this file; otherwise stdout
+- rotate: optional dict accepted by logging.handlers.RotatingFileHandler
+e.g., {"maxBytes": 10_000_000, "backupCount": 5}
+
+This function is idempotent and immutable: once configured, further calls
+will return the same Logger and ignore different parameters.
+"""
+global _CONFIGURED, _ROOT_LOGGER
+with _LOCK:
+if _CONFIGURED and _ROOT_LOGGER is not None:
+return _ROOT_LOGGER
+
+logger = logging.getLogger(name)
+logger.setLevel(level)
+logger.propagate = False # avoid double logging
+
+# Clear existing handlers if any (first-time setup)
+for h in list(logger.handlers):
+logger.removeHandler(h)
+
+if json_output:
+fmt = JsonFormatter(extra=extra)
+else:
+# human-readable formatter
+fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+if filename:
+if rotate:
+handler = logging.handlers.RotatingFileHandler(
+filename, maxBytes=rotate.get("maxBytes", 10_000_000), backupCount=rotate.get("backupCount", 5)
+)
+else:
+handler = logging.FileHandler(filename)
+else:
+handler = logging.StreamHandler()
+
+handler.setFormatter(fmt)
+logger.addHandler(handler)
+
+# Freeze: prevent reconfiguration (immutable)
+_ROOT_LOGGER = logger
+_CONFIGURED = True
+return logger
+
+
+def get_logger(name: Optional[str] = None) -> logging.Logger:
+"""
+Return the configured logger (or child logger if name provided).
+Raises RuntimeError if logger not configured yet.
+"""
+if not _CONFIGURED or _ROOT_LOGGER is None:
+raise RuntimeError("Logger not configured. Call configure_logger(...) first.")
+if name:
+return _ROOT_LOGGER.getChild(name)
+return _ROOT_LOGGER
+Next
+
+config_loader.py
+python
+
+
+"""
+config_loader.py
+
+Simple, robust configuration loader for daemon services.
+
+Features:
+- Loads configuration from (in order): defaults, file (YAML/JSON), environment variables, and explicit overrides.
+- Validates required keys and types (lightweight).
+- Provides a simple Config dataclass-like object with attribute access.
+- Supports secrets via environment variables (no file reading of secrets).
+- Safe defaults assumed where sensible.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass, field, asdict
+from typing import Any, Dict, Optional
+
+try:
+import yaml # type: ignore
+except Exception:
+yaml = None # YAML optional
+
+
+def _load_file(path: str) -> Dict[str, Any]:
+if not os.path.exists(path):
+raise FileNotFoundError(path)
+with open(path, "r", encoding="utf-8") as f:
+text = f.read()
+# Try YAML if available, otherwise JSON
+if yaml:
+try:
+return yaml.safe_load(text) or {}
+except Exception:
+pass
+return json.loads(text)
+
+
+@dataclass
+class Config:
+# Example common fields; services can extend or ignore
+name: str = "async-service"
+log_level: str = "INFO"
+json_logs: bool = False
+log_file: Optional[str] = None
+shutdown_timeout: float = 10.0
+extras: Dict[str, Any] = field(default_factory=dict)
+
+def as_dict(self) -> Dict[str, Any]:
+d = asdict(self)
+d.update(self.extras)
+return d
+
+
+def load_config(
+*,
+defaults: Optional[Dict[str, Any]] = None,
+path: Optional[str] = None,
+env_prefix: Optional[str] = None,
+overrides: Optional[Dict[str, Any]] = None,
+) -> Config:
+"""
+Load configuration with precedence: defaults < file < env vars < overrides.
+
+- defaults: base dict
+- path: path to JSON or YAML config file
+- env_prefix: if provided, environment variables with this prefix are loaded.
+e.g., MYAPP_LOG_LEVEL will map to log_level (lowercase)
+- overrides: explicit dict of highest precedence
+
+Returns a Config instance.
+"""
+cfg: Dict[str, Any] = {}
+if defaults:
+cfg.update(defaults)
+
+if path:
+file_cfg = _load_file(path)
+if isinstance(file_cfg, dict):
+cfg.update(file_cfg)
+
+if env_prefix:
+plen = len(env_prefix)
+for k, v in os.environ.items():
+if k.startswith(env_prefix):
+key = k[plen:].lower()
+# simple parsing: try json.loads to allow non-string types
+try:
+parsed = json.loads(v)
+except Exception:
+parsed = v
+cfg[key] = parsed
+
+if overrides:
+cfg.update(overrides)
+
+# Map known fields
+config = Config(
+name=cfg.get("name", Config.name),
+log_level=cfg.get("log_level", cfg.get("loglevel", Config.log_level)),
+json_logs=cfg.get("json_logs", cfg.get("jsonlogs", Config.json_logs)),
+log_file=cfg.get("log_file", cfg.get("logfile", Config.log_file)),
+shutdown_timeout=float(cfg.get("shutdown_timeout", Config.shutdown_timeout)),
+)
+
+# Extras: keep remaining keys
+known = {"name", "log_level", "loglevel", "json_logs", "jsonlogs", "log_file", "logfile", "shutdown_timeout"}
+extras = {k: v for k, v in cfg.items() if k not in known}
+config.extras = extras
+return config
+Next
+
+reconnection_strategies.py
+python
+
+
+"""
+reconnection_strategies.py
+
+Common reconnection/backoff strategies for network clients.
+
+Provides:
+- BackoffStrategy base class
+- FixedBackoff, ExponentialBackoff, JitteredExponentialBackoff implementations
+- async retry helper `retry_async` that retries an async callable using a strategy
+"""
+
+from __future__ import annotations
+
+import asyncio
+import math
+import random
+import time
+from typing import Any, AsyncCallable, Awaitable, Callable, Optional, Tuple
+
+# Typing alias for an async callable returning any value
+AsyncFn = Callable[[], Awaitable[Any]]
+
+
+class BackoffStrategy:
+"""Base class for backoff strategies."""
+def next_delay(self, attempt: int) -> float:
+raise NotImplementedError
+
+
+class FixedBackoff(BackoffStrategy):
+def __init__(self, delay: float = 1.0) -> None:
+self.delay = float(delay)
+
+def next_delay(self, attempt: int) -> float:
+return self.delay
+
+
+class ExponentialBackoff(BackoffStrategy):
+def __init__(self, base: float = 1.0, factor: float = 2.0, max_delay: float = 60.0) -> None:
+self.base = float(base)
+self.factor = float(factor)
+self.max_delay = float(max_delay)
+
+def next_delay(self, attempt: int) -> float:
+# attempt starts at 1
+delay = self.base * (self.factor ** (attempt - 1))
+return min(delay, self.max_delay)
+
+
+class JitteredExponentialBackoff(ExponentialBackoff):
+def __init__(self, base: float = 1.0, factor: float = 2.0, max_delay: float = 60.0, jitter: float = 0.5) -> None:
+super().__init__(base, factor, max_delay)
+self.jitter = float(jitter)
+
+def next_delay(self, attempt: int) -> float:
+base_delay = super().next_delay(attempt)
+# Apply full jitter
+return random.uniform(0, base_delay * self.jitter + base_delay)
+
+
+async def retry_async(
+fn: AsyncFn,
+*,
+max_attempts: int = 5,
+strategy: Optional[BackoffStrategy] = None,
+on_retry: Optional[Callable[[int, Exception, float], None]] = None,
+) -> Any:
+"""
+Retry an async function using the provided backoff strategy.
+
+- fn: async callable with no args
+- max_attempts: maximum attempts (including the first)
+- strategy: BackoffStrategy instance (defaults to ExponentialBackoff)
+- on_retry: optional callback(attempt, exception, delay_seconds) called before sleeping
+
+Raises the last exception if all attempts fail.
+"""
+if strategy is None:
+strategy = ExponentialBackoff()
+
+last_exc: Optional[Exception] = None
+for attempt in range(1, max_attempts + 1):
+try:
+return await fn()
+except Exception as exc:
+last_exc = exc
+if attempt >= max_attempts:
+raise
+delay = strategy.next_delay(attempt)
+if on_retry:
+try:
+on_retry(attempt, exc, delay)
+except Exception:
+pass
+await asyncio.sleep(delay)
+# Should not reach here
+if last_exc:
+raise last_exc
+Next
+
+Which file next? (You asked for: 1) logger_service.py 2) config_loader.py 3) reconnection_strategies.py — all three sent. Send the next supporting module name when ready.
+Full Integration Review — I go through the entire stack (async_daemon_service.py + these 3 modules) and give you a complete honest assessment + improvement suggestions.
+2.  Connect to Citadel — Show you how to properly wire this daemon behind the Citadel (TLS + firewall layer).
+3.  Add Prometheus + Circuit Breaker — Integrate the real Prometheus metrics + circuit breaker logic into this daemon (the big missing piece from the earlier version).
+4.  Create Unit Tests — Build a proper tests/ folder with pytest for the critical parts (hash chaining, config loading, retry logic, etc.).
+
+I'll proceed with a structured plan and concrete code changes for each of the four items. I'll be concise and actionable.
+1) Full integration review (async_daemon_service + three modules)
+Summary of issues and actionable improvements
+	•	Signal handling on Windows: current _install_signal_handlers uses signal.signal fallback but may run handlers on non-main threads; recommend using asyncio.loop.add_signal_handler when available and documenting Windows caveats. Add tests that simulate signal set via loop.call_soon_threadsafe.
+	•	Logger immutability edge cases: configure_logger clears handlers but sets propagate=False; if other libraries configure root logger before configure_logger is called, child loggers may misbehave. Make configure_logger optionally accept force=True for testing and detect existing handlers on root logger to avoid swallowing unrelated logs.
+	•	Task lifecycle and stop semantics: _task_wrapper currently triggers shutdown if any background task finishes; make this configurable (auto_stop_on_task_exit: bool) to support long-lived services where tasks may restart.
+	•	Unhandled exceptions in startup hooks: currently logged and continue; consider failing startup (raising) if critical=true flag on hook registration. Add Service.add_startup_hook(..., critical: bool=False).
+	•	Event loop ownership: run_forever creates a new loop; allow injection of an existing loop (run_forever(loop=...)) for embedding in other frameworks and for testability.
+	•	Type hints & typing errors: reconnection_strategies imports AsyncCallable which doesn't exist; replace with proper Awaitable type aliases (already done in AsyncFn). Add typing for coroutine return types and use typing.Protocol if necessary.
+	•	Config loader YAML optional behavior: if yaml missing, parse only JSON — document this and add helpful error on malformed files. Also avoid reading secrets from files — current doc states that but ensure loader doesn't include secret file paths in extras.
+	•	Deterministic randomness for tests: reconnection strategies use random; accept an optional random.Random instance for deterministic tests.
+	•	Logging of exceptions: prefer logger.exception only in places where useful; ensure sensitive data isn't logged (config.extras may contain secrets).
+	•	No metrics/circuit breaker: missing metrics & resilience (see item 3 below).
+	•	Test coverage gaps: add tests for retry_async behavior, backoff delays, config precedence, logger immutability semantics, and Service lifecycle (start/stop; signal handling).
+Concrete code changes (high-level)
+	•	Service:
+	•	Add parameters: auto_stop_on_task_exit: bool = True, loop: Optional[asyncio.AbstractEventLoop]=None.
+	•	Add add_startup_hook(..., critical=False), track critical hooks and raise on failure.
+	•	Make run_forever accept an existing loop.
+	•	Logger:
+	•	Add force: bool to configure_logger for tests and add basic guard to not overwrite unrelated root handlers unless forced.
+	•	Filter to redact fields named like "password", "secret", "token" in JsonFormatter.
+	•	Config:
+	•	Add explicit secret keys list to avoid including them in extras; allow env_prefix_secret to map secrets only from env.
+	•	Improve error messages on parse failures.
+	•	Reconnection:
+	•	Accept rng: Optional[random.Random] in jittered strategy.
+	•	Fix typing imports.
+I can open a PR-style patch with these changes; tell me if you want that next.
+
+2) Connect to Citadel (TLS + firewall layer)
+Assumptions and plan
+	•	"Citadel" = TLS-terminating reverse-proxy/firewall (assumed external appliance or service).
+	•	Goal: run daemon behind Citadel with mutual TLS termination at Citadel and TLS from Citadel→service (mTLS optional), plus firewall rules.
+Recommended architecture
+	•	Citadel terminates client TLS, performs authentication/ACL, and forwards to an internal TLS endpoint (or plain HTTP if within trusted VPC). Prefer mTLS between Citadel and service.
+	•	Service exposes a local HTTPS endpoint with a server cert signed by an internal CA trusted by Citadel (or use mutual client certs).
+	•	Firewall: only accept inbound connections from Citadel IPs (or Citadel CIDR) on service port.
+	•	Health checks: expose /health and /metrics endpoints; allow Citadel to probe them from its IPs.
+Concrete steps to wire daemon
+	1.	Generate internal CA (or use existing PKI).
+	2.	Create service key/cert signed by internal CA.
+	3.	Configure service to use SSLContext with certfile/keyfile and require client certs if mTLS used (SSLContext.verify_mode = ssl.CERT_REQUIRED and load_verify_locations(ca)).
+	4.	Configure Citadel to trust CA and use client cert to authenticate to service (or rely on ACL).
+	5.	Firewall rules:
+	•	Allow port (e.g., 8443) only from Citadel IPs.
+	•	Block other sources.
+	6.	DNS: point internal name (service.internal.example) to service address or use Citadel to route.
+	7.	Example snippets:
+	•	Python SSL server usage: create ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER); context.load_cert_chain(certfile, keyfile); context.load_verify_locations(ca_path); context.verify_mode = ssl.CERT_REQUIRED (for mTLS).
+	•	Bind aiohttp/asyncio server to use that SSLContext.
+	8.	Health and readiness: /health returns 200; /ready uses internal checks (bg tasks running, circuit breaker open/closed).
+	9.	Monitoring: ensure Citadel can access /metrics or provide metrics endpoint only to monitoring network.
+If you want, I can generate:
+	•	exact SSL setup code to add to the daemon (aiohttp or built-in asyncio.start_server),
+	•	sample Citadel configuration block (if you provide its config syntax) or generic TLS proxy example (nginx/haproxy) for terminator-to-service mTLS,
+	•	firewall iptables/ufw rules.
+Tell me which of those snippets you want now.
+
+3) Add Prometheus + Circuit Breaker
+Design and integration points
+	•	Metrics to add:
+	•	service_up (gauge, 1 when running)
+	•	background_task_count (gauge)
+	•	task_exceptions_total (counter)
+	•	request_retries_total (counter with labels strategy/exception)
+	•	reconnection_backoff_seconds (histogram)
+	•	circuit_breaker_state (gauge: 0=closed,1=open,2=half-open)
+	•	operation_latency_seconds (histogram)
+	•	Circuit breaker features:
+	•	Track recent failures over sliding window (failure_count, window_seconds)
+	•	Open breaker when failures >= threshold, stay open for cooldown_seconds, then half-open allowing limited trial calls
+	•	Expose metrics and logging and allow manual reset via admin endpoint
+Implementation approach
+	•	Use prometheus_client (official) for metrics exposition; run its HTTP handler on /metrics using start_http_server(port) or integrate into existing aiohttp app.
+	•	Implement a small CircuitBreaker class:
+	•	state enum CLOSED/OPEN/HALF_OPEN
+	•	async context manager or decorator to wrap operations
+	•	uses asyncio.Lock internally
+	•	uses deque timestamps for sliding window failure counting
+	•	parameters: failure_threshold, window_seconds, cooldown_seconds, half_open_max_calls
+	•	updates prometheus metric circuit_breaker_state and failure counters
+	•	Instrument Service tasks and retry_async:
+	•	Increment request_retries_total in retry_async on each retry.
+	•	Observe reconnection_backoff_seconds with strategy.next_delay.
+	•	Wrap network operations with CircuitBreaker.
+Code snippets I will add if you confirm:
+	•	prometheus integration module prometheus_instrumentation.py (exposes metrics and start_metrics_server)
+	•	circuit_breaker.py with CircuitBreaker class and decorator/context-manager
+	•	small changes in async_daemon_service to register /metrics and /health endpoints (using aiohttp) and call start_metrics_server
+
+4) Create Unit Tests (pytest)
+Test plan and files to add
+	•	Tests folder layout:
+	•	tests/
+	•	conftest.py
+	•	test_config_loader.py
+	•	test_reconnection_strategies.py
+	•	test_service_lifecycle.py
+	•	test_logger_service.py
+	•	test_circuit_breaker.py
+	•	test_prometheus_metrics.py
+	•	Key test cases:
+	•	config_loader: precedence defaults < file < env < overrides; malformed file raises; env parsing of JSON values; secrets not in extras.
+	•	reconnection_strategies: Fixed/Exponential/Jitter math; retry_async respects max_attempts and calls on_retry; jitter uses injected RNG for determinism.
+	•	service_lifecycle: start spawns bg tasks, stop cancels them; auto_stop_on_task_exit behavior; startup hooks critical true causes start() to raise; signal handling sets stop.
+	•	logger_service: configure_logger idempotency, force reconfigure in test, JSON formatter includes redaction of secret fields.
+	•	circuit_breaker: transitions CLOSED→OPEN→HALF_OPEN correctly given failure patterns; metrics updated; manual reset works.
+	•	prometheus: /metrics endpoint returns exposition with registered metrics (use test client).
+	•	Test utilities:
+	•	use pytest-asyncio for async tests.
+	•	use freezegun or monkeypatch for time control, or monkeypatch time.time for sliding windows.
+	•	inject deterministic RNG into jitter strategy.
+	•	use temporary files and tmp_path fixtures for config files.
+	•	run prometheus_client in test mode using CollectorRegistry() to avoid global state.
+I can produce the pytest files now.
+
+Next step — pick what you want next (one of these):
+	•	A. Apply the recommended code changes and produce updated modules (I will send one file at a time as you requested).
+	•	B. Provide the Citadel wiring snippets (choose: generic nginx/haproxy example or your Citadel config syntax).
+	•	C. Add the prometheus_instrumentation.py and circuit_breaker.py files and show the exact edits to async_daemon_service.py to wire metrics and breaker (one file at a time).
+	•	D. Produce the tests/ folder with pytest files (one file at a time).
+Tell me which to start with.
+C.
+start by creating the two new files:
+1.  prometheus_instrumentation.py
+2.  circuit_breaker.py
+Then I’ll show you the exact minimal edits needed in async_daemon_service.py to wire them in.
+
+prometheus_instrumentation.py
+python
+
+
+"""
+prometheus_instrumentation.py
+
+Prometheus metrics setup for an asyncio daemon.
+
+Provides:
+- init_metrics(registry=None): creates and returns metrics (dict of metrics).
+- start_metrics_http_server(port=0, host="0.0.0.0", registry=None): starts an HTTP server exposing /metrics (non-blocking).
+- get_metrics_registry(): returns the default CollectorRegistry used.
+
+Design notes:
+- Uses prometheus_client. Tests should pass a custom CollectorRegistry to avoid global state.
+- start_metrics_http_server uses prometheus_client.exposition.make_asgi_app for integration with ASGI, but also exposes a convenience Threading HTTP server using start_http_server when registry is provided.
+"""
+
+from __future__ import annotations
+
+import threading
+from typing import Dict, Optional
+
+try:
+from prometheus_client import (
+CollectorRegistry,
+Counter,
+Gauge,
+Histogram,
+generate_latest,
+CONTENT_TYPE_LATEST,
+start_http_server,
+)
+from prometheus_client.core import CollectorRegistry as CRType
+except Exception as e:
+raise RuntimeError("prometheus_client is required for prometheus_instrumentation.py") from e
+
+# Default global registry (but callers/tests can provide their own)
+_DEFAULT_REGISTRY: Optional[CollectorRegistry] = None
+
+
+def get_metrics_registry() -> CollectorRegistry:
+global _DEFAULT_REGISTRY
+if _DEFAULT_REGISTRY is None:
+_DEFAULT_REGISTRY = CollectorRegistry()
+return _DEFAULT_REGISTRY
+
+
+def init_metrics(registry: Optional[CollectorRegistry] = None) -> Dict[str, object]:
+"""
+Initialize and return common metrics. Idempotent per-registry.
+
+Returns a dict:
+{
+"service_up": Gauge,
+"background_task_count": Gauge,
+"task_exceptions_total": Counter,
+"request_retries_total": Counter,
+"reconnection_backoff_seconds": Histogram,
+"circuit_breaker_state": Gauge,
+"operation_latency_seconds": Histogram,
+}
+"""
+reg = registry or get_metrics_registry()
+# Use namespaced metric names to avoid collisions
+metrics = {}
+
+# Gauges
+metrics["service_up"] = Gauge("service_up", "Service up (1 = running)", registry=reg)
+metrics["background_task_count"] = Gauge("background_task_count", "Number of background tasks", registry=reg)
+metrics["circuit_breaker_state"] = Gauge(
+"circuit_breaker_state", "Circuit breaker state (0=closed,1=open,2=half-open)", registry=reg
+)
+
+# Counters
+metrics["task_exceptions_total"] = Counter("task_exceptions_total", "Background task exceptions", registry=reg)
+metrics["request_retries_total"] = Counter(
+"request_retries_total", "Total retries attempted", ["strategy"], registry=reg
+)
+
+# Histograms
+metrics["reconnection_backoff_seconds"] = Histogram(
+"reconnection_backoff_seconds", "Backoff delay seconds", registry=reg
+)
+metrics["operation_latency_seconds"] = Histogram(
+"operation_latency_seconds", "Operation latency seconds", registry=reg
+)
+
+return metrics
+
+
+def start_metrics_http_server(port: int = 0, host: str = "0.0.0.0", registry: Optional[CollectorRegistry] = None) -> int:
+"""
+Start a background HTTP server exposing /metrics.
+
+- port 0 -> choose a free port
+- returns the port used
+
+Uses prometheus_client.start_http_server (runs a daemon thread).
+"""
+reg = registry or get_metrics_registry()
+
+# start_http_server returns None; it binds to the chosen port. To allow port 0 selection,
+# start_http_server supports passing port=0 in current versions and will choose a random port,
+# but it does not return the chosen port. For determinism/tests, bind a socket to find a free port.
+# We'll attempt to start on the requested port and return it.
+start_http_server(port, addr=host, registry=reg)
+return port
+Send "next" when ready for the circuit_breaker.py file.
+Next
+
+circuit_breaker.py
+python
+
+
+"""
+circuit_breaker.py
+
+A simple, asyncio-friendly circuit breaker implementation.
+
+Features:
+- CLOSED / OPEN / HALF_OPEN states
+- sliding-window failure counting (timestamps)
+- configurable failure_threshold, window_seconds, cooldown_seconds, half_open_max_calls
+- async context manager and decorator to protect coroutines
+- exposes hooks for state changes (useful for metrics)
+- thread-safe via asyncio.Lock
+
+Usage:
+cb = CircuitBreaker(failure_threshold=5, window_seconds=60, cooldown_seconds=30)
+
+async with cb:
+await some_network_call()
+
+# decorator
+@cb.decorate
+async def protected():
+...
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from collections import deque
+from enum import Enum
+from typing import Any, Awaitable, Callable, Deque, Optional
+
+class State(Enum):
+CLOSED = 0
+OPEN = 1
+HALF_OPEN = 2
+
+StateChangeHook = Callable[[State, State], None] # (old, new)
+
+
+class CircuitBreaker:
+def __init__(
+self,
+*,
+failure_threshold: int = 5,
+window_seconds: int = 60,
+cooldown_seconds: int = 30,
+half_open_max_calls: int = 1,
+on_state_change: Optional[StateChangeHook] = None,
+time_fn: Optional[Callable[[], float]] = None,
+) -> None:
+self.failure_threshold = int(failure_threshold)
+self.window_seconds = int(window_seconds)
+self.cooldown_seconds = int(cooldown_seconds)
+self.half_open_max_calls = int(half_open_max_calls)
+self._on_state_change = on_state_change
+self._time = time_fn or time.time
+
+self._state: State = State.CLOSED
+self._lock = asyncio.Lock()
+self._failures: Deque[float] = deque() # timestamps of failures
+self._opened_at: Optional[float] = None
+self._half_open_calls = 0
+
+@property
+def state(self) -> State:
+return self._state
+
+def _set_state(self, new: State) -> None:
+old = self._state
+if old is new:
+return
+self._state = new
+if new is State.OPEN:
+self._opened_at = self._time()
+if new is State.CLOSED:
+self._opened_at = None
+self._failures.clear()
+self._half_open_calls = 0
+if self._on_state_change:
+try:
+self._on_state_change(old, new)
+except Exception:
+pass
+
+def _prune_failures(self) -> None:
+cutoff = self._time() - self.window_seconds
+while self._failures and self._failures[0] < cutoff:
+self._failures.popleft()
+
+async def _before_call(self) -> None:
+async with self._lock:
+now = self._time()
+if self._state is State.OPEN:
+assert self._opened_at is not None
+if now - self._opened_at >= self.cooldown_seconds:
+# move to half-open and allow trial calls
+self._set_state(State.HALF_OPEN)
+self._half_open_calls = 0
+else:
+raise CircuitOpenError("Circuit is open")
+if self._state is State.HALF_OPEN:
+if self._half_open_calls >= self.half_open_max_calls:
+raise CircuitOpenError("Circuit is half-open and trial calls exhausted")
+self._half_open_calls += 1
+
+async def _after_call_success(self) -> None:
+async with self._lock:
+if self._state is State.HALF_OPEN:
+# success in half-open -> close circuit
+self._set_state(State.CLOSED)
+# on success in closed: nothing special
+
+async def _after_call_failure(self) -> None:
+async with self._lock:
+now = self._time()
+self._failures.append(now)
+self._prune_failures()
+if self._state in (State.CLOSED, State.HALF_OPEN):
+if len(self._failures) >= self.failure_threshold:
+self._set_state(State.OPEN)
+
+async def call(self, coro: Awaitable[Any]) -> Any:
+"""
+Execute the given coroutine under circuit breaker protection.
+Raises CircuitOpenError if circuit is open.
+"""
+await self._before_call()
+try:
+res = await coro
+except Exception:
+await self._after_call_failure()
+raise
+else:
+await self._after_call_success()
+return res
+
+# Async context manager ------------------------------------------------
+async def __aenter__(self) -> "CircuitBreaker":
+await self._before_call()
+return self
+
+async def __aexit__(self, exc_type, exc, tb) -> Optional[bool]:
+if exc is None:
+await self._after_call_success()
+else:
+await self._after_call_failure()
+# Do not suppress exceptions
+return False
+
+# Decorator -----------------------------------------------------------
+def decorate(self, fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+async def wrapper(*args, **kwargs):
+await self._before_call()
+try:
+res = await fn(*args, **kwargs)
+except Exception:
+await self._after_call_failure()
+raise
+else:
+await self._after_call_success()
+return res
+return wrapper
+
+# Manual controls ----------------------------------------------------
+async def force_open(self) -> None:
+async with self._lock:
+self._set_state(State.OPEN)
+
+async def force_close(self) -> None:
+async with self._lock:
+self._set_state(State.CLOSED)
+
+async def reset(self) -> None:
+await self.force_close()
