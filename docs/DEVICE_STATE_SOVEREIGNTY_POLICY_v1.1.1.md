@@ -1,7 +1,7 @@
 # Device State Sovereignty Policy v1.1.1
 
 **Status:** Authoritative behavioral and state-governance contract  
-**Scope:** SGHv119 dashboard, local device bridge, Hybrid continuity, agent sessions, external inference, synchronization, audit, and SCAR evidence.
+**Scope:** SGHv119 dashboard, local device bridge, Hybrid continuity, agent sessions, external inference, synchronization, audit, SCAR evidence, visible connection state, and repository promotion.
 
 ## Governing rule
 
@@ -35,23 +35,13 @@ AUDIT, APPROVALS     RETENTION
 
 ### DEVICE_LOCAL
 
-The default and authoritative state class. It includes:
-
-- conversations and per-agent session files;
-- Hybrid continuity records;
-- session checkpoints;
-- agent state;
-- approvals and owner decisions;
-- task history;
-- local repository and workspace context;
-- local audit and SCAR evidence;
-- owner preferences.
+The default and authoritative state class. It includes conversations, per-agent session files, Hybrid continuity records, session checkpoints, agent state, approvals, task history, local repository and workspace context, local audit and SCAR evidence, and owner preferences.
 
 **Control:** owner-controlled and device-local.
 
 ### EXTERNAL_EPHEMERAL
 
-Allowed only for an explicitly approved execution. The permitted flow is:
+Allowed only for an explicitly approved execution:
 
 ```text
 User request
@@ -72,15 +62,7 @@ retention: none
 
 ### EXTERNAL_PERSISTENT
 
-Blocked by default. It requires all of the following:
-
-- explicit owner authorization;
-- named destination;
-- visible fields to be transferred;
-- declared retention policy;
-- revocation path;
-- audit and SCAR event;
-- successful verification of the result.
+Blocked by default. It requires explicit owner authorization, a named destination, visible fields, a declared retention policy, a revocation path, an audit and SCAR event, and successful result verification.
 
 ## Hybrid continuity
 
@@ -92,9 +74,7 @@ Per-agent DEVICE_LOCAL records
   -> SGHv119 dashboard resume state
 ```
 
-The Hybrid record must preserve the who, what, when, where, why, and how of verified work across the day, week, month, and year.
-
-Per-agent detailed records remain authoritative for their individual conversations. The Hybrid file is the device-local aggregate used to resume work across agents and sessions. External providers never become the continuity source.
+The Hybrid record preserves the who, what, when, where, why, and how of verified work across the day, week, month, and year. Per-agent detailed records remain authoritative for individual conversations. The Hybrid file is the device-local aggregate used to resume work across agents and sessions. External providers never become the continuity source.
 
 Each aggregate record must identify its state:
 
@@ -111,6 +91,77 @@ FAILED
 
 Unverified claims must not be merged as completed work.
 
+## Mandatory visible connection state
+
+The dashboard must always display the current environment connection mode. It may not be inferred by the user and must not be represented only by a color or generic “online” label.
+
+The bridge exposes this as a **read-only system status value**. The dashboard may display it, but the user cannot edit it as a preference.
+
+Required states:
+
+### ONLINE
+
+```text
+MODE: ONLINE
+NETWORK: CONNECTED
+STATE: DEVICE LOCAL
+EXTERNAL MEMORY: DISABLED
+```
+
+Network may be available. External inference is permitted only by policy and external data is allowed only through approved routes. Device-owned state remains the default.
+
+### OFFLINE
+
+```text
+MODE: OFFLINE
+NETWORK: DISCONNECTED
+STATE: DEVICE LOCAL
+SYNC: BLOCKED
+```
+
+External providers are unreachable or prohibited. Local AI is operational only if its local dependencies are available. State remains device-only.
+
+### AIR-GAPPED
+
+```text
+MODE: AIR-GAPPED
+NETWORK: ISOLATED
+EXTERNAL ACCESS: PROHIBITED
+STATE: DEVICE LOCAL
+```
+
+External communication is intentionally and enforceably prohibited. Remote inference is unavailable. State is device-local only.
+
+The high-assurance display may additionally show:
+
+```text
+MODE: GHOST
+CONNECTION: AIR-GAPPED
+STATE: DEVICE LOCAL
+EXTERNAL SYNC: DISABLED
+```
+
+The following distinctions are mandatory:
+
+```text
+VISIBLE CONNECTION STATE != AUTHORIZATION
+ONLINE != PERMISSION
+OFFLINE != SECURE BY DEFAULT
+AIR-GAPPED != OWNER AUTHORITY
+```
+
+The indicator reports environment state. It does not grant capability, authorize a route, or establish identity.
+
+Recommended terminal header:
+
+```text
+SOVEREIGNTY AI GATE
+MODE: HYBRID
+CONNECTION: ONLINE
+STATE: DEVICE LOCAL
+AUTHORITY: OWNER CONTROLLED
+```
+
 ## Bridge validation rule
 
 Before every external route, the bridge must evaluate:
@@ -125,7 +176,7 @@ Before every external route, the bridge must evaluate:
 }
 ```
 
-The route may proceed only when the destination satisfies the active policy and the owner has authorized the requested scope.
+The route may proceed only when the destination satisfies the active policy and the owner has authorized the requested scope. The bridge must return read-only environment status separately from authorization status.
 
 If external persistence is not authorized, the bridge must return:
 
@@ -135,7 +186,7 @@ Reason: External persistence not authorized.
 Data transmitted: NONE
 ```
 
-The bridge must not silently retry, fall back to another destination, or claim that synchronization occurred.
+The bridge must not silently retry, fall back to another destination, or claim synchronization occurred.
 
 ## Required SCAR events
 
@@ -174,27 +225,20 @@ The bridge must not silently retry, fall back to another destination, or claim t
 }
 ```
 
-The event must also include a request or operation identifier, timestamp, policy version, payload digest, and verification result when those fields are available.
+Connection-state changes, blocked routes, external requests, and state movement must also be auditable with an operation identifier, timestamp, policy version, payload digest, and verification result when available.
 
 ## Frontend display requirements
 
-SGHv119 must continuously expose the location and policy state:
+SGHv119 must continuously expose:
 
 ```text
-STATE:
-DEVICE LOCAL ✓
-
-HYBRID CONTINUITY:
-DEVICE LOCAL ✓
-
-EXTERNAL MEMORY:
-DISABLED
-
-SYNC:
-NOT CONFIGURED
-
-TRAINING:
-NOT AUTHORIZED
+CONNECTION MODE: ONLINE / OFFLINE / AIR-GAPPED
+STATE: DEVICE LOCAL ✓
+HYBRID CONTINUITY: DEVICE LOCAL ✓
+EXTERNAL MEMORY: DISABLED
+SYNC: NOT CONFIGURED
+TRAINING: NOT AUTHORIZED
+AUTHORITY: OWNER CONTROLLED
 ```
 
 External intelligence objects must show:
@@ -211,7 +255,88 @@ PROVENANCE: GOVERNANCE_VERIFIED
 AUTHORIZATION: EVALUATED
 ```
 
-The dashboard must distinguish observation, recommendation, authorization, execution, and verification. It must never report completion from an attempt alone.
+## Continuity and hallucination-risk observability
+
+The dashboard may display continuity and state-drift risk signals, but it must not claim that a score directly measures truth or grants authority.
+
+Risk signals may include:
+
+- mismatch with verified local continuity;
+- contradiction with approved decisions;
+- unsupported assumptions;
+- missing provenance;
+- failed verification checks;
+- absent historical state;
+- unknown external context.
+
+Example display:
+
+```text
+AI CONTINUITY RISK
+          STATE        NO STATE
+Identity  LOW          HIGH
+Context   LOW          MEDIUM
+Claims    REVIEW       HIGH
+Actions   VERIFIED     BLOCKED
+```
+
+Required distinction:
+
+```text
+HIGH CONFIDENCE != AUTHORITY
+```
+
+A risk heat map detects uncertainty. It does not authorize an action, approve a fix, or establish human identity.
+
+## Repository governance and promotion
+
+The governance root defines what is allowed. Implementation repositories produce controlled artifacts. Reference, development, experimental, and mirror repositories are not authorities unless explicitly promoted through the governed path.
+
+The promotion path is:
+
+```text
+CHANGE REQUEST
+  -> SIGNED COMMIT
+  -> AUTOMATED TESTS
+  -> SECURITY CHECKS
+  -> POLICY REVIEW
+  -> MERGE
+  -> RELEASE EVIDENCE
+```
+
+The protected governance branch must prohibit direct pushes, require signed commits where supported, require CI and test status checks, and record provenance.
+
+Each approved release should link:
+
+```text
+release version
+commit hash
+signature
+test evidence
+SCAR deployment record
+artifact digest
+```
+
+The runtime must be able to report:
+
+```text
+RUNNING APPROVED BUILD: <version>
+COMMIT: <hash>
+ARTIFACT DIGEST: <digest>
+EVIDENCE: <record>
+```
+
+This does not require every implementation to be placed in one monolithic repository. The required structure is:
+
+```text
+ONE GOVERNANCE ROOT
++
+CONTROLLED IMPLEMENTATION REPOSITORIES
++
+SIGNED ARTIFACTS
++
+VERIFIED PROMOTION PATH
+```
 
 ## Mode requirements
 
@@ -249,6 +374,9 @@ LOGIN != MEMORY CONSENT
 NETWORK != STORAGE CONSENT
 EXECUTION != OWNERSHIP
 ASSISTANT != AUTHORITY
+OBSERVATION != AUTHORIZATION
+CODE != TRUST
+BUILD != APPROVAL
 ```
 
 Authentication does not grant memory consent. Network access does not grant storage consent. A provider response does not establish ownership or authorization. The assistant remains a facilitator under owner-controlled boundaries.
