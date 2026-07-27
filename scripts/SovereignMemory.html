@@ -1,0 +1,2222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#07111f" />
+<title>Sovereign Memory · Generational Cryptographic Journal</title>
+<!--
+============================================================
+  SOVEREIGN MEMORY · v2 — Generational Cryptographic Journal
+-----------------------------------------------------------
+  · Single file. Local-first. No external requests. Ever.
+  · System fonts only (SCAR-compliant).
+  · Real WebCrypto: SHA-256, SHA-512, HKDF, PBKDF2, AES-GCM,
+    Ed25519, X25519, WebAuthn, Merkle trees.
+  · Designed to be learned like tying a shoe — story first,
+    practice second, mastery third, legacy fourth.
+  · Every lesson rewrites itself using your own memories,
+    your own names, your own dates. Stays personal forever.
+============================================================
+-->
+
+<style>
+/* ============================================================
+   THEME ENGINE — all colors driven by CSS variables.
+   Switching presets only changes the variables; no reflow.
+   ============================================================ */
+:root{
+  --bg-0:#07111f;
+  --bg-1:#0f172a;
+  --bg-2:#162033;
+  --line:rgba(255,255,255,.10);
+  --line-strong:rgba(255,255,255,.18);
+  --text:#e6f1ff;
+  --text-dim:#9fb3c8;
+  --accent:#67e8f9;
+  --accent-2:#a855f7;
+  --good:#22c55e;
+  --warn:#fbbf24;
+  --bad:#ef4444;
+  --shadow:0 10px 40px rgba(0,0,0,.45);
+  --radius:18px;
+  --radius-sm:12px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+body{padding-bottom:env(safe-area-inset-bottom)}
+a{color:var(--accent)}
+::selection{background:var(--accent);color:#001018}
+
+/* === HEADER === */
+header{
+  padding:clamp(18px,4vw,28px) 18px;
+  text-align:center;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(0,0,0,.45),transparent);
+  position:sticky;top:0;z-index:50;
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+.logo{
+  font-size:clamp(1.6rem,5vw,2.6rem);
+  letter-spacing:.35em;
+  color:var(--accent);
+  font-weight:200;
+  text-shadow:0 0 30px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.tag{opacity:.78;margin-top:8px;font-size:.92rem}
+.tag b{color:var(--accent)}
+
+/* === TOP BAR === */
+.bar{
+  display:flex;flex-wrap:wrap;gap:8px;justify-content:center;
+  padding:12px;border-bottom:1px solid var(--line);
+  background:rgba(0,0,0,.28);
+  position:sticky;top:62px;z-index:40;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+@media(max-width:520px){.bar{top:54px}}
+button,.btn{
+  appearance:none;border:1px solid var(--line-strong);
+  background:rgba(255,255,255,.04);color:var(--text);
+  border-radius:var(--radius-sm);padding:10px 14px;font:inherit;
+  font-size:.92rem;cursor:pointer;transition:.15s ease;
+  display:inline-flex;align-items:center;gap:6px;
+}
+button:hover,.btn:hover{background:rgba(255,255,255,.09);border-color:var(--accent)}
+button:active{transform:translateY(1px)}
+button.primary{background:var(--accent);color:#001018;border-color:transparent;font-weight:600}
+button.primary:hover{background:color-mix(in srgb,var(--accent) 85%,white)}
+button.ghost{background:transparent}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.danger{border-color:var(--bad);color:var(--bad)}
+button.danger:hover{background:color-mix(in srgb,var(--bad) 15%,transparent)}
+select,input[type=text],input[type=date],input[type=number],textarea{
+  appearance:none;background:rgba(255,255,255,.05);color:var(--text);
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:10px 12px;font:inherit;outline:none;width:100%;
+}
+select:focus,input:focus,textarea:focus{border-color:var(--accent)}
+
+/* === LAYOUT === */
+main{max-width:1180px;margin:auto;padding:18px}
+.card{
+  background:var(--bg-1);border:1px solid var(--line);
+  border-radius:var(--radius);padding:clamp(16px,3vw,24px);
+  margin-bottom:18px;box-shadow:var(--shadow);
+}
+.card h2{margin:0 0 12px;font-weight:500;letter-spacing:.02em;display:flex;align-items:center;gap:10px}
+.card h2 .pill{font-size:.7rem;background:rgba(103,232,249,.14);color:var(--accent);padding:3px 10px;border-radius:999px;font-weight:600}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.grid{display:grid;gap:14px}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.muted{color:var(--text-dim);font-size:.88rem}
+hr.sep{border:none;border-top:1px solid var(--line);margin:14px 0}
+
+/* === MEMORY COMPOSER === */
+textarea#memoryText{min-height:200px;resize:vertical;font-size:1.02rem;line-height:1.65;padding:18px;border-radius:16px}
+.photo-strip{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.photo-thumb{width:80px;height:80px;border-radius:12px;background:#000 center/cover no-repeat;border:1px solid var(--line);position:relative}
+.photo-thumb button{position:absolute;top:2px;right:2px;width:22px;height:22px;padding:0;font-size:14px;border-radius:50%;line-height:1}
+.tag-chip{display:inline-block;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line);font-size:.82rem;margin:3px 4px 0 0;cursor:pointer}
+.tag-chip.active{background:var(--accent);color:#001018;border-color:transparent}
+
+/* === PROGRESS === */
+.progress-wrap{margin-top:14px}
+.progress-bar{height:10px;border-radius:999px;overflow:hidden;background:rgba(255,255,255,.06)}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));transition:width .8s cubic-bezier(.2,.8,.2,1)}
+
+/* === LESSON CARDS === */
+.topic{
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;background:rgba(255,255,255,.025);
+  transition:.2s ease;cursor:pointer;position:relative;overflow:hidden;
+}
+.topic:hover{transform:translateY(-2px);border-color:var(--accent)}
+.topic.locked{opacity:.45;cursor:not-allowed}
+.topic.locked:hover{transform:none;border-color:var(--line)}
+.topic.mastered{border-color:var(--good);box-shadow:0 0 24px rgba(34,197,94,.18)}
+.topic-emoji{font-size:1.9rem;line-height:1}
+.topic h3{margin:8px 0 4px;color:var(--accent);font-weight:500;letter-spacing:.02em}
+.topic .meta{font-size:.78rem;color:var(--text-dim);margin-top:6px}
+.topic .mastery-dots{display:flex;gap:4px;margin-top:8px}
+.topic .dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.12)}
+.topic .dot.on{background:var(--good)}
+
+/* === MEMORY WALL === */
+.memory{
+  border-radius:var(--radius);padding:16px;
+  background:rgba(255,255,255,.035);border:1px solid var(--line);
+  break-inside:avoid;
+}
+.memory time{color:var(--text-dim);font-size:.8rem}
+.memory .body{margin:10px 0;line-height:1.55;white-space:pre-wrap;word-wrap:break-word}
+.memory .hashbox{font-family:var(--font-mono);font-size:.72rem;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px;overflow:hidden;text-overflow:ellipsis;color:var(--text-dim)}
+.memory .photos{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.memory .photos img{width:90px;height:90px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
+.memory .tags{margin-top:6px}
+.memory .sigline{font-size:.74rem;color:var(--text-dim);margin-top:8px;display:flex;align-items:center;gap:6px}
+.memory .sigline .ok{color:var(--good)}
+.memory .sigline .fail{color:var(--bad)}
+
+/* === LINEAGE === */
+.heir{
+  border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:12px;background:rgba(255,255,255,.03);
+  display:flex;align-items:center;gap:10px;
+}
+.heir .av{
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,var(--accent),var(--accent-2));
+  display:flex;align-items:center;justify-content:center;font-weight:700;color:#001018;flex-shrink:0;
+}
+.heir .info{flex:1;min-width:0}
+.heir .nm{font-weight:600}
+.heir .rel{font-size:.78rem;color:var(--text-dim)}
+
+/* === TIME CAPSULE === */
+.capsule{
+  border:1px dashed var(--accent);border-radius:var(--radius);
+  padding:14px;background:rgba(103,232,249,.04);
+  display:flex;gap:12px;align-items:center;
+}
+.capsule .clock{font-size:1.8rem}
+.capsule.unlocked{border-style:solid;background:rgba(34,197,94,.06);border-color:var(--good)}
+
+/* === MODAL === */
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);
+  display:none;align-items:flex-start;justify-content:center;
+  z-index:9999;padding:16px;overflow-y:auto;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+}
+.modal.open{display:flex}
+.modal-card{
+  width:min(820px,100%);background:var(--bg-1);
+  border:1px solid var(--accent);border-radius:var(--radius);
+  padding:clamp(18px,3vw,28px);margin:auto;position:relative;
+  box-shadow:0 25px 60px rgba(0,0,0,.6);
+}
+.modal h2{margin-top:0;color:var(--accent);font-weight:500}
+.modal .close{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;padding:0;font-size:18px}
+.stepper{display:flex;gap:6px;margin:14px 0 20px}
+.step{flex:1;height:5px;border-radius:99px;background:rgba(255,255,255,.08)}
+.step.active{background:var(--accent)}
+.step.done{background:var(--good)}
+.step-label{font-size:.78rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+.lesson-body{line-height:1.7;font-size:1.02rem}
+.lesson-body h3{color:var(--accent);font-weight:500;margin-top:18px}
+.lesson-body .mnemonic{
+  border-left:3px solid var(--accent);
+  background:rgba(103,232,249,.06);
+  padding:14px 16px;border-radius:0 12px 12px 0;
+  font-style:italic;font-size:1.05rem;margin:14px 0;
+}
+.visual{
+  background:rgba(0,0,0,.4);border:1px solid var(--line);
+  border-radius:10px;padding:14px;font-family:var(--font-mono);
+  font-size:.86rem;white-space:pre-wrap;overflow:auto;margin:10px 0;
+  color:var(--accent);
+}
+.kv{font-family:var(--font-mono);font-size:.78rem;background:rgba(0,0,0,.35);padding:8px 10px;border-radius:8px;word-break:break-all}
+.callout{padding:12px 14px;border-radius:12px;background:rgba(168,85,247,.08);border:1px solid var(--accent-2);margin:12px 0}
+
+/* === QUIZ === */
+.quiz-q{margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.02)}
+.quiz-q .q{font-weight:600;margin-bottom:10px}
+.quiz-opt{
+  display:block;width:100%;text-align:left;margin:6px 0;
+  padding:12px 14px;background:rgba(255,255,255,.04);
+  border:1px solid var(--line);border-radius:10px;cursor:pointer;
+}
+.quiz-opt:hover{border-color:var(--accent)}
+.quiz-opt.correct{background:rgba(34,197,94,.15);border-color:var(--good)}
+.quiz-opt.wrong{background:rgba(239,68,68,.12);border-color:var(--bad)}
+
+/* === STATUS TOAST === */
+#toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);
+  background:var(--bg-2);border:1px solid var(--accent);
+  padding:12px 20px;border-radius:99px;z-index:99999;
+  transition:transform .3s ease,opacity .3s ease;opacity:0;
+  box-shadow:var(--shadow);max-width:90vw;
+}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* === FIRST RUN === */
+.welcome{text-align:center;padding:30px 20px}
+.welcome .big{font-size:1.4rem;color:var(--accent);margin-bottom:6px}
+.theme-swatch{
+  width:48px;height:48px;border-radius:12px;cursor:pointer;
+  border:2px solid transparent;transition:.15s;
+}
+.theme-swatch.active{border-color:#fff;transform:scale(1.08)}
+
+/* === CONFETTI === */
+.confetti-piece{position:fixed;pointer-events:none;font-size:22px;z-index:99998;transition:transform 3.6s linear,opacity 3.6s linear;will-change:transform,opacity}
+
+/* === EMPTY STATES === */
+.empty{
+  text-align:center;padding:40px 20px;color:var(--text-dim);
+  border:1px dashed var(--line);border-radius:var(--radius);
+}
+.empty .ic{font-size:2.4rem;display:block;margin-bottom:8px;opacity:.6}
+
+/* === COLLAPSIBLE === */
+details{border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;background:rgba(255,255,255,.02)}
+details summary{cursor:pointer;font-weight:500;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:" ▸";color:var(--accent)}
+details[open] summary::after{content:" ▾"}
+
+/* === MOBILE === */
+@media(max-width:600px){
+  .bar{padding:8px;gap:6px}
+  .bar button{padding:8px 10px;font-size:.85rem}
+  .card{padding:14px}
+  .modal-card{padding:18px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">SOVEREIGN MEMORY</div>
+  <div class="tag">Your memories · your cryptography · your <b>legacy</b></div>
+</header>
+
+<div class="bar">
+  <button class="primary" onclick="App.openSetup()">👤 <span id="meName">Identity</span></button>
+  <button onclick="App.openThemes()">🎨 Theme</button>
+  <button onclick="App.openLineage()">👪 Lineage</button>
+  <button onclick="App.openCapsule()">⏳ Time Capsule</button>
+  <button onclick="App.exportVault()">📦 Export Vault</button>
+  <button onclick="document.getElementById('importFile').click()">📥 Import</button>
+  <input type="file" id="importFile" accept=".json,application/json" hidden />
+</div>
+
+<main>
+
+  <!-- ===== MEMORY COMPOSER ===== -->
+  <div class="card">
+    <h2>✍️ Today's Memory <span class="pill" id="streakPill">streak 0</span></h2>
+
+    <div id="photoStrip" class="photo-strip"></div>
+
+    <textarea id="memoryText" placeholder="Write what mattered today.
+
+A moment with someone you love.
+A lesson you learned.
+A truth you want to outlive you.
+
+This memory will be cryptographically sealed and can be passed to your children, your grandchildren, your great-grandchildren — verifiable forever."></textarea>
+
+    <div style="margin-top:10px">
+      <div class="muted" style="margin-bottom:6px">Tag (helps adaptive lessons stay personal):</div>
+      <div id="tagsRow"></div>
+    </div>
+
+    <div class="row" style="margin-top:14px;justify-content:space-between">
+      <div class="row" style="gap:6px">
+        <button onclick="App.addPhoto()">📸 Photo</button>
+        <button onclick="App.recordVoice()" id="voiceBtn">🎙️ Voice</button>
+        <button onclick="App.speakMemory()" class="ghost">🔊 Read</button>
+      </div>
+      <button class="primary" onclick="App.sealMemory()">🔏 Seal Memory</button>
+    </div>
+
+    <div class="progress-wrap">
+      <div class="row" style="justify-content:space-between;margin-bottom:6px">
+        <span class="muted">Academy progress</span>
+        <span class="muted" id="progressText">0 / 18 topics</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+
+    <input type="file" id="photoInput" accept="image/*" hidden multiple/>
+  </div>
+
+  <!-- ===== ACADEMY ===== -->
+  <div class="card">
+    <h2>🎓 Cryptography Academy <span class="pill" id="masteryPill">Apprentice</span></h2>
+    <p class="muted" style="margin-top:-4px">Six rungs per topic: <b>Story · Why · How · Practice · Mastery · Legacy</b>. Each lesson rewrites itself with <b>your</b> names, <b>your</b> memories, <b>your</b> family. Learn it like tying a shoe — once, then forever.</p>
+    <div class="grid grid-3" id="topicGrid" style="margin-top:14px"></div>
+  </div>
+
+  <!-- ===== MEMORY WALL ===== -->
+  <div class="card">
+    <h2>🧠 Family Memory Vault <span class="pill" id="vaultCount">0 sealed</span></h2>
+    <div id="memoryWall" class="grid grid-2"></div>
+  </div>
+
+  <!-- ===== TIME CAPSULES ===== -->
+  <div class="card">
+    <h2>⏳ Sealed Capsules</h2>
+    <p class="muted" style="margin-top:-4px">Messages encrypted today, unlockable on a future date — for a graduation, a birthday, a hundred years from now.</p>
+    <div id="capsuleList" style="margin-top:12px"></div>
+  </div>
+
+</main>
+
+<!-- ===== MODAL ===== -->
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <button class="close ghost" onclick="App.closeModal()">✕</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script type="module">
+/* ============================================================
+   SOVEREIGN MEMORY · APP
+============================================================ */
+const VERSION = "2.0.0";
+const STORAGE_KEY = "sovereign_v2";
+
+/* ---------- THEMES (dark only, no orange — SCAR) ---------- */
+const THEMES = {
+  midnight: {name:"Midnight",bg0:"#07111f",bg1:"#0f172a",bg2:"#162033",accent:"#67e8f9",accent2:"#a855f7",text:"#e6f1ff",textDim:"#9fb3c8"},
+  aurora:   {name:"Aurora",  bg0:"#0a0814",bg1:"#150c2e",bg2:"#1f1342",accent:"#c084fc",accent2:"#f472b6",text:"#f3eaff",textDim:"#b6a8d5"},
+  forest:   {name:"Forest",  bg0:"#06140d",bg1:"#0d2218",bg2:"#143424",accent:"#4ade80",accent2:"#fbbf24",text:"#e9fce9",textDim:"#9ec4a8"},
+  ruby:     {name:"Ruby",    bg0:"#15060a",bg1:"#270b14",bg2:"#3a1020",accent:"#fb7185",accent2:"#f472b6",text:"#fce7ec",textDim:"#caa3ad"},
+  royal:    {name:"Royal",   bg0:"#0a081a",bg1:"#1a1138",bg2:"#241852",accent:"#fbbf24",accent2:"#a78bfa",text:"#fdf6e3",textDim:"#c2b6e0"},
+  ocean:    {name:"Ocean",   bg0:"#04101a",bg1:"#082235",bg2:"#0c3148",accent:"#5eead4",accent2:"#38bdf8",text:"#e0f7fa",textDim:"#94c6d8"},
+  mono:     {name:"Mono",    bg0:"#0a0a0a",bg1:"#161616",bg2:"#222",accent:"#e5e5e5",accent2:"#a3a3a3",text:"#fafafa",textDim:"#a3a3a3"},
+};
+const FONTS = {
+  system: `-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif`,
+  serif:  `Georgia, "Iowan Old Style", "Times New Roman", serif`,
+  mono:   `ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace`,
+};
+
+/* ---------- STATE ---------- */
+const defaults = {
+  identity: null,              // { name, handle, birthYear, edPubJwk, edPrivJwk, xPubJwk, xPrivJwk, createdAt }
+  lineage: [],                 // [{ id, name, relation, birthYear, note, edPubJwk? }]
+  memories: [],                // [{ id, text, photos[], created, sha256, sha512, signature, tags[], linkedTopic? }]
+  capsules: [],                // [{ id, recipient, unlockDate, ciphertext, iv, salt, hint, created }]
+  progress: {},                // { topicId: { story, why, how, practice, mastery (0-5), legacy } }
+  prefs: { theme:"midnight", font:"system", lastTags:[] },
+  stats: { streak:0, lastSeal:null },
+};
+
+let S = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return structuredClone(defaults);
+    const parsed = JSON.parse(raw);
+    return Object.assign(structuredClone(defaults), parsed);
+  }catch{ return structuredClone(defaults); }
+}
+function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); }
+
+/* ---------- CRYPTO HELPERS (real WebCrypto) ---------- */
+const subtle = crypto.subtle;
+const te = new TextEncoder();
+const td = new TextDecoder();
+
+function buf2hex(b){ return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function hex2buf(h){ const a=new Uint8Array(h.length/2); for(let i=0;i<a.length;i++)a[i]=parseInt(h.substr(i*2,2),16); return a; }
+function b64(b){ return btoa(String.fromCharCode(...new Uint8Array(b))); }
+function b64d(s){ return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); }
+
+async function sha256(data){ return subtle.digest("SHA-256", typeof data==="string"?te.encode(data):data); }
+async function sha512(data){ return subtle.digest("SHA-512", typeof data==="string"?te.encode(data):data); }
+
+async function pbkdf2(password, salt, iterations=200000, length=32){
+  const baseKey = await subtle.importKey("raw", te.encode(password), "PBKDF2", false, ["deriveBits"]);
+  const bits = await subtle.deriveBits({name:"PBKDF2",salt,iterations,hash:"SHA-256"}, baseKey, length*8);
+  return new Uint8Array(bits);
+}
+async function hkdf(secret, salt, info, length=32){
+  const baseKey = await subtle.importKey("raw", secret, "HKDF", false, ["deriveBits"]);
+  const bits = await subtle.deriveBits({name:"HKDF",hash:"SHA-256",salt,info:te.encode(info)}, baseKey, length*8);
+  return new Uint8Array(bits);
+}
+async function aesEncryptString(plaintext, rawKey){
+  const key = await subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await subtle.encrypt({name:"AES-GCM", iv}, key, te.encode(plaintext));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function aesDecryptString(packet, rawKey){
+  const key = await subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);
+  const pt = await subtle.decrypt({name:"AES-GCM", iv: b64d(packet.iv)}, key, b64d(packet.ct));
+  return td.decode(pt);
+}
+
+/* Ed25519 / X25519 — supported in modern browsers via WebCrypto */
+async function generateEd25519(){
+  const k = await subtle.generateKey({name:"Ed25519"}, true, ["sign","verify"]);
+  return {
+    pub: await subtle.exportKey("jwk", k.publicKey),
+    priv: await subtle.exportKey("jwk", k.privateKey),
+  };
+}
+async function generateX25519(){
+  const k = await subtle.generateKey({name:"X25519"}, true, ["deriveBits"]);
+  return {
+    pub: await subtle.exportKey("jwk", k.publicKey),
+    priv: await subtle.exportKey("jwk", k.privateKey),
+  };
+}
+async function edSign(message, privJwk){
+  const key = await subtle.importKey("jwk", privJwk, {name:"Ed25519"}, false, ["sign"]);
+  const sig = await subtle.sign({name:"Ed25519"}, key, te.encode(message));
+  return b64(sig);
+}
+async function edVerify(message, sigB64, pubJwk){
+  try{
+    const key = await subtle.importKey("jwk", pubJwk, {name:"Ed25519"}, false, ["verify"]);
+    return await subtle.verify({name:"Ed25519"}, key, b64d(sigB64), te.encode(message));
+  }catch{ return false; }
+}
+async function x25519Derive(privJwk, pubJwk){
+  const priv = await subtle.importKey("jwk", privJwk, {name:"X25519"}, false, ["deriveBits"]);
+  const pub  = await subtle.importKey("jwk", pubJwk,  {name:"X25519"}, false, []);
+  const bits = await subtle.deriveBits({name:"X25519", public:pub}, priv, 256);
+  return new Uint8Array(bits);
+}
+async function cryptoCapabilities(){
+  const out = { ed25519:false, x25519:false, webauthn: !!(window.PublicKeyCredential) };
+  try{ await subtle.generateKey({name:"Ed25519"},false,["sign","verify"]); out.ed25519=true; }catch{}
+  try{ await subtle.generateKey({name:"X25519"},false,["deriveBits"]); out.x25519=true; }catch{}
+  return out;
+}
+
+/* Merkle tree from sealed memory hashes */
+async function merkleRoot(hashesHex){
+  if(hashesHex.length===0) return null;
+  let level = hashesHex.map(hex2buf);
+  while(level.length>1){
+    const next=[];
+    for(let i=0;i<level.length;i+=2){
+      const a = level[i], b = level[i+1] || level[i];
+      const combined = new Uint8Array(a.length+b.length);
+      combined.set(a,0); combined.set(b,a.length);
+      next.push(new Uint8Array(await sha256(combined)));
+    }
+    level = next;
+  }
+  return buf2hex(level[0]);
+}
+
+/* ============================================================
+   LESSON CONTENT
+   18 topics × 6 rungs each = 108 lesson modules.
+   `personal(ctx)` returns the body string with the user's data woven in.
+   ============================================================ */
+
+const TOPICS = [
+  /* ============ 1. SHA-256 ============ */
+  {
+    id:"sha256", name:"SHA-256", emoji:"👁️", unlockAt:1, family:"Hashing",
+    one:"A fingerprint stamp for any data — change one grain, change the entire stamp.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"The Fingerprint Smith looks at anything you bring her — a letter, a song, your name, ${ctx.name ? "the name <b>"+ctx.name+"</b>" : "your story"} — and stamps a unique 64-character fingerprint. Change one comma. Stamp is completely different. Forever."</div>
+        <p>SHA-256 is a <b>one-way</b> hash. You can hash easily. You cannot un-hash. The fingerprint reveals nothing about the original — but the same input always produces the same fingerprint.</p>
+        <p><b>Why the name?</b> SHA = Secure Hash Algorithm. 256 = the output is always exactly 256 bits, which we usually write as 64 hexadecimal characters.</p>
+      `,
+      why: ctx=>`
+        <h3>Where SHA-256 lives in your life</h3>
+        <ul>
+          <li><b>Bitcoin</b> — every block is found by hashing</li>
+          <li><b>Software downloads</b> — the website publishes the hash, you check yours matches</li>
+          <li><b>Passwords on servers</b> — your password is hashed, never stored as text</li>
+          <li><b>Git</b> — every commit you've ever made is identified by a SHA hash</li>
+          <li><b>This app</b> — every memory you've sealed (${ctx.memCount}) has its own SHA-256 fingerprint</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <p>SHA-256 chops your input into 512-bit blocks, mixes them through 64 rounds of bit-rotations, additions, and XORs, and emits a 256-bit result.</p>
+        <div class="visual">"hello"                  → 2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824
+"hello."                 → bf3dba41bc01b3ba17e9c84210cda1ce0d3787d3327d2cd9c2bb8f4cc7af4ce6
+"${ctx.name||"your name"}" → ${ctx.nameHashShort}…</div>
+        <p>Two inputs that differ by a single character produce hashes that share <b>zero</b> useful similarity. This is called the <b>avalanche effect</b>.</p>
+      `,
+      practice: { run:"sha256_avalanche" },
+      mastery: {
+        questions:[
+          { q:"If you change one letter of a message, how much of the SHA-256 hash typically changes?", a:2, opts:["Nothing","A few characters","Roughly half of all bits","Only the last character"] },
+          { q:"Can you reverse a SHA-256 hash to get the original input?", a:1, opts:["Yes, with the right key","No — it is a one-way function","Only if it's a short input","Only with quantum computers"] },
+          { q:"Two different inputs producing the same hash is called a…", a:0, opts:["Collision","Coincidence","Conflict","Compression"] },
+        ]
+      },
+      legacy: ctx=>`
+        <p>Pass this down to ${ctx.heirName||"your descendants"}:</p>
+        <div class="mnemonic">"Tiny choices change the whole fingerprint of a life. The smith does not forget. Choose your inputs with care."</div>
+      `
+    }
+  },
+
+  /* ============ 2. SHA3-512 ============ */
+  {
+    id:"sha3", name:"SHA3-512", emoji:"🌀", unlockAt:2, family:"Hashing",
+    one:"A second family of hash, designed completely differently from SHA-2 — backup if the first ever cracks.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Two architects build two bridges across the same river using completely different blueprints. If one ever collapses, the other still stands. SHA-2 is one bridge. SHA-3 is the other."</div>
+        <p>SHA3 came from a worldwide competition NIST ran from 2007–2012. The winner was an algorithm called <b>Keccak</b>, built on a sponge construction — input is absorbed in, output is squeezed out.</p>
+      `,
+      why: ctx=>`
+        <h3>Why have two hash families?</h3>
+        <p>Cryptography that protects ${ctx.heirName||"your great-grandchildren"} must survive things we cannot predict. If a mathematical weakness is ever found in SHA-2, SHA-3 is ready. <b>Diversity is defense.</b></p>
+        <ul>
+          <li>Same security guarantees as SHA-2</li>
+          <li>Completely different internal design</li>
+          <li>Adopted in newer government standards</li>
+          <li>Already used in some blockchains (Ethereum uses Keccak)</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <div class="visual">Input ─ pad ─►  ABSORB into 1600-bit state
+                              │
+                       (24 rounds of permutation)
+                              │
+                       ◄────── SQUEEZE out 512 bits</div>
+        <p>The sponge holds all the input mixed together inside its 1600-bit state, then squeezes out exactly as many bits as you ask for. Same sponge can produce SHA3-256, SHA3-384, or SHA3-512 outputs.</p>
+      `,
+      practice: { run:"sha3_compare" },
+      mastery: {
+        questions:[
+          { q:"Why does SHA-3 exist if we already have SHA-2?", a:2, opts:["SHA-2 is broken","To save space","Cryptographic diversity in case of future attacks","It's faster"] },
+          { q:"What internal design does SHA-3 (Keccak) use?", a:0, opts:["Sponge construction","Merkle-Damgård","Feistel network","Linear feedback"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Never trust a single bridge. Build a second, before the first one needs it."</div>`
+    }
+  },
+
+  /* ============ 3. BLAKE3 ============ */
+  {
+    id:"blake3", name:"BLAKE3", emoji:"⚡", unlockAt:3, family:"Hashing",
+    one:"A modern hash built for raw speed — hashes massive files in parallel using a tree.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Twelve workers each take a piece of the message and hash it at the same time. Then they pair up and combine. Then pair again. At the top — one single hash for the whole thing. Twelve times the speed."</div>
+        <p>BLAKE3 is the youngest and fastest of the major hash functions, released in 2020. It uses a <b>Merkle tree</b> internally so multiple CPU cores can hash different chunks at the same time.</p>
+      `,
+      why: ctx=>`
+        <h3>When speed actually matters</h3>
+        <ul>
+          <li>Hashing a 4-hour family video</li>
+          <li>Deduplicating millions of files in a backup</li>
+          <li>Streaming integrity — hash as you receive</li>
+          <li>Content-addressed storage (everything named by its hash)</li>
+        </ul>
+        <p>Your memories will fit in a heartbeat. But the photos and voice notes you leave for ${ctx.heirName||"your descendants"} — that's where BLAKE3 earns its keep.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">[chunk 1] [chunk 2] [chunk 3] [chunk 4]
+    │         │         │         │
+    └── h ────┘         └── h ────┘
+         │                   │
+         └────────── h ──────┘
+                     │
+                  ROOT HASH</div>
+        <p>Each leaf is hashed independently. Pairs combine. Until one root remains. The same root you'd get from a single-threaded hash — but computed in parallel.</p>
+      `,
+      practice: { run:"blake3_concept" },
+      mastery: {
+        questions:[
+          { q:"What gives BLAKE3 its speed advantage?", a:1, opts:["A smaller hash","Tree-based parallel hashing","Skipping rounds","Shorter input"] },
+          { q:"Can BLAKE3 hash a stream as it arrives?", a:0, opts:["Yes — incremental","No — needs all input first","Only files under 1 MB","Only on servers"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Many hands shape the truth faster than one. But the root they meet at is the same."</div>`
+    }
+  },
+
+  /* ============ 4. PBKDF2 ============ */
+  {
+    id:"pbkdf2", name:"PBKDF2", emoji:"🔁", unlockAt:4, family:"Key Derivation",
+    one:"Turns a weak password into a strong key by hashing it hundreds of thousands of times.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"You climb the same stair, one step at a time, two hundred thousand times, before you reach the door. The attacker must climb every step too. No shortcut. No elevator. Just stairs."</div>
+        <p>A password like "loveletter1995" is short, guessable, weak. PBKDF2 takes that password and runs it through a hash function 100,000 or 600,000 times — turning the work of trying every guess into months instead of milliseconds.</p>
+      `,
+      why: ctx=>`
+        <p>Every password manager you've ever used relies on this. So does every encrypted backup. Including the vault you'll export to ${ctx.heirName||"your child"} — they'll type a passphrase, PBKDF2 will spend two seconds hammering on it, and out comes a 256-bit key.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">passphrase + salt
+       │
+       ▼  (HMAC-SHA-256)
+       │
+       ▼  (×200,000 iterations)
+       │
+       ▼
+   strong 256-bit key</div>
+        <p>The <b>salt</b> is a random value mixed in so two people using "password" get completely different keys. The <b>iteration count</b> is the cost — higher = slower for everyone, including attackers.</p>
+      `,
+      practice: { run:"pbkdf2_demo" },
+      mastery: {
+        questions:[
+          { q:"Why use a salt with PBKDF2?", a:2, opts:["For flavor","To shorten the output","So identical passwords produce different keys","To prove you're human"] },
+          { q:"Increasing iterations makes login slower for…", a:2, opts:["Only attackers","Only the user","Both equally","Only the server"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Repetition is a wall. Stack enough of it and even patience cannot climb it."</div>`
+    }
+  },
+
+  /* ============ 5. Argon2 ============ */
+  {
+    id:"argon2", name:"Argon2 / Argon2id", emoji:"🧠", unlockAt:5, family:"Key Derivation",
+    one:"PBKDF2's stronger sibling — punishes attackers with memory cost on top of time cost.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"To open the door you must carry a mountain of stones, AND make many trips. The attacker's army cannot help — every soldier needs their own mountain of stones too. Memory is the real wall."</div>
+        <p>Modern attackers don't use one computer — they use thousands of GPUs in parallel. PBKDF2's CPU work is cheap on a GPU. Argon2 was designed in 2015 to break that advantage by demanding <b>memory</b>, which GPUs have very little of per core.</p>
+      `,
+      why: ctx=>`
+        <h3>Argon2id — the recommended variant</h3>
+        <ul>
+          <li><b>Argon2d</b> — fastest, resists GPU attacks</li>
+          <li><b>Argon2i</b> — resists side-channel attacks</li>
+          <li><b>Argon2id</b> — both worlds, recommended for passwords</li>
+        </ul>
+        <p>Used by: 1Password, Bitwarden, KeePass, modern password databases. <i>(Browser WebCrypto doesn't yet ship Argon2 natively — when you see "PBKDF2" used here, mentally upgrade it: same principle, weaker version.)</i></p>
+      `,
+      how: ctx=>`
+        <div class="visual">memory: 64 MB ─────────►  ████████████ (fill)
+time:   3 passes  ─────►  shuffle, mix, repeat
+parallelism: 4 ────────►  cores split the work
+       │
+       ▼
+  256-bit key</div>
+      `,
+      practice: { run:"argon_concept" },
+      mastery: {
+        questions:[
+          { q:"What does Argon2 punish attackers with that PBKDF2 doesn't?", a:1, opts:["Time only","Memory cost","Battery drain","Network bandwidth"] },
+          { q:"Which Argon2 variant is recommended for password hashing?", a:2, opts:["Argon2d","Argon2i","Argon2id","Argon2x"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Some walls are built of stone. The strongest walls are built of stone the enemy must carry themselves."</div>`
+    }
+  },
+
+  /* ============ 6. HKDF ============ */
+  {
+    id:"hkdf", name:"HKDF", emoji:"🌊", unlockAt:6, family:"Key Derivation",
+    one:"One shared secret → many purpose-specific keys, safely and deterministically.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"You hold one master rope. With HKDF you braid it into many smaller ropes — one to lock the door, one for the window, one for the chest. Each is independent. None reveals the master."</div>
+        <p>After two people agree on a shared secret (via X25519), they almost never use that secret directly. They <b>derive</b> separate keys from it — one for encrypting, one for authenticating, one for the reverse direction.</p>
+      `,
+      why: ctx=>`
+        <p>This separation is what makes Signal, WhatsApp, and your future family-only messenger safe. Each conversation, each direction, each session gets its own key. If one is ever compromised, the others stand.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">shared_secret + salt
+        │
+        ▼  EXTRACT  (HMAC-SHA-256)
+        │
+       PRK
+        │
+        ▼  EXPAND with info="encrypt"   → key_e
+        │  EXPAND with info="authenticate" → key_a
+        │  EXPAND with info="reverse"   → key_r</div>
+        <p>Same PRK, different <b>info</b> labels, different keys. The labels become a domain separator — a guarantee that two different uses never collide.</p>
+      `,
+      practice: { run:"hkdf_demo" },
+      mastery: {
+        questions:[
+          { q:"HKDF stands for…", a:0, opts:["HMAC-based Key Derivation Function","Hash Key Distribution Function","High-Key Derivation Format","Hierarchical KDF"] },
+          { q:"What does the 'info' parameter give you?", a:1, opts:["A random salt","Domain separation between derived keys","Compression","A signature"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"From one trusted thread, weave many. Never bet the whole rope on one knot."</div>`
+    }
+  },
+
+  /* ============ 7. X25519 ============ */
+  {
+    id:"x25519", name:"X25519", emoji:"🤝", unlockAt:7, family:"Key Exchange",
+    one:"Two people derive the same secret over a public wire — without ever sending it.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Two painters each have a secret color. They both add the public color yellow and ship the result publicly. When each receives the other's shipment and adds their own secret again — they hold the exact same final shade. Anyone watching saw only the public yellow."</div>
+        <p>X25519 is the modern incarnation of Diffie-Hellman key exchange, on the Curve25519 elliptic curve. It is the foundation of TLS, Signal, WireGuard, and SSH.</p>
+      `,
+      why: ctx=>`
+        <p>Without X25519, the modern internet has no privacy. Every HTTPS connection you make, every encrypted message you send ${ctx.heirName||"your loved ones"} — begins with a key exchange like this one.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">Alice                              Bob
+─────                              ───
+priv_A ─► pub_A ─────────────────► pub_A
+pub_B  ◄───────────────── pub_B ◄─ priv_B
+
+shared = X25519(priv_A, pub_B) = X25519(priv_B, pub_A)</div>
+        <p>The math: scalar multiplication on an elliptic curve. The curve's structure guarantees both directions arrive at the same point — but an eavesdropper holding only pub_A and pub_B cannot compute it.</p>
+      `,
+      practice: { run:"x25519_demo" },
+      mastery: {
+        questions:[
+          { q:"In X25519, what travels on the public wire?", a:1, opts:["The shared secret","Two public keys","The private keys","The entire message"] },
+          { q:"X25519 is built on…", a:2, opts:["Prime factorization","Hash functions","Elliptic curve mathematics","Lattice problems"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Trust can be built without confession. Reveal only what you can afford the world to see."</div>`
+    }
+  },
+
+  /* ============ 8. Ed25519 ============ */
+  {
+    id:"ed25519", name:"Ed25519", emoji:"✍️", unlockAt:8, family:"Signatures",
+    one:"Sign with a private key. Anyone with the public key can verify it was you.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"You hold the signet ring. You press it into hot wax — the seal is unique to your ring. Anyone in the kingdom can hold the wax up to your <i>public shape</i> and confirm: yes, this came from ${ctx.name||"the king"}. No one else can press the same seal."</div>
+        <p>Ed25519 is the modern signature scheme — fast, small (64-byte signatures), deterministic, and proven secure. Every memory you seal here is signed with your Ed25519 key. Your descendants can verify, forever, that it was truly you who wrote it.</p>
+      `,
+      why: ctx=>`
+        <ul>
+          <li>SSH keys (modern default)</li>
+          <li>Signing software updates</li>
+          <li>Cryptocurrency transactions</li>
+          <li>Signal & Tor identities</li>
+          <li>Every memory in this vault</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <div class="visual">message + priv_key  ─►  signature (64 bytes)
+
+verify:
+  message + signature + pub_key  ─►  TRUE / FALSE</div>
+        <p>Ed25519 is <b>deterministic</b> — the same message signed with the same key always produces the same signature. No bad randomness can compromise it.</p>
+        ${ctx.userPubFingerprint ? `<div class="callout"><b>Your identity fingerprint:</b><div class="kv">${ctx.userPubFingerprint}</div>This is your public key's SHA-256, in hex. Show it to family — it's how they'll verify your real signature.</div>` : ""}
+      `,
+      practice: { run:"ed25519_demo" },
+      mastery: {
+        questions:[
+          { q:"What proves a signature came from you?", a:1, opts:["Your public key","Verifying with your public key passes","Your private key being shared","A password"] },
+          { q:"If a single byte of the message changes, the signature…", a:0, opts:["Fails verification","Auto-updates","Still verifies","Becomes random"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Your signature outlives you. Sign only what you would want to be true a hundred years from now."</div>`
+    }
+  },
+
+  /* ============ 9. ChaCha20 / XChaCha20 ============ */
+  {
+    id:"chacha", name:"ChaCha20 · XChaCha20", emoji:"🌪️", unlockAt:9, family:"Encryption",
+    one:"A fast stream cipher used everywhere AES can't be hardware-accelerated.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"A river of pseudo-random numbers flows from your key. You XOR your message against the river. The result looks like noise. To decrypt: XOR with the same river. Identical, reversible, instant."</div>
+        <p>ChaCha20 was designed by Daniel J. Bernstein as a software-friendly alternative to AES. On phones without AES hardware, ChaCha20 is faster and uses less battery.</p>
+      `,
+      why: ctx=>`
+        <ul>
+          <li>TLS 1.3 (the cipher used by most modern HTTPS)</li>
+          <li>WireGuard VPN</li>
+          <li>Signal, WhatsApp encryption</li>
+          <li>SSH transport</li>
+        </ul>
+        <p><b>XChaCha20</b> extends the nonce from 96 to 192 bits — large enough that you can use random nonces forever without collision.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">key + nonce + counter
+        │
+        ▼ 20 rounds of quarter-round mixing
+        │
+   keystream
+        │
+   plaintext XOR keystream = ciphertext</div>
+        <p><i>Browser WebCrypto doesn't ship ChaCha20 natively. The encryption in this vault uses AES-GCM (also excellent). On servers and in apps, ChaCha20-Poly1305 is everywhere.</i></p>
+      `,
+      practice: { run:"chacha_concept" },
+      mastery: {
+        questions:[
+          { q:"ChaCha20 is what kind of cipher?", a:1, opts:["Block","Stream","Hash","Asymmetric"] },
+          { q:"Why does XChaCha20 exist?", a:0, opts:["Longer nonce, safer with random nonces","Faster","Smaller key","Quantum-resistant"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Even noise can carry meaning, if you know the river it flowed from."</div>`
+    }
+  },
+
+  /* ============ 10. Poly1305 ============ */
+  {
+    id:"poly1305", name:"Poly1305", emoji:"🛡️", unlockAt:10, family:"Authentication",
+    one:"A tiny tag that proves a message wasn't tampered with — paired with ChaCha20 or AES.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"A wax seal on the envelope. The letter inside might be readable or encrypted — but the seal proves no one opened it on the way. Break the seal, and the recipient knows instantly."</div>
+        <p>Poly1305 takes a key and a message, produces a 16-byte tag. Recipient recomputes the tag — if it matches, the message is authentic. If even one bit changed, the tag won't match.</p>
+      `,
+      why: ctx=>`
+        <p>Encryption alone hides content. <b>Authentication</b> proves it wasn't altered. Modern secure protocols always use both — this is called <b>AEAD</b> (Authenticated Encryption with Associated Data).</p>
+        <ul>
+          <li>ChaCha20-Poly1305 → TLS, WireGuard, SSH</li>
+          <li>AES-GCM → similar pattern, GMAC instead of Poly1305</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <div class="visual">message + one-time-key
+        │
+        ▼ (polynomial evaluation modulo 2^130 - 5)
+        │
+   16-byte authentication tag</div>
+        <p>The "1305" is from <b>2¹³⁰ − 5</b>, the prime number Poly1305's math lives in.</p>
+      `,
+      practice: { run:"poly_concept" },
+      mastery: {
+        questions:[
+          { q:"What does an authentication tag prove?", a:2, opts:["The sender's identity","The data is encrypted","The message wasn't modified","The recipient is online"] },
+          { q:"Encryption + authentication together is called…", a:0, opts:["AEAD","HMAC","KDF","MAC"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Privacy without integrity is a locked box anyone can swap. Always seal what you lock."</div>`
+    }
+  },
+
+  /* ============ 11. AES-GCM ============ */
+  {
+    id:"aesgcm", name:"AES-GCM", emoji:"🔐", unlockAt:11, family:"Encryption",
+    one:"The NIST-standard authenticated encryption. Encrypts AND proves integrity in one pass.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Two locks on the chest, fused into one. The first lock keeps the contents secret. The second proves the chest wasn't pried open. Open the chest only when both locks agree."</div>
+        <p>AES is the world's most widely-deployed cipher, standardized by NIST in 2001. GCM (Galois/Counter Mode) wraps AES with built-in authentication. Together they're the de-facto standard for TLS, disk encryption, and ${ctx.memCount} memories in your vault.</p>
+      `,
+      why: ctx=>`
+        <ul>
+          <li>Every memory you seal here uses AES-GCM</li>
+          <li>HTTPS — the lock icon in your browser</li>
+          <li>FileVault, BitLocker, LUKS — disk encryption</li>
+          <li>Signal, WhatsApp message bodies</li>
+          <li>Encrypted cloud backups</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <div class="visual">plaintext + key + nonce(IV)
+        │
+        ▼ AES counter mode → ciphertext
+        │
+        ▼ GMAC over ciphertext + AAD → auth tag
+        │
+   (ciphertext, nonce, tag)</div>
+        <p><b>Never reuse a nonce with the same key.</b> One repeat catastrophically breaks the whole scheme. This app generates a fresh 96-bit random nonce for every seal.</p>
+      `,
+      practice: { run:"aesgcm_demo" },
+      mastery: {
+        questions:[
+          { q:"What does the GCM tag protect against?", a:1, opts:["Eavesdropping","Tampering with ciphertext","Brute force","Quantum attacks"] },
+          { q:"What is the cardinal rule of AES-GCM?", a:2, opts:["Use short keys","Always pad","Never reuse a nonce with the same key","Always reuse the IV"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Two locks. One key. Never the same combination twice."</div>`
+    }
+  },
+
+  /* ============ 12. WebAuthn ============ */
+  {
+    id:"webauthn", name:"WebAuthn / Passkeys", emoji:"🧬", unlockAt:12, family:"Authentication",
+    one:"Logging in with your face, fingerprint, or security key — no password, nothing to steal.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"The lock recognizes you, not a word you say. Your face is the key. The key never leaves your body. The lock never learns what you look like — only that you're you."</div>
+        <p>WebAuthn is a W3C standard for passwordless login. Your device generates an Ed25519 keypair tied to the website. Your face or fingerprint unlocks the use of that key. The website only ever sees the public key — your biometric stays on your device, forever.</p>
+      `,
+      why: ctx=>`
+        <p>Phishing-proof. The browser only releases the credential to the exact website it was registered with. A fake site asking for your "passkey" gets nothing — there's no password to type.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">Register: device creates keypair → sends pub_key to site
+Login:    site sends challenge → device signs with priv_key (biometric unlock)
+          site verifies signature with pub_key  →  logged in</div>
+      `,
+      practice: { run:"webauthn_demo" },
+      mastery: {
+        questions:[
+          { q:"Where does your biometric data go during WebAuthn login?", a:1, opts:["Sent to the website","Stays on your device only","Stored in a cloud","Emailed"] },
+          { q:"What makes passkeys phishing-resistant?", a:0, opts:["The browser binds them to one origin","Users notice fake sites","They expire fast","They're hashed"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"What lives on your body cannot be phished by a clever message."</div>`
+    }
+  },
+
+  /* ============ 13. ML-KEM ============ */
+  {
+    id:"mlkem", name:"ML-KEM (Kyber)", emoji:"⚛️", unlockAt:13, family:"Post-Quantum",
+    one:"NIST's first standardized post-quantum key exchange — replaces X25519 for the quantum era.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"A quantum computer, when it comes, will dissolve every X25519 key like sugar in water. ML-KEM is the key designed to be unbreakable even by that future machine. Plant it now, harvest it later."</div>
+        <p>Standardized by NIST in August 2024 as <b>FIPS 203</b>. Based on the Module Learning With Errors (MLWE) lattice problem. The "ML" stands for Module-Lattice.</p>
+      `,
+      why: ctx=>`
+        <h3>"Harvest now, decrypt later"</h3>
+        <p>Adversaries are recording encrypted traffic today, storing it for the day quantum computers can break it. Anything you encrypt with X25519 alone — including this vault — may be readable in 20 years.</p>
+        <p>By the time ${ctx.heirName||"your children"} inherit this app, ML-KEM hybrid encryption (X25519 + ML-KEM together) should be standard. Upgrade willingly when it arrives.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">Alice generates (priv, pub)         Bob has pub
+        │                                  │
+pub ─────────────────────────────────────► │
+        │                                  ▼
+        │                          encapsulate(pub) ─► (ciphertext, shared_secret)
+        │                                  │
+        ◄────── ciphertext ─────────────── │
+        │
+        ▼
+decapsulate(priv, ciphertext) ─► same shared_secret</div>
+      `,
+      practice: { run:"mlkem_concept" },
+      mastery: {
+        questions:[
+          { q:"ML-KEM is designed to resist…", a:2, opts:["Phishing","Side channels","Quantum attacks","Brute force"] },
+          { q:"What is 'harvest now, decrypt later'?", a:1, opts:["A backup strategy","Recording today's traffic to crack with future quantum computers","A type of phishing","A spam tactic"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"What you encrypt today must still be private the day machines we cannot yet build arrive. Plant accordingly."</div>`
+    }
+  },
+
+  /* ============ 14. ML-DSA ============ */
+  {
+    id:"mldsa", name:"ML-DSA (Dilithium)", emoji:"🛰️", unlockAt:14, family:"Post-Quantum",
+    one:"NIST's standardized post-quantum signature scheme — Ed25519's quantum-safe successor.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Your Ed25519 signature, signed today, can be forged by a future quantum machine. ML-DSA signatures cannot. Sign the things you want believed in a hundred years with both."</div>
+        <p>Standardized as <b>FIPS 204</b> in August 2024. Based on the same lattice family as ML-KEM. Replaces RSA and Ed25519 in the post-quantum world.</p>
+      `,
+      why: ctx=>`
+        <p>Signatures from today must remain trustworthy for as long as the document matters. A property deed, a will, a memorial — these need to verify in 2125, not just 2026. ML-DSA is how we make signatures outlast the threat.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">message + priv_key  ─►  signature (~2.4 KB)
+verify with pub_key  ─►  TRUE / FALSE
+
+(Larger than Ed25519's 64 bytes — the cost of quantum safety)</div>
+      `,
+      practice: { run:"mldsa_concept" },
+      mastery: {
+        questions:[
+          { q:"Compared to Ed25519, ML-DSA signatures are…", a:1, opts:["Smaller","Significantly larger","Identical","Random length"] },
+          { q:"ML-DSA is standardized as…", a:0, opts:["FIPS 204","FIPS 180","RFC 8410","ISO 27001"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"Sign with two pens. The one we use today, and the one our grandchildren will still trust."</div>`
+    }
+  },
+
+  /* ============ 15. Falcon + Falcon Tree ============ */
+  {
+    id:"falcon", name:"Falcon + Falcon Tree", emoji:"🦅", unlockAt:15, family:"Post-Quantum",
+    one:"Compact lattice signatures — smaller than ML-DSA, used where size matters.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"The falcon's signature is small enough to tie to a leg. ML-DSA's is a scroll the falcon cannot carry. When size matters — embedded devices, blockchains, certificates — the falcon flies."</div>
+        <p>Falcon was selected alongside ML-DSA in the NIST post-quantum competition. Standardized as <b>FIPS 206</b>. Based on <b>NTRU lattices</b>. Signatures are ~666 bytes — much smaller than ML-DSA's 2.4 KB.</p>
+      `,
+      why: ctx=>`
+        <h3>Falcon Trees — the lineage structure</h3>
+        <p>Falcon's key generation builds a binary tree called the <b>Falcon tree</b>, used to sample short lattice vectors. The tree shape lets one root key authorize many leaves — perfect for representing a family lineage where ${ctx.name||"you"} are the root and ${ctx.heirName||"your descendants"} are the branches.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">Root key (Falcon master)
+       │
+   ┌───┴───┐
+   leaf    leaf       (children)
+   │       │
+ ┌─┴─┐   ┌─┴─┐
+leaf leaf leaf leaf   (grandchildren)</div>
+      `,
+      practice: { run:"falcon_concept" },
+      mastery: {
+        questions:[
+          { q:"Falcon signatures are smaller than ML-DSA's because they use…", a:1, opts:["AES","NTRU lattices","Elliptic curves","Hash trees"] },
+          { q:"Falcon trees enable…", a:2, opts:["Faster hashing","Smaller ciphertexts","Hierarchical signing structures","Quantum invisibility"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"A small signature can carry the weight of a name across generations, if the lineage is properly rooted."</div>`
+    }
+  },
+
+  /* ============ 16. Hawk ============ */
+  {
+    id:"hawk", name:"Hawk", emoji:"🪶", unlockAt:16, family:"Post-Quantum",
+    one:"A newer lattice signature design — even smaller, easier to implement safely than Falcon.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"The hawk flies higher than the falcon, with less effort. Same family. New wings. Sometimes the second generation simply does it better."</div>
+        <p>Hawk is a lattice-based signature scheme proposed as a Falcon successor. It avoids the floating-point arithmetic that made Falcon hard to implement securely on constrained devices.</p>
+      `,
+      why: ctx=>`
+        <ul>
+          <li>Smaller signatures than Falcon in many parameter sets</li>
+          <li>Integer-only arithmetic — safer in embedded firmware</li>
+          <li>Easier to make side-channel resistant</li>
+        </ul>
+        <p><i>Not yet a NIST standard — but actively studied as the next iteration.</i></p>
+      `,
+      how: ctx=>`
+        <div class="visual">module lattice + integer-only sampling
+        │
+        ▼
+small signature, side-channel friendly</div>
+      `,
+      practice: { run:"hawk_concept" },
+      mastery: {
+        questions:[
+          { q:"What's the main implementation advantage of Hawk over Falcon?", a:2, opts:["Smaller keys","Faster verify","Integer-only math (no floating point)","Quantum-quantum"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"The next generation refines what the first generation discovered. Always be open to the better tool."</div>`
+    }
+  },
+
+  /* ============ 17. Merkle Trees ============ */
+  {
+    id:"merkle", name:"Merkle Trees", emoji:"🌲", unlockAt:17, family:"Structures",
+    one:"Summarize millions of things into one tiny hash — change anything, and the summary changes.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"Every memory in your vault is a leaf on a tree. Pairs of leaves combine into branches. Branches into bigger branches. At the very top — one single root. Forge any memory, even just one — the root changes. ${ctx.heirName||"Your descendants"} only need to remember that root to prove all ${ctx.memCount} memories are real."</div>
+      `,
+      why: ctx=>`
+        <ul>
+          <li>Bitcoin & every blockchain — Merkle root in every block</li>
+          <li>Git — every commit references a Merkle tree of files</li>
+          <li>Certificate transparency — global log of every HTTPS cert</li>
+          <li>BitTorrent — chunk-level integrity</li>
+          <li>This app — your vault's root hash certifies all sealed memories</li>
+        </ul>
+      `,
+      how: ctx=>`
+        <div class="visual">                ROOT
+              ┌──┴──┐
+             h12   h34
+           ┌──┴┐  ┌─┴─┐
+          h1  h2  h3  h4
+           │   │   │   │
+          M1  M2  M3  M4   ← your memories</div>
+        ${ctx.merkleRoot ? `<div class="callout"><b>Your vault's current Merkle root:</b><div class="kv">${ctx.merkleRoot}</div></div>` : `<p class="muted">Seal a memory to compute your first Merkle root.</p>`}
+      `,
+      practice: { run:"merkle_demo" },
+      mastery: {
+        questions:[
+          { q:"If one leaf changes, what happens to the Merkle root?", a:0, opts:["The root completely changes","Only one branch changes","Nothing","The root gets longer"] },
+          { q:"Why is the Merkle root useful?", a:1, opts:["It speeds up encryption","It proves the integrity of all leaves with one small hash","It compresses data","It hides leaves"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"All your truths feed one root. Guard the root, and you guard them all."</div>`
+    }
+  },
+
+  /* ============ 18. X.509 + RFC 8410 ============ */
+  {
+    id:"x509", name:"X.509 + RFC 8410", emoji:"📜", unlockAt:18, family:"Structures",
+    one:"Standard format for binding a name (or a family) to a public key — recognizable worldwide.",
+    rungs:{
+      story: ctx=>`
+        <div class="mnemonic">"A passport binds your face to your name. An X.509 certificate binds a public key to an identity — and a signed chain of authorities vouches for it. The kingdom recognizes the seal."</div>
+        <p>X.509 is the certificate format behind every HTTPS website. <b>RFC 8410</b> extended X.509 to support modern Ed25519 and X25519 keys, so your modern cryptography can plug into the legacy certificate ecosystem.</p>
+      `,
+      why: ctx=>`
+        <p>One day you may want to issue your descendants their own family certificate — your signature on their key, proving they are part of your lineage. X.509 is the format the rest of the world will recognize.</p>
+      `,
+      how: ctx=>`
+        <div class="visual">CERTIFICATE
+  ├─ Subject:   "${ctx.name||"You"}"
+  ├─ Issued by: "${ctx.name||"You"}" (self-signed)
+  ├─ Public Key: Ed25519  (OID per RFC 8410)
+  ├─ Valid:      2026 — 2126
+  └─ Signature:  Ed25519(everything above)</div>
+      `,
+      practice: { run:"x509_concept" },
+      mastery: {
+        questions:[
+          { q:"What did RFC 8410 add to X.509?", a:1, opts:["TLS 1.3 support","Ed25519/X25519 key identifiers","JSON encoding","Quantum signatures"] },
+          { q:"A certificate binds…", a:2, opts:["Two keys together","Two names together","An identity to a public key","Two certificates"] },
+        ]
+      },
+      legacy: ctx=>`<div class="mnemonic">"A name without proof is a rumor. A name with a signed certificate is a recognized identity."</div>`
+    }
+  },
+];
+
+/* ============================================================
+   PRACTICE RUNTIMES — real interactive crypto on user data
+   ============================================================ */
+const PRACTICE = {
+  sha256_avalanche: {
+    title:"Watch the avalanche effect — live",
+    render(){ return `
+      <p>Type any message. Then change one character. Watch the hash shatter completely.</p>
+      <input id="px-input" placeholder="${App.ctx().name||"Type something meaningful"}" value="${escape(App.ctx().lastMemoryText.slice(0,60))}"/>
+      <div class="visual" id="px-out">Waiting for input…</div>
+      <p class="muted">Try changing a single letter. Notice how no part of the hash survives.</p>
+    `;},
+    bind(){
+      const i = $("#px-input"), o = $("#px-out");
+      const run = async ()=>{
+        const h = buf2hex(await sha256(i.value || " "));
+        o.textContent = `SHA-256:\n${h}`;
+      };
+      i.addEventListener("input", run); run();
+    }
+  },
+  sha3_compare: {
+    title:"SHA-256 vs SHA-512 side by side",
+    render(){ return `
+      <input id="px-input" placeholder="Type a phrase" value="${escape(App.ctx().lastMemoryText.slice(0,60)||"the truth lasts")}"/>
+      <div class="visual" id="px-out">…</div>
+      <p class="muted">SHA-2 and SHA-3 produce completely different fingerprints for the same input — two independent guarantees of integrity.</p>
+    `;},
+    bind(){
+      const i = $("#px-input"), o = $("#px-out");
+      const run = async ()=>{
+        const a = buf2hex(await sha256(i.value || " "));
+        const b = buf2hex(await sha512(i.value || " "));
+        o.textContent = `SHA-256 (32 bytes):\n${a}\n\nSHA-512 (64 bytes):\n${b}`;
+      };
+      i.addEventListener("input", run); run();
+    }
+  },
+  blake3_concept: {
+    title:"Tree hashing — divide and conquer",
+    render(){
+      const memTexts = S.memories.slice(-4).map(m=>m.text.slice(0,40));
+      return `
+        <p>Your last few memories, hashed in parallel, then combined like a Merkle tree:</p>
+        <div class="visual" id="px-out">computing…</div>
+        <p class="muted">BLAKE3 uses this internally — but in WebCrypto we use SHA-256 to demonstrate the structure.</p>
+      `;
+    },
+    async bind(){
+      const o = $("#px-out");
+      const chunks = (S.memories.slice(-4).map(m=>m.text) || ["alpha","beta","gamma","delta"]);
+      if(chunks.length===0){ o.textContent="Seal some memories first."; return; }
+      const leafHashes = await Promise.all(chunks.map(c => sha256(c).then(buf2hex)));
+      const root = await merkleRoot(leafHashes);
+      o.textContent = leafHashes.map((h,i)=>`leaf ${i+1}: ${h.slice(0,32)}…`).join("\n") + `\n\nROOT: ${root}`;
+    }
+  },
+  pbkdf2_demo: {
+    title:"Watch a weak password become a strong key",
+    render(){ return `
+      <input id="px-pw" placeholder="Type a passphrase" value="loveletter1995"/>
+      <input id="px-iter" type="number" value="100000" min="1000" max="1000000" step="10000"/>
+      <button onclick="PRACTICE.pbkdf2_demo.go()" class="primary" style="margin-top:8px">Derive key</button>
+      <div class="visual" id="px-out">Press the button.</div>
+      <p class="muted">More iterations = stronger, slower. Try 1,000 vs 500,000.</p>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out"); const pw=$("#px-pw").value; const iter=+$("#px-iter").value;
+      o.textContent="Deriving…";
+      const t0=performance.now();
+      const salt = await sha256(pw); // stable salt for demo
+      const key = await pbkdf2(pw, new Uint8Array(salt), iter);
+      const dt = (performance.now()-t0).toFixed(1);
+      o.textContent = `Derived in ${dt} ms with ${iter.toLocaleString()} iterations:\n${buf2hex(key)}`;
+    }
+  },
+  argon_concept: {
+    title:"Memory-hard derivation — concept",
+    render(){ return `
+      <p>WebCrypto doesn't ship Argon2 yet, but the principle is the same: spend <b>memory</b> on top of CPU time. Below we use PBKDF2 with rising iterations to show the time/cost curve.</p>
+      <button onclick="PRACTICE.argon_concept.go()" class="primary">Run cost benchmark</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out"); o.textContent="Running…";
+      const results=[];
+      for(const it of [10000,50000,200000,500000]){
+        const t0=performance.now();
+        await pbkdf2("password", te.encode("salt"), it);
+        results.push(`${it.toLocaleString().padStart(10)} iter → ${(performance.now()-t0).toFixed(0).padStart(5)} ms`);
+      }
+      o.textContent = results.join("\n");
+    }
+  },
+  hkdf_demo: {
+    title:"One secret → many keys",
+    render(){ return `
+      <p>From a single 32-byte secret, derive separate keys for separate purposes:</p>
+      <button onclick="PRACTICE.hkdf_demo.go()" class="primary">Derive 4 keys</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out");
+      const master = crypto.getRandomValues(new Uint8Array(32));
+      const salt = te.encode("sovereign-memory-demo");
+      const labels = ["encrypt-outgoing","authenticate-outgoing","encrypt-incoming","authenticate-incoming"];
+      const out = [`MASTER:\n${buf2hex(master)}\n`];
+      for(const label of labels){
+        const k = await hkdf(master, salt, label);
+        out.push(`${label}:\n${buf2hex(k)}\n`);
+      }
+      o.textContent = out.join("\n");
+    }
+  },
+  x25519_demo: {
+    title:"Alice + Bob — derive the same secret without sending it",
+    render(){ return `
+      <p>Generate two keypairs (Alice & Bob), then derive a shared secret from each side. If the cryptography is real, they will match exactly.</p>
+      <button onclick="PRACTICE.x25519_demo.go()" class="primary">Run X25519 exchange</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out");
+      try{
+        const A = await generateX25519();
+        const B = await generateX25519();
+        const sA = await x25519Derive(A.priv, B.pub);
+        const sB = await x25519Derive(B.priv, A.pub);
+        const match = buf2hex(sA)===buf2hex(sB);
+        o.textContent = `Alice derived: ${buf2hex(sA).slice(0,40)}…\nBob   derived: ${buf2hex(sB).slice(0,40)}…\n\nMATCH: ${match ? "✅ identical secret, never sent across the wire" : "❌ failed"}`;
+      }catch(e){
+        o.textContent = `X25519 not available in this browser yet.\nError: ${e.message}`;
+      }
+    }
+  },
+  ed25519_demo: {
+    title:"Sign a memory, then try tampering with it",
+    render(){ return `
+      <p>Type a message. Sign it with your identity key. Then change the message — verification will fail instantly.</p>
+      <input id="px-msg" value="${escape(App.ctx().lastMemoryText.slice(0,80) || "I love you. — "+(App.ctx().name||""))}"/>
+      <button onclick="PRACTICE.ed25519_demo.sign()" class="primary">Sign with my key</button>
+      <button onclick="PRACTICE.ed25519_demo.verify()">Verify current text</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){ PRACTICE.ed25519_demo._sig = null; PRACTICE.ed25519_demo._msg = null; },
+    async sign(){
+      const o=$("#px-out");
+      if(!S.identity?.edPrivJwk){ o.textContent="Set up your identity first."; return; }
+      const msg = $("#px-msg").value;
+      const sig = await edSign(msg, S.identity.edPrivJwk);
+      PRACTICE.ed25519_demo._sig = sig;
+      PRACTICE.ed25519_demo._msg = msg;
+      o.textContent = `Signed:\n"${msg}"\n\nSignature (64 bytes, base64):\n${sig}\n\nNow change the message above and click Verify.`;
+    },
+    async verify(){
+      const o=$("#px-out");
+      if(!PRACTICE.ed25519_demo._sig){ o.textContent="Sign something first."; return; }
+      const current = $("#px-msg").value;
+      const ok = await edVerify(current, PRACTICE.ed25519_demo._sig, S.identity.edPubJwk);
+      o.textContent = `Original signed: "${PRACTICE.ed25519_demo._msg}"\nCurrent text:    "${current}"\n\nVerification: ${ok ? "✅ VALID — text matches what was signed" : "❌ INVALID — text has been altered"}`;
+    }
+  },
+  chacha_concept: {
+    title:"Stream cipher mental model",
+    render(){ return `
+      <p>ChaCha20 isn't in WebCrypto, but the model is simple: XOR with a keystream. Here we generate a fake keystream and XOR your text to show the symmetry.</p>
+      <input id="px-msg" value="hello"/>
+      <button onclick="PRACTICE.chacha_concept.go()" class="primary">Encrypt & decrypt</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out");
+      const msg = te.encode($("#px-msg").value);
+      const stream = crypto.getRandomValues(new Uint8Array(msg.length));
+      const ct = msg.map((b,i)=>b^stream[i]);
+      const pt = ct.map((b,i)=>b^stream[i]);
+      o.textContent = `plaintext  bytes: ${[...msg].map(b=>b.toString(16).padStart(2,"0")).join(" ")}
+keystream  bytes: ${[...stream].map(b=>b.toString(16).padStart(2,"0")).join(" ")}
+ciphertext bytes: ${[...ct].map(b=>b.toString(16).padStart(2,"0")).join(" ")}
+
+decrypted: "${td.decode(pt)}"`;
+    }
+  },
+  poly_concept: {
+    title:"Authentication tags",
+    render(){ return `
+      <p>AES-GCM uses a Poly1305-like construction internally. Encrypt, get a tag. Tamper with the ciphertext, watch verification fail.</p>
+      <input id="px-msg" value="${escape(App.ctx().name||"truth")}"/>
+      <button onclick="PRACTICE.poly_concept.go(false)" class="primary">Encrypt & decrypt clean</button>
+      <button onclick="PRACTICE.poly_concept.go(true)">Encrypt then tamper</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(tamper){
+      const o=$("#px-out");
+      const key = crypto.getRandomValues(new Uint8Array(32));
+      const packet = await aesEncryptString($("#px-msg").value, key);
+      if(tamper){
+        // flip one bit of ciphertext
+        const ct = b64d(packet.ct); ct[0] ^= 1; packet.ct = b64(ct);
+      }
+      try{
+        const out = await aesDecryptString(packet, key);
+        o.textContent = `Decryption SUCCESS: "${out}"\n\n${tamper?"⚠️ Should not happen — your browser is broken!":"✅ Tag verified, plaintext authentic."}`;
+      }catch(e){
+        o.textContent = `❌ Decryption REJECTED — authentication tag did not match.\n\nThis is exactly what we want when ciphertext has been tampered with.`;
+      }
+    }
+  },
+  aesgcm_demo: {
+    title:"Encrypt a memory, see the structure",
+    render(){ return `
+      <input id="px-msg" value="${escape(App.ctx().lastMemoryText.slice(0,80) || "A secret only "+(App.ctx().heirName||"my children")+" should read.")}"/>
+      <input id="px-pw" type="text" placeholder="passphrase" value="family-only"/>
+      <button onclick="PRACTICE.aesgcm_demo.enc()" class="primary">Encrypt</button>
+      <button onclick="PRACTICE.aesgcm_demo.dec()">Decrypt</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){ PRACTICE.aesgcm_demo._packet=null; PRACTICE.aesgcm_demo._salt=null; },
+    async enc(){
+      const o=$("#px-out");
+      const pw=$("#px-pw").value, msg=$("#px-msg").value;
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const key = await pbkdf2(pw, salt, 100000);
+      const packet = await aesEncryptString(msg, key);
+      PRACTICE.aesgcm_demo._packet = packet;
+      PRACTICE.aesgcm_demo._salt = salt;
+      o.textContent = `salt (16 B):  ${buf2hex(salt)}
+iv   (12 B):  ${buf2hex(b64d(packet.iv))}
+ciphertext + tag (base64):
+${packet.ct}`;
+    },
+    async dec(){
+      const o=$("#px-out");
+      if(!PRACTICE.aesgcm_demo._packet){ o.textContent="Encrypt first."; return; }
+      const key = await pbkdf2($("#px-pw").value, PRACTICE.aesgcm_demo._salt, 100000);
+      try{
+        const pt = await aesDecryptString(PRACTICE.aesgcm_demo._packet, key);
+        o.textContent = `✅ Decrypted: "${pt}"`;
+      }catch{ o.textContent = `❌ Wrong passphrase or tampered ciphertext.`; }
+    }
+  },
+  webauthn_demo: {
+    title:"Create a real passkey on this device",
+    render(){ return `
+      <p>This will prompt your device's biometric (Face ID, Touch ID, Windows Hello, security key) to create a real WebAuthn credential. Stays on your device only.</p>
+      <button onclick="PRACTICE.webauthn_demo.go()" class="primary">Create passkey now</button>
+      <div class="visual" id="px-out">…</div>
+    `;},
+    bind(){},
+    async go(){
+      const o=$("#px-out");
+      if(!window.PublicKeyCredential){ o.textContent="WebAuthn not supported in this browser."; return; }
+      try{
+        const challenge = crypto.getRandomValues(new Uint8Array(32));
+        const userId = crypto.getRandomValues(new Uint8Array(16));
+        const cred = await navigator.credentials.create({
+          publicKey:{
+            challenge,
+            rp:{ name:"Sovereign Memory" },
+            user:{ id:userId, name:S.identity?.handle||"user", displayName:S.identity?.name||"You" },
+            pubKeyCredParams:[{type:"public-key", alg:-8},{type:"public-key", alg:-7}],
+            authenticatorSelection:{ userVerification:"preferred" },
+            timeout:60000,
+            attestation:"none",
+          }
+        });
+        o.textContent = `✅ Passkey created.\nCredential ID: ${cred.id.slice(0,40)}…\nType: ${cred.type}\n\nYour biometric never left your device. Only the public key would normally be sent to a server.`;
+      }catch(e){
+        o.textContent = `Cancelled or failed: ${e.message}`;
+      }
+    }
+  },
+  mlkem_concept: {
+    title:"ML-KEM — when browsers ship it",
+    render(){ return `
+      <p>WebCrypto doesn't yet have ML-KEM. Conceptually:</p>
+      <div class="visual">// Future API (estimate):
+const kp = await crypto.subtle.generateKey({name:"ML-KEM-768"}, true, ["encapsulate","decapsulate"]);
+const {ciphertext, sharedSecret} = await crypto.subtle.encapsulate(kp.publicKey);
+const sameSecret = await crypto.subtle.decapsulate(kp.privateKey, ciphertext);</div>
+      <p class="muted">When this lands, this vault should re-encrypt long-term secrets in a hybrid mode (X25519 + ML-KEM). The migration path is part of the legacy you leave.</p>
+    `;},
+    bind(){}
+  },
+  mldsa_concept: {
+    title:"ML-DSA — quantum-safe signatures (preview)",
+    render(){ return `
+      <p>When browsers ship ML-DSA, your memories can be dual-signed: Ed25519 for today, ML-DSA for the next century.</p>
+      <div class="visual">// Conceptual:
+const kp = await crypto.subtle.generateKey({name:"ML-DSA-65"}, true, ["sign","verify"]);
+const sig = await crypto.subtle.sign({name:"ML-DSA-65"}, kp.privateKey, message);
+// signature ~2.4 KB — larger but quantum-proof</div>
+    `;},
+    bind(){}
+  },
+  falcon_concept: {
+    title:"Falcon — compact quantum signatures",
+    render(){ return `
+      <p>Falcon's smaller signatures (~666 bytes) make it attractive for embedded devices, blockchains, and constrained certificates.</p>
+      <p>The <b>Falcon tree</b> structure inside its key generation mirrors a family tree — root key at top, leaves at bottom — making it conceptually elegant for generational signing schemes.</p>
+    `;},
+    bind(){}
+  },
+  hawk_concept: {
+    title:"Hawk — the next iteration",
+    render(){ return `
+      <p>Hawk is research-stage. Watch the standardization tracks at IETF and NIST. When it stabilizes, smaller and safer lattice signatures arrive.</p>
+    `;},
+    bind(){}
+  },
+  merkle_demo: {
+    title:"Compute your vault's Merkle root — right now",
+    render(){
+      if(S.memories.length===0) return `<p class="muted">Seal at least one memory first.</p>`;
+      return `
+        <p>Your vault contains <b>${S.memories.length}</b> sealed memories. Each has its own SHA-256. Together they fold into one root hash — change any memory, and the root changes.</p>
+        <button onclick="PRACTICE.merkle_demo.go()" class="primary">Compute Merkle root</button>
+        <div class="visual" id="px-out">…</div>
+      `;
+    },
+    bind(){},
+    async go(){
+      const o=$("#px-out");
+      const hashes = S.memories.map(m=>m.sha256);
+      const root = await merkleRoot(hashes);
+      o.textContent = `Leaves: ${hashes.length}\n\n${hashes.map((h,i)=>`  leaf ${i+1}: ${h.slice(0,32)}…`).join("\n")}\n\nROOT:\n${root}\n\nWrite this root down. Anywhere. Stone, paper, family bible. As long as the root matches, the vault is intact.`;
+    }
+  },
+  x509_concept: {
+    title:"Your self-signed identity (concept)",
+    render(){
+      const ctx = App.ctx();
+      return `
+        <p>If you were to issue yourself an X.509 certificate today, it would look like this:</p>
+        <div class="visual">CERTIFICATE
+  Version:    3
+  Serial:     ${Math.floor(Math.random()*1e12).toString(16)}
+  Subject:    CN=${ctx.name||"You"}, O=Sovereign Memory
+  Issuer:     CN=${ctx.name||"You"}  (self-signed)
+  Not Before: ${new Date().toISOString().slice(0,10)}
+  Not After:  ${new Date(Date.now()+1000*60*60*24*365*100).toISOString().slice(0,10)}
+  Public Key: Ed25519
+  Pub OID:    1.3.101.112  (RFC 8410)
+  Fingerprint: ${ctx.userPubFingerprint || "—"}
+  Signature: Ed25519(self)</div>
+        <p class="muted">In the future you could extend this to sign your descendants' certificates — a verifiable family lineage of public keys.</p>
+      `;
+    },
+    bind(){}
+  },
+};
+
+/* ============================================================
+   APP — UI and behavior
+   ============================================================ */
+const App = {
+
+  ctx(){
+    const id = S.identity;
+    const last = S.memories[S.memories.length-1];
+    return {
+      name: id?.name || "",
+      handle: id?.handle || "",
+      memCount: S.memories.length,
+      lastMemoryText: last?.text || "",
+      heirName: S.lineage[0]?.name || "",
+      userPubFingerprint: id?.fingerprint || "",
+      merkleRoot: S._cachedRoot || null,
+    };
+  },
+
+  async init(){
+    this.applyTheme(S.prefs.theme || "midnight");
+    this.applyFont(S.prefs.font || "system");
+    this.renderAll();
+    this.bindGlobal();
+    if(!S.identity) this.openSetup();
+    this.refreshStreak();
+    // Recompute merkle root in background
+    if(S.memories.length){
+      S._cachedRoot = await merkleRoot(S.memories.map(m=>m.sha256));
+    }
+  },
+
+  bindGlobal(){
+    $("#photoInput").addEventListener("change", e=>this.onPhotoChosen(e));
+    $("#importFile").addEventListener("change", e=>this.importVault(e));
+    document.addEventListener("keydown", e=>{
+      if(e.key==="Escape") this.closeModal();
+      if((e.ctrlKey||e.metaKey) && e.key==="Enter") this.sealMemory();
+    });
+  },
+
+  /* ---------- THEME ---------- */
+  applyTheme(name){
+    const t = THEMES[name]; if(!t) return;
+    const r = document.documentElement.style;
+    r.setProperty("--bg-0",t.bg0); r.setProperty("--bg-1",t.bg1); r.setProperty("--bg-2",t.bg2);
+    r.setProperty("--accent",t.accent); r.setProperty("--accent-2",t.accent2);
+    r.setProperty("--text",t.text); r.setProperty("--text-dim",t.textDim);
+    S.prefs.theme = name; save();
+  },
+  applyFont(name){
+    document.documentElement.style.setProperty("--font", FONTS[name] || FONTS.system);
+    S.prefs.font = name; save();
+  },
+
+  openThemes(){
+    const swatches = Object.entries(THEMES).map(([k,t])=>`
+      <div style="text-align:center">
+        <div class="theme-swatch ${S.prefs.theme===k?"active":""}"
+             style="background:linear-gradient(135deg,${t.bg0},${t.bg1});box-shadow:inset 0 0 0 3px ${t.accent}"
+             onclick="App.applyTheme('${k}');App.openThemes()"></div>
+        <div class="muted" style="margin-top:6px;font-size:.78rem">${t.name}</div>
+      </div>
+    `).join("");
+    const fonts = Object.keys(FONTS).map(f=>`
+      <button class="${S.prefs.font===f?"primary":""}" onclick="App.applyFont('${f}');App.openThemes()">${f}</button>
+    `).join(" ");
+    this.modal(`
+      <h2>🎨 Theme & Font</h2>
+      <p class="muted">All themes are dark. No external fonts. Local everything.</p>
+      <div class="row" style="gap:12px;flex-wrap:wrap;justify-content:center;margin:18px 0">${swatches}</div>
+      <hr class="sep"/>
+      <div class="step-label">Font</div>
+      <div class="row" style="gap:8px">${fonts}</div>
+    `);
+  },
+
+  /* ---------- IDENTITY SETUP ---------- */
+  openSetup(){
+    const i = S.identity || {};
+    this.modal(`
+      <h2>👤 Sovereign Identity</h2>
+      <p class="muted">Your name and your cryptographic identity. Stored locally. Never sent anywhere. This is the seal that signs every memory.</p>
+      <div class="grid grid-2" style="margin-top:14px">
+        <div>
+          <div class="step-label">Name (or handle)</div>
+          <input id="id-name" placeholder="YourName" value="${escape(i.name||"")}"/>
+        </div>
+        <div>
+          <div class="step-label">Short handle</div>
+          <input id="id-handle" placeholder="ghost" value="${escape(i.handle||"")}"/>
+        </div>
+        <div>
+          <div class="step-label">Birth year (optional)</div>
+          <input id="id-year" type="number" min="1900" max="2100" value="${i.birthYear||""}"/>
+        </div>
+      </div>
+      ${i.fingerprint ? `
+        <div class="callout" style="margin-top:16px">
+          <b>Your existing identity fingerprint:</b>
+          <div class="kv">${i.fingerprint}</div>
+          <p class="muted" style="margin:8px 0 0">Regenerating will replace all your keys. Old memories will keep their original signatures.</p>
+        </div>` : ""}
+      <div class="row" style="justify-content:flex-end;gap:8px;margin-top:18px">
+        <button onclick="App.closeModal()">Cancel</button>
+        <button class="primary" onclick="App.saveIdentity()">${i.edPubJwk ? "Save (keep keys)" : "Create identity"}</button>
+        ${i.edPubJwk ? `<button class="danger" onclick="App.regenIdentity()">Regenerate keys</button>` : ""}
+      </div>
+    `);
+  },
+  async saveIdentity(){
+    const name = $("#id-name").value.trim();
+    const handle = $("#id-handle").value.trim();
+    const year = +$("#id-year").value || null;
+    if(!name){ this.toast("Pick a name first."); return; }
+    if(!S.identity?.edPubJwk){
+      this.toast("Generating Ed25519 + X25519 keys…");
+      const caps = await cryptoCapabilities();
+      try{
+        const ed = caps.ed25519 ? await generateEd25519() : null;
+        const x  = caps.x25519  ? await generateX25519()  : null;
+        const fp = ed ? buf2hex(await sha256(JSON.stringify(ed.pub))).slice(0,40) : "—";
+        S.identity = {
+          name, handle, birthYear:year,
+          edPubJwk: ed?.pub, edPrivJwk: ed?.priv,
+          xPubJwk:  x?.pub,  xPrivJwk:  x?.priv,
+          fingerprint: fp, createdAt: new Date().toISOString(),
+        };
+      }catch(e){
+        S.identity = { name, handle, birthYear:year, fingerprint:"unsupported", createdAt:new Date().toISOString() };
+      }
+    }else{
+      S.identity.name = name; S.identity.handle = handle; S.identity.birthYear = year;
+    }
+    save();
+    this.closeModal();
+    this.renderAll();
+    this.toast("✅ Identity sealed.");
+  },
+  async regenIdentity(){
+    if(!confirm("Replace your identity keys? Old signatures remain valid — but new memories will sign with new keys.")) return;
+    delete S.identity.edPubJwk; delete S.identity.edPrivJwk;
+    delete S.identity.xPubJwk; delete S.identity.xPrivJwk;
+    delete S.identity.fingerprint;
+    await this.saveIdentity();
+  },
+
+  /* ---------- LINEAGE ---------- */
+  openLineage(){
+    const list = S.lineage.length
+      ? S.lineage.map(p=>`
+        <div class="heir">
+          <div class="av">${(p.name||"?")[0].toUpperCase()}</div>
+          <div class="info">
+            <div class="nm">${escape(p.name)}</div>
+            <div class="rel">${escape(p.relation||"")} ${p.birthYear?"· "+p.birthYear:""}</div>
+          </div>
+          <button class="danger" onclick="App.removeHeir(${JSON.stringify(p.id)})">Remove</button>
+        </div>
+      `).join("")
+      : `<div class="empty"><span class="ic">👪</span>No lineage yet. Add a child, a sibling, a friend — anyone you want to leave memories for.</div>`;
+    this.modal(`
+      <h2>👪 Lineage & Heirs</h2>
+      <p class="muted">Who will inherit these memories? Their names show up inside lessons — making the cryptography personal forever.</p>
+      <div style="margin:16px 0;display:grid;gap:8px">${list}</div>
+      <hr class="sep"/>
+      <div class="step-label">Add someone</div>
+      <div class="grid grid-3">
+        <input id="ln-name" placeholder="Name"/>
+        <input id="ln-rel" placeholder="Relation (daughter, son, friend…)"/>
+        <input id="ln-year" type="number" placeholder="Birth year"/>
+      </div>
+      <textarea id="ln-note" placeholder="A note about them — what makes them them." style="margin-top:8px;min-height:80px"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:14px">
+        <button class="primary" onclick="App.addHeir()">Add to lineage</button>
+      </div>
+    `);
+  },
+  addHeir(){
+    const name = $("#ln-name").value.trim(); if(!name){ this.toast("Name required"); return; }
+    S.lineage.push({
+      id: crypto.randomUUID(),
+      name, relation: $("#ln-rel").value.trim(),
+      birthYear: +$("#ln-year").value||null,
+      note: $("#ln-note").value.trim(),
+    });
+    save(); this.openLineage(); this.renderAll();
+    this.toast(`✅ ${name} added to lineage.`);
+  },
+  removeHeir(id){
+    if(!confirm("Remove from lineage?")) return;
+    S.lineage = S.lineage.filter(p=>p.id!==id);
+    save(); this.openLineage(); this.renderAll();
+  },
+
+  /* ---------- TAGS ---------- */
+  renderTags(){
+    const baseline = ["family","love","lesson","gratitude","work","loss","joy","truth"];
+    const memTags = new Set(S.memories.flatMap(m=>m.tags||[]));
+    const all = [...new Set([...baseline, ...memTags])];
+    $("#tagsRow").innerHTML = all.map(t=>`<span class="tag-chip" data-t="${escape(t)}" onclick="App.toggleTag('${escape(t)}',this)">${escape(t)}</span>`).join("");
+  },
+  toggleTag(t, el){ el.classList.toggle("active"); },
+
+  /* ---------- PHOTOS ---------- */
+  _pendingPhotos: [],
+  addPhoto(){ $("#photoInput").click(); },
+  async onPhotoChosen(e){
+    const files = [...e.target.files];
+    for(const f of files){
+      const dataUrl = await new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.readAsDataURL(f); });
+      this._pendingPhotos.push(dataUrl);
+    }
+    e.target.value = "";
+    this.renderPhotoStrip();
+  },
+  renderPhotoStrip(){
+    $("#photoStrip").innerHTML = this._pendingPhotos.map((d,i)=>`
+      <div class="photo-thumb" style="background-image:url(${d})">
+        <button onclick="App.removePending(${i})" title="remove">×</button>
+      </div>
+    `).join("");
+  },
+  removePending(i){ this._pendingPhotos.splice(i,1); this.renderPhotoStrip(); },
+
+  /* ---------- VOICE ---------- */
+  recordVoice(){
+    if(!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)){
+      this.toast("Voice recognition not supported in this browser.");
+      return;
+    }
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const r = new SR();
+    r.continuous = true; r.interimResults = true; r.lang = navigator.language || "en-US";
+    const ta = $("#memoryText");
+    const start = ta.value ? ta.value+" " : "";
+    let last = "";
+    const btn = $("#voiceBtn"); btn.textContent="⏹️ Stop"; btn.classList.add("primary");
+    r.onresult = e=>{
+      let interim="", final="";
+      for(const res of e.results){ (res.isFinal?final+=res[0].transcript+" ":interim+=res[0].transcript); }
+      ta.value = start + final + interim;
+      last = final;
+    };
+    r.onend = ()=>{ btn.textContent="🎙️ Voice"; btn.classList.remove("primary"); };
+    r.onerror = ()=>{ btn.textContent="🎙️ Voice"; btn.classList.remove("primary"); };
+    r.start();
+    btn.onclick = ()=>{ r.stop(); btn.onclick = ()=>this.recordVoice(); };
+  },
+  speakMemory(){
+    const text = $("#memoryText").value.trim();
+    if(!text){ this.toast("Write something first."); return; }
+    if(!window.speechSynthesis){ this.toast("Speech synthesis not supported."); return; }
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.95; u.pitch = 1.0;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  },
+
+  /* ---------- SEAL MEMORY ---------- */
+  async sealMemory(){
+    const text = $("#memoryText").value.trim();
+    if(!text){ this.toast("Write something first."); return; }
+    if(!S.identity){ this.toast("Set up your identity first."); this.openSetup(); return; }
+    const tags = [...document.querySelectorAll(".tag-chip.active")].map(e=>e.dataset.t);
+    const sha256Hex = buf2hex(await sha256(text));
+    const sha512Hex = buf2hex(await sha512(text));
+    let signature = null;
+    if(S.identity.edPrivJwk){
+      try{ signature = await edSign(text, S.identity.edPrivJwk); }catch{}
+    }
+    const memory = {
+      id: crypto.randomUUID(),
+      text,
+      photos: this._pendingPhotos.slice(),
+      created: new Date().toISOString(),
+      sha256: sha256Hex,
+      sha512: sha512Hex,
+      signature,
+      signerFp: S.identity.fingerprint || null,
+      tags,
+    };
+    S.memories.push(memory);
+    // streak
+    const today = new Date().toDateString();
+    const lastDay = S.stats.lastSeal ? new Date(S.stats.lastSeal).toDateString() : null;
+    const yest = new Date(Date.now()-86400000).toDateString();
+    if(lastDay===today){} else if(lastDay===yest) S.stats.streak++; else S.stats.streak=1;
+    S.stats.lastSeal = new Date().toISOString();
+    S._cachedRoot = await merkleRoot(S.memories.map(m=>m.sha256));
+    save();
+    this._pendingPhotos = [];
+    $("#memoryText").value = "";
+    $("#photoStrip").innerHTML = "";
+    document.querySelectorAll(".tag-chip.active").forEach(e=>e.classList.remove("active"));
+    this.confetti();
+    this.toast("🔏 Memory cryptographically sealed.");
+    this.renderAll();
+  },
+
+  /* ---------- TIME CAPSULE ---------- */
+  openCapsule(){
+    const heirs = S.lineage.length ? S.lineage.map(h=>`<option value="${escape(h.id)}">${escape(h.name)} (${escape(h.relation||"—")})</option>`).join("") : `<option value="">(add lineage first)</option>`;
+    const list = S.capsules.length ? S.capsules.map(c=>{
+      const due = new Date(c.unlockDate); const now = new Date();
+      const unlocked = now>=due;
+      const recipient = S.lineage.find(h=>h.id===c.recipient)?.name || "—";
+      return `
+        <div class="capsule ${unlocked?"unlocked":""}">
+          <div class="clock">${unlocked?"🔓":"⏳"}</div>
+          <div style="flex:1;min-width:0">
+            <div><b>For ${escape(recipient)}</b> · ${unlocked?"<span style='color:var(--good)'>unlocked</span>":"unlocks "+due.toLocaleDateString()}</div>
+            <div class="muted">${escape(c.hint||"")}</div>
+          </div>
+          ${unlocked
+            ? `<button class="primary" onclick="App.openCapsuleRead('${c.id}')">Open</button>`
+            : `<button onclick="App.openCapsuleRead('${c.id}')">Try open</button>`}
+        </div>
+      `;
+    }).join("") : `<div class="empty"><span class="ic">⏳</span>No capsules sealed yet.</div>`;
+    this.modal(`
+      <h2>⏳ Time Capsule</h2>
+      <p class="muted">Encrypt a message today, unlockable on any future date. The message is sealed with AES-GCM using a key derived from a passphrase you set — keep that passphrase somewhere your descendants will find it.</p>
+      <div class="step-label">For</div>
+      <select id="cap-rec">${heirs}</select>
+      <div class="step-label" style="margin-top:10px">Unlock date</div>
+      <input id="cap-date" type="date" value="${new Date(Date.now()+86400000*365).toISOString().slice(0,10)}"/>
+      <div class="step-label" style="margin-top:10px">Hint (visible before unlock)</div>
+      <input id="cap-hint" placeholder="e.g. 'For your 21st birthday'"/>
+      <div class="step-label" style="margin-top:10px">Passphrase (record this carefully)</div>
+      <input id="cap-pw" placeholder="A phrase only you & them will know"/>
+      <div class="step-label" style="margin-top:10px">Message</div>
+      <textarea id="cap-msg" placeholder="Words for the future…" style="min-height:120px"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:12px">
+        <button class="primary" onclick="App.sealCapsule()">🔏 Seal capsule</button>
+      </div>
+      <hr class="sep"/>
+      <div class="step-label">Existing capsules</div>
+      <div style="display:grid;gap:8px;margin-top:8px">${list}</div>
+    `);
+  },
+  async sealCapsule(){
+    const rec = $("#cap-rec").value;
+    const date = $("#cap-date").value;
+    const hint = $("#cap-hint").value.trim();
+    const pw = $("#cap-pw").value;
+    const msg = $("#cap-msg").value.trim();
+    if(!pw || !msg || !date){ this.toast("Date, passphrase, and message are required."); return; }
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const key = await pbkdf2(pw, salt, 200000);
+    const packet = await aesEncryptString(msg, key);
+    S.capsules.push({
+      id: crypto.randomUUID(),
+      recipient: rec, unlockDate: date, hint,
+      ciphertext: packet.ct, iv: packet.iv, salt: b64(salt),
+      created: new Date().toISOString(),
+    });
+    save(); this.toast("⏳ Capsule sealed."); this.openCapsule(); this.renderAll();
+  },
+  async openCapsuleRead(id){
+    const c = S.capsules.find(x=>x.id===id); if(!c) return;
+    const due = new Date(c.unlockDate), now = new Date();
+    const unlocked = now>=due;
+    const pw = prompt(`${unlocked?"Unlocked.":"⚠️ Date hasn't arrived yet ("+due.toLocaleDateString()+")."}\n\nEnter passphrase to open:`);
+    if(pw===null) return;
+    try{
+      const key = await pbkdf2(pw, b64d(c.salt), 200000);
+      const text = await aesDecryptString({iv:c.iv,ct:c.ciphertext}, key);
+      this.modal(`<h2>📜 Capsule opened</h2><p class="muted">${due.toLocaleDateString()} · ${escape(c.hint||"")}</p><div class="visual" style="font-family:var(--font);color:var(--text);white-space:pre-wrap">${escape(text)}</div>`);
+    }catch{
+      this.toast("❌ Wrong passphrase.");
+    }
+  },
+
+  /* ---------- ACADEMY ---------- */
+  renderTopics(){
+    const grid = $("#topicGrid");
+    grid.innerHTML = TOPICS.map(t=>{
+      const unlocked = S.memories.length >= t.unlockAt;
+      const p = S.progress[t.id] || {};
+      const mastered = !!(p.story && p.why && p.how && p.practice && (p.mastery||0)>=3 && p.legacy);
+      const dots = ["story","why","how","practice","legacy"].map(k=>`<div class="dot ${p[k]?"on":""}"></div>`).join("");
+      return `
+        <div class="topic ${unlocked?"":"locked"} ${mastered?"mastered":""}"
+             onclick="${unlocked?`App.openTopic('${t.id}')`:""}">
+          <div class="topic-emoji">${t.emoji}</div>
+          <h3>${t.name}</h3>
+          <div class="muted" style="font-size:.85rem;min-height:38px">${unlocked ? t.one : `Unlocks at ${t.unlockAt} sealed memor${t.unlockAt===1?"y":"ies"}`}</div>
+          <div class="meta">${t.family} ${mastered?"· ⭐ mastered":""}</div>
+          <div class="mastery-dots">${dots}</div>
+        </div>
+      `;
+    }).join("");
+    const done = Object.values(S.progress).filter(p=>p.story&&p.why&&p.how&&p.practice&&p.legacy&&(p.mastery||0)>=3).length;
+    $("#progressText").textContent = `${done} / ${TOPICS.length} topics mastered`;
+    $("#progressFill").style.width = (done/TOPICS.length*100)+"%";
+    const masteryLevels = ["Apprentice","Initiate","Practitioner","Adept","Master","Sovereign"];
+    $("#masteryPill").textContent = masteryLevels[Math.min(masteryLevels.length-1, Math.floor(done/3))];
+  },
+
+  _currentTopic: null,
+  _currentRung: 0,
+  RUNGS: ["story","why","how","practice","mastery","legacy"],
+  RUNG_LABELS: {story:"Story",why:"Why",how:"How",practice:"Practice",mastery:"Mastery",legacy:"Legacy"},
+
+  openTopic(id){
+    const t = TOPICS.find(x=>x.id===id); if(!t) return;
+    this._currentTopic = t;
+    this._currentRung = 0;
+    this.renderRung();
+  },
+
+  renderRung(){
+    const t = this._currentTopic;
+    const rung = this.RUNGS[this._currentRung];
+    const ctx = this.ctxForTopic(t);
+    const p = S.progress[t.id] = S.progress[t.id] || {};
+    const stepperHtml = this.RUNGS.map((r,i)=>{
+      const status = i<this._currentRung ? "done" : (i===this._currentRung?"active":"");
+      return `<div class="step ${status}" title="${this.RUNG_LABELS[r]}"></div>`;
+    }).join("");
+    let body = "";
+    if(rung==="practice"){
+      const code = t.rungs.practice?.run;
+      const px = PRACTICE[code];
+      if(px){
+        const ctxName = App.ctx().name;
+        body = `<div class="lesson-body">
+          <p class="muted">${ctxName?`${ctxName}, this practice uses your real data.`:`Hands-on with real WebCrypto.`}</p>
+          <h3>${px.title}</h3>
+          ${px.render()}
+        </div>`;
+      }
+    } else if(rung==="mastery"){
+      const qs = t.rungs.mastery.questions;
+      body = `<div class="lesson-body">
+        <p class="muted">Answer to lock in mastery. Wrong answers reset — get them all right to advance.</p>
+        ${qs.map((q,qi)=>`
+          <div class="quiz-q" data-correct="${q.a}">
+            <div class="q">${qi+1}. ${escape(q.q)}</div>
+            ${q.opts.map((o,oi)=>`<button class="quiz-opt" onclick="App.answer(this, ${qi}, ${oi})">${escape(o)}</button>`).join("")}
+          </div>
+        `).join("")}
+        <div id="quiz-result" class="muted" style="margin-top:10px"></div>
+      </div>`;
+    } else {
+      const fn = t.rungs[rung];
+      body = `<div class="lesson-body">${fn(ctx)}</div>`;
+    }
+
+    const isLast = this._currentRung === this.RUNGS.length-1;
+    const isFirst = this._currentRung === 0;
+    this.modal(`
+      <div class="step-label">${t.family} · ${t.name}</div>
+      <h2>${t.emoji} ${this.RUNG_LABELS[rung]}</h2>
+      <div class="stepper">${stepperHtml}</div>
+      ${body}
+      <div class="row" style="justify-content:space-between;margin-top:20px;gap:6px">
+        <button onclick="App.prevRung()" ${isFirst?"disabled":""}>← Back</button>
+        <div class="muted" style="font-size:.78rem">Rung ${this._currentRung+1} of ${this.RUNGS.length}</div>
+        <button class="primary" onclick="App.nextRung()">${isLast?"Finish ⭐":"Next →"}</button>
+      </div>
+    `);
+    // Bind practice
+    if(rung==="practice"){
+      const code = t.rungs.practice?.run;
+      const px = PRACTICE[code];
+      if(px?.bind) px.bind();
+    }
+    // Mark non-practice/non-mastery rungs as visited
+    if(rung!=="mastery"){
+      p[rung] = true; save();
+    }
+  },
+
+  ctxForTopic(t){
+    const c = this.ctx();
+    // Add per-topic enriched values
+    return {
+      ...c,
+      nameHashShort: c.name ? "(will compute)" : "(set identity first)",
+    };
+  },
+
+  nextRung(){
+    const t = this._currentTopic;
+    const rung = this.RUNGS[this._currentRung];
+    const p = S.progress[t.id] = S.progress[t.id] || {};
+    if(rung==="mastery"){
+      const total = t.rungs.mastery.questions.length;
+      if((p.mastery||0) < total){
+        $("#quiz-result").innerHTML = `Answer all ${total} questions correctly to advance.`;
+        return;
+      }
+    }
+    if(this._currentRung >= this.RUNGS.length-1){
+      this.closeModal();
+      this.toast(`⭐ ${t.name} mastered!`);
+      this.confetti();
+      this.renderAll();
+      return;
+    }
+    this._currentRung++;
+    this.renderRung();
+  },
+  prevRung(){
+    if(this._currentRung===0) return;
+    this._currentRung--; this.renderRung();
+  },
+
+  answer(btn, qi, oi){
+    const t = this._currentTopic;
+    const q = t.rungs.mastery.questions[qi];
+    const correct = q.a;
+    const parent = btn.parentElement;
+    [...parent.querySelectorAll(".quiz-opt")].forEach(b=>b.disabled=true);
+    if(oi===correct){
+      btn.classList.add("correct");
+      // count correct
+      const p = S.progress[t.id] = S.progress[t.id] || {};
+      p.mastery = (p.mastery||0)+1; save();
+      this.renderTopics();
+    }else{
+      btn.classList.add("wrong");   parent.querySelectorAll(".quiz-opt")[correct].classList.add("correct");
+      // Allow retry
+      setTimeout(()=>{
+        [...parent.querySelectorAll(".quiz-opt")].forEach(b=>{ b.disabled=false; b.classList.remove("wrong","correct"); });
+      }, 1400);
+      return;
+    }
+    const total = t.rungs.mastery.questions.length;
+    const got = (S.progress[t.id].mastery||0);
+    if(got>=total){
+      $("#quiz-result").innerHTML = `✅ All ${total} correct. Press Next →`;
+    }else{
+      $("#quiz-result").innerHTML = `${got} / ${total} correct.`;
+    }
+  },
+
+  /* ---------- MEMORY WALL ---------- */
+  renderMemories(){
+    const wall = $("#memoryWall");
+    if(S.memories.length===0){
+      wall.innerHTML = `<div class="empty"><span class="ic">🧠</span>No memories yet. Write your first above.</div>`;
+      $("#vaultCount").textContent = `0 sealed`;
+      return;
+    }
+    $("#vaultCount").textContent = `${S.memories.length} sealed`;
+    wall.innerHTML = S.memories.slice().reverse().map(m=>{
+      const photos = (m.photos||[]).map(d=>`<img src="${d}" alt=""/>`).join("");
+      const tags = (m.tags||[]).map(t=>`<span class="tag-chip">${escape(t)}</span>`).join("");
+      return `
+        <div class="memory">
+          <time>${new Date(m.created).toLocaleString()}</time>
+          ${photos?`<div class="photos">${photos}</div>`:""}
+          <div class="body">${escape(m.text)}</div>
+          <div class="tags">${tags}</div>
+          <div class="hashbox">SHA-256 · ${m.sha256.slice(0,48)}…</div>
+          <div class="sigline">
+            ${m.signature ? `<span class="ok">✍️ signed</span> · <span class="muted">fp ${escape(m.signerFp||"")}</span> · <button class="ghost" onclick="App.verifyMemory('${m.id}', this)" style="padding:4px 8px;font-size:.78rem">verify</button>` : `<span class="muted">unsigned</span>`}
+            <button class="ghost danger" onclick="App.deleteMemory('${m.id}')" style="margin-left:auto;padding:4px 8px;font-size:.78rem">🗑️</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  },
+  async verifyMemory(id, btn){
+    const m = S.memories.find(x=>x.id===id);
+    if(!m?.signature){ this.toast("No signature."); return; }
+    const pub = S.identity?.edPubJwk;
+    if(!pub){ this.toast("No public key available."); return; }
+    const ok = await edVerify(m.text, m.signature, pub);
+    btn.textContent = ok ? "✅ verified" : "❌ invalid";
+    btn.style.color = ok ? "var(--good)" : "var(--bad)";
+  },
+  async deleteMemory(id){
+    if(!confirm("Delete this memory? This cannot be undone.")) return;
+    S.memories = S.memories.filter(m=>m.id!==id);
+    S._cachedRoot = await merkleRoot(S.memories.map(m=>m.sha256));
+    save(); this.renderAll();
+  },
+
+  /* ---------- VAULT EXPORT / IMPORT ---------- */
+  async exportVault(){
+    const root = await merkleRoot(S.memories.map(m=>m.sha256));
+    const payload = {
+      app:"Sovereign Memory",
+      version: VERSION,
+      exportedAt: new Date().toISOString(),
+      merkleRoot: root,
+      identity: S.identity,   // includes private keys — this is YOUR vault
+      lineage: S.lineage,
+      memories: S.memories,
+      capsules: S.capsules,
+      progress: S.progress,
+      prefs: S.prefs,
+      stats: S.stats,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    const stamp = new Date().toISOString().slice(0,10);
+    a.download = `sovereign-memory-${(S.identity?.handle||"vault")}-${stamp}.json`;
+    a.click(); URL.revokeObjectURL(a.href);
+    this.toast(`📦 Vault exported · Merkle root ${root?.slice(0,12)}…`);
+  },
+  async importVault(e){
+    const f = e.target.files[0]; if(!f) return;
+    const text = await f.text();
+    let p; try{ p = JSON.parse(text); }catch{ this.toast("Not valid JSON."); return; }
+    if(!p.app?.includes("Sovereign Memory")){
+      if(!confirm("This doesn't look like a Sovereign Memory vault. Import anyway?")) return;
+    }
+    if(!confirm(`Import vault with ${p.memories?.length||0} memories?\n\nThis REPLACES your current data. Export your current vault first if you want to keep it.`)) return;
+    S = Object.assign(structuredClone(defaults), p);
+    save();
+    e.target.value = "";
+    S._cachedRoot = await merkleRoot(S.memories.map(m=>m.sha256));
+    this.renderAll();
+    this.toast(`✅ Imported ${S.memories.length} memories.`);
+  },
+
+  /* ---------- CAPSULES LIST ---------- */
+  renderCapsules(){
+    const el = $("#capsuleList");
+    if(S.capsules.length===0){
+      el.innerHTML = `<div class="empty"><span class="ic">⏳</span>No capsules yet. Press <b>Time Capsule</b> above to seal a message for a future date.</div>`;
+      return;
+    }
+    el.innerHTML = S.capsules.slice().sort((a,b)=>new Date(a.unlockDate)-new Date(b.unlockDate)).map(c=>{
+      const due = new Date(c.unlockDate);
+      const unlocked = new Date()>=due;
+      const recipient = S.lineage.find(h=>h.id===c.recipient)?.name || "—";
+      return `
+        <div class="capsule ${unlocked?"unlocked":""}" style="margin-bottom:10px">
+          <div class="clock">${unlocked?"🔓":"⏳"}</div>
+          <div style="flex:1;min-width:0">
+            <div><b>For ${escape(recipient)}</b> · ${unlocked?"<span style='color:var(--good)'>unlocked</span>":"unlocks "+due.toLocaleDateString()}</div>
+            <div class="muted">${escape(c.hint||"")}</div>
+          </div>
+          <button onclick="App.openCapsuleRead('${c.id}')">${unlocked?"Open":"Try"}</button>
+        </div>
+      `;
+    }).join("");
+  },
+
+  /* ---------- STREAK / NAME ---------- */
+  refreshStreak(){
+    const today = new Date().toDateString();
+    const last = S.stats.lastSeal ? new Date(S.stats.lastSeal).toDateString() : null;
+    const yest = new Date(Date.now()-86400000).toDateString();
+    if(last && last!==today && last!==yest) S.stats.streak = 0;
+    save();
+    $("#streakPill").textContent = `streak ${S.stats.streak||0}`;
+    $("#meName").textContent = S.identity?.name || "Identity";
+  },
+  /* ---------- MODAL HELPERS ---------- */
+  modal(html){
+    $("#modalBody").innerHTML = html;
+    $("#modal").classList.add("open");
+  },
+  closeModal(){ $("#modal").classList.remove("open"); },
+  toast(msg){
+    const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+    clearTimeout(this._tt); this._tt = setTimeout(()=>t.classList.remove("show"), 2600);
+  },
+  confetti(){
+    const emojis = ["✨","🎉","🧠","🔐","🌲","⚡","🦅","⏳","📜"];
+    for(let i=0;i<60;i++){
+      setTimeout(()=>{
+        const c = document.createElement("div");
+        c.className="confetti-piece";
+        c.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+        c.style.left = Math.random()*100+"vw";
+        c.style.top = "-30px";
+        c.style.fontSize = (16+Math.random()*22)+"px";      document.body.appendChild(c);       requestAnimationFrame(()=>{
+          c.style.transform = `translateY(${window.innerHeight+200}px) rotate(${Math.random()*900-450}deg)`;
+          c.style.opacity = "0";
+        });
+        setTimeout(()=>c.remove(), 3800);
+      }, i*18);
+    }
+  },
+
+  renderAll(){
+    this.refreshStreak();
+    this.renderTags();
+    this.renderTopics();
+    this.renderMemories();
+    this.renderCapsules();
+  },
+};
+
+/* ---------- helpers ---------- */
+function $(s){ return document.querySelector(s); }
+function escape(s){ return String(s??"").replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+/* expose for inline handlers */
+window.App = App;
+window.PRACTICE = PRACTICE;
+
+/* boot */
+App.init();
+</script>
+</body>
+</html>

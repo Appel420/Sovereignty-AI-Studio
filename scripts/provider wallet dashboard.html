@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wallet — Model Budget</title>
+<style>
+  :root{
+    --bg-0:#0A0B16;
+    --bg-1:#0F1130;
+    --surface:#13152C;
+    --surface-2:#181B3A;
+    --border:rgba(255,255,255,0.07);
+    --border-hi:rgba(165,180,252,0.25);
+    --text:#EEEFFB;
+    --text-dim:#8A8FB8;
+    --text-faint:#585C82;
+    --indigo:#6366F1;
+    --indigo-light:#A5B4FC;
+    --indigo-deep:#4338CA;
+    --violet:#8B5CF6;
+    --good:#34D399;
+    --warn:#FBBF24;
+
+    --c-anthropic:#C77A56;
+    --c-openai:#22C58B;
+    --c-xai:#9AA3C9;
+    --c-copilot:#8B5CF6;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(99,102,241,0.16), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(139,92,246,0.10), transparent 55%),
+      var(--bg-0);
+    color:var(--text);
+    font-family:-apple-system, "Segoe UI", system-ui, Helvetica, Arial, sans-serif;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  h1,h2,h3,.display{ font-family:-apple-system, "Segoe UI", system-ui, Helvetica, Arial, sans-serif; font-weight:700; }
+  .mono{ font-family:ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace; }
+
+  /* ---------- top bar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:22px 40px;
+    border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:50;
+    background:rgba(10,11,22,0.72);
+    backdrop-filter:blur(14px);
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{
+    width:34px; height:34px; border-radius:10px;
+    background:linear-gradient(135deg, var(--indigo), var(--violet));
+    display:flex; align-items:center; justify-content:center;
+    font-family:-apple-system,'Segoe UI',system-ui,Helvetica,Arial,sans-serif; font-weight:700; font-size:15px; color:white;
+    box-shadow:0 6px 18px rgba(99,102,241,0.35);
+  }
+  .brand-name{ font-weight:600; font-size:15px; letter-spacing:0.2px; }
+  .brand-sub{ font-size:11.5px; color:var(--text-dim); margin-top:1px; }
+
+  .badges{ display:flex; gap:8px; }
+  .badge{
+    display:flex; align-items:center; gap:6px;
+    font-size:11.5px; color:var(--text-dim);
+    border:1px solid var(--border); border-radius:100px;
+    padding:6px 12px;
+    background:rgba(255,255,255,0.02);
+  }
+  .badge .dot{ width:6px; height:6px; border-radius:50%; background:var(--good); box-shadow:0 0 8px var(--good); }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:40px; }
+
+  /* ---------- balance card ---------- */
+  .balance-card{
+    position:relative;
+    border-radius:24px;
+    padding:38px 42px;
+    overflow:hidden;
+    background:
+      linear-gradient(120deg, #4338CA 0%, #6366F1 45%, #8B5CF6 100%);
+    box-shadow:0 30px 60px -20px rgba(79,70,229,0.55);
+    margin-bottom:34px;
+  }
+  .balance-card::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      radial-gradient(500px 260px at 85% -20%, rgba(255,255,255,0.20), transparent 60%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,0.035) 0px, rgba(255,255,255,0.035) 1px, transparent 1px, transparent 46px);
+    pointer-events:none;
+  }
+  .balance-top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    position:relative;
+  }
+  .balance-label{
+    font-size:13px; text-transform:uppercase; letter-spacing:1.4px;
+    color:rgba(255,255,255,0.78); font-weight:600;
+  }
+  .balance-amount{
+    font-family:-apple-system,'Segoe UI',system-ui,Helvetica,Arial,sans-serif; font-weight:800; font-size:56px; line-height:1;
+    margin-top:14px; color:#fff; letter-spacing:-0.5px;
+    display:flex; align-items:baseline; gap:10px;
+  }
+  .balance-amount .unit{ font-size:20px; font-weight:600; color:rgba(255,255,255,0.75); }
+  .balance-sub{
+    margin-top:10px; font-size:13.5px; color:rgba(255,255,255,0.75);
+    display:flex; align-items:center; gap:8px;
+  }
+  .balance-sub b{ color:#fff; font-weight:600; }
+  .vault-chip{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,0.14);
+    border:1px solid rgba(255,255,255,0.25);
+    border-radius:100px; padding:7px 14px 7px 10px;
+    font-size:12px; color:#fff; font-weight:500;
+    backdrop-filter:blur(6px);
+  }
+  .vault-chip .lock{
+    width:16px; height:16px; border-radius:5px;
+    background:rgba(255,255,255,0.22);
+    display:flex; align-items:center; justify-content:center; font-size:10px;
+  }
+
+  .balance-meter{
+    position:relative; margin-top:30px;
+    height:8px; border-radius:100px;
+    background:rgba(255,255,255,0.18);
+    overflow:hidden;
+  }
+  .balance-meter-fill{
+    position:absolute; inset:0; width:0%;
+    border-radius:100px;
+    background:linear-gradient(90deg, #fff, rgba(255,255,255,0.75));
+    transition:width 1.4s cubic-bezier(.16,.84,.44,1);
+  }
+  .balance-meter-labels{
+    display:flex; justify-content:space-between;
+    margin-top:10px; font-size:12px; color:rgba(255,255,255,0.72);
+  }
+
+  /* ---------- section heads ---------- */
+  .section-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin:8px 0 18px;
+  }
+  .section-title{ font-size:17px; font-weight:600; }
+  .section-note{ font-size:12.5px; color:var(--text-faint); }
+
+  /* ---------- provider grid ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:18px;
+    margin-bottom:38px;
+  }
+  @media (max-width:900px){ .grid{ grid-template-columns:repeat(2, 1fr); } }
+  @media (max-width:560px){ .grid{ grid-template-columns:1fr; } }
+
+  .pcard{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:22px 20px 20px;
+    position:relative;
+    transition:transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  }
+  .pcard:hover{
+    transform:translateY(-3px);
+    border-color:var(--border-hi);
+    box-shadow:0 16px 34px -18px rgba(99,102,241,0.5);
+  }
+  .pcard-top{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; }
+  .pname{ font-weight:600; font-size:14.5px; }
+  .pmodel{ font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+  .pswatch{
+    width:10px; height:10px; border-radius:3px; margin-top:5px;
+  }
+
+  .ring-wrap{ position:relative; width:118px; height:118px; margin:6px auto 14px; }
+  .ring-wrap svg{ transform:rotate(-90deg); }
+  .ring-track{ fill:none; stroke:rgba(255,255,255,0.06); stroke-width:9; }
+  .ring-fill{ fill:none; stroke-width:9; stroke-linecap:round; stroke-dasharray:0 999; transition:stroke-dasharray 1.6s cubic-bezier(.16,.84,.44,1); }
+  .ring-center{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .ring-pct{ font-family:-apple-system,'Segoe UI',system-ui,Helvetica,Arial,sans-serif; font-weight:700; font-size:20px; }
+  .ring-pct-label{ font-size:10px; color:var(--text-faint); margin-top:2px; letter-spacing:.4px; }
+
+  .pcard-stats{
+    display:flex; justify-content:space-between;
+    font-size:12px; color:var(--text-dim);
+    border-top:1px solid var(--border);
+    padding-top:12px;
+  }
+  .pcard-stats b{ color:var(--text); font-weight:600; }
+
+  /* ---------- lower panels ---------- */
+  .panels{
+    display:grid;
+    grid-template-columns:1.1fr 0.9fr;
+    gap:20px;
+  }
+  @media (max-width:860px){ .panels{ grid-template-columns:1fr; } }
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:18px;
+    padding:22px 24px;
+  }
+  .panel h3{ font-size:14.5px; font-weight:600; margin-bottom:4px; }
+  .panel .sub{ font-size:12px; color:var(--text-faint); margin-bottom:16px; }
+
+  .ledger-row{
+    display:flex; align-items:center; gap:12px;
+    padding:11px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .ledger-row:last-child{ border-bottom:none; }
+  .ledger-dot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .ledger-text{ flex:1; font-size:13px; color:var(--text); }
+  .ledger-text span{ color:var(--text-dim); }
+  .ledger-time{ font-size:11.5px; color:var(--text-faint); white-space:nowrap; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:13px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .toggle-row:last-child{ border-bottom:none; }
+  .toggle-name{ font-size:13.5px; font-weight:500; }
+  .toggle-desc{ font-size:11.5px; color:var(--text-faint); margin-top:2px; }
+  .switch{
+    width:38px; height:22px; border-radius:100px;
+    background:var(--good); position:relative; flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .switch::after{
+    content:""; position:absolute; top:2px; right:2px;
+    width:18px; height:18px; border-radius:50%; background:#fff;
+  }
+  .switch.off{ background:rgba(255,255,255,0.1); }
+  .switch.off::after{ right:auto; left:2px; }
+
+  .footnote{
+    margin-top:30px; text-align:center;
+    font-size:11.5px; color:var(--text-faint);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SP</div>
+    <div>
+      <div class="brand-name">Sovereignty Wallet</div>
+      <div class="brand-sub">Model budget · device-owned</div>
+    </div>
+  </div>
+  <div class="badges">
+    <div class="badge"><span class="dot"></span>Offline-first</div>
+    <div class="badge">On-device memory</div>
+    <div class="badge">Google &amp; Meta blocked</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- BALANCE CARD -->
+  <div class="balance-card">
+    <div class="balance-top">
+      <div>
+        <div class="balance-label">Tokens available today</div>
+        <div class="balance-amount"><span id="balanceNum">0</span><span class="unit">/ 480,000</span></div>
+        <div class="balance-sub">Resets in <b>6h 12m</b> · pooled across 4 allowed providers</div>
+      </div>
+      <div class="vault-chip"><span class="lock">🔒</span>PQC vault synced</div>
+    </div>
+    <div class="balance-meter"><div class="balance-meter-fill" id="balanceMeter"></div></div>
+    <div class="balance-meter-labels">
+      <span>0</span>
+      <span id="balancePctLabel">0% used</span>
+      <span>480,000</span>
+    </div>
+  </div>
+
+  <!-- PROVIDERS -->
+  <div class="section-head">
+    <div class="section-title">By provider</div>
+    <div class="section-note">Allow-listed models only</div>
+  </div>
+
+  <div class="grid" id="providerGrid"></div>
+
+  <!-- PANELS -->
+  <div class="panels">
+    <div class="panel">
+      <h3>Ledger</h3>
+      <div class="sub">Every quota event, signed and timestamped</div>
+      <div id="ledgerList"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Gate policy</h3>
+      <div class="sub">Enforced at the provider gate, not just here</div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Anthropic</div><div class="toggle-desc">Claude family</div></div>
+        <div class="switch"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">OpenAI</div><div class="toggle-desc">GPT / Codex family</div></div>
+        <div class="switch"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">xAI</div><div class="toggle-desc">Grok family</div></div>
+        <div class="switch"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">GitHub Copilot</div><div class="toggle-desc">Code completion</div></div>
+        <div class="switch"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Google Gemini</div><div class="toggle-desc">Blocked by policy</div></div>
+        <div class="switch off"></div>
+      </div>
+      <div class="toggle-row">
+        <div><div class="toggle-name">Meta Llama</div><div class="toggle-desc">Blocked by policy</div></div>
+        <div class="switch off"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote">Quota figures are sample data for layout purposes · wire to your real per-provider usage source before shipping</div>
+
+</div>
+
+<script>
+// ---- sample data (replace with real per-provider usage) ----
+const providers = [
+  { name:"Anthropic", model:"Claude", used:61400, limit:150000, color:"var(--c-anthropic)" },
+  { name:"OpenAI",    model:"GPT-5",  used:38200, limit:120000, color:"var(--c-openai)" },
+  { name:"xAI",       model:"Grok",   used:22750, limit:100000, color:"var(--c-xai)" },
+  { name:"GitHub",    model:"Copilot",used:9800,  limit:110000, color:"var(--c-copilot)" },
+];
+
+const ledger = [
+  { text:"<b>Anthropic</b> quota synced <span>from response headers</span>", color:"var(--c-anthropic)", time:"2m ago" },
+  { text:"<b>xAI</b> session budget crossed <span>20% used</span>", color:"var(--c-xai)", time:"14m ago" },
+  { text:"Allowlist policy <span>v3 signed</span> by device key", color:"var(--indigo-light)", time:"1h ago" },
+  { text:"<b>OpenAI</b> backoff triggered <span>· queued 2 requests</span>", color:"var(--c-openai)", time:"3h ago" },
+  { text:"<b>GitHub Copilot</b> quota synced <span>from response headers</span>", color:"var(--c-copilot)", time:"5h ago" },
+];
+
+const grid = document.getElementById('providerGrid');
+const totalUsed = providers.reduce((a,p)=>a+p.used,0);
+const totalLimit = 480000;
+
+providers.forEach((p, i) => {
+  const pct = Math.round((p.used / p.limit) * 100);
+  const el = document.createElement('div');
+  el.className = 'pcard';
+  el.innerHTML = `
+    <div class="pcard-top">
+      <div>
+        <div class="pname">${p.name}</div>
+        <div class="pmodel">${p.model}</div>
+      </div>
+      <div class="pswatch" style="background:${p.color}"></div>
+    </div>
+    <div class="ring-wrap">
+      <svg width="118" height="118">
+        <circle class="ring-track" cx="59" cy="59" r="50"></circle>
+        <circle class="ring-fill" data-pct="${pct}" cx="59" cy="59" r="50" stroke="${p.color}"></circle>
+      </svg>
+      <div class="ring-center">
+        <div class="ring-pct">${pct}%</div>
+        <div class="ring-pct-label">USED</div>
+      </div>
+    </div>
+    <div class="pcard-stats">
+      <span>Used <b>${p.used.toLocaleString()}</b></span>
+      <span>Cap <b>${p.limit.toLocaleString()}</b></span>
+    </div>
+  `;
+  grid.appendChild(el);
+});
+
+const ledgerList = document.getElementById('ledgerList');
+ledger.forEach(item => {
+  const row = document.createElement('div');
+  row.className = 'ledger-row';
+  row.innerHTML = `
+    <div class="ledger-dot" style="background:${item.color}"></div>
+    <div class="ledger-text">${item.text}</div>
+    <div class="ledger-time">${item.time}</div>
+  `;
+  ledgerList.appendChild(row);
+});
+
+// ---- animations on load ----
+function animateCounter(el, target, duration=1400){
+  const start = performance.now();
+  function tick(now){
+    const t = Math.min((now-start)/duration, 1);
+    const eased = 1 - Math.pow(1-t, 3);
+    el.textContent = Math.round(eased*target).toLocaleString();
+    if(t<1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+window.addEventListener('load', () => {
+  animateCounter(document.getElementById('balanceNum'), totalLimit - totalUsed);
+
+  const pct = Math.round((totalUsed/totalLimit)*100);
+  requestAnimationFrame(()=>{
+    document.getElementById('balanceMeter').style.width = pct + '%';
+  });
+  document.getElementById('balancePctLabel').textContent = pct + '% used';
+
+  document.querySelectorAll('.ring-fill').forEach((ring, i) => {
+    const pct = parseFloat(ring.dataset.pct);
+    const r = 50;
+    const circumference = 2 * Math.PI * r;
+    const dash = (pct/100) * circumference;
+    setTimeout(() => {
+      ring.style.strokeDasharray = `${dash} ${circumference}`;
+    }, 150 + i*120);
+  });
+});
+</script>
+
+</body>
+</html>

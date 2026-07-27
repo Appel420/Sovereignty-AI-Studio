@@ -1,0 +1,967 @@
+
+Multi role pt2
+
+merkle_explorer:()=>ti(‘🌳 Merkle Tree Explorer’,’// Cryptographic Audit Chain’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Leaf Nodes</div><div class="m-val">${auditLogs.length}</div></div>
+<div class="mc b"><div class="m-lbl">Tree Depth</div><div class="m-val">${auditLogs.length?Math.ceil(Math.log2(Math.max(auditLogs.length,1))):0}</div></div>
+<div class="mc v"><div class="m-lbl">Hash Algorithm</div><div class="m-val" style="font-size:10px;margin-top:3px;">SHA-256</div></div>
+</div>
+<div class="card"><div class="m-lbl" style="margin-bottom:5px;">Merkle Root (Court-Submissible)</div><div class="qa-hash" id="merkleRootVal" style="font-size:9px;">Computing…</div></div>
+<div class="card"><h3>Tree Visualization</h3><div class="merkle-viz" id="merkleViz"></div></div>
+${tbl(['#','Record ID','Timestamp','BLAKE3 Hash'],auditLogs.map((l,i)=>[i+1,l.id,l.time.substring(0,19),'<span class="hash-cell">'+l.hash.substring(0,22)+'…</span>']))},
+
+ddg_browser:()=>ti(‘🦆 DDG Quantum Browser’,’// Privacy-First · Rate-Limited · Grade-Aware · Audit-Stamped’)+`
+
+<div class="ddg-chrome">
+<div class="ddg-mode-bar">
+<button class="ddg-mode-btn ghost" data-mode="ghost">GHOST</button>
+<button class="ddg-mode-btn live active" data-mode="live">LIVE</button>
+<button class="ddg-mode-btn hybrid" data-mode="hybrid">HYBRID</button>
+<div style="font-size:8px;color:var(--muted);margin-left:6px;" id="ddgSyncLabel">Full Network — DDG Proxy</div>
+<div class="ddg-qa-stamp">⚛️ <span style="color:var(--violet);">Every search → Dilithium3-stamped</span></div>
+</div>
+<div class="ddg-bar">
+<input type="text" id="ddgInput" class="ddg-url" placeholder="Search DuckDuckGo — privacy-first, quantum-secured…">
+<select id="ddgGrade" class="ddg-grade">
+<option value="0">Grade K–5</option>
+<option value="8" selected>Grade 6–12</option>
+<option value="13">Higher Ed / Professional</option>
+</select>
+<button class="ddg-go" id="ddgGo">SEARCH ▶</button>
+</div>
+<div class="ddg-filters" id="ddgFilterTags">
+<span class="ddg-filter-tag">site:edu OR site:gov</span>
+<span class="ddg-filter-tag">filetype:pdf docx pptx</span>
+<span class="ddg-filter-tag junk">-ads -signup -shop</span>
+<span class="ddg-filter-tag junk">-amazon -ebay -facebook</span>
+</div>
+<div class="ddg-results" id="ddgResults">
+<div class="ddg-empty" style="padding:24px;">
+  🦆 <strong>DuckDuckGo Quantum Browser</strong><br><br>
+  <span style="font-size:9px;color:var(--muted);line-height:1.8;">
+  All queries are grade-filtered, junk-blocked, and cryptographically stamped to the audit chain before transmission.<br>
+  Rate limit: <strong>30 requests / minute</strong> per user.<br>
+  <span class="badge bv">GHOST</span> blocks network &nbsp;
+  <span class="badge br">LIVE</span> sends via DDG proxy &nbsp;
+  <span class="badge ba">HYBRID</span> queues for sync
+  </span>
+</div>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+<div class="card"><h3>Rate Limiter</h3>
+<div class="ddg-rate"><span id="ddgRateCount">${ddgRequests} / ${DDG_RATE_LIMIT} requests</span><div class="ddg-rate-bar"><div class="ddg-rate-fill" id="ddgRateFill" style="width:${(ddgRequests/DDG_RATE_LIMIT)*100}%"></div></div></div>
+<div style="font-size:8px;color:var(--muted);margin-top:5px;">Limit resets every 60 seconds. Exceeding limit returns HTTP 429.</div>
+</div>
+<div class="card"><h3>Session Search History</h3><div id="ddgHistory"><div style="color:var(--muted);font-size:9px;">No searches yet</div></div></div>
+</div>
+${tbl(['Setting','Value'],[
+  ['Search Engine','DuckDuckGo (privacy-first, no tracking)'],
+  ['Proxy Endpoint','http://localhost:9898/ddg (node-bridge)'],
+  ['Rate Limit','30 requests / 60 seconds per user'],
+  ['Grade Filter','K–5, 6–12, or Higher Ed / Professional'],
+  ['Domain Filter','site:edu OR site:gov only'],
+  ['Junk Filter','signup, login, ads, amazon, ebay, facebook, shop'],
+  ['Audit Stamp','Every query → BLAKE3 hash + Dilithium3 signature'],
+  ['Ghost Mode','Network blocked — zero transmission'],
+  ['Hybrid Mode','Queue to localStorage, sync on reconnect'],
+])}`,
+
+system_control:()=>ti(‘⚙️ System Control’,’// Infrastructure Status’)+`
+
+<div class="alert-bar r">🔴 Cache cluster degraded — elevated latency on /api/v3/search (avg 89ms, threshold 50ms)</div>
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">CPU Load</div><div class="m-val">41%</div><div class="m-sub">8-core avg</div></div>
+<div class="mc g"><div class="m-lbl">Memory</div><div class="m-val">67%</div><div class="m-sub">48 GB total</div></div>
+<div class="mc g"><div class="m-lbl">Uptime</div><div class="m-val">99.97%</div><div class="m-sub">30-day SLA</div></div>
+<div class="mc a"><div class="m-lbl">Active Users</div><div class="m-val">1,847</div><div class="m-sub">authenticated sessions</div></div>
+</div>
+${tbl(['Service','Instance','Latency','Status','Last Checked'],[
+  ['Auth Service','auth-01, auth-02','1ms','<span class="badge bg">Healthy</span>',now()],
+  ['Quantum Audit','qa-primary','2ms','<span class="badge bg">Healthy</span>',now()],
+  ['AES-GCM Store','kms-01','1ms','<span class="badge bg">Healthy</span>',now()],
+  ['DDG Proxy Bridge','ddg-bridge-01','4ms','<span class="badge bg">Healthy</span>',now()],
+  ['Dilithium3 Signer','sig-01','3ms','<span class="badge bg">Healthy</span>',now()],
+  ['Redis Cache Cluster','cache-01..04','89ms','<span class="badge br">Degraded</span>',now()],
+  ['Merkle Tree Builder','merkle-01','2ms','<span class="badge bg">Healthy</span>',now()],
+  ['SOS Dispatch Bridge','sos-01','2ms','<span class="badge bg">Healthy</span>',now()],
+])}`,
+
+user_management:()=>ti(‘👥 User Management’,’// Active Sessions & Roles’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Users</div><div class="m-val">2,841</div></div>
+<div class="mc g"><div class="m-lbl">Active Now</div><div class="m-val">1,847</div></div>
+<div class="mc r"><div class="m-lbl">Locked</div><div class="m-val">23</div></div>
+<div class="mc a"><div class="m-lbl">Pending MFA</div><div class="m-val">6</div></div>
+</div>
+${tbl(['Name','Badge ID','Role','Rank','Last Active','Status'],[
+  ['Dr. Amara Chen, MD','MED-0041','Medical','Attending Physician',now(),'<span class="badge bg">Active</span>'],
+  ['Capt. James Rivera','PD-8821','Law Enforcement','Captain',now(),'<span class="badge bg">Active</span>'],
+  ['Sarah Okonkwo','DEV-2201','Developer','Senior Software Engineer',now(),'<span class="badge bg">Active</span>'],
+  ['Maj. Thomas Wright','MIL-0014','Military','Major (O-4)',now(),'<span class="badge bg">Active</span>'],
+  ['Patricia Huang','HOSP-0309','Hospital Admin','Director — Patient Services',now(),'<span class="badge ba">Idle 12m</span>'],
+  ['Paramedic R. Gupta','EMT-0774','EMT / Paramedic','Paramedic (EMT-P)',now(),'<span class="badge bg">Active</span>'],
+  ['Lt. Cmdr. A. Santos','MIL-0088','Military','Lieutenant (O-2)',now(),'<span class="badge br">Locked</span>'],
+])}`,
+
+api_management:()=>ti(‘🔌 API Gateway’,’// Endpoint Health & Traffic’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">API Keys</div><div class="m-val">284</div></div>
+<div class="mc g"><div class="m-lbl">Req / sec</div><div class="m-val">2.4k</div></div>
+<div class="mc a"><div class="m-lbl">Avg Latency</div><div class="m-val">6ms</div></div>
+<div class="mc r"><div class="m-lbl">Error Rate</div><div class="m-val">0.04%</div></div>
+</div>
+${tbl(['Endpoint','Method','Calls/hr','P99 Latency','Auth','Status'],[
+  ['/api/v3/auth','POST','18,240','8ms','Dilithium3','<span class="badge bg">Healthy</span>'],
+  ['/api/v3/audit','POST','6,420','4ms','Bearer+Dil3','<span class="badge bg">Healthy</span>'],
+  ['/api/v3/sos','POST','312','2ms','Bearer+Biometric','<span class="badge br">Live — Active</span>'],
+  ['/api/v3/ddg','POST','4,810','18ms','Bearer','<span class="badge bg">Healthy</span>'],
+  ['/api/v3/keys','GET','820','3ms','L4+ Only','<span class="badge bg">Healthy</span>'],
+  ['/api/v3/merkle','GET','2,100','5ms','Bearer','<span class="badge bg">Healthy</span>'],
+  ['/api/v3/users','GET','1,240','4ms','Admin Only','<span class="badge bg">Healthy</span>'],
+])}`,
+
+security_config:()=>ti(‘🔒 Security Configuration’,’// Zero-Trust Policy Engine’)+`
+
+<div class="alert-bar g">✅ All critical security controls active — FIPS 204 compliant</div>
+${tbl(['Policy','Configuration','Standard','Status'],[
+  ['Primary Signature','Dilithium3','FIPS 204 (Draft)','<span class="badge bg">Active</span>'],
+  ['Symmetric Encryption','AES-256-GCM (12-byte IV)','FIPS 197','<span class="badge bg">Active</span>'],
+  ['Hash Algorithm','BLAKE3 (SHA3+SHA256 equiv.)','FIPS 180-4','<span class="badge bg">Active</span>'],
+  ['Biometric Auth','Retina scan — SHA3-512 hash','ISO 30107','<span class="badge bg">Required</span>'],
+  ['Session Binding','JWT + Dilithium3 signature','RFC 7519','<span class="badge bg">Active</span>'],
+  ['Key Storage','AES: sessionStorage · Dil3: localStorage','NIST 800-57','<span class="badge bg">Active</span>'],
+  ['SOS Transmission','keepalive POST + BLAKE3 stamp','Internal','<span class="badge bg">Active</span>'],
+  ['Audit Encryption','AES-256-GCM per session key','FIPS 197','<span class="badge bg">Active</span>'],
+  ['Zero-Trust Access','Role + Biometric + Level check','NIST 800-207','<span class="badge bg">Active</span>'],
+  ['MFA Requirement','Biometric + Passphrase','NIST 800-63B','<span class="badge bg">Active</span>'],
+])}`,
+
+compliance:()=>ti(‘✅ Compliance Dashboard’,’// Regulatory Framework Status’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Overall Score</div><div class="m-val">96%</div><div class="m-sub">last audit: ${today()}</div></div>
+<div class="mc r"><div class="m-lbl">Open Findings</div><div class="m-val">4</div><div class="m-sub">2 critical, 2 medium</div></div>
+<div class="mc b"><div class="m-lbl">Controls</div><div class="m-val">348</div><div class="m-sub">344 passed</div></div>
+</div>
+${tbl(['Framework','Score','Controls','Findings','Next Audit','Status'],[
+  ['HIPAA Privacy Rule','98%','84/86','2 minor','2026-06-01','<span class="badge bg">Compliant</span>'],
+  ['NIST 800-53 Rev5','94%','110/117','7 medium','2026-04-15','<span class="badge bg">Compliant</span>'],
+  ['FIPS 204 Dilithium3','99%','22/22','0','2026-12-01','<span class="badge bg">Compliant</span>'],
+  ['FIPS 197 AES-256','100%','18/18','0','2026-12-01','<span class="badge bg">Compliant</span>'],
+  ['NIST 800-207 ZTA','91%','42/46','4 medium','2026-05-01','<span class="badge ba">In Progress</span>'],
+  ['FedRAMP Moderate','83%','280/338','12','2026-03-15','<span class="badge br">Remediation</span>'],
+  ['SOC 2 Type II','97%','112/116','4 low','2026-09-01','<span class="badge bg">Compliant</span>'],
+])}`,
+
+testing:()=>ti(‘🧪 Test Suite’,’// CI/CD Test Results’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Passing</div><div class="m-val">2,847</div><div class="m-sub">of 2,852</div></div>
+<div class="mc r"><div class="m-lbl">Failing</div><div class="m-val">5</div><div class="m-sub">2 critical</div></div>
+<div class="mc b"><div class="m-lbl">Coverage</div><div class="m-val">94.2%</div></div>
+<div class="mc a"><div class="m-lbl">Duration</div><div class="m-val">4m 22s</div></div>
+</div>
+${tbl(['Suite','Tests','Pass','Fail','Coverage','Status'],[
+  ['Crypto Engine — AES-256-GCM','224','224','0','100%','<span class="badge bg">Pass</span>'],
+  ['Crypto Engine — Dilithium3','187','187','0','100%','<span class="badge bg">Pass</span>'],
+  ['Merkle Tree Builder','98','98','0','98.4%','<span class="badge bg">Pass</span>'],
+  ['DDG Proxy — Grade Filters','142','141','1','96.2%','<span class="badge ba">Warn</span>'],
+  ['DDG Rate Limiter','44','44','0','100%','<span class="badge bg">Pass</span>'],
+  ['SOS Dispatch Pipeline','66','64','2','91.0%','<span class="badge br">Fail</span>'],
+  ['Auth — Biometric','112','112','0','100%','<span class="badge bg">Pass</span>'],
+  ['Audit Log Encryption','201','201','0','100%','<span class="badge bg">Pass</span>'],
+  ['API Gateway','416','415','1','95.8%','<span class="badge ba">Warn</span>'],
+])}`,
+
+deployment:()=>ti(‘🚀 Deployments’,’// Pipeline & Release Status’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Production</div><div class="m-val">v4.2.1</div><div class="m-sub">stable</div></div>
+<div class="mc b"><div class="m-lbl">Staging</div><div class="m-val">v4.3.0-rc2</div><div class="m-sub">in QA</div></div>
+<div class="mc a"><div class="m-lbl">Deploy Freq</div><div class="m-val">2.4/day</div></div>
+</div>
+${tbl(['Release','Environment','Deployed At','Duration','By','Status'],[
+  ['v4.2.1','Production',now(),'3m 14s','auto-deploy','<span class="badge bg">Live</span>'],
+  ['v4.2.0','Production','2026-02-20 09:12','4m 02s','auto-deploy','<span class="badge bg">Superseded</span>'],
+  ['v4.3.0-rc2','Staging',now(),'2m 58s','CI Pipeline','<span class="badge ba">QA Review</span>'],
+  ['v4.3.0-rc1','Staging','2026-02-22 14:30','3m 11s','CI Pipeline','<span class="badge bv">Promoted</span>'],
+  ['v4.2.2-hotfix','Staging',now(),'1m 42s','S. Okonkwo','<span class="badge bb">Testing</span>'],
+])}`,
+
+monitoring:()=>ti(‘📡 Observability’,’// Metrics, Logs & Alerts’)+`
+
+<div class="alert-bar a">⚠ P99 latency on /api/v3/search elevated: 89ms (threshold 50ms) — Cache investigation open</div>
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Requests/min</div><div class="m-val">148k</div></div>
+<div class="mc g"><div class="m-lbl">P50 Latency</div><div class="m-val">3ms</div></div>
+<div class="mc a"><div class="m-lbl">P99 Latency</div><div class="m-val">89ms</div></div>
+<div class="mc r"><div class="m-lbl">Error Rate</div><div class="m-val">0.04%</div></div>
+</div>
+${tbl(['Service','P50','P95','P99','Errors/hr','Alert'],[
+  ['Auth Service','1ms','4ms','8ms','0','<span class="badge bg">None</span>'],
+  ['DDG Proxy','4ms','12ms','24ms','2','<span class="badge bg">None</span>'],
+  ['Audit Commit','2ms','6ms','14ms','0','<span class="badge bg">None</span>'],
+  ['Cache Cluster','4ms','42ms','89ms','0','<span class="badge br">Degraded</span>'],
+  ['SOS Dispatch','1ms','3ms','6ms','0','<span class="badge bg">None</span>'],
+  ['Merkle Builder','2ms','8ms','18ms','0','<span class="badge bg">None</span>'],
+])}`,
+
+patient_data:()=>ti(‘🩺 Patient Census’,’// Active Admissions — HIPAA Protected’)+`
+
+<div class="classified">⚕ HIPAA PROTECTED — Unauthorized access is a federal offense (45 CFR § 164.502)</div>
+<div class="metrics">
+<div class="mc r"><div class="m-lbl">Critical / ICU</div><div class="m-val">11</div></div>
+<div class="mc a"><div class="m-lbl">Monitoring</div><div class="m-val">38</div></div>
+<div class="mc g"><div class="m-lbl">Stable</div><div class="m-val">204</div></div>
+<div class="mc b"><div class="m-lbl">Discharge Today</div><div class="m-val">14</div></div>
+</div>
+${tbl(['MRN','Name','DOB','Ward','Attending','Dx (ICD-10)','Status'],[
+  ['MRN-004182','James O., 54M','1970-08-14','Cardiology 4W','Dr. A. Chen, MD','I21.9 STEMI','<span class="badge ba">Monitoring</span>'],
+  ['MRN-011240','Elena B., 31F','1992-11-03','ICU A-12','Dr. R. Patel, MD','J96.00 ARF','<span class="badge br">Critical</span>'],
+  ['MRN-008903','David K., 67M','1957-04-22','Neurology 6E','Dr. S. Lee, MD','G35 MS, relapse','<span class="badge ba">Monitoring</span>'],
+  ['MRN-002471','Maria S., 28F','1997-01-17','Maternity 2W','Dr. T. Park, MD','Z34.01 OB Week 39','<span class="badge bg">Stable</span>'],
+  ['MRN-009812','Robert J., 72M','1952-06-30','Orthopedics 3N','Dr. M. Singh, MD','S72.001A Hip #','<span class="badge bg">Post-Op Stable</span>'],
+  ['MRN-014401','Priya M., 44F','1980-02-09','Oncology 5S','Dr. E. Torres, MD','C50.911 Breast Ca','<span class="badge ba">Chemo Cycle 3</span>'],
+])}`,
+
+medical_records:()=>ti(‘📋 Medical Records’,’// Electronic Health Records — Quantum-Sealed’)+`
+
+<div class="classified">⚕ HIPAA — All access audit-stamped to quantum chain (45 CFR § 164.312)</div>
+${tbl(['MRN','Record Type','Date','Author','Signature','Quantum Seal'],[
+  ['MRN-004182','Cardiology Consult Note',now(),'Dr. A. Chen, MD','<span class="badge bg">Signed</span>','<span class="hash-cell">b3_4a2f…</span>'],
+  ['MRN-004182','Cardiac Cath Report','2026-02-23','Dr. R. Patel, MD','<span class="badge bg">Signed</span>','<span class="hash-cell">b3_9c1e…</span>'],
+  ['MRN-011240','Critical Care Progress','2026-02-24','Dr. S. Kumar, MD','<span class="badge bg">Signed</span>','<span class="hash-cell">b3_3d8a…</span>'],
+  ['MRN-008903','Neurology Assessment','2026-02-22','Dr. S. Lee, MD','<span class="badge bg">Signed</span>','<span class="hash-cell">b3_7f6b…</span>'],
+  ['MRN-002471','OB Prenatal Note',now(),'Dr. T. Park, MD','<span class="badge ba">Pending</span>','<span class="hash-cell">—</span>'],
+])}`,
+
+vitals_monitoring:()=>ti(‘❤️ Vital Signs Monitor’,’// Live Patient Telemetry’)+`
+
+<div style="margin-bottom:10px;font-size:9px;color:var(--muted);">Patient: MRN-004182 — James O., 54M — Cardiology 4W — Attending: Dr. A. Chen, MD</div>
+<div class="vital-grid">
+<div class="vmc hi"><div class="vmc-val" style="color:var(--amber);">148/92</div><div class="vmc-lbl">Blood Pressure</div><div class="vmc-ref">Normal &lt;120/80 mmHg</div></div>
+<div class="vmc ok"><div class="vmc-val" style="color:var(--green);">88</div><div class="vmc-lbl">Heart Rate</div><div class="vmc-ref">Normal 60–100 bpm</div></div>
+<div class="vmc ok"><div class="vmc-val" style="color:var(--green);">97%</div><div class="vmc-lbl">SpO2</div><div class="vmc-ref">Normal ≥95%</div></div>
+<div class="vmc ok"><div class="vmc-val" style="color:var(--green);">37.1°C</div><div class="vmc-lbl">Temperature</div><div class="vmc-ref">Normal 36.1–37.2°C</div></div>
+<div class="vmc ok"><div class="vmc-val" style="color:var(--green);">16</div><div class="vmc-lbl">Resp Rate</div><div class="vmc-ref">Normal 12–20 /min</div></div>
+<div class="vmc crit"><div class="vmc-val" style="color:var(--red);">12</div><div class="vmc-lbl">Pain Score</div><div class="vmc-ref">VAS 0–10 — Critical</div></div>
+</div>
+<div class="alert-bar a">⚠ BP 148/92 — Hypertensive — Notified attending 14:32. Standing order Metoprolol 25mg PO initiated.</div>
+${tbl(['Time','BP','HR','SpO2','Temp','RR','Alert'],[
+  [now(),'148/92','88','97%','37.1°C','16','<span class="badge ba">BP High</span>'],
+  ['14:15','142/88','86','97%','37.0°C','15','<span class="badge ba">BP High</span>'],
+  ['13:45','138/84','84','98%','37.0°C','15','<span class="badge bg">Normal</span>'],
+  ['13:15','136/82','82','98%','36.9°C','14','<span class="badge bg">Normal</span>'],
+])}`,
+
+prescriptions:()=>ti(‘💊 Rx & Orders’,’// Active Medication Orders’)+`
+
+<div class="classified">⚕ HIPAA — Rx access logged per 45 CFR § 164.312(a)(1)</div>
+${tbl(['MRN','Medication','NDC','Dose','Route','Freq','Prescriber','Status'],[
+  ['MRN-004182','Metoprolol Succinate','00378-0002-01','25mg','PO','QD','Dr. A. Chen','<span class="badge bg">Active</span>'],
+  ['MRN-004182','Aspirin EC','41167-0430-11','81mg','PO','QD','Dr. A. Chen','<span class="badge bg">Active</span>'],
+  ['MRN-004182','Atorvastatin','60687-0332-01','40mg','PO','QHS','Dr. A. Chen','<span class="badge bg">Active</span>'],
+  ['MRN-004182','Heparin','0009-0286-16','5,000 units','SQ','Q8H','Dr. R. Patel','<span class="badge bg">Active</span>'],
+  ['MRN-011240','Norepinephrine','00703-9568-04','0.1–0.5 mcg/kg/min','IV drip','Continuous','Dr. S. Kumar','<span class="badge br">ICU PRN</span>'],
+  ['MRN-008903','Interferon beta-1a','58406-0025-01','30mcg','IM','Weekly','Dr. S. Lee','<span class="badge bg">Active</span>'],
+])}`,
+
+lab_results:()=>ti(‘🔬 Laboratory Results’,’// CLIA-Certified — Quantum-Stamped’)+`
+
+<div class="classified">⚕ HIPAA — Lab access logged and stamped to audit chain</div>
+${tbl(['MRN','Test Panel','Result','Ref Range','Flag','Collected','Status'],[
+  ['MRN-004182','Troponin I','2.84 ng/mL','&lt;0.04 ng/mL','<span class="badge br">CRIT HIGH</span>','14:00',now()],
+  ['MRN-004182','BNP','840 pg/mL','&lt;100 pg/mL','<span class="badge br">HIGH</span>','14:00',now()],
+  ['MRN-004182','CBC — WBC','9.2 K/μL','4.5–11.0 K/μL','<span class="badge bg">Normal</span>','08:00',now()],
+  ['MRN-004182','CBC — Hgb','13.8 g/dL','13.5–17.5 g/dL','<span class="badge bg">Normal</span>','08:00',now()],
+  ['MRN-004182','BMP — Creatinine','1.1 mg/dL','0.7–1.3 mg/dL','<span class="badge bg">Normal</span>','08:00',now()],
+  ['MRN-004182','BMP — Glucose','118 mg/dL','70–99 mg/dL','<span class="badge ba">HIGH</span>','08:00',now()],
+  ['MRN-004182','INR','1.1','0.9–1.1','<span class="badge bg">Normal</span>','08:00',now()],
+  ['MRN-011240','ABG — PaO2','58 mmHg','75–100 mmHg','<span class="badge br">CRIT LOW</span>','14:00',now()],
+])}`,
+
+bed_allocation:()=>ti(‘🛏️ Bed Management’,’// Real-Time Census’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Beds</div><div class="m-val">842</div></div>
+<div class="mc r"><div class="m-lbl">Occupied</div><div class="m-val">718</div><div class="m-sub">85.3% occupancy</div></div>
+<div class="mc g"><div class="m-lbl">Available</div><div class="m-val">124</div></div>
+<div class="mc a"><div class="m-lbl">Pending D/C</div><div class="m-val">31</div></div>
+</div>
+${tbl(['Unit','Total','Occupied','Available','Isolation','Occupancy'],[
+  ['ICU — Medical','24','22','2','4','<span class="badge br">91.7%</span>'],
+  ['ICU — Cardiac','16','15','1','2','<span class="badge br">93.8%</span>'],
+  ['Cardiology 4W','36','32','4','0','<span class="badge ba">88.9%</span>'],
+  ['Emergency Dept','48','44','4','6','<span class="badge ba">91.7%</span>'],
+  ['Oncology 5S','40','30','10','8','<span class="badge bg">75.0%</span>'],
+  ['Maternity 2W','28','22','6','0','<span class="badge bg">78.6%</span>'],
+  ['Orthopedics 3N','32','24','8','0','<span class="badge bg">75.0%</span>'],
+  ['Neurology 6E','32','28','4','2','<span class="badge ba">87.5%</span>'],
+])}`,
+
+scheduling:()=>ti(‘📅 Staff Scheduling’,’// Current & Upcoming Shifts’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">On Duty Now</div><div class="m-val">284</div></div>
+<div class="mc b"><div class="m-lbl">Next Shift</div><div class="m-val">291</div></div>
+<div class="mc r"><div class="m-lbl">Call-Outs</div><div class="m-val">8</div></div>
+</div>
+${tbl(['Staff Member','Role','Department','Shift','Hours','Status'],[
+  ['Dr. A. Chen, MD','Attending','Cardiology','Day 07:00–19:00','12h','<span class="badge bg">On Duty</span>'],
+  ['Dr. R. Patel, MD','Attending','Critical Care','Day 07:00–19:00','12h','<span class="badge bg">On Duty</span>'],
+  ['N. Williams, RN-BSN','Charge Nurse','ICU','Day 07:00–19:00','12h','<span class="badge bg">On Duty</span>'],
+  ['M. Torres, RN','Staff Nurse','Cardiology','Day 07:00–19:00','12h','<span class="badge bg">On Duty</span>'],
+  ['Dr. S. Lee, MD','Attending','Neurology','Night 19:00–07:00','12h','<span class="badge ba">Off — Night</span>'],
+  ['P. Singh, RN','Staff Nurse','ED','Day 07:00–15:00','8h','<span class="badge bg">On Duty</span>'],
+])}`,
+
+staff_management:()=>ti(‘👥 Staff Directory’,’// HR & Credentialing’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Staff</div><div class="m-val">3,284</div></div>
+<div class="mc g"><div class="m-lbl">Licensed</div><div class="m-val">3,279</div></div>
+<div class="mc a"><div class="m-lbl">Pending Renewal</div><div class="m-val">18</div></div>
+<div class="mc r"><div class="m-lbl">Expired</div><div class="m-val">5</div></div>
+</div>
+${tbl(['Employee ID','Name','Title','Department','License','License Exp.','Status'],[
+  ['EMP-00441','Dr. Amara Chen, MD','Attending Physician','Cardiology','MD-CA-0441','2027-12-31','<span class="badge bg">Current</span>'],
+  ['EMP-01120','Dr. Ravi Patel, MD','Critical Care Specialist','ICU','MD-CA-1120','2027-06-30','<span class="badge bg">Current</span>'],
+  ['EMP-02201','Nina Williams, RN-BSN','Charge Nurse','ICU','RN-CA-2201','2026-08-31','<span class="badge ba">Renew 6mo</span>'],
+  ['EMP-00889','Dr. Sarah Lee, MD','Neurologist','Neurology','MD-CA-0889','2028-01-31','<span class="badge bg">Current</span>'],
+  ['EMP-03314','Patricia Huang','Hospital Administrator','Admin','N/A','N/A','<span class="badge bg">Active</span>'],
+])}`,
+
+billing:()=>ti(‘💳 Billing & Claims’,’// Revenue Cycle Management’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Claims Today</div><div class="m-val">$1.24M</div></div>
+<div class="mc b"><div class="m-lbl">A/R Outstanding</div><div class="m-val">$8.42M</div></div>
+<div class="mc r"><div class="m-lbl">Denials</div><div class="m-val">$312k</div></div>
+<div class="mc a"><div class="m-lbl">Collection Rate</div><div class="m-val">94.2%</div></div>
+</div>
+${tbl(['Claim ID','MRN','CPT Code','Description','Billed','Payer','Status'],[
+  ['CLM-082441','MRN-004182','92920','Coronary angioplasty','$18,400','BlueCross PPO','<span class="badge ba">Pending</span>'],
+  ['CLM-082440','MRN-004182','93458','Left heart catheterization','$12,200','BlueCross PPO','<span class="badge bg">Approved</span>'],
+  ['CLM-082388','MRN-011240','99291','Critical care, first 30–74 min','$4,800','Medicare Part A','<span class="badge bg">Approved</span>'],
+  ['CLM-082210','MRN-002471','59400','Routine obstetric care','$6,400','Aetna HMO','<span class="badge br">Denied — Auth</span>'],
+  ['CLM-082101','MRN-008903','96413','Chemo — IV up to 1 hr','$3,200','United PPO','<span class="badge bg">Approved</span>'],
+])}`,
+
+financial_reports:()=>ti(‘📊 Financial Reports’,’// Year-to-Date Performance’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Gross Revenue YTD</div><div class="m-val" style="font-size:14px;margin-top:3px;">$84.2M</div></div>
+<div class="mc b"><div class="m-lbl">Net Revenue</div><div class="m-val" style="font-size:14px;margin-top:3px;">$62.1M</div></div>
+<div class="mc r"><div class="m-lbl">Total Expenses</div><div class="m-val" style="font-size:14px;margin-top:3px;">$58.4M</div></div>
+<div class="mc a"><div class="m-lbl">Operating Margin</div><div class="m-val">5.9%</div></div>
+</div>
+${tbl(['Category','Budget','Actual','Variance','%Budget'],[
+  ['Staff Salaries','$28.4M','$27.9M','<span class="trend-up">$0.5M favorable</span>','98.2%'],
+  ['Medical Supplies','$8.2M','$8.6M','<span class="trend-dn">$0.4M unfavorable</span>','104.9%'],
+  ['Facility & Utilities','$4.1M','$4.0M','<span class="trend-up">$0.1M favorable</span>','97.6%'],
+  ['IT & Cybersecurity','$3.8M','$3.8M','<span style="color:var(--muted);">$0 on target</span>','100.0%'],
+  ['Revenue — Inpatient','$48.2M','$51.0M','<span class="trend-up">$2.8M favorable</span>','105.8%'],
+  ['Revenue — Outpatient','$28.1M','$26.4M','<span class="trend-dn">$1.7M unfavorable</span>','93.9%'],
+])}`,
+
+dispatch_center:()=>ti(‘📡 CAD Dispatch Center’,’// Computer-Aided Dispatch — Live’)+`
+
+<div class="alert-bar r">🔴 ACTIVE INCIDENTS: 3 Priority 1 — Units responding</div>
+<div class="metrics">
+<div class="mc r"><div class="m-lbl">Priority 1</div><div class="m-val">3</div></div>
+<div class="mc a"><div class="m-lbl">Priority 2</div><div class="m-val">8</div></div>
+<div class="mc g"><div class="m-lbl">Available Units</div><div class="m-val">14</div></div>
+<div class="mc b"><div class="m-lbl">Avg Response</div><div class="m-val">4m 08s</div></div>
+</div>
+${tbl(['CAD ID','Priority','Type','Address','Unit','ETA','Status'],[
+  ['CAD-24-0482','<span class="badge br">P1</span>','Cardiac Arrest — CPR in progress','4201 Oak Ave, Unit 3B','AMB-3 + ALS-1','2 min','<span class="badge br">Responding</span>'],
+  ['CAD-24-0481','<span class="badge br">P1</span>','Working Structure Fire — 2nd Floor','1201 S. Main St','FD-7, FD-12, BC-2','4 min','<span class="badge ba">On Scene</span>'],
+  ['CAD-24-0480','<span class="badge br">P1</span>','Traffic — Head-On, Multiple Patients','SR-101 NB at Mile 48','AMB-7, FD-3','6 min','<span class="badge bb">Responding</span>'],
+  ['CAD-24-0479','<span class="badge ba">P2</span>','Burglary Alarm — Commercial','880 Industrial Blvd','Unit 441','8 min','<span class="badge bg">Dispatched</span>'],
+  ['CAD-24-0478','<span class="badge ba">P2</span>','Welfare Check — Elderly, Not Answering','220 Maple Dr, Unit 1A','Unit 328','5 min','<span class="badge bg">En Route</span>'],
+])}`,
+
+incident_reports:()=>ti(‘🚨 Incident Reports’,’// Case Management’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Open Cases</div><div class="m-val">847</div></div>
+<div class="mc g"><div class="m-lbl">Closed This Week</div><div class="m-val">312</div></div>
+<div class="mc r"><div class="m-lbl">Felonies</div><div class="m-val">48</div></div>
+<div class="mc a"><div class="m-lbl">Misdemeanors</div><div class="m-val">204</div></div>
+</div>
+${tbl(['Case #','Date','Offense (UCR)','Location','Status','Officer','Priority'],[
+  ['2026-02841','2026-02-24','Aggravated Assault — 13A','500 block Market St','<span class="badge ba">Under Investigation</span>','Det. J. Rivera','<span class="badge br">High</span>'],
+  ['2026-02840','2026-02-24','Residential Burglary — 220','44 Elm Ct','<span class="badge bb">Report Taken</span>','Off. K. Thompson','<span class="badge ba">Medium</span>'],
+  ['2026-02838','2026-02-23','DUI — 90D','Highway 101 SB','<span class="badge bg">Closed — Arrest</span>','Sgt. M. Park','<span class="badge bg">Low</span>'],
+  ['2026-02830','2026-02-22','Grand Theft Auto — 240','900 Commerce Ave','<span class="badge ba">Under Investigation</span>','Det. S. Nguyen','<span class="badge br">High</span>'],
+  ['2026-02811','2026-02-20','Vandalism — 290','City Hall, East Entrance','<span class="badge bb">Report Taken</span>','Off. D. Williams','<span class="badge bg">Low</span>'],
+])}`,
+
+arrest_records:()=>ti(‘🚔 Arrest Records’,’// Booking & Custody’)+`
+
+<div class="classified">LAW ENFORCEMENT SENSITIVE — Handle per Department Policy 402.1</div>
+${tbl(['Booking #','Date','Charges (Statute)','Bail','Custody Status','Court Date'],[
+  ['BK-26-0482','2026-02-24','PC 245(a)(1) Aggravated Assault','$25,000','<span class="badge br">In Custody</span>','2026-03-10'],
+  ['BK-26-0481','2026-02-24','VC 23152(a) DUI','Own Recognizance','<span class="badge ba">Released — OR</span>','2026-03-17'],
+  ['BK-26-0470','2026-02-22','PC 488 Petty Theft','$500','<span class="badge bg">Released — Bail</span>','2026-03-05'],
+  ['BK-26-0441','2026-02-20','PC 187 Homicide (investigation hold)','No Bail — PC 1275','<span class="badge br">In Custody — Max Sec</span>','2026-04-14'],
+])}`,
+
+evidence_tracking:()=>ti(‘🔍 Evidence Chain of Custody’,’// Quantum-Sealed Evidence Log’)+`
+
+<div class="classified">LAW ENFORCEMENT SENSITIVE — Chain of Custody per Brady v. Maryland</div>
+${tbl(['Evidence #','Case #','Description','Collected By','Location','Integrity','Quantum Seal'],[
+  ['EVD-2026-04821','2026-02841','Firearm — Glock 19, S/N XYZ4821','Det. J. Rivera','Locker B-14','<span class="badge bg">Intact</span>','<span class="hash-cell">b3_a4c2…</span>'],
+  ['EVD-2026-04820','2026-02841','Shell casings — 9mm (3 count)','CSI T. Barnes','Locker B-14','<span class="badge bg">Intact</span>','<span class="hash-cell">b3_8d1f…</span>'],
+  ['EVD-2026-04811','2026-02830','Stolen vehicle — VIN altered','Off. K. Thompson','Impound Lot A','<span class="badge bg">Intact</span>','<span class="hash-cell">b3_5e3a…</span>'],
+  ['EVD-2026-04401','2026-02441','Digital — Phone (locked)','Det. S. Nguyen','Digital Forensics','<span class="badge ba">Pending Analysis</span>','<span class="hash-cell">b3_2f8c…</span>'],
+])}`,
+
+crime_analytics:()=>ti(‘📊 Crime Analytics’,’// CompStat — Month-to-Date’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Incidents</div><div class="m-val">1,284</div><div class="m-sub"><span class="trend-dn">▼ 4.2% vs prior period</span></div></div>
+<div class="mc r"><div class="m-lbl">Violent Crimes</div><div class="m-val">148</div><div class="m-sub"><span class="trend-dn">▼ 2.1%</span></div></div>
+<div class="mc a"><div class="m-lbl">Property Crimes</div><div class="m-val">842</div><div class="m-sub"><span class="trend-dn">▼ 5.8%</span></div></div>
+<div class="mc g"><div class="m-lbl">Clearance Rate</div><div class="m-val">48.4%</div><div class="m-sub"><span class="trend-up">▲ 3.1% improvement</span></div></div>
+</div>
+${tbl(['Offense Category','MTD','Prior Period','Change','Clearance'],[
+  ['Homicide — 1st Degree','3','4','<span class="trend-up">▼ 1</span>','66.7%'],
+  ['Aggravated Assault','81','88','<span class="trend-up">▼ 7</span>','44.4%'],
+  ['Robbery','48','51','<span class="trend-up">▼ 3</span>','31.3%'],
+  ['Residential Burglary','210','228','<span class="trend-up">▼ 18</span>','18.1%'],
+  ['Auto Theft','184','196','<span class="trend-up">▼ 12</span>','22.8%'],
+  ['Drug Offenses','312','289','<span class="trend-dn">▲ 23</span>','71.2%'],
+  ['DUI','182','171','<span class="trend-dn">▲ 11</span>','99.4%'],
+])}`,
+
+curriculum:()=>ti(‘📚 Curriculum Management’,’// Course Catalog & Assessment’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Active Courses</div><div class="m-val">284</div></div>
+<div class="mc g"><div class="m-lbl">Enrolled Students</div><div class="m-val">12,841</div></div>
+<div class="mc a"><div class="m-lbl">Avg Class Size</div><div class="m-val">24.8</div></div>
+</div>
+${tbl(['Course ID','Title','Dept','Credits','Enrolled','Cap','Format'],[
+  ['CS 4840','Quantum Cryptography & Post-Quantum Standards','Computer Science','3','34','36','Hybrid'],
+  ['CS 3210','Distributed Systems','Computer Science','3','48','50','In-Person'],
+  ['MATH 4100','Abstract Algebra','Mathematics','4','22','28','In-Person'],
+  ['BIOL 3320','Molecular Genetics','Biology','4','44','48','In-Person'],
+  ['POLS 4010','Constitutional Law & Civil Liberties','Political Science','3','38','40','In-Person'],
+  ['DATA 5010','Machine Learning Systems','Data Science','3','28','30','Online'],
+  ['CHEM 2220','Organic Chemistry II','Chemistry','4','52','56','In-Person'],
+])}`,
+
+grading:()=>ti(‘🎯 Grades & Assessment’,’// Term: Spring 2026’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Avg GPA</div><div class="m-val">3.24</div></div>
+<div class="mc b"><div class="m-lbl">Pass Rate</div><div class="m-val">94.8%</div></div>
+<div class="mc r"><div class="m-lbl">Incomplete</div><div class="m-val">28</div></div>
+<div class="mc a"><div class="m-lbl">Honor Roll</div><div class="m-val">1,284</div></div>
+</div>
+${tbl(['Course','Submissions','Avg Score','A','B','C','D/F'],[
+  ['CS 4840 — Quantum Crypto','34','87.4%','16','12','4','2'],
+  ['CS 3210 — Distributed Systems','48','84.1%','18','20','7','3'],
+  ['MATH 4100 — Abstract Algebra','22','79.8%','8','9','4','1'],
+  ['BIOL 3320 — Molecular Genetics','44','88.2%','20','16','6','2'],
+  ['DATA 5010 — ML Systems','28','91.0%','14','10','3','1'],
+])}`,
+
+student_records:()=>ti(‘📋 Student Records’,’// FERPA Protected’)+`
+
+<div class="classified">⚠ FERPA — Unauthorized disclosure prohibited (20 U.S.C. § 1232g)</div>
+${tbl(['Student ID','Name','Program','Year','GPA','Standing','Advisor'],[
+  ['S-2022-0441','Aisha Mensah','B.S. Computer Science','Senior','3.91','Dean\'s List','Dr. T. Park'],
+  ['S-2023-1204','Carlos Reyes','B.S. Data Science','Junior','3.67','Good Standing','Dr. S. Kim'],
+  ['S-2024-2011','Jordan Lee','B.A. Political Science','Sophomore','3.44','Good Standing','Prof. R. Hall'],
+  ['S-2021-0882','Priya Patel','Ph.D. Molecular Biology','Year 4','4.00','Excellent','Dr. E. Torres'],
+  ['S-2022-1410','Marcus Brown','M.S. Cybersecurity','2nd Year','3.88','Dean\'s List','Dr. A. Chen'],
+])}`,
+
+research_grants:()=>ti(‘🔬 Research & Grants’,’// Active Projects’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Active Grants</div><div class="m-val">84</div></div>
+<div class="mc b"><div class="m-lbl">Total Award</div><div class="m-val">$42.8M</div></div>
+<div class="mc a"><div class="m-lbl">Pending</div><div class="m-val">22</div></div>
+</div>
+${tbl(['Grant #','PI','Title','Funder','Amount','Period','Status'],[
+  ['NSF-2024-8841','Dr. T. Park','Post-Quantum Key Exchange in IoT','NSF','$1.2M','2024–2027','<span class="badge bg">Active</span>'],
+  ['NIH-2024-4422','Dr. E. Torres','CRISPR Precision in Breast Oncology','NIH/NCI','$3.4M','2024–2028','<span class="badge bg">Active</span>'],
+  ['DARPA-2025-0011','Dr. S. Kim','Adversarial ML Defenses','DARPA','$2.8M','2025–2028','<span class="badge bg">Active</span>'],
+  ['DOE-2023-8812','Dr. R. Hall','Grid Security & Quantum Resilience','DOE','$4.1M','2023–2026','<span class="badge ba">Year 3 Reporting</span>'],
+])}`,
+
+faculty_senate:()=>ti(‘🏛️ Faculty Senate’,’// Governance & Resolutions’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Senate Members</div><div class="m-val">84</div></div>
+<div class="mc g"><div class="m-lbl">Resolutions</div><div class="m-val">12</div><div class="m-sub">Spring 2026</div></div>
+</div>
+${tbl(['Resolution','Subject','Sponsor','Vote','Status'],[
+  ['FS-2026-01','AI Use Policy in Academic Assessment','Academic Standards Cmte','Pass 74–10','<span class="badge bg">Ratified</span>'],
+  ['FS-2026-02','Curriculum: Quantum Computing Requirement for CS Majors','Curriculum Cmte','Pass 68–16','<span class="badge bg">Ratified</span>'],
+  ['FS-2026-03','Post-Tenure Review Process Revision','Faculty Affairs Cmte','Pending','<span class="badge ba">Under Review</span>'],
+  ['FS-2026-04','Open Access Publication Mandate','Research Cmte','Pending','<span class="badge bb">Next Session</span>'],
+])}`,
+
+policy_management:()=>ti(‘📜 Policy Management’,’// Regulatory & Executive Orders’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Active Policies</div><div class="m-val">2,841</div></div>
+<div class="mc a"><div class="m-lbl">Under Review</div><div class="m-val">48</div></div>
+<div class="mc r"><div class="m-lbl">Expired</div><div class="m-val">12</div></div>
+</div>
+${tbl(['Policy ID','Title','Agency','Effective Date','Review Date','Status'],[
+  ['EO-2025-0441','Quantum-Safe Cryptography Mandate for Federal Systems','OMB','2025-09-01','2026-09-01','<span class="badge bg">In Force</span>'],
+  ['REG-2026-0081','AI Governance Framework — Federal Procurement','GSA','2026-01-15','2027-01-15','<span class="badge bg">In Force</span>'],
+  ['NIST-SP-2025-04','Post-Quantum Cryptography Standards Implementation','NIST','2025-07-01','Ongoing','<span class="badge bg">In Force</span>'],
+  ['DOD-DIR-5200.48','Controlled Unclassified Information (CUI) Policy','DoD','2024-03-15','2026-03-15','<span class="badge ba">Under Review</span>'],
+  ['HHS-2025-0882','HIPAA Security Rule — Quantum Encryption Update','HHS','2025-12-01','2027-12-01','<span class="badge bg">In Force</span>'],
+])}`,
+
+legislative_tracking:()=>ti(‘⚖️ Legislative Tracker’,’// Bills & Regulations’)+` ${tbl(['Bill #','Short Title','Chamber','Sponsor','Status','Vote','Impact'],[ ['S.1042','Quantum Computing Cybersecurity Act of 2025','Senate','Sen. M. Warner','<span class="badge bg">Signed — Law</span>','88–12','Critical'], ['H.R.8841','Federal AI Accountability Act','House','Rep. K. Clark','<span class="badge ba">Senate Committee</span>','Pending','High'], ['S.2210','Critical Infrastructure Quantum-Safe Transition','Senate','Sen. R. Portman','<span class="badge bb">Floor Vote Scheduled</span>','Pending','High'], ['H.R.6004','Privacy Protection Enhancement Act','House','Rep. Z. Lofgren','<span class="badge bv">Conference Committee</span>','Pending','Medium'], ['S.3118','Government AI Transparency Act','Senate','Sen. B. Warner','<span class="badge bg">Passed Senate 94–6</span>','94–6','Medium'], ])}`,
+
+budget_oversight:()=>ti(‘💰 Budget Oversight’,’// FY2026 Federal Budget’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Budget</div><div class="m-val" style="font-size:14px;margin-top:3px;">$6.82T</div></div>
+<div class="mc r"><div class="m-lbl">Obligated YTD</div><div class="m-val" style="font-size:14px;margin-top:3px;">$1.28T</div></div>
+<div class="mc g"><div class="m-lbl">On Track</div><div class="m-val">91.4%</div></div>
+</div>
+${tbl(['Agency / Program','FY2026 Auth.','Obligated YTD','% Used','Variance','Status'],[
+  ['Defense (DoD)','$920.0B','$184.0B','20.0%','On Track','<span class="badge bg">Compliant</span>'],
+  ['HHS / Medicare / Medicaid','$1.80T','$360.0B','20.0%','On Track','<span class="badge bg">Compliant</span>'],
+  ['Social Security Admin.','$1.40T','$280.0B','20.0%','On Track','<span class="badge bg">Compliant</span>'],
+  ['NIST Quantum Initiative','$2.4B','$412M','17.2%','Under','<span class="badge ba">Review Required</span>'],
+  ['Cybersecurity (CISA)','$3.1B','$580M','18.7%','On Track','<span class="badge bg">Compliant</span>'],
+  ['Education (DOE)','$238.0B','$44.0B','18.5%','On Track','<span class="badge bg">Compliant</span>'],
+])}`,
+
+citizen_services:()=>ti(‘👥 Citizen Services’,’// Portal Metrics & Case Load’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Open Cases</div><div class="m-val">48,241</div></div>
+<div class="mc g"><div class="m-lbl">Resolved MTD</div><div class="m-val">12,844</div></div>
+<div class="mc a"><div class="m-lbl">Avg Resolution</div><div class="m-val">4.2 days</div></div>
+<div class="mc r"><div class="m-lbl">Escalated</div><div class="m-val">842</div></div>
+</div>
+${tbl(['Service','Open','SLA Target','% On-Time','Satisfaction','Status'],[
+  ['Benefit Claims — SNAP','18,421','30 days','94.2%','4.1/5','<span class="badge bg">On Track</span>'],
+  ['Veterans Benefits','8,841','21 days','88.4%','4.4/5','<span class="badge ba">At Risk</span>'],
+  ['Passport Applications','12,240','6–8 weeks','96.8%','4.6/5','<span class="badge bg">On Track</span>'],
+  ['Social Security — Disability','8,739','90 days','79.4%','3.8/5','<span class="badge br">Behind</span>'],
+])}`,
+
+public_records:()=>ti(‘📁 Public Records’,’// FOIA & Transparency’)+` ${tbl(['Request ID','Date','Requester (Type)','Subject','Agency','Response Due','Status'],[ ['FOIA-2026-04821','2026-02-01','News Organization','DDG Quantum Audit Contract','DHS','2026-04-02','<span class="badge ba">Processing</span>'], ['FOIA-2026-04410','2026-01-15','Law Firm','Law Enforcement Analytics Platform Contracts','DOJ','2026-03-16','<span class="badge bg">Fulfilled</span>'], ['FOIA-2026-04201','2026-01-08','Academic Researcher','NIST Post-Quantum Implementation Data','NIST','2026-03-09','<span class="badge bg">Fulfilled</span>'], ['FOIA-2026-03841','2025-12-12','Individual','Personal Records','SSA','2026-02-10','<span class="badge bg">Fulfilled</span>'], ])}`,
+
+operations:()=>ti(‘⚔️ Operations’,’// Current Operational Status’)+`
+
+<div class="classified">⚠ SENSITIVE BUT UNCLASSIFIED (SBU) — Handle per DODI 5200.48</div>
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Active Ops</div><div class="m-val">4</div></div>
+<div class="mc r"><div class="m-lbl">Alert Level</div><div class="m-val">BRAVO</div></div>
+<div class="mc b"><div class="m-lbl">Units Deployed</div><div class="m-val">2,841</div></div>
+</div>
+${tbl(['Op Code','Type','AO','Status','Echelon','Classification'],[
+  ['OP-GRANITE','Training — Joint Exercise','CONUS','<span class="badge bg">Active — Day 4 of 14</span>','Brigade','UNCLASSIFIED'],
+  ['OP-COBALT','Humanitarian Assistance','Pacific AOR','<span class="badge ba">Phase 2 of 3</span>','Division','UNCLASSIFIED'],
+  ['OP-SHIELD','Cybersecurity Defense','CYBERCOM','<span class="badge bg">Ongoing</span>','Command','SBU'],
+  ['OP-RELAY','Logistics Resupply','European AOR','<span class="badge bg">In Progress','Theater','UNCLASSIFIED'],
+])}`,
+
+mission_planning:()=>ti(‘🎯 Mission Planning’,’// MDMP & Operational Design’)+`
+
+<div class="classified">SBU — OPERATIONAL SECURITY APPLIES</div>
+${tbl(['Mission ID','Name','Type','Status','Lead Unit','EXORD Date','OBJ'],[
+  ['MSN-2026-0041','Operation GRANITE III','Training — Combined Arms','<span class="badge ba">Planning Phase</span>','1st BCT, 4th ID','2026-03-01','Exercise completion'],
+  ['MSN-2026-0038','Humanitarian Relief Package','HADR','<span class="badge bg">Execution','82nd ASMC','2026-02-10','12,000 rations delivered'],
+  ['MSN-2026-0031','Cyber Resilience Drill','Cyber Defense','<span class="badge bg">Phase 2</span>','ARCYBER','2026-01-15','Zero successful intrusions'],
+])}`,
+
+intel_reports:()=>ti(‘🔍 Intelligence’,’// Open Source & OSINT Summary’)+`
+
+<div class="classified">SBU — HANDLE VIA NTK CHANNELS ONLY</div>
+${tbl(['Report ID','Date','Classification','Subject','Source','Assessment'],[
+  ['IR-2026-0441','2026-02-24','UNCLASSIFIED//FOUO','Emerging PQ Cryptography Threats to Legacy Systems','OSINT','High Confidence'],
+  ['IR-2026-0438','2026-02-22','UNCLASSIFIED','Geopolitical — Indo-Pacific Trade Corridors','Open Source','Medium Confidence'],
+  ['IR-2026-0430','2026-02-20','SBU','Critical Infrastructure — Cyber Threat Indicators','Agency Liaison','High Confidence'],
+  ['IR-2026-0421','2026-02-18','UNCLASSIFIED','Climate — Pacific AOR Operational Weather','NWS/USAF','High Confidence'],
+])}`,
+
+personnel_management:()=>ti(‘👥 Personnel’,’// G-1 Personnel Management’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Strength</div><div class="m-val">28,441</div></div>
+<div class="mc g"><div class="m-lbl">Deployable</div><div class="m-val">24,812</div></div>
+<div class="mc a"><div class="m-lbl">TDY / Deployed</div><div class="m-val">3,214</div></div>
+<div class="mc r"><div class="m-lbl">Non-Available</div><div class="m-val">415</div></div>
+</div>
+${tbl(['Rank / Grade','Authorized','Assigned','Variance','Deployability'],[
+  ['Officers (O1–O3)','840','844','+4','96.4%'],
+  ['Officers (O4–O6)','412','408','-4','98.0%'],
+  ['Senior NCOs (E7–E9)','1,284','1,277','-7','97.8%'],
+  ['NCOs (E5–E6)','4,820','4,841','+21','94.2%'],
+  ['Junior Enlisted (E1–E4)','12,400','12,071','-329','88.1%'],
+])}`,
+
+logistics:()=>ti(‘📦 Logistics’,’// G-4 Supply & Maintenance’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Supply Readiness</div><div class="m-val">91.4%</div></div>
+<div class="mc b"><div class="m-lbl">Equipment Readiness</div><div class="m-val">88.2%</div></div>
+<div class="mc a"><div class="m-lbl">Fuel (days)</div><div class="m-val">18.4</div></div>
+<div class="mc r"><div class="m-lbl">Maint. Backlog</div><div class="m-val">284 WOs</div></div>
+</div>
+${tbl(['NSN','Item','On Hand','Required','Critical','Location','Status'],[
+  ['1430-01-412-8409','Javelin CLU Unit','48','48','No','Forward Supply','<span class="badge bg">Adequate</span>'],
+  ['2510-01-527-0948','M1A2 SEPV3 — Main Battle Tank','84','96','Yes','Maintenance Depot','<span class="badge br">12 Short</span>'],
+  ['8110-01-019-2895','JP-8 Jet Fuel (1,000 gal)','18,400','20,000','No','POL Point Alpha','<span class="badge ba">Monitor</span>'],
+  ['6850-01-492-0388','Medical — IV Saline (L)','4,200','5,000','No','Medical Supply','<span class="badge ba">Below Par</span>'],
+])}`,
+
+access_logs:()=>ti(‘🔑 Access Control Log’,’// Physical & Logical Access Events’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Events Today</div><div class="m-val">4,821</div></div>
+<div class="mc r"><div class="m-lbl">Denied</div><div class="m-val">48</div></div>
+<div class="mc a"><div class="m-lbl">After-Hours</div><div class="m-val">124</div></div>
+<div class="mc b"><div class="m-lbl">Tailgating Alerts</div><div class="m-val">3</div></div>
+</div>
+${tbl(['Timestamp','Badge ID','Name','Door / Zone','Event','Reader ID'],[
+  [now(),'SEC-0441','M. Rodriguez','Server Room A — Biometric','<span class="badge bg">Granted</span>','RDR-SR-A'],
+  [now(),'SEC-0882','T. Okonkwo','Main Entrance — Card','<span class="badge bg">Granted</span>','RDR-MAIN-01'],
+  [now(),'UNKN-0000','Unregistered','Loading Dock — Override','<span class="badge br">Denied</span>','RDR-DOCK-02'],
+  [now(),'SEC-0119','J. Park','Executive Floor — Card','<span class="badge bg">Granted</span>','RDR-EX-01'],
+  [now(),'SEC-1204','S. Williams','Camera Room — Biometric','<span class="badge bg">Granted</span>','RDR-CAM-01'],
+])}`,
+
+camera_feeds:()=>ti(‘📹 Camera Network’,’// 96-Camera CCTV System’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Online</div><div class="m-val">94</div></div>
+<div class="mc r"><div class="m-lbl">Offline</div><div class="m-val">2</div></div>
+<div class="mc a"><div class="m-lbl">Motion Alerts</div><div class="m-val">18</div></div>
+</div>
+${tbl(['Camera ID','Location','Resolution','Status','Last Event','Recording'],[
+  ['CAM-001','Main Entrance — Ext','4K 60fps','<span class="badge bg">Online</span>','Motion 14:31','Cloud + Local'],
+  ['CAM-002','Lobby — Atrium','4K 30fps','<span class="badge bg">Online</span>','Motion 14:28','Cloud + Local'],
+  ['CAM-018','Server Room A','1080p','<span class="badge bg">Online</span>','Access 14:22','Local Only'],
+  ['CAM-041','Parking Garage Level 1','4K 30fps','<span class="badge bg">Online</span>','None','Cloud + Local'],
+  ['CAM-062','Loading Dock — Rear','1080p','<span class="badge br">Offline — Fault</span>','—','Failover Recording'],
+  ['CAM-083','Rooftop — NW','1080p PTZ','<span class="badge bg">Online</span>','Motion 12:44','Cloud + Local'],
+])}`,
+
+perimeter_control:()=>ti(‘🛡️ Perimeter Control’,’// Access Zones & Alert Status’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Secure Zones</div><div class="m-val">12 / 12</div></div>
+<div class="mc r"><div class="m-lbl">Active Alerts</div><div class="m-val">3</div></div>
+</div>
+${tbl(['Zone','Type','Status','Last Breach Attempt','Officers Assigned','Security Level'],[
+  ['Zone-01 — Main Entrance','Card + Biometric','<span class="badge bg">Secure</span>','None today','Off. R. Brown','Standard'],
+  ['Zone-06 — Server Room A','Biometric Only','<span class="badge bg">Secure</span>','None today','SEC-0441','Maximum'],
+  ['Zone-08 — Loading Dock','Card','<span class="badge br">Alert — Motion</span>','14:22 today','Unit dispatched','Elevated'],
+  ['Zone-10 — Executive Floor','Card + PIN','<span class="badge bg">Secure</span>','None today','Off. J. Park','High'],
+  ['Zone-12 — Rooftop','Motion Sensor','<span class="badge ba">Motion Detected</span>','12:44 today','Investigating','High'],
+])}`,
+
+package_tracking:()=>ti(‘📦 Package Tracking’,’// Real-Time Shipment Status’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">In Transit</div><div class="m-val">4,821</div></div>
+<div class="mc g"><div class="m-lbl">Delivered Today</div><div class="m-val">1,284</div></div>
+<div class="mc a"><div class="m-lbl">Out for Delivery</div><div class="m-val">841</div></div>
+<div class="mc r"><div class="m-lbl">Exceptions</div><div class="m-val">42</div></div>
+</div>
+${tbl(['Tracking #','Sender','Recipient Zone','Weight','Service','Last Scan','Status'],[
+  ['9400111899223804821','Amazon Fulfillment PDX1','94105','2.4 lbs','Priority Mail','Sort Facility SFO — 08:14','<span class="badge bb">Out for Delivery</span>'],
+  ['9400111899223804820','Medical Supplies Inc.','94110','12.8 lbs','Priority Express','Delivered 11:22','<span class="badge bg">Delivered</span>'],
+  ['9400111899223804818','Government Printing Office','94102','0.8 lbs','First Class','In Transit — Hub Oakland','<span class="badge ba">In Transit</span>'],
+  ['9400111899223804811','USPS.com Order','94103','0.3 lbs','First Class','Exception — Wrong Address','<span class="badge br">Exception</span>'],
+])}`,
+
+delivery_routes:()=>ti(‘🗺️ Route Management’,’// Today — February 24, 2026’)+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Active Routes</div><div class="m-val">48</div></div>
+<div class="mc g"><div class="m-lbl">Completed Stops</div><div class="m-val">18,244</div></div>
+<div class="mc a"><div class="m-lbl">Remaining</div><div class="m-val">4,821</div></div>
+</div>
+${tbl(['Route ID','Carrier','Vehicle','Zone','Stops','Completed','Delivery %','Status'],[
+  ['RT-0441','M. Rivera','LLV-0441','94105 Mission','184','142','77.2%','<span class="badge bb">On Route</span>'],
+  ['RT-0882','S. Johnson','LLV-0882','94103 SOMA','201','201','100%','<span class="badge bg">Complete</span>'],
+  ['RT-1204','D. Park','C&S-1204','94107 Dogpatch','148','96','64.9%','<span class="badge ba">Running Late</span>'],
+  ['RT-0312','T. Williams','LLV-0312','94110 Mission Dist.','162','110','67.9%','<span class="badge bb">On Route</span>'],
+])}`,
+
+customer_service:()=>ti(‘👥 Customer Service’,’// Case Management’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Open Cases</div><div class="m-val">284</div></div>
+<div class="mc b"><div class="m-lbl">Resolved Today</div><div class="m-val">142</div></div>
+<div class="mc a"><div class="m-lbl">Avg Resolution</div><div class="m-val">2.4 days</div></div>
+</div>
+${tbl(['Case ID','Date','Type','Summary','Status','Assigned To'],[
+  ['CS-2026-04821','2026-02-24','Missing Package','Tracking shows delivered, customer not received','<span class="badge ba">Open — Investigation</span>','J. Rivera'],
+  ['CS-2026-04818','2026-02-23','Damage Claim','Item arrived damaged — $48.00 claim filed','<span class="badge ba">Pending Review</span>','S. Johnson'],
+  ['CS-2026-04801','2026-02-22','Address Correction','PO Box vs street delivery conflict','<span class="badge bg">Resolved','T. Williams'],
+  ['CS-2026-04788','2026-02-21','Package Stolen','Delivered to mailbox, subsequently stolen','<span class="badge br">Escalated — USPS OIG</span>','Supervisor'],
+])}`,
+
+crew_management:()=>ti(‘👥 Crew & Shift Management’,’// Station 7’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">On Duty</div><div class="m-val">14</div></div>
+<div class="mc r"><div class="m-lbl">Calls Today</div><div class="m-val">8</div></div>
+<div class="mc a"><div class="m-lbl">Training Hours YTD</div><div class="m-val">482</div></div>
+</div>
+${tbl(['Badge','Name','Rank','Certification','Assignment','PPE Status'],[
+  ['FD-0441','Capt. Marcus Jones','Captain','FF-II, EMT-B, Hazmat Ops','Shift Commander','<span class="badge bg">Current</span>'],
+  ['FD-0882','Lt. Sara Kim','Lieutenant','FF-II, EMT-B, Rope Rescue','Engine 7 Officer','<span class="badge bg">Current</span>'],
+  ['FD-1204','FF David Chen','Firefighter II','FF-II, EMT-B','Engine 7','<span class="badge bg">Current</span>'],
+  ['FD-0312','FF Aisha Brown','Firefighter II','FF-II, EMT-B, Hazmat Ops','Truck 7','<span class="badge bg">Current</span>'],
+  ['FD-1401','Probationer R. Singh','Probationary FF','FF-I, EMT-B','Engine 7 — Riding','<span class="badge ba">Probation 60 days</span>'],
+])}`,
+
+equipment_tracking:()=>ti(‘🧯 Apparatus & Equipment’,’// NFPA 1911 Compliance’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Apparatus Ready</div><div class="m-val">6 / 6</div></div>
+<div class="mc a"><div class="m-lbl">SCBA Units</div><div class="m-val">28 / 28</div></div>
+<div class="mc r"><div class="m-lbl">Maintenance Due</div><div class="m-val">2</div></div>
+</div>
+${tbl(['Unit','Type','Year','Last Service','Next Service','Pump Test','Status'],[
+  ['Engine 7','Class A Pumper','2022','2026-01-15','2026-07-15','Annual — Pass','<span class="badge bg">Service Ready</span>'],
+  ['Truck 7','100ft Aerial Ladder','2019','2026-02-01','2026-08-01','N/A — Aerial','<span class="badge bg">Service Ready</span>'],
+  ['Battalion 7','BC Command Unit','2023','2026-02-10','2026-08-10','N/A','<span class="badge bg">Service Ready</span>'],
+  ['Rescue 7','Heavy Rescue','2020','2025-11-20','2026-05-20','N/A','<span class="badge ba">Service Due May</span>'],
+])}`,
+
+hospital_routing:()=>ti(‘🗺️ Hospital Routing’,’// Nearest Appropriate Receiving Facility’)+`
+
+<div class="card" style="border-color:rgba(239,68,68,.3);">
+<h3>Current Patient — MRN Pending</h3>
+<p>Chief Complaint: Chest pain — diaphoresis — onset 20 min ago<br>
+VS: BP 162/98 · HR 104 · RR 22 · SpO2 94% on room air<br>
+12-Lead: ST elevation leads II, III, aVF — suspected inferior STEMI<br>
+ETA: <strong>6 minutes</strong></p>
+</div>
+${tbl(['Hospital','Distance','ETA','STEMI Capable','Cath Lab','Diversion','Beds'],[
+  ['Regional Medical Center','2.1 mi','6 min','<span class="badge bg">Yes — 24/7</span>','<span class="badge bg">Open</span>','<span class="badge bg">Accepting</span>','12 available'],
+  ['St. Joseph Hospital','4.8 mi','12 min','<span class="badge bg">Yes — 24/7</span>','<span class="badge ba">1 case in progress</span>','<span class="badge bg">Accepting</span>','8 available'],
+  ['Memorial North','7.2 mi','18 min','<span class="badge bg">Yes — 24/7</span>','<span class="badge bg">Open</span>','<span class="badge br">Trauma Diversion</span>','4 available'],
+])}`,
+
+driver_dashboard:()=>ti(‘🚗 Driver Hub’,’// ’+today())+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Today's Trips</div><div class="m-val">7</div><div class="m-sub"><span class="trend-up">▲ 2 vs yesterday</span></div></div>
+<div class="mc b"><div class="m-lbl">Online Time</div><div class="m-val" style="font-size:14px;margin-top:2px;">4h 22m</div></div>
+<div class="mc a"><div class="m-lbl">Net Earnings</div><div class="m-val" style="font-size:16px;margin-top:2px;">$94.20</div><div class="m-sub">after platform fee</div></div>
+<div class="mc"><div class="m-lbl">Rating</div><div class="m-val">4.96 ⭐</div><div class="m-sub">last 500 trips</div></div>
+<div class="mc ${sosActive?'r':'g'}"><div class="m-lbl">Safety</div><div class="m-val" style="font-size:10px;margin-top:4px;">${sosActive?'🆘 ACTIVE':'● SAFE'}</div></div>
+</div>
+${tbl(['Status Field','Value'],[
+  ['Availability','<span class="badge bg">Online — Accepting Rides</span>'],
+  ['Vehicle','2022 Toyota Camry SE · Silver'],
+  ['License Plate','XYZ-4821'],
+  ['Current GPS',lastGPS.lat.toFixed(5)+', '+lastGPS.lng.toFixed(5)],
+  ['Surge Multiplier','<span class="badge ba">1.4× — SoMa District</span>'],
+  ['Acceptance Rate','94.2% (last 30 days)'],
+  ['Completion Rate','98.8% (last 30 days)'],
+])}
+<div class="card" style="border-color:rgba(239,68,68,.3);background:var(--red-dim);">
+<h3>🆘 Silent SOS — Hold Strip Button 2 Seconds</h3>
+<p>The panic button at the top pings emergency dispatch silently with your GPS every 15 seconds. No sound is made — passengers will not notice. Every ping is Dilithium3-signed and court-submissible.</p>
+</div>`,
+
+passenger_dashboard:()=>ti(‘🧑‍💼 Rider Hub’,’// ’+today())+`
+
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Total Trips</div><div class="m-val">143</div></div>
+<div class="mc g"><div class="m-lbl">This Month</div><div class="m-val">12</div></div>
+<div class="mc a"><div class="m-lbl">Spent MTD</div><div class="m-val" style="font-size:16px;margin-top:2px;">$218.40</div></div>
+<div class="mc ${sosActive?'r':'g'}"><div class="m-lbl">Safety</div><div class="m-val" style="font-size:10px;margin-top:4px;">${sosActive?'🆘 ACTIVE':'● SAFE'}</div></div>
+</div>
+${tbl(['Field','Value'],[
+  ['Current Driver','Marcus T. · 4.94 ⭐ · 3,241 trips'],
+  ['Vehicle','2023 Honda Accord · Gray · ABC-9201'],
+  ['Pickup','San Francisco International Airport — Terminal 2'],
+  ['Destination','Marriott Union Square — 480 Sutter St'],
+  ['ETA — Arrival','6 minutes'],
+  ['Fare Estimate','$34.50 (before tip)'],
+  ['Trip Insurance','Active via platform'],
+])}
+<div class="card" style="border-color:rgba(239,68,68,.3);background:var(--red-dim);">
+<h3>🆘 Passenger Safety — Hold Strip Button 2 Seconds</h3>
+<p>Feel unsafe? Hold the red SOS button in the top bar for 2 seconds to silently notify emergency services with your GPS location, trip ID, and driver information — without making a sound.</p>
+</div>`,
+
+active_ride:()=>ti(‘📍 Active Ride’,’// Live GPS Tracking — Quantum-Secured’)+`
+
+<div class="rs-map">
+<div class="rs-map-grid"></div>
+<div class="rs-map-dot${sosActive?' sos-dot':''}" id="liveMapDot" style="left:48%;top:44%;"></div>
+<div class="rs-map-ring" style="left:calc(48% - 14px);top:calc(44% - 14px);"></div>
+<div class="rs-map-label">LIVE — ${document.getElementById('psRideId')?.textContent||'—'} — ${lastGPS.lat.toFixed(4)}, ${lastGPS.lng.toFixed(4)} — Dilithium3-sealed</div>
+<span>${sosActive?'🆘 SOS ACTIVE — PINGING EMERGENCY DISPATCH':'● Live GPS — Quantum-sealed ride telemetry'}</span>
+</div>
+<div class="metrics">
+<div class="mc b"><div class="m-lbl">Trip ID</div><div class="m-val" style="font-size:12px;margin-top:4px;">${document.getElementById('psRideId')?.textContent||'—'}</div></div>
+<div class="mc g"><div class="m-lbl">ETA</div><div class="m-val">8 min</div></div>
+<div class="mc a"><div class="m-lbl">Fare Est.</div><div class="m-val" style="font-size:16px;margin-top:2px;">$28.40</div></div>
+<div class="mc ${sosActive?'r':'g'}"><div class="m-lbl">Safety</div><div class="m-val" style="font-size:10px;margin-top:4px;">${sosActive?'🆘 SOS':'● Secure'}</div></div>
+</div>
+${tbl(['Field','Value'],[
+  ['From','SFO Terminal 2, International Arrivals'],
+  ['To','Marriott Union Square — 480 Sutter St, San Francisco'],
+  ['Distance','14.2 miles'],
+  ['Duration Estimate','28 minutes'],
+  ['SOS Pings Sent',sosPings.toString()],
+  ['Quantum Audit Records',auditLogs.filter(l=>l.id.startsWith('SOS')).length.toString()],
+  ['Route','US-101 N → I-280 N → 4th St exit'],
+])}`,
+
+panic_sos:()=>ti(‘🆘 SOS & Safety’,’// Emergency Response System’)+`
+
+<div class="metrics">
+<div class="mc ${sosActive?'r':'g'}"><div class="m-lbl">SOS Status</div><div class="m-val" style="font-size:11px;margin-top:4px;color:${sosActive?'var(--red)':'var(--green)'};">${sosActive?'🆘 ACTIVE':'● SAFE'}</div></div>
+<div class="mc b"><div class="m-lbl">Pings Sent</div><div class="m-val">${sosPings}</div></div>
+<div class="mc v"><div class="m-lbl">Audit Records</div><div class="m-val">${auditLogs.filter(l=>l.id.startsWith('SOS')).length}</div></div>
+<div class="mc a"><div class="m-lbl">GPS (Lat)</div><div class="m-val" style="font-size:11px;margin-top:4px;">${lastGPS.lat.toFixed(4)}</div></div>
+</div>
+<div class="card" style="border-color:rgba(239,68,68,.4);background:linear-gradient(135deg,rgba(239,68,68,.08),rgba(4,6,13,.9));">
+<h3>🆘 Silent SOS — How It Works</h3>
+${tbl(['Step','Detail'],[
+  ['Activation','Hold the red SOS button in the top bar for 2 full seconds'],
+  ['Silent Operation','No sound, no vibration — driver/passenger will not notice'],
+  ['First Ping','GPS coordinates transmitted immediately to dispatch'],
+  ['Frequency','Repeat ping every 15 seconds until cancelled'],
+  ['Payload','GPS, Trip ID, user identity, platform ID, timestamp'],
+  ['Signature','Each ping: BLAKE3 hash + Dilithium3 signature'],
+  ['Audit Trail','Every SOS event → court-submissible quantum audit record'],
+  ['Cancel','Press "✕ CANCEL SOS" — sends resolved confirmation to dispatch'],
+])}
+</div>
+<div class="card">
+<h3>Emergency Contacts</h3>
+${tbl(['Contact','Info','How'],[
+  ['Emergency Services','9-1-1','Call directly from your device if safe to do so'],
+  ['In-App Safety Team','Tap Help → Safety Center → Contact Safety','Available 24/7'],
+  ['Crisis Support Line','988 — Suicide & Crisis Lifeline','Call or text 988 — 24/7'],
+  ['Non-Emergency Police','311 (most cities) or dial local PD non-emergency','Local only'],
+])}
+</div>
+<div class="card"><h3>SOS Event Log</h3><div class="sos-log" id="sosLogEl"><div class="sos-le"><span class="sos-ts">${new Date().toISOString().substring(11,23)}</span><span style="color:var(--cyan);">SOS panel loaded — system ${sosActive?'ALERT':'nominal'}</span></div></div></div>`,
+
+earnings:()=>ti(‘💰 Earnings’,’// Driver Financials’)+`
+
+<div class="metrics">
+<div class="mc g"><div class="m-lbl">Today</div><div class="m-val" style="font-size:16px;margin-top:2px;">$94.20</div></div>
+<div class="mc b"><div class="m-lbl">This Week</div><div class="m-val" style="font-size:16px;margin-top:2px;">$641.80</div></div>
+<div class="mc a"><div class="m-lbl">This Month</div><div class="m-val" style="font-size:16px;margin-top:2px;">$2,814.40</div></div>
+<div class="mc"><div class="m-lbl">Hourly Avg</div><div class="m-val" style="font-size:14px;margin-top:2px;">$21.40</div></div>
+</div>
+${tbl(['Date','Trips','Online','Gross','Platform Fee (25%)','Promotions','Net'],[
+  [today(),'7','4.4h','$125.60','$31.40','+$0.00','<span style="color:var(--green);">$94.20</span>'],
+  ['2026-02-23','11','6.2h','$188.40','$47.10','+$12.00 boost','<span style="color:var(--green);">$153.30</span>'],
+  ['2026-02-22','8','5.1h','$141.20','$35.30','+$0.00','<span style="color:var(--green);">$105.90</span>'],
+  ['2026-02-21','9','5.6h','$162.80','$40.70','+$8.00 boost','<span style="color:var(--green);">$130.10</span>'],
+  ['2026-02-20','12','7.0h','$210.40','$52.60','+$15.00 peak','<span style="color:var(--green);">$172.80</span>'],
+])}`,
+
+ride_history:()=>ti(‘🕒 Trip History’,’// All Completed Trips’)+` ${tbl(['Date','Passenger','Pickup','Dropoff','Fare','Tip','Total','Rating'],[ [now(),'A. M. (4.9⭐)','SFO T2','Union Sq Hotel','$28.40','$5.00','$33.40','⭐⭐⭐⭐⭐'], ['Today 11:08','D. K. (4.8⭐)','Caltrain 4th & King','Hayes Valley','$12.20','$2.00','$14.20','⭐⭐⭐⭐⭐'], ['Today 09:44','Private','Civic Center BART','Mission District','$9.80','$0.00','$9.80','⭐⭐⭐⭐'], ['2026-02-23','P. S. (5.0⭐)','SFO T1','Financial District','$42.40','$10.00','$52.40','⭐⭐⭐⭐⭐'], ['2026-02-23','R. G. (4.7⭐)','Embarcadero BART','Dogpatch','$14.60','$3.00','$17.60','⭐⭐⭐⭐'], ])}`,
+
+trip_history:()=>ti(‘🕒 Trip History’,’// Your Ride History’)+` ${tbl(['Date','Driver','Vehicle','Pickup','Dropoff','Fare','Status'],[ [now(),'Marcus T. ⭐4.94','2023 Honda Accord','SFO Terminal 2','Union Sq Hotel','$34.50','<span class="badge bg">In Progress</span>'], ['2026-02-23','Sam R. ⭐4.88','2022 Toyota Prius','SOMA WeWork','Mission BART','$12.20','<span class="badge bg">Completed</span>'], ['2026-02-21','Alex P. ⭐5.00','2023 Tesla Model 3','Downtown Hotel','SFO T3','$48.00','<span class="badge bg">Completed</span>'], ['2026-02-18','Dani K. ⭐4.92','2022 Honda Civic','Caltrain','Hayes Valley','$10.40','<span class="badge bg">Completed</span>'], ['2026-02-15','Robert M. ⭐4.85','2021 Toyota Camry','SFO T1','Civic Center','$36.80','<span class="badge bg">Completed</span>'], ])}`,
+
+vehicle_info:()=>ti(‘🔧 Vehicle Information’,’// On-File Verification’)+` ${tbl(['Field','Value'],[ ['Year / Make / Model','2022 Toyota Camry SE'], ['Color','Silver'], ['License Plate','XYZ-4821 (CA)'], ['VIN','4T1G11AK2NU012345'], ['Odometer (last inspection)','44,821 miles'], ['Insurance Provider','State Farm — Commercial Rider'], ['Policy Number','SF-RIDE-2024-488210'], ['Insurance Expiry','2026-09-15'], ['Registration Expiry','2026-12-31'], ['Last State Inspection','2025-11-08 — PASSED'], ['Rideshare Inspection','2025-10-22 — PASSED (NHTSA)'], ['Dashcam','Nextbase 622GW — Cloud Sync: ACTIVE'], ['Interior Condition','Excellent (last reviewed 2026-01-14)'], ])}`,
+
+payment_methods:()=>ti(‘💳 Payment Methods’,’// Wallet & Billing’)+`
+${tbl([‘Type’,‘Card / Account’,‘Expires’,‘Default’,‘Status’],[
+[‘Visa — Personal’,’•••• 4821’,‘09/2027’,’<span class="badge bg">Default</span>’,’<span class="badge bg">Active</span>’],
+[‘Apple Pay’,‘iPhone Wallet’,’—’,’—’,’<span class="badge bb">Linked</span>’],
+[‘Google Pay’,‘Pixel Wallet’,’—’,’—’,’<span class="badge bb">Linked</span>’],
+[‘Chase Sapphire Reserve’,’•••• 2210’,‘03/2028’,’—’,’<span class="badge bg">Active</span>’],
+])}
+
+<div class="card" style="margin-top:12px;"><h3>Billing History (last 5)</h3>
+${tbl(['Date','Trip','Amount','Method','Receipt'],[
+  [now(),'In Progress','$34.50 est.','Visa •4821','—'],
+  ['2026-02-23','Mission BART → SoMa','$12.20','Apple Pay','<span class="badge bg">Sent</span>'],
+  ['2026-02-21','Downtown → SFO T3','$48.00','Visa •4821','<span class="badge bg">Sent</span>'],
+  ['2026-02-18','Caltrain → Hayes Valley','$10.40','Visa •4821','<span class="badge bg">Sent</span>'],
+])}</div>`,
+  };
+
+const body=panels[id]?panels[id]():`<div class="card"><p style="color:var(--muted);">Module loaded — no additional content configured.</p></div>`;
+return body;
+}
+
+// ── UTILITIES ──
+function val(id){return document.getElementById(id)?.value.trim()||’’;}
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+function toast(msg,type=‘info’){
+const el=document.getElementById(‘toast’);
+el.textContent=msg;el.className=‘show ‘+type;
+clearTimeout(window._toast);window._toast=setTimeout(()=>el.className=’’,3200);
+}
+function startClock(){
+setInterval(()=>{
+const ft=document.getElementById(‘fTime’);if(ft)ft.textContent=new Date().toLocaleTimeString();
+const rt=document.getElementById(‘rTimer’);
+if(rt&&sessionStart){const s=Math.floor((Date.now()-sessionStart)/1000);rt.textContent=String(Math.floor(s/3600)).padStart(2,‘0’)+’:’+String(Math.floor((s%3600)/60)).padStart(2,‘0’)+’:’+String(s%60).padStart(2,‘0’);}
+},1000);
+}
+function startHB(){
+let on=true;
+setInterval(()=>{const el=document.getElementById(‘fHb’);if(el){el.textContent=on?‘● Online’:‘○ Online’;on=!on;}},1200);
+window.addEventListener(‘online’,()=>{if(qaMode===‘hybrid’&&requestQueue.length)flushQueue();});
+}
+async function flushQueue(){
+while(requestQueue.length){
+const item=requestQueue.shift();
+await stampRecord(’[QUEUED] ’+item.payload.substring(0,60),‘HYBRID’);
+}
+localStorage.setItem(QK,JSON.stringify(requestQueue));
+updateRight();toast(‘Queue flushed — ‘+requestQueue.length+’ records committed’,‘ok’);
+}
+
+window.doLogout=function(){
+if(!confirm(‘End session and log out?’))return;
+clearInterval(gpsInterval);clearInterval(sosInterval);
+sosActive=false;sosPings=0;
+document.getElementById(‘sosGlow’).classList.remove(‘on’);
+localStorage.removeItem(SK);localStorage.removeItem(QK);
+sessionStorage.removeItem(‘sgk_aes’);
+document.getElementById(‘app’).classList.remove(‘active’);
+document.getElementById(‘panicStrip’).classList.remove(‘visible’,‘sos-on’);
+const ls=document.getElementById(‘loginScreen’);
+ls.classList.remove(‘ls-hide’,‘ls-gone’);
+ls.style.opacity=‘0’;
+requestAnimationFrame(()=>{ls.style.transition=‘opacity .4s’;ls.style.opacity=‘1’;});
+[‘lName’,‘lId’,‘lPw’].forEach(id=>{const e=document.getElementById(id);if(e)e.value=’’;});
+document.getElementById(‘rankSel’).innerHTML=’<option value="">— Select rank —</option>’;
+document.getElementById(‘roleGrid’).dataset.sel=’’;
+document.querySelectorAll(’.rc’).forEach(c=>c.classList.remove(‘sel’));
+document.getElementById(‘bioIcon’).textContent=‘👁’;
+document.getElementById(‘bioMsg’).textContent=‘Not verified’;
+document.getElementById(‘bioMsg’).style.color=’’;
+document.getElementById(‘lxErr’).classList.remove(‘show’);
+document.getElementById(‘hUserBlock’).style.display=‘none’;
+document.getElementById(‘dfDesk’).style.display=‘none’;
+[‘rSosBox’,‘rGpsBox’,‘rPingsBox’].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display=‘none’;});
+bioOk=false;bioHash=’’;U=null;auditLogs=[];requestQueue=[];
+cryptoKey=null;auditCnt=0;sessionStart=null;
+ddgRequests=0;ddgSearchHistory=[];ddgMode=‘live’;
+};
+</script>
+
+</body>
+</html>

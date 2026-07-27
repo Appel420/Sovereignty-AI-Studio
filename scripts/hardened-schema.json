@@ -1,0 +1,117 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "Intentionally no $id. An absolute https:// $id causes standard validators (ajv, python-jsonschema, etc.) to resolve relative $refs against that URL over the network -- a live bug found and fixed on 2026-07-18. Refs below resolve as local filesystem paths relative to this file only.",
+  "title": "AI Collaboration and Execution Ground Rules (Hardened)",
+  "description": "Modular schema reinforcing local-first execution with explicit approvals, command allowlists, restricted memory paths, audit logging, and version changelog.",
+  "version": "1.2.0",
+  "maintainer": "AI Systems Engineering Team",
+  "contact": "ai-security@company.example.com",
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-07-17",
+      "changes": [
+        "Initial hardened schema release with modular $ref support and security.md guidance."
+      ]
+    },
+    {
+      "version": "1.1.0",
+      "date": "2026-07-17",
+      "changes": [
+        "Added changelog section to schema root.",
+        "Added auditlogpath property with regex.",
+        "Provided guidance for CI/CD schema validation tests."
+      ]
+    },
+    {
+      "version": "1.2.0",
+      "date": "2026-07-17",
+      "changes": [
+        "Added root-level maintainer and contact fields for governance and support."
+      ]
+    }
+  ],
+  "type": "object",
+  "properties": {
+    "auditlogpath": {
+      "type": "string",
+      "pattern": "^/(var|opt|srv|home)/[A-Za-z0-9._/-]+$",
+      "description": "Absolute path where audit logs will be stored. Restricted to safe directories."
+    },
+    "airgappedtool_calls": {
+      "$ref": "schemas/AirGappedToolCalls.json"
+    },
+    "ai_execution": {
+      "$ref": "schemas/AIExecution.json"
+    },
+    "memory_storage": {
+      "$ref": "schemas/MemoryStorage.json"
+    },
+    "network_fallback": {
+      "$ref": "schemas/NetworkFallback.json"
+    }
+  },
+  "required": [
+    "auditlogpath",
+    "airgappedtool_calls",
+    "ai_execution",
+    "memory_storage",
+    "network_fallback"
+  ],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "description": "Valid composite example",
+      "value": {
+        "auditlogpath": "/var/log/ai/audit.log",
+        "airgappedtool_calls": {
+          "tool_name": "echo",
+          "command_args": ["Air-gapped execution successful!"],
+          "expectedoutputformat": "json"
+        },
+        "ai_execution": {
+          "compute_mode": "localonly",
+          "confirm_coherence": true,
+          "tool_usage": true,
+          "model_registry": {
+            "sanctioned": ["claude", "gpt", "grok", "github-copilot"],
+            "blocked": ["gemini", "llama"]
+          }
+        },
+        "memory_storage": {
+          "localstoragepath": "/var/company/ai_memory.json",
+          "hybrid_integration": false,
+          "userconfirmationtimestamp": null
+        },
+        "network_fallback": {
+          "allowonlinefallback": true,
+          "userpromptrequired": true
+        }
+      }
+    },
+    {
+      "description": "Invalid example: disallowed log path and missing required fields",
+      "value": {
+        "auditlogpath": "/tmp/unsafe/audit.log",
+        "airgappedtool_calls": {
+          "tool_name": "curl",
+          "command_args": ["http://unauthorized.local"],
+          "expectedoutputformat": "json"
+        },
+        "ai_execution": {
+          "compute_mode": "remoteapproved",
+          "confirm_coherence": true
+        },
+        "memory_storage": {
+          "localstoragepath": "/etc/ai_memory.json",
+          "hybrid_integration": true,
+          "userconfirmationtimestamp": null
+        },
+        "network_fallback": {
+          "allowonlinefallback": true,
+          "userpromptrequired": false
+        }
+      }
+    }
+  ]
+}
