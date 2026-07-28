@@ -1,40 +1,45 @@
 # Code Narration Contract
 
+## Layer
+
+Code Narration belongs to the Experience Layer, alongside the Dashboard, Terminal, and Mobile UI. It is not part of core governance or the authority plane.
+
 ## Purpose
 
-Code Narration provides speech-friendly explanations for source-heavy assistant responses. It is an accessibility and comprehension feature; it is not a code execution feature.
+Provide human-readable, speech-friendly explanations for source-heavy assistant responses and architecture review. It is an accessibility and comprehension feature, not a code execution feature.
 
-## Modes
+## Input
 
-- **Read message:** sends the original response to the existing local TTS path.
-- **Explain code:** extracts fenced or code-like sections and narrates purpose, structure, checks, security, and architecture role.
-- **Summarize implementation:** narrates a short implementation summary without reading raw syntax.
+- source code or source-heavy assistant response
+- repository context
+- architecture and interface metadata
 
-## Safety boundary
+## Output
 
-The parser treats code as untrusted text. It never executes, imports, evaluates, or uploads source code. The raw response remains visible in the interface, while only generated narration text is sent to `VoiceAPI.speak`.
+A plain-language explanation of purpose, inputs, outputs, security boundary, policy role, and architecture relationship.
 
-## Parser behavior
+## Rules
 
-The shared parser recognizes fenced code blocks for Python, JavaScript, TypeScript, JSON, YAML, and shell syntax. It also detects common indented or code-like content. Unknown languages are preserved as source code.
+- Never execute, import, evaluate, or modify code.
+- Never bypass permissions or policy.
+- Never upload source or private repository context.
+- Keep the original source visible separately from generated narration.
+- Use repository contracts to explain behavior, not only syntax.
 
-## Source-file narration headers
+## Example
 
-New core source files should begin with a concise header:
+Instead of:
 
-```text
-Purpose: why this file exists.
-Depends on: direct local interfaces or modules.
-Used by: known consumers.
-Security: authority, privacy, and execution boundary.
-```
+> Class PolicyEngine has method evaluate with parameters.
 
-The header is documentation for humans and future narration tooling; it is not runtime metadata.
+Prefer:
 
-## TTS integration
+> PolicyEngine is the authorization boundary. It evaluates requested capabilities against active policy and records decisions in SCARLedger.
 
-The frontend calls `VoiceAPI.speak` using narration text. The existing Piper-backed voice service remains responsible for audio generation. If an audio URL is returned, the frontend attempts local playback; TTS failures do not execute or modify the source response.
+## Local TTS
+
+Narration is sent only to the existing local TTS path. TTS failure must not execute code, modify source, or block governance validation.
 
 ## Test contract
 
-Tests cover fenced Python, JavaScript, and TypeScript, indented Python, and mixed prose/code. They also verify that narration does not include Markdown fence delimiters.
+Tests cover fenced Python, JavaScript, and TypeScript, indented code, mixed prose/code, architecture-aware terminology, and the absence of execution or remote dependencies.
