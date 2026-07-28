@@ -12,6 +12,10 @@ The format follows a simplified Keep a Changelog structure. Dates use ISO 8601 f
 - Added contribution and documentation quality rules.
 - Added architecture decision record index.
 - Added ADR-0001 documenting the Canonical Runtime State decision.
+- Added the Local CI interface contract for self-hosted validation.
+- Added local integration evidence and fail-closed preflight requirements.
+- Classified Code Narration as an Experience Layer capability.
+- Reserved `local-first-ci.yml` as the descriptive workflow name for the self-hosted validation contract.
 
 ## [v1.0.0-architecture] - 2026-07-28
 
