@@ -30,8 +30,9 @@ done
 
 export PIPER_MODEL="${PIPER_MODEL:-$ROOT_DIR/models/en_US-lessac-medium.onnx}"
 export SG_NETWORK_MODE="$NETWORK_MODE"
+export SG_HOST="127.0.0.1"
+export NODE_BRIDGE_HOST="127.0.0.1"
 export CORS_ORIGIN="${CORS_ORIGIN:-http://127.0.0.1:$STATIC_PORT}"
-
 pids=()
 cleanup() {
   trap - EXIT INT TERM
