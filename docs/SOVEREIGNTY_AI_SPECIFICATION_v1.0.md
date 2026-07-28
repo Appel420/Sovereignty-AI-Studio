@@ -4,8 +4,16 @@
 **Authority:** Human Owner  
 **Default Mode:** Offline  
 **Default Decision:** Deny  
-**Classification:** Core Platform Specification  
+**Execution:** Self-hosted Linux runner and device-local services  
 **Canonical API spelling:** `SCARLedger`
+
+## Local-first rule
+
+Local and offline operation is the primary supported operating mode. Core startup, dashboard navigation, local bridges, local cache, audit, tests, and diagnostics SHALL work without cloud services, hosted runners, provider APIs, SaaS scanners, remote agents, container registries, CDNs, or external network access.
+
+Cloud, provider, and external-network capabilities are optional extensions only. They require explicit owner approval, policy authorization, an allowlisted destination, and local audit evidence. They must never be required for the default runtime or for local validation. If an optional external capability is unavailable, the platform preserves safe local functionality and fails closed for that capability.
+
+The canonical CI environment is the repository's self-hosted Linux runner. GitHub-hosted runners and cloud artifact services are not part of the required execution path.
 
 ## Part I — Normative Requirements
 
@@ -16,208 +24,33 @@
 3. Authority cannot be delegated implicitly.
 4. No AI participant, provider, service, or repository may grant itself authority, modify Root Authority, or change policy without explicit owner authorization.
 5. Credential possession does not imply permission.
-6. Sensitive actions require a scoped capability with an owner decision, an intended purpose, scope, expiry, and audit identity.
+6. Sensitive actions require a scoped capability with an owner decision, intended purpose, scope, expiry, and audit identity.
 
-### 2. Identity Model
+### 2. Network and service boundaries
 
-Every participant SHALL have a unique immutable Participant ID that survives software upgrades and does not depend on a provider API. Each participant record SHALL contain:
-
-- Participant ID
-- display name
-- category (`Human`, `AI`, `Service`, or `System`)
-- provider and model, when applicable
-- role
-- capabilities
-- permissions
-- workspace
-- memory allocation
-- evidence stream
-- version
-- trust status
-- configuration history
-
-AI participants SHALL NOT be treated as human identities.
+- Bind local services to loopback by default.
+- Use `127.0.0.1:9897` for the Python bridge, `127.0.0.1:9898` for the dashboard, and `127.0.0.1:9899` for the Node bridge.
+- Do not initialize provider adapters, cloud clients, external polling, WebSockets, credential consumers, or remote agents before `PolicyEngine` succeeds.
+- Do not add a mandatory cloud dependency to local functionality.
+- Do not upload source, private payloads, credentials, reasoning text, or telemetry by default.
 
 ### 3. Canonical Runtime State
 
-Canonical Runtime State is always required. It remains loaded during idle and active missions and includes:
+Canonical Runtime State is always required. Missing, invalid, stale, or unverifiable state is a threat condition. The platform SHALL fail closed, record local evidence, alert the owner when possible, and deny provider, credential, mission, and external-network capabilities.
 
-- Root Authority
-- identity database
-- policy engine configuration
-- `SCARLedger`
-- encrypted vault metadata
-- trust anchors
-- configuration
-- local cache metadata
-- cryptographic key references
-- AI participant registry
-- workspace index
+### 4. Evidence Requirements
 
-Missing, invalid, stale, or unverifiable canonical state is a threat condition. The platform SHALL fail closed, record local evidence, alert the owner when possible, and deny provider, credential, mission, and external-network capabilities.
+Every policy-relevant action SHALL produce append-only local `SCARLedger` evidence. Credentials, session keys, raw private payloads, and secrets SHALL never be recorded.
 
-### 4. Mission State
+### 5. Failure Handling
 
-Mission State is transient and changes behavior only. Valid states include `NO ACTIVE MISSION` and `ACTIVE MISSION`. Examples of active work include coding, research, conversation, planning, dictation, search, review, and administration. Family conversation, phone calls, television, background speech, and idle activity are not missions unless an owner-authenticated wake event activates one.
+Failures SHALL be deterministic. The platform SHALL deny the affected capability, preserve cached local functionality where safe, and avoid automatic escalation. Optional external-service failures must not prevent local startup or local tests.
 
-Canonical Runtime State never disappears during a mission transition.
+## Local validation acceptance criteria
 
-### 5. Network Modes
-
-#### Offline
-
-The platform SHALL operate without network connectivity. Vault, local memory, local inference, search, dashboard, policy, router, and audit remain available. Provider APIs and external retrieval are denied.
-
-#### Hybrid
-
-Hybrid permits policy-approved public-information retrieval only. It remains deny-by-default and is not a trust mode. Private prompts, documents, vault contents, memories, conversations, credentials, and telemetry SHALL remain local unless a separate explicit owner-approved export capability exists.
-
-#### Online
-
-Online permits policy-approved connectivity only. Network access SHALL NOT bypass authority, policy, audit, data classification, or owner approval.
-
-Transition to a higher network mode requires explicit owner approval.
-
-### 6. Data Boundaries
-
-- **Authority:** Root ownership and permissions; local; never exported without explicit approval.
-- **Private:** Vault, memory, conversations, documents, credentials, and sessions; local; never leaves by default.
-- **Public:** Model catalogs, releases, pricing, benchmarks, advisories, and availability; local cache; refreshable under policy.
-- **Evidence:** Audit events, hashes, and signatures; local append-only ledger; optional signed export only.
-
-The dashboard SHALL read from local cache and SHALL NOT communicate directly with external providers.
-
-### 7. Evidence Requirements
-
-Every policy-relevant action SHALL produce an append-only `SCARLedger` event containing timestamp, participant, action, policy version, result, reason, request identity, and integrity hash. Evidence SHALL be written locally before recovery or follow-up action. Credentials, session keys, raw private payloads, and secrets SHALL never be recorded.
-
-### 8. Context and Workspace
-
-The platform SHALL provide one operational inbox while retaining participant-specific history, memory, evidence, updates, configuration, notes, and cached artifacts in separate workspaces. Workspace membership does not grant provider permission.
-
-## Part II — Stable Interface Contracts
-
-Every interface has a stable purpose, inputs, outputs, failure behavior, and audit requirements. Core interfaces are:
-
-`CanonicalStateLoader`, `IdentityProvider`, `AuthorityGate`, `PolicyEngine`, `Vault`, `SCARLedger`, `ParticipantRegistry`, `MarketIntelligenceCache`, `ContextEngine`, `Dashboard`, and `OwnerAlertSink`.
-
-### Policy Decision Values
-
-Implementations SHALL use exactly:
-
-- `ALLOW`
-- `DENY`
-- `REQUIRE_APPROVAL`
-
-### Startup Contract
-
-No provider adapter, polling loop, WebSocket, Server-Sent Events stream, credential consumer, or external network client may initialize before `PolicyEngine` succeeds.
-
-## Part III — Runtime
-
-### Startup Sequence
-
-```text
-Power On
-  ↓
-Hardware Validation
-  ↓
-Canonical State Loader
-  ↓
-Integrity Verification
-  ├── FAIL → local threat evidence → owner alert → fail closed
-  └── PASS
-       ↓
-Identity Provider
-       ↓
-Authority Gate
-       ↓
-Policy Engine
-       ↓
-Vault
-       ↓
-SCARLedger
-       ↓
-Participant Registry
-       ↓
-Market Intelligence Cache
-       ↓
-Dashboard
-       ↓
-Await Mission
-```
-
-### Failure Handling
-
-Failures SHALL be deterministic. The platform SHALL deny the affected capability, append evidence, preserve cached local functionality where safe, alert the owner, and avoid automatic escalation. If the policy engine is unavailable, all network capabilities are disabled.
-
-### Market Intelligence
-
-Approved public sources are normalized, validated, timestamped, optionally signed, and written to the local cache before dashboard use. `FeedAdapter` is a v1.1 extension; v1.0 owns only `MarketIntelligenceCache`.
-
-## Part IV — Acceptance Criteria
-
-### Startup
-
-- Missing canonical state denies startup.
-- Invalid, stale, or unverifiable state denies startup and produces local evidence.
-- Valid state permits identity, authority, and policy initialization.
-- No external client initializes before policy success.
-
-### Security and Data Isolation
-
-- Human authority always overrides AI.
-- AI authority-change requests are denied and recorded.
-- Secrets and raw private payloads never enter evidence.
-- Offline mode denies external network and provider APIs.
-- Hybrid mode denies private-data upload by default.
-- Online mode remains policy- and audit-controlled.
-
-### Mission and Dashboard
-
-- Inactive missions cannot execute mission actions.
-- Active missions remain policy-bound.
-- Empty or stale cache does not block dashboard navigation, search, filters, or workspaces.
-- Provider unavailability leaves cached data visible.
-
-## Mode Matrix
-
-| Capability | Offline | Hybrid | Online |
-|---|---:|---:|---:|
-| Canonical State | ✓ | ✓ | ✓ |
-| Vault | ✓ | ✓ | ✓ |
-| SCARLedger | ✓ | ✓ | ✓ |
-| Dashboard | ✓ | ✓ | ✓ |
-| Local Models | ✓ | ✓ | ✓ |
-| Public Feed | Cached | Cached + Refresh | Live + Cache |
-| Provider APIs | ✗ | Policy-approved | Policy-approved |
-| Personal Data Upload | ✗ | ✗ by default | Policy-controlled |
-| Audit | Local | Local | Local + optional signed export |
-
-## Appendix A — Trust Boundaries
-
-```text
-HUMAN OWNER / ROOT AUTHORITY
-        ↓
-CANONICAL RUNTIME STATE
-        ↓
-IDENTITY → AUTHORITY → POLICY → VAULT / SCAR / REGISTRY
-        ↓
-MISSION CONTROLLER
-        ↓
-LOCAL WORKSPACES AND DASHBOARD CACHE
-        ↓
-APPROVED PROVIDER OR PUBLIC-FEED ADAPTER
-```
-
-## Appendix B — Informative FeedAdapter Example
-
-`FeedAdapter` is not a v1.0 core interface. A future adapter may expose `connect()`, `fetch()`, `normalize()`, `validate()`, `cache()`, and `status()`, feeding only `MarketIntelligenceCache`.
-
-## Appendix C — Informative Provider Examples
-
-Providers such as OpenAI, Anthropic, xAI, GitHub Models, Hugging Face, or other services are examples only. Provider names do not change the normative authority, policy, identity, audit, or data-boundary requirements.
-
-## Versioning
-
-Version 1.0 is frozen when the core interfaces and acceptance criteria are implemented and tested. Future changes should be additive and backward-compatible wherever practical.
+- The workflow runs on a self-hosted Linux runner.
+- The workflow does not require a cloud runner, cloud scanner, registry login, or remote artifact upload.
+- Python, Node, shell, and project tests run against locally installed tools.
+- The incomplete SCAR patch is documentation and is not linted as runtime Python.
+- `SG_NETWORK_MODE=offline` prevents external access from being treated as a startup requirement.
+- The dashboard and local bridges remain loopback-only by default.
