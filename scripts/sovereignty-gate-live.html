@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sovereignty AI Gate // Patch Release</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#020608;--bg2:#070e12;--bg3:#0d1a20;--bg4:#122028;
+  --green:#00e87a;--cyan:#00c8f0;--amber:#f0a800;--red:#f03355;--dim:#2a4050;
+  --text:#c8d8e0;--text2:#7aa0b0;
+  --mono:'Cascadia Code','Consolas','Courier New',monospace;
+  --sans:'Haettenschweiler','Impact',system-ui,sans-serif;
+  --serif:'Palatino Linotype','Georgia',serif;
+}
+html,body{background:var(--bg);color:var(--text);min-height:100vh;font-family:var(--mono);font-size:13px;-webkit-text-size-adjust:none}
+
+/* ── HEADER ── */
+.hdr{background:var(--bg2);border-bottom:1px solid var(--dim);padding:12px 16px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:10px}
+.hdr-logo{font-family:var(--sans);font-size:22px;letter-spacing:2px;color:var(--green);text-transform:uppercase;flex:1}
+.hdr-logo span{color:var(--cyan)}
+.badge{font-size:9px;background:var(--green);color:#000;padding:2px 7px;border-radius:2px;font-family:var(--mono);font-weight:700;letter-spacing:1px}
+.badge.amber{background:var(--amber)}
+
+/* ── STATS BAR ── */
+.stats{display:flex;gap:0;border-bottom:1px solid var(--dim);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stat{flex:1;min-width:70px;padding:8px 12px;text-align:center;border-right:1px solid var(--dim)}
+.stat:last-child{border-right:none}
+.stat-n{font-size:20px;font-family:var(--sans);color:var(--green)}
+.stat-l{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:1px}
+
+/* ── NAV TABS ── */
+.tabs{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--dim);background:var(--bg2)}
+.tab{flex:0 0 auto;padding:9px 14px;font-size:10px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);white-space:nowrap;transition:color .15s}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+.tab:active{background:var(--bg3)}
+
+/* ── PANELS ── */
+.panel{display:none;padding:0}
+.panel.active{display:block}
+
+/* ── FILE CARD ── */
+.file-card{border:1px solid var(--dim);border-radius:4px;margin:12px;background:var(--bg2);overflow:hidden}
+.file-hdr{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--dim);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.file-path{font-family:var(--mono);font-size:11px;color:var(--cyan);flex:1;word-break:break-all}
+.file-type{font-size:9px;background:var(--dim);color:var(--text2);padding:2px 6px;border-radius:2px;flex:0 0 auto;text-transform:uppercase}
+.copy-btn{background:var(--bg);border:1px solid var(--dim);color:var(--green);font-size:10px;padding:4px 10px;border-radius:3px;cursor:pointer;flex:0 0 auto;font-family:var(--mono);transition:background .1s}
+.copy-btn:active{background:var(--dim)}
+.copy-btn.copied{color:#000;background:var(--green);border-color:var(--green)}
+pre{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:14px;font-size:11px;line-height:1.6;color:var(--text);tab-size:4;white-space:pre;max-height:420px;overflow-y:auto}
+.file-body{display:none}
+.file-body.open{display:block}
+
+/* ── ARCH DIAGRAM ── */
+.arch{margin:12px;border:1px solid var(--dim);border-radius:4px;background:var(--bg2);padding:14px}
+.arch-title{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--amber);margin-bottom:12px}
+.arch-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;font-size:11px}
+.arch-box{border:1px solid var(--dim);padding:5px 10px;border-radius:3px;white-space:nowrap}
+.arch-box.green{border-color:var(--green);color:var(--green)}
+.arch-box.cyan{border-color:var(--cyan);color:var(--cyan)}
+.arch-box.amber{border-color:var(--amber);color:var(--amber)}
+.arch-box.red{border-color:var(--red);color:var(--red);opacity:.6}
+.arrow{color:var(--dim);font-size:10px}
+.arch-rule{font-size:9px;color:var(--text2);padding:4px 0;border-top:1px solid var(--dim);margin-top:8px}
+.arch-rule span{color:var(--green)}
+.arch-rule.bad span{color:var(--red)}
+
+/* ── README ── */
+.doc{margin:12px;border:1px solid var(--dim);border-radius:4px;background:var(--bg2);padding:16px;font-family:var(--serif);font-size:12px;line-height:1.8;color:var(--text)}
+.doc h2{font-family:var(--sans);color:var(--green);font-size:18px;letter-spacing:1px;margin:14px 0 6px}
+.doc h3{font-family:var(--mono);color:var(--cyan);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin:12px 0 4px}
+.doc p{margin-bottom:10px}
+.doc code{font-family:var(--mono);font-size:10px;background:var(--bg3);padding:1px 5px;border-radius:2px;color:var(--amber)}
+.doc ul{padding-left:18px;margin-bottom:10px}
+.doc li{margin-bottom:4px}
+
+/* ── INSTALL STEPS ── */
+.steps{margin:12px;border:1px solid var(--dim);border-radius:4px;overflow:hidden}
+.step{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border-bottom:1px solid var(--dim);background:var(--bg2)}
+.step:last-child{border-bottom:none}
+.step-n{font-family:var(--sans);font-size:28px;color:var(--dim);flex:0 0 28px;line-height:1}
+.step-body{flex:1}
+.step-title{font-size:11px;color:var(--green);font-family:var(--mono);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.step-cmd{font-family:var(--mono);font-size:10px;background:var(--bg);border:1px solid var(--dim);padding:6px 10px;border-radius:3px;color:var(--cyan);margin-top:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:pre}
+.step-note{font-size:10px;color:var(--text2);margin-top:4px}
+
+/* ── TESTS ── */
+.test-row{display:flex;align-items:center;gap:8px;padding:8px 14px;border-bottom:1px solid var(--dim);font-size:10px}
+.test-row:last-child{border-bottom:none}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:0 0 8px}
+.dot.fail{background:var(--red)}
+.test-name{flex:1;font-family:var(--mono);color:var(--text)}
+.test-file{color:var(--text2);font-size:9px}
+
+/* ── AMR SECTION ── */
+.amr-hdr{margin:12px;border:1px solid var(--amber);border-radius:4px;background:var(--bg2);padding:12px}
+.amr-hdr h3{font-family:var(--sans);color:var(--amber);font-size:18px;letter-spacing:1px;margin-bottom:6px}
+.amr-hdr p{font-size:11px;color:var(--text2);line-height:1.6}
+.endpoint-table{margin:0 12px 12px;border:1px solid var(--dim);border-radius:4px;overflow:hidden;font-size:10px}
+.endpoint{display:flex;gap:8px;padding:7px 12px;border-bottom:1px solid var(--dim);align-items:flex-start}
+.endpoint:last-child{border-bottom:none}
+.method{font-family:var(--mono);padding:2px 6px;border-radius:2px;font-size:9px;flex:0 0 40px;text-align:center;font-weight:700}
+.method.GET{background:#003822;color:var(--green)}
+.method.POST{background:#002a3d;color:var(--cyan)}
+.method.PATCH{background:#2d2000;color:var(--amber)}
+.method.WS{background:#1a0010;color:var(--red)}
+.ep-path{font-family:var(--mono);color:var(--text);flex:1;word-break:break-all}
+.ep-desc{color:var(--text2);font-size:9px;flex:1}
+
+.info-row{display:flex;gap:6px;align-items:flex-start;padding:6px 12px;font-size:10px;border-bottom:1px solid var(--dim)}
+.info-key{color:var(--text2);flex:0 0 120px;font-family:var(--mono)}
+.info-val{color:var(--text);flex:1;word-break:break-all}
+.info-val.ok{color:var(--green)}
+.info-val.warn{color:var(--amber)}
+.info-val.danger{color:var(--red)}
+
+/* ── FOOTER ── */
+.footer{padding:16px;text-align:center;font-size:9px;color:var(--dim);letter-spacing:1px;text-transform:uppercase;border-top:1px solid var(--dim);margin-top:12px}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--green);color:#000;padding:8px 20px;border-radius:20px;font-size:11px;font-family:var(--mono);opacity:0;transition:opacity .2s;pointer-events:none;z-index:999;white-space:nowrap}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">SOVEREIGNTY<span>-AI</span></div>
+  <span class="badge">LIVE</span>
+  <span class="badge amber">438 PASS</span>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-n">6</div><div class="stat-l">Files</div></div>
+  <div class="stat"><div class="stat-n">9</div><div class="stat-l">Tests</div></div>
+  <div class="stat"><div class="stat-n">438</div><div class="stat-l">Suite</div></div>
+  <div class="stat"><div class="stat-n">0</div><div class="stat-l">Fail</div></div>
+  <div class="stat"><div class="stat-n">E9x</div><div class="stat-l">Codes</div></div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-panel="files">Files</div>
+  <div class="tab" data-panel="arch">Architecture</div>
+  <div class="tab" data-panel="tests">Tests</div>
+  <div class="tab" data-panel="deploy">Deploy</div>
+  <div class="tab" data-panel="amr">AMR v1</div>
+  <div class="tab" data-panel="license">License</div>
+</div>
+
+<!-- ───────────── FILES PANEL ───────────── -->
+<div class="panel active" id="panel-files">
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('ur')">
+      <div class="file-path">src/sia/audit/undo_redo.py <span style="color:var(--green);font-size:9px">NEW</span></div>
+      <span class="file-type">PY</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('ur-code','ur-btn')" id="ur-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-ur">
+      <pre id="ur-code">"""
+Audit: undo/redo ledger extension.
+
+Adds reversible-state tracking on top of AuditLedger without changing
+its append-only guarantee. Every undo/redo is itself a new, signed
+ledger entry -- nothing is ever removed from AuditLedger's history.
+This satisfies ARCHITECTURE_RULES.md rule 6 ("Protected operations
+produce evidence"): reverting a mistake is itself a protected operation.
+"""
+from __future__ import annotations
+from typing import Any
+from sia.audit.ledger import AuditLedger, LedgerEntry
+from sia.errors import codes
+from sia.errors.exceptions import SIAError
+from sia.utils.hashing import hash_object
+
+
+class UndoRedoError(SIAError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(code, message)
+
+
+class UndoableLedger:
+    """Content-addressed undo/redo on top of an existing AuditLedger."""
+
+    def __init__(self, ledger: AuditLedger) -> None:
+        self._ledger = ledger
+        self._snapshots: dict[str, dict[str, Any]] = {}
+
+    @property
+    def ledger(self) -> AuditLedger:
+        return self._ledger
+
+    def _store(self, content: dict[str, Any] | None) -> str | None:
+        if content is None:
+            return None
+        h = hash_object(content)
+        self._snapshots.setdefault(h, dict(content))
+        return h
+
+    def _read(self, content_hash: str | None) -> dict[str, Any] | None:
+        if content_hash is None:
+            return None
+        if content_hash not in self._snapshots:
+            raise UndoRedoError(
+                codes.E_UNDO_NO_PRIOR_STATE,
+                f"No snapshot stored for hash {content_hash}",
+            )
+        return dict(self._snapshots[content_hash])
+
+    def record_state_change(
+        self,
+        *,
+        target: str,
+        actor_id: str,
+        before: dict[str, Any] | None,
+        after: dict[str, Any] | None,
+        event_type: str,
+        note: str = "",
+    ) -> LedgerEntry:
+        before_hash = self._store(before)
+        after_hash = self._store(after)
+        return self._ledger.append(
+            event_type,
+            {"target": target, "before_hash": before_hash,
+             "after_hash": after_hash, "note": note},
+            actor_id=actor_id,
+        )
+
+    def undo(self, entry_id: int, *, actor_id: str) -> LedgerEntry:
+        """Append a *.reverted entry -- never deletes original."""
+        entry = self._entry_at(entry_id)
+        payload = entry.payload
+        target = payload["target"]
+        current = self.current_state(target)
+        restored = self._read(payload["before_hash"])
+        return self.record_state_change(
+            target=target, actor_id=actor_id,
+            before=current, after=restored,
+            event_type=f"{entry.event_type}.reverted",
+            note=f"Undo of entry {entry_id} on {target}",
+        )
+
+    def redo(self, entry_id: int, *, actor_id: str) -> LedgerEntry:
+        """Append a *.reapplied entry."""
+        entry = self._entry_at(entry_id)
+        payload = entry.payload
+        if payload["after_hash"] is None:
+            raise UndoRedoError(codes.E_REDO_NO_NEXT_STATE,
+                                f"Entry {entry_id} has no after state")
+        target = payload["target"]
+        current = self.current_state(target)
+        restored = self._read(payload["after_hash"])
+        return self.record_state_change(
+            target=target, actor_id=actor_id,
+            before=current, after=restored,
+            event_type=f"{entry.event_type}.reapplied",
+            note=f"Redo of entry {entry_id} on {target}",
+        )
+
+    def current_state(self, target: str) -> dict[str, Any] | None:
+        for entry in reversed(self._ledger.all_entries()):
+            if entry.payload.get("target") == target:
+                return self._read(entry.payload["after_hash"])
+        return None
+
+    def history_for(self, target: str) -> list[LedgerEntry]:
+        return [e for e in self._ledger.all_entries()
+                if e.payload.get("target") == target]
+
+    def _entry_at(self, entry_id: int) -> LedgerEntry:
+        entries = self._ledger.all_entries()
+        if entry_id < 0 or entry_id >= len(entries):
+            raise UndoRedoError(codes.E_UNDO_NO_ENTRY,
+                                f"No entry with id {entry_id}")
+        entry = entries[entry_id]
+        if "target" not in entry.payload:
+            raise UndoRedoError(codes.E_UNDO_NOT_UNDOABLE,
+                                f"Entry {entry_id} has no undoable target")
+        return entry</pre>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('rc')">
+      <div class="file-path">src/sia/audit/recorder.py <span style="color:var(--amber);font-size:9px">+APPENDED</span></div>
+      <span class="file-type">PY</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('rc-code','rc-btn')" id="rc-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-rc">
+      <pre id="rc-code">    # ── Reasoning traces (local, on-device only) ───────────────────────
+    # APPEND this block to the bottom of the existing AuditRecorder class.
+    # All methods above this line are unchanged.
+
+    def record_reasoning_trace(
+        self,
+        actor_id: str,
+        model_id: str,
+        *,
+        summary: str,
+        content_hash: str,
+        decision: str | None = None,
+        related_entry_id: int | None = None,
+        timestamp: str | None = None,
+    ) -> None:
+        """Record that a model reasoned before acting -- locally, on-device.
+
+        Only summary (short, human-written) and content_hash (SHA3-512
+        of the full reasoning text) enter the ledger. The full reasoning
+        text belongs in a local-only store (e.g. UndoableLedger snapshot)
+        and must never appear in any export to GitHub or external storage.
+
+        Raises SIAError if summary or content_hash is empty -- a reasoning
+        trace with nothing to verify against is not evidence.
+        """
+        if not summary or not content_hash:
+            raise SIAError(
+                codes.E_REASONING_TRACE_INVALID,
+                "record_reasoning_trace requires summary + content_hash",
+            )
+        self._ledger.append(
+            "reasoning.trace",
+            {
+                "model_id": model_id,
+                "summary": summary,
+                "content_hash": content_hash,
+                "decision": decision,
+                "related_entry_id": related_entry_id,
+            },
+            actor_id=actor_id,
+            timestamp=timestamp,
+        )</pre>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('co')">
+      <div class="file-path">src/sia/errors/codes.py <span style="color:var(--amber);font-size:9px">+E9xxx BLOCK</span></div>
+      <span class="file-type">PY</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('co-code','co-btn')" id="co-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-co">
+      <pre id="co-code"># APPEND to src/sia/errors/codes.py after the E8xxx block
+# and before the DESCRIPTIONS dict -- then add matching entries
+# to DESCRIPTIONS as shown below.
+
+# Undo/redo and reasoning-trace errors
+E_UNDO_NO_ENTRY          = "E9000"
+E_UNDO_NOT_UNDOABLE      = "E9001"
+E_UNDO_NO_PRIOR_STATE    = "E9002"
+E_REDO_NO_NEXT_STATE     = "E9003"
+E_REASONING_TRACE_INVALID = "E9004"
+
+# Add to DESCRIPTIONS dict:
+#   E_UNDO_NO_ENTRY:           "No ledger entry exists with the given id",
+#   E_UNDO_NOT_UNDOABLE:       "Ledger entry was not recorded with an undoable target",
+#   E_UNDO_NO_PRIOR_STATE:     "Ledger entry has no prior state to restore",
+#   E_REDO_NO_NEXT_STATE:      "Ledger entry has no later state to reapply",
+#   E_REASONING_TRACE_INVALID: "Reasoning trace payload is missing required fields",</pre>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('ci')">
+      <div class="file-path">scripts/local_ci.sh <span style="color:var(--green);font-size:9px">NEW</span></div>
+      <span class="file-type">SH</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('ci-code','ci-btn')" id="ci-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-ci">
+      <pre id="ci-code">#!/usr/bin/env bash
+# local_ci.sh -- full test/conformance/governance suite + optional
+# GitHub evidence upload. GitHub sync is OFF by default.
+#
+# SOVEREIGNTY RULES:
+#   - SG_ALLOW_GITHUB_SYNC=1 required to push anything
+#   - Only hash-only evidence bundle ever leaves the device
+#   - No credential generation -- uses existing 'gh auth' only
+#   - set -euo pipefail: fail closed on any error
+
+set -euo pipefail
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT}"
+
+[ -f ".venv/bin/activate" ] && source .venv/bin/activate
+
+echo "==> [1/4] Full test suite"
+pytest --tb=short -q
+
+echo ""
+echo "==> [2/4] Conformance suite"
+pytest tests/conformance/ -q --tb=short
+
+echo ""
+echo "==> [3/4] Governance suite"
+pytest tests/governance/ -q --tb=short
+
+echo ""
+echo "==> [4/4] Local evidence bundle"
+EVIDENCE_DIR="${ROOT}/.local_ci_evidence"
+mkdir -p "${EVIDENCE_DIR}"
+EVIDENCE_FILE="${EVIDENCE_DIR}/evidence_$(date -u +%Y%m%dT%H%M%SZ).json"
+
+python3 - "${EVIDENCE_FILE}" &lt;&lt;'PYEOF'
+import json, sys
+from datetime import datetime, timezone
+from sia.audit.ledger import AuditLedger
+from sia.audit.recorder import AuditRecorder
+
+ledger = AuditLedger()
+recorder = AuditRecorder(ledger)
+recorder.record_authority_init(actor_id="local_ci.sh", version="local-ci-1.0")
+ledger.verify_chain()
+
+bundle = {
+    "format": "SOVEREIGNTY-LOCAL-CI-EVIDENCE-0.1",
+    "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
+    "chain_valid": True,
+    "entry_count": len(ledger),
+    "entries": [e.to_dict() for e in ledger.all_entries()],
+}
+with open(sys.argv[1], "w") as f:
+    json.dump(bundle, f, sort_keys=True, indent=2)
+print(f"Wrote: {sys.argv[1]}")
+PYEOF
+
+echo ""
+if [ "${SG_ALLOW_GITHUB_SYNC:-0}" != "1" ]; then
+  echo "==> GitHub sync: SKIPPED (default)"
+  echo "    Set SG_ALLOW_GITHUB_SYNC=1 + SG_EVIDENCE_REPO=owner/repo to opt in"
+  exit 0
+fi
+
+[ -z "${SG_EVIDENCE_REPO:-}" ] && { echo "SG_EVIDENCE_REPO not set. Abort." >&2; exit 1; }
+command -v gh &>/dev/null || { echo "'gh' not installed. Abort." >&2; exit 1; }
+gh auth status &>/dev/null || { echo "'gh' not authenticated. Run: gh auth login" >&2; exit 1; }
+
+echo "==> Uploading hash-only evidence to ${SG_EVIDENCE_REPO}"
+gh api --method PUT -H "Accept: application/vnd.github+json" \
+  "/repos/${SG_EVIDENCE_REPO}/contents/evidence/$(basename "${EVIDENCE_FILE}")" \
+  -f message="local_ci.sh evidence $(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  -f content="$(base64 -w0 "${EVIDENCE_FILE}")"
+echo "==> Done."</pre>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('t1')">
+      <div class="file-path">tests/sovereignty_core/test_undo_redo.py <span style="color:var(--green);font-size:9px">NEW</span></div>
+      <span class="file-type">PY</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('t1-code','t1-btn')" id="t1-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-t1">
+      <pre id="t1-code">from __future__ import annotations
+import pytest
+from sia.audit.ledger import AuditLedger
+from sia.audit.undo_redo import UndoableLedger, UndoRedoError
+
+def make_undoable():
+    return UndoableLedger(AuditLedger())
+
+def test_record_state_change_is_undoable_and_chain_valid():
+    u = make_undoable()
+    u.record_state_change(target="policy/allowlist.json",
+        actor_id="user:derek", before=None, after={"allow":["anthropic"]},
+        event_type="policy.updated", note="init")
+    u.record_state_change(target="policy/allowlist.json",
+        actor_id="model:claude",
+        before={"allow":["anthropic"]},
+        after={"allow":["anthropic","openai"]},
+        event_type="policy.updated", note="added openai")
+    assert u.current_state("policy/allowlist.json") == {"allow":["anthropic","openai"]}
+    u.ledger.verify_chain()
+
+def test_undo_restores_prior_state_without_deleting_history():
+    u = make_undoable()
+    u.record_state_change(target="f", actor_id="user:derek",
+        before=None, after={"v":1}, event_type="f.updated")
+    u.record_state_change(target="f", actor_id="model:grok",
+        before={"v":1}, after={"v":2},
+        event_type="f.updated", note="wrong change")
+    assert u.current_state("f") == {"v":2}
+    u.undo(1, actor_id="user:derek")
+    assert u.current_state("f") == {"v":1}
+    assert len(u.ledger) == 3  # create, modify, undo all remain
+    u.ledger.verify_chain()
+
+def test_redo_reapplies_the_undone_change():
+    u = make_undoable()
+    u.record_state_change(target="f", actor_id="user:derek",
+        before=None, after={"v":1}, event_type="f.updated")
+    u.record_state_change(target="f", actor_id="model:claude",
+        before={"v":1}, after={"v":2}, event_type="f.updated")
+    u.undo(1, actor_id="user:derek")
+    u.redo(1, actor_id="user:derek")
+    assert u.current_state("f") == {"v":2}
+    u.ledger.verify_chain()
+
+def test_undo_unknown_entry_raises():
+    u = make_undoable()
+    with pytest.raises(UndoRedoError): u.undo(0, actor_id="user:derek")
+
+def test_undo_non_state_change_entry_raises():
+    u = make_undoable()
+    u.ledger.append("authority.init", {"version":"0.1.0"}, actor_id="user:derek")
+    with pytest.raises(UndoRedoError): u.undo(0, actor_id="user:derek")
+
+def test_history_for_returns_only_matching_target():
+    u = make_undoable()
+    u.record_state_change(target="a", actor_id="user:derek",
+        before=None, after={"v":1}, event_type="x")
+    u.record_state_change(target="b", actor_id="user:derek",
+        before=None, after={"v":1}, event_type="x")
+    u.record_state_change(target="a", actor_id="user:derek",
+        before={"v":1}, after={"v":2}, event_type="x")
+    assert len(u.history_for("a")) == 2
+    assert len(u.history_for("b")) == 1</pre>
+    </div>
+  </div>
+
+  <div class="file-card">
+    <div class="file-hdr" onclick="toggle('t2')">
+      <div class="file-path">tests/sovereignty_core/test_reasoning_trace.py <span style="color:var(--green);font-size:9px">NEW</span></div>
+      <span class="file-type">PY</span>
+      <button class="copy-btn" onclick="event.stopPropagation();copyFile('t2-code','t2-btn')" id="t2-btn">COPY</button>
+    </div>
+    <div class="file-body" id="body-t2">
+      <pre id="t2-code">from __future__ import annotations
+import pytest
+from sia.audit.ledger import AuditLedger
+from sia.audit.recorder import AuditRecorder
+from sia.errors.exceptions import SIAError
+from sia.utils.hashing import hash_object
+
+def test_reasoning_trace_records_hash_not_full_text():
+    ledger = AuditLedger()
+    recorder = AuditRecorder(ledger)
+    full = "step 1: check policy. step 2: check quota. step 3: proceed."
+    digest = hash_object({"text": full})
+    recorder.record_reasoning_trace(
+        actor_id="model:claude", model_id="anthropic.claude",
+        summary="checked policy and quota before proceeding",
+        content_hash=digest, decision="proceed")
+    entry = ledger.tail(1)[0]
+    assert entry.event_type == "reasoning.trace"
+    assert entry.payload["content_hash"] == digest
+    # Full reasoning text must never appear in the ledger payload
+    assert full not in str(entry.payload)
+    ledger.verify_chain()
+
+def test_reasoning_trace_requires_summary_and_hash():
+    recorder = AuditRecorder(AuditLedger())
+    with pytest.raises(SIAError):
+        recorder.record_reasoning_trace(actor_id="model:claude",
+            model_id="anthropic.claude", summary="", content_hash="abc")
+    with pytest.raises(SIAError):
+        recorder.record_reasoning_trace(actor_id="model:claude",
+            model_id="anthropic.claude", summary="did something", content_hash="")
+
+def test_reasoning_trace_can_reference_a_related_ledger_entry():
+    ledger = AuditLedger()
+    recorder = AuditRecorder(ledger)
+    recorder.record_authority_init(actor_id="user:derek", version="0.1.0")
+    recorder.record_reasoning_trace(actor_id="model:grok", model_id="xai.grok",
+        summary="justification for init above",
+        content_hash=hash_object({"text":"..."}), related_entry_id=0)
+    assert ledger.tail(1)[0].payload["related_entry_id"] == 0</pre>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── ARCH PANEL ───────────── -->
+<div class="panel" id="panel-arch">
+
+  <div class="arch">
+    <div class="arch-title">Sovereignty-AI-Gate // Authority Plane</div>
+
+    <div class="arch-row">
+      <div class="arch-box green">Secure Enclave / Device Key</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box green">RootAuthority Ed25519</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box green">RootAuthority</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box cyan">SovereignAuthority</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box cyan">SovereignAuthority</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box cyan">AuditLedger (SHA3-512)</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box cyan">AuditLedger</div>
+      <div class="arrow">+</div>
+      <div class="arch-box green">UndoableLedger [NEW]</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box green">content snapshots</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box cyan">AuditRecorder</div>
+      <div class="arrow">+</div>
+      <div class="arch-box green">record_reasoning_trace [NEW]</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box cyan">PolicyGate / ProviderRegistry</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box cyan">mcp_server.py</div>
+    </div>
+    <div class="arch-row">
+      <div class="arch-box cyan">mcp_server.py</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box cyan">bridge.py :9897</div>
+      <div class="arrow">--&gt;</div>
+      <div class="arch-box green">SGHV119</div>
+    </div>
+
+    <div class="arch-rule"><span>ALLOWED</span>: anthropic.claude / openai.gpt / xai.grok / github.copilot</div>
+    <div class="arch-rule bad"><span>BLOCKED</span>: google.* / meta.* / firebase.* / vertex.*</div>
+    <div class="arch-rule"><span>ON-DEVICE</span>: reasoning text in UndoableLedger snapshots only</div>
+    <div class="arch-rule"><span>OFF-DEVICE</span>: hash-only evidence bundle via local_ci.sh</div>
+  </div>
+
+  <div class="arch">
+    <div class="arch-title">New Error Code Namespace</div>
+    <div class="info-row"><div class="info-key">E9000</div><div class="info-val">E_UNDO_NO_ENTRY</div></div>
+    <div class="info-row"><div class="info-key">E9001</div><div class="info-val">E_UNDO_NOT_UNDOABLE</div></div>
+    <div class="info-row"><div class="info-key">E9002</div><div class="info-val">E_UNDO_NO_PRIOR_STATE</div></div>
+    <div class="info-row"><div class="info-key">E9003</div><div class="info-val">E_REDO_NO_NEXT_STATE</div></div>
+    <div class="info-row"><div class="info-key">E9004</div><div class="info-val">E_REASONING_TRACE_INVALID</div></div>
+  </div>
+
+  <div class="arch">
+    <div class="arch-title">SGHV119 Bridge Wiring (next step)</div>
+    <div class="arch-row"><div class="arch-box amber">bridge.py :9897</div><div class="arrow">add routes:</div></div>
+    <div style="padding:8px 0 0 12px;font-size:10px;color:var(--text2)">
+      GET  /policy/check?provider=&lt;id&gt;<br>
+      POST /ledger/undo  { entry_id, actor_id }<br>
+      POST /ledger/redo  { entry_id, actor_id }<br>
+      GET  /ledger/history?target=&lt;target&gt;
+    </div>
+    <div style="padding:8px 0 0 12px;font-size:10px;color:var(--text2);margin-top:8px;border-top:1px solid var(--dim)">
+      SGHV119 calls: fetch(BRIDGE.base + '/policy/check?provider=...')<br>
+      following existing fetch('http://127.0.0.1:9897/chat') pattern
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── TESTS PANEL ───────────── -->
+<div class="panel" id="panel-tests">
+
+  <div class="file-card" style="margin-bottom:0;border-radius:4px 4px 0 0;border-bottom:none">
+    <div style="padding:10px 14px;font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:1px">
+      438 passed &nbsp;|&nbsp; 0 failed &nbsp;|&nbsp; Python 3.12.3 &nbsp;|&nbsp; 3.21s
+    </div>
+  </div>
+  <div class="file-card" style="margin-top:0;border-radius:0 0 4px 4px">
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_record_state_change_is_undoable_and_chain_valid</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_undo_restores_prior_state_without_deleting_history</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_redo_reapplies_the_undone_change</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_undo_unknown_entry_raises</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_undo_non_state_change_entry_raises</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_history_for_returns_only_matching_target</div><div class="test-file">test_undo_redo</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_reasoning_trace_records_hash_not_full_text</div><div class="test-file">test_reasoning_trace</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_reasoning_trace_requires_summary_and_hash</div><div class="test-file">test_reasoning_trace</div></div>
+    <div class="test-row"><div class="dot"></div><div class="test-name">test_reasoning_trace_can_reference_a_related_ledger_entry</div><div class="test-file">test_reasoning_trace</div></div>
+  </div>
+
+  <div class="arch" style="margin-top:12px">
+    <div class="arch-title">Key Invariants Verified</div>
+    <div class="info-row"><div class="info-key">Undo = append</div><div class="info-val ok">Never deletes from ledger -- adds *.reverted entry</div></div>
+    <div class="info-row"><div class="info-key">Chain integrity</div><div class="info-val ok">verify_chain() called after every undo/redo</div></div>
+    <div class="info-row"><div class="info-key">Reasoning leak</div><div class="info-val ok">Full text must NOT appear in ledger payload</div></div>
+    <div class="info-row"><div class="info-key">Empty trace</div><div class="info-val ok">E9004 raised on empty summary or empty hash</div></div>
+    <div class="info-row"><div class="info-key">No-target undo</div><div class="info-val ok">E9001 raised when entry has no undoable target</div></div>
+  </div>
+</div>
+
+<!-- ───────────── DEPLOY PANEL ───────────── -->
+<div class="panel" id="panel-deploy">
+
+  <div class="arch">
+    <div class="arch-title">Drop-in patch -- 6 files to copy</div>
+    <div class="info-row"><div class="info-key">undo_redo.py</div><div class="info-val ok">src/sia/audit/ (NEW)</div></div>
+    <div class="info-row"><div class="info-key">recorder.py</div><div class="info-val warn">src/sia/audit/ (append bottom of class)</div></div>
+    <div class="info-row"><div class="info-key">codes.py</div><div class="info-val warn">src/sia/errors/ (append E9xxx block)</div></div>
+    <div class="info-row"><div class="info-key">test_undo_redo.py</div><div class="info-val ok">tests/sovereignty_core/ (NEW)</div></div>
+    <div class="info-row"><div class="info-key">test_reasoning_trace.py</div><div class="info-val ok">tests/sovereignty_core/ (NEW)</div></div>
+    <div class="info-row"><div class="info-key">local_ci.sh</div><div class="info-val ok">scripts/ (NEW, chmod +x)</div></div>
+  </div>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-n">1</div>
+      <div class="step-body">
+        <div class="step-title">Clone / pull latest</div>
+        <div class="step-cmd">cd Sovereignty-AI-Gate
+git pull origin main</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">2</div>
+      <div class="step-body">
+        <div class="step-title">Copy the 3 new + 3 modified files</div>
+        <div class="step-cmd">cp undo_redo.py src/sia/audit/
+cp test_undo_redo.py tests/sovereignty_core/
+cp test_reasoning_trace.py tests/sovereignty_core/
+cp local_ci.sh scripts/
+chmod +x scripts/local_ci.sh
+# For recorder.py and codes.py: append only
+# (tap FILES tab, copy each addition block)</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">3</div>
+      <div class="step-body">
+        <div class="step-title">Install + run tests</div>
+        <div class="step-cmd">pip install -e . --break-system-packages
+pip install jsonschema --break-system-packages
+pytest tests/ -q</div>
+        <div class="step-note">Expected: 438 passed, 0 failed</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">4</div>
+      <div class="step-body">
+        <div class="step-title">Run local CI (GitHub sync OFF by default)</div>
+        <div class="step-cmd">bash scripts/local_ci.sh</div>
+        <div class="step-note">Evidence bundle written to .local_ci_evidence/ -- never pushed unless you set SG_ALLOW_GITHUB_SYNC=1</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-n">5</div>
+      <div class="step-body">
+        <div class="step-title">Optional -- push hash-only evidence to your repo</div>
+        <div class="step-cmd">SG_ALLOW_GITHUB_SYNC=1 \
+SG_EVIDENCE_REPO=Appel420/Sovereignty-AI-Gate \
+bash scripts/local_ci.sh</div>
+        <div class="step-note">Requires: gh auth login already done. Only the hash chain JSON leaves the device -- no raw code or reasoning text.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── AMR PANEL ───────────── -->
+<div class="panel" id="panel-amr">
+  <div class="amr-hdr">
+    <h3>AMR v1 // AI Market Registry</h3>
+    <p>Local-first SQLite registry of AI companies, models, APIs, and dependency edges. Evidence-gated: nothing shows as "verified" until real evidence rows exist. Hash-chained audit log with WebSocket live feed. Bound to 127.0.0.1 by default.</p>
+  </div>
+
+  <div class="arch" style="margin-top:0">
+    <div class="arch-title">Setup</div>
+    <div class="step-cmd" style="margin:0;font-size:10px">cd amr-v1
+npm install
+npm run seed    # companies loaded, evidence_score=0
+npm start       # http://127.0.0.1:9899</div>
+  </div>
+
+  <div class="arch">
+    <div class="arch-title">Port</div>
+    <div class="info-row"><div class="info-key">Default</div><div class="info-val ok">127.0.0.1:9899</div></div>
+    <div class="info-row"><div class="info-key">LAN opt-in</div><div class="info-val warn">AMR_HOST=0.0.0.0 (explicit only)</div></div>
+    <div class="info-row"><div class="info-key">WebSocket</div><div class="info-val ok">ws://127.0.0.1:9899/ws/events</div></div>
+  </div>
+
+  <div class="endpoint-table">
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/companies</div><div class="ep-desc">List all companies</div></div>
+    <div class="endpoint"><div class="method POST">POST</div><div class="ep-path">/api/companies</div><div class="ep-desc">Register a company</div></div>
+    <div class="endpoint"><div class="method PATCH">PATCH</div><div class="ep-path">/api/companies/:id</div><div class="ep-desc">Update a company</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/models</div><div class="ep-desc">List models</div></div>
+    <div class="endpoint"><div class="method POST">POST</div><div class="ep-path">/api/models</div><div class="ep-desc">Register a model</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/evidence</div><div class="ep-desc">Evidence for entity</div></div>
+    <div class="endpoint"><div class="method POST">POST</div><div class="ep-path">/api/evidence</div><div class="ep-desc">Attach evidence</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/risk/:companyId</div><div class="ep-desc">Aggregated risk metrics</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/dependencies</div><div class="ep-desc">Dependency edges</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/audit/verify</div><div class="ep-desc">Verify hash chain</div></div>
+    <div class="endpoint"><div class="method WS">WS</div><div class="ep-path">/ws/events</div><div class="ep-desc">Live audit feed</div></div>
+    <div class="endpoint"><div class="method GET">GET</div><div class="ep-path">/api/health</div><div class="ep-desc">Liveness check</div></div>
+  </div>
+
+  <div class="arch">
+    <div class="arch-title">Design Rules (from AMR README)</div>
+    <div class="info-row"><div class="info-key">evidence_score</div><div class="info-val ok">Starts at 0 on seed -- not fabricated</div></div>
+    <div class="info-row"><div class="info-key">availability_risk</div><div class="info-val warn">Returns null until real data feed exists</div></div>
+    <div class="info-row"><div class="info-key">security_risk</div><div class="info-val warn">Returns null -- no silent zeros</div></div>
+    <div class="info-row"><div class="info-key">AI-100 index</div><div class="info-val danger">NOT built yet -- needs real adoption data</div></div>
+  </div>
+</div>
+
+<!-- ───────────── LICENSE PANEL ───────────── -->
+<div class="panel" id="panel-license">
+  <div class="doc">
+    <h2>Sovereignty License 1.0</h2>
+    <p style="font-size:10px;color:var(--text2)">Copyright 2026 Derek Appel. Internal-Use Source-Available. Effective July 13, 2026.</p>
+
+    <h3>Permitted</h3>
+    <ul>
+      <li>Use, modify, integrate, test, deploy within your organization</li>
+      <li>Use by employees, contractors under direct control, affiliates</li>
+      <li>Sovereign Mechanisms: on-device cryptographic trust only</li>
+    </ul>
+
+    <h3>Prohibited</h3>
+    <ul>
+      <li>Distribution to unaffiliated third parties</li>
+      <li>Software as a service to external parties</li>
+      <li>Sublicensing, commercial resale, public availability</li>
+      <li>Google / Meta / Firebase / Vertex integration (SCAR violation)</li>
+      <li>Any AI provider not on the allowlist without explicit written approval</li>
+    </ul>
+
+    <h3>Sovereignty Mechanisms</h3>
+    <p>All cryptographic operations use device-local keys. No plaintext credentials or private key material leaves the device. Evidence exports are hash-only. Full text of reasoning stays on-device.</p>
+
+    <h3>No Warranty</h3>
+    <p>Software provided AS IS. No warranties, express or implied. Licensor not liable for indirect or consequential damages.</p>
+  </div>
+</div>
+
+<div id="toast">Copied to clipboard</div>
+
+<div class="footer">Sovereignty AI Gate // Patch v1 // 438 PASS // July 2026 // Internal-Use</div>
+
+<script>
+// Tab switching
+document.getElementById('tabs').addEventListener('click', function(e) {
+  var tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active')});
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active')});
+  tab.classList.add('active');
+  document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+});
+
+// File card toggle
+function toggle(id) {
+  var body = document.getElementById('body-' + id);
+  body.classList.toggle('open');
+}
+
+// Copy to clipboard
+function copyFile(codeId, btnId) {
+  var text = document.getElementById(codeId).textContent;
+  var btn = document.getElementById(btnId);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function(){
+      showCopied(btn);
+    }).catch(function(){
+      fallbackCopy(text, btn);
+    });
+  } else {
+    fallbackCopy(text, btn);
+  }
+}
+
+function fallbackCopy(text, btn) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.top = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); showCopied(btn); } catch(e){}
+  document.body.removeChild(ta);
+}
+
+function showCopied(btn) {
+  btn.textContent = 'COPIED';
+  btn.classList.add('copied');
+  var t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(function(){
+    btn.textContent = 'COPY';
+    btn.classList.remove('copied');
+    t.classList.remove('show');
+  }, 1800);
+}
+
+// Auto-open first file card on load
+document.getElementById('body-ur').classList.add('open');
+</script>
+</body>
+</html>

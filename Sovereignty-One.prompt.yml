@@ -7,7 +7,7 @@ messages:
   - role: user
     content: |-
       Pull out the action items from this meeting transcript: {{input}} 
-      FROM python:3.12-slim
+      FROM python:3.13
 
       WORKDIR /app
 
@@ -56,4 +56,4 @@ messages:
               os.rename(audit_file, f"{audit_file}.{int(time.time())}.bak")
               open(audit_file, "w").close()
           time.sleep(interval)
-model: openai/gpt-5.4-mini responseFormat:text/voice
+model: openai/gpt-5.6-Luna responseFormat:text/voice

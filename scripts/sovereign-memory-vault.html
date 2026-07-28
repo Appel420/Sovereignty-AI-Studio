@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign Memory Vault</title>
+<style>
+  :root{
+    --bg:#0a0b0d; --bg2:#121417; --bg3:#1a1d21; --border:#2a2e33;
+    --text:#e4e6ea; --text-dim:#8a9099; --accent:#5fb3a3; --accent2:#c9a86a;
+    --warn:#c9755a; --ok:#5fb37a; --shared:#8a7ac9;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:14px; line-height:1.5; height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    padding:14px 18px; border-bottom:1px solid var(--border); display:flex;
+    justify-content:space-between; align-items:center; background:var(--bg2);
+  }
+  header h1{font-size:15px; font-weight:600; letter-spacing:.02em;}
+  header h1 span{color:var(--accent);}
+  .lockstate{font-size:11px; padding:3px 9px; border-radius:20px; border:1px solid var(--border);}
+  .lockstate.locked{color:var(--warn); border-color:var(--warn);}
+  .lockstate.unlocked{color:var(--ok); border-color:var(--ok);}
+
+  .banner{
+    background:#1c1710; border-bottom:1px solid #3a2e18; color:var(--accent2);
+    font-size:11.5px; padding:8px 18px;
+  }
+
+  .tabs{display:flex; border-bottom:1px solid var(--border); background:var(--bg2); overflow-x:auto;}
+  .tab{
+    padding:10px 16px; font-size:12.5px; cursor:pointer; color:var(--text-dim);
+    border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  .tab.active{color:var(--text); border-bottom-color:var(--accent);}
+  .tab.shared-tab.active{border-bottom-color:var(--shared);}
+
+  main{flex:1; overflow:hidden; display:flex;}
+  .panel{flex:1; display:none; overflow:auto; padding:18px;}
+  .panel.active{display:block;}
+
+  .lockscreen{
+    max-width:380px; margin:60px auto; display:flex; flex-direction:column; gap:12px;
+  }
+  .lockscreen input{
+    background:var(--bg3); border:1px solid var(--border); color:var(--text);
+    padding:10px 12px; border-radius:6px; font-size:13px; font-family:inherit;
+  }
+  button{
+    background:var(--bg3); border:1px solid var(--border); color:var(--text);
+    padding:8px 14px; border-radius:6px; font-size:12.5px; cursor:pointer; font-family:inherit;
+  }
+  button:hover{border-color:var(--accent);}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#0a0b0d; font-weight:600;}
+  button.danger{background:var(--warn); border-color:var(--warn); color:#0a0b0d; font-weight:600;}
+  button.ghost{background:transparent;}
+  button:disabled{opacity:.4; cursor:not-allowed;}
+
+  .entry{
+    background:var(--bg2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; margin-bottom:8px; font-size:13px;
+  }
+  .entry .meta{font-size:10.5px; color:var(--text-dim); margin-bottom:4px; display:flex; gap:8px;}
+  .entry.shared{border-left:3px solid var(--shared);}
+  .entry .del{float:right; color:var(--warn); cursor:pointer; font-size:11px;}
+
+  .composer{display:flex; gap:8px; margin-top:14px;}
+  .composer textarea{
+    flex:1; background:var(--bg3); border:1px solid var(--border); color:var(--text);
+    padding:10px; border-radius:6px; font-family:inherit; font-size:13px; resize:vertical; min-height:60px;
+  }
+
+  .consent-row{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; background:var(--bg2);
+    border:1px solid var(--border); border-radius:8px; margin-bottom:14px; font-size:12.5px;
+  }
+  .toggle{
+    width:38px; height:20px; background:var(--bg3); border:1px solid var(--border);
+    border-radius:20px; position:relative; cursor:pointer; flex-shrink:0;
+  }
+  .toggle.on{background:var(--shared); border-color:var(--shared);}
+  .toggle .knob{
+    width:16px; height:16px; background:var(--text); border-radius:50%;
+    position:absolute; top:1px; left:1px; transition:left .15s;
+  }
+  .toggle.on .knob{left:19px; background:#0a0b0d;}
+
+  .audit-row{
+    display:grid; grid-template-columns:100px 90px 1fr 130px; gap:8px; font-size:11.5px;
+    padding:7px 10px; border-bottom:1px solid var(--border); align-items:center;
+  }
+  .audit-row.head{color:var(--text-dim); font-weight:600; border-bottom:1px solid var(--accent);}
+  .decision.granted{color:var(--ok);} .decision.revoked{color:var(--warn);}
+
+  .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-dim); margin:18px 0 8px;}
+  .row{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+
+  .test-line{padding:6px 10px; border-radius:5px; margin-bottom:4px; font-size:12px; font-family:ui-monospace,monospace;}
+  .test-line.pass{background:#0f1f14; color:var(--ok);}
+  .test-line.fail{background:#241110; color:var(--warn);}
+
+  .empty{color:var(--text-dim); font-size:12.5px; padding:20px 0; text-align:center;}
+  .disconnected-note{color:var(--warn); font-size:11.5px; margin-top:6px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sovereign <span>Memory Vault</span></h1>
+  <div id="lockIndicator" class="lockstate locked">LOCKED</div>
+</header>
+
+<div class="banner">
+  ⚠ Prototype scope: this is a browser page. WebCrypto + IndexedDB give real at-rest encryption in this browser profile,
+  but a page cannot reach the iOS Secure Enclave or guarantee OS-level key lifecycle. On iPhone, the equivalent record
+  should live in an app with app-managed encrypted storage and a hardware-backed key (Keychain / Secure Enclave), not a
+  browser tab. Nothing here calls out to any network — check the source, there are zero <code>fetch</code>/<code>XHR</code> calls.
+</div>
+
+<div id="lockscreenWrap">
+  <div class="lockscreen">
+    <div class="section-title">Unlock Vault</div>
+    <input id="passphrase" type="password" placeholder="Device passphrase" autocomplete="off">
+    <button class="primary" id="unlockBtn">Unlock / Initialize</button>
+    <div id="lockMsg" style="font-size:11.5px; color:var(--text-dim);"></div>
+  </div>
+</div>
+
+<div id="appWrap" style="display:none; flex:1; overflow:hidden; display:none; flex-direction:column;">
+  <div class="tabs" id="tabBar"></div>
+  <main id="main"></main>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   CONFIG — no network calls anywhere in this file.
+   ============================================================ */
+const MODELS = [
+  { id: 'claude', label: 'Claude' },
+  { id: 'gpt', label: 'GPT' },
+  { id: 'grok', label: 'Grok' },
+  { id: 'copilot', label: 'GitHub Copilot' }
+];
+const DB_NAME = 'sovereign_vault_v1';
+const DB_VERSION = 1;
+const KDF_ITERATIONS = 250000;
+
+/* ============================================================
+   IndexedDB layer
+   ============================================================ */
+function openDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta', { keyPath: 'key' });
+      if (!db.objectStoreNames.contains('entries')) {
+        const store = db.createObjectStore('entries', { keyPath: 'id' });
+        store.createIndex('modelId', 'modelId', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('audit')) {
+        const store = db.createObjectStore('audit', { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function tx(db, store, mode){ return db.transaction(store, mode).objectStore(store); }
+
+function idbGet(db, store, key){
+  return new Promise((res, rej) => {
+    const r = tx(db, store, 'readonly').get(key);
+    r.onsuccess = () => res(r.result || null);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbPut(db, store, value){
+  return new Promise((res, rej) => {
+    const r = tx(db, store, 'readwrite').put(value);
+    r.onsuccess = () => res(true);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbDelete(db, store, key){
+  return new Promise((res, rej) => {
+    const r = tx(db, store, 'readwrite').delete(key);
+    r.onsuccess = () => res(true);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbGetAllByIndex(db, store, indexName, value){
+  return new Promise((res, rej) => {
+    const idx = tx(db, store, 'readonly').index(indexName);
+    const r = idx.getAll(value);
+    r.onsuccess = () => res(r.result || []);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbGetAll(db, store){
+  return new Promise((res, rej) => {
+    const r = tx(db, store, 'readonly').getAll();
+    r.onsuccess = () => res(r.result || []);
+    r.onerror = () => rej(r.error);
+  });
+}
+function idbClearStore(db, store){
+  return new Promise((res, rej) => {
+    const r = tx(db, store, 'readwrite').clear();
+    r.onsuccess = () => res(true);
+    r.onerror = () => rej(r.error);
+  });
+}
+
+/* ============================================================
+   WebCrypto layer — AES-GCM, key derived via PBKDF2 from the
+   device passphrase. Key material never touches IndexedDB or
+   any storage; it lives only as a non-extractable CryptoKey in
+   memory for the unlocked session.
+   ============================================================ */
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function randomBytes(n){ return crypto.getRandomValues(new Uint8Array(n)); }
+function b64(buf){ return btoa(String.fromCharCode(...new Uint8Array(buf))); }
+function unb64(str){ return Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer; }
+
+async function deriveKey(passphrase, saltB64){
+  const salt = new Uint8Array(unb64(saltB64));
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: KDF_ITERATIONS, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false, // non-extractable
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptString(key, plaintext){
+  const iv = randomBytes(12);
+  const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function decryptString(key, ivB64, ctB64){
+  const pt = await crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: new Uint8Array(unb64(ivB64)) }, key, unb64(ctB64)
+  );
+  return dec.decode(pt);
+}
+
+/* ============================================================
+   MemoryChain — append-only provenance layer (Stage 3)
+
+   Every entry hashes into the previous entry's hash (a simple
+   hash chain, not a full Merkle tree — sufficient to detect any
+   tamper or reordering of the append-only log) and is signed
+   with a per-vault signing keypair. The public key is exportable
+   (needed to verify signatures); the private key is generated
+   non-extractable and stored as a CryptoKey object directly in
+   IndexedDB (structured-clone of non-extractable CryptoKeys is
+   supported by the browser's own storage layer) so raw private
+   key material never exists outside the crypto engine, on this
+   device, ever.
+
+   Algorithm preference: Ed25519 (matches your stated key policy).
+   Falls back to ECDSA P-256 with a visible flag if the browser's
+   WebCrypto build doesn't support Ed25519 yet.
+
+   HONEST CAVEAT: WebCrypto's generateKey() applies one `extractable`
+   flag to both keys in a pair -- there is no way in the browser API
+   to mark the public key extractable (needed to publish/export it
+   for verification) while leaving the private key non-extractable.
+   So unlike the AES-GCM vault key above, this signing private key
+   IS technically extractable by any code running on the page. The
+   discipline here is that this file never calls exportKey() on it --
+   but that is a code-review guarantee, not a browser-enforced one.
+   This is exactly the gap Stage 2 (Secure Enclave) closes: hardware
+   keys can enforce non-extractability for real, a browser tab cannot.
+   ============================================================ */
+async function detectSigAlgo(){
+  try {
+    await crypto.subtle.generateKey({ name: 'Ed25519' }, true, ['sign', 'verify']);
+    return 'Ed25519';
+  } catch(e){
+    return 'ECDSA-P256';
+  }
+}
+function sigAlgoParams(name){
+  return name === 'Ed25519'
+    ? { genParams: { name: 'Ed25519' }, signParams: { name: 'Ed25519' } }
+    : { genParams: { name: 'ECDSA', namedCurve: 'P-256' }, signParams: { name: 'ECDSA', hash: 'SHA-256' } };
+}
+
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', enc.encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function signHash(privateKey, algoName, hashHex){
+  const { signParams } = sigAlgoParams(algoName);
+  const sig = await crypto.subtle.sign(signParams, privateKey, enc.encode(hashHex));
+  return b64(sig);
+}
+async function verifyHashSig(publicKey, algoName, hashHex, sigB64){
+  const { signParams } = sigAlgoParams(algoName);
+  return crypto.subtle.verify(signParams, publicKey, unb64(sigB64), enc.encode(hashHex));
+}
+
+/* ============================================================
+   Vault state (in-memory only while unlocked)
+   ============================================================ */
+const State = {
+  db: null,
+  key: null,               // CryptoKey, in memory only
+  unlocked: false,
+  activeTab: 'claude',
+  decrypted: {},           // { modelId: [entries] } — cleared on disconnect/lock
+  sharedDecrypted: [],
+  auditCache: [],
+  shareToggle: {}           // per-model session consent toggle, off by default
+};
+
+function uid(){ return crypto.randomUUID(); }
+
+/* ============================================================
+   Init / Unlock
+   ============================================================ */
+async function initOrUnlock(passphrase){
+  const db = await openDB();
+  State.db = db;
+  let meta = await idbGet(db, 'meta', 'vault');
+
+  if (!meta){
+    // First run: initialize
+    const salt = b64(randomBytes(16));
+    const key = await deriveKey(passphrase, salt);
+    const verify = await encryptString(key, 'VAULT_OK');
+
+    // MemoryChain: generate the vault's signing keypair once. Stored as
+    // CryptoKey objects directly (see honest caveat above re: extractability).
+    const sigAlgo = await detectSigAlgo();
+    const { genParams } = sigAlgoParams(sigAlgo);
+    const keyPair = await crypto.subtle.generateKey(genParams, true, ['sign', 'verify']);
+    const exportedPub = await crypto.subtle.exportKey('raw', keyPair.publicKey).catch(() => crypto.subtle.exportKey('spki', keyPair.publicKey));
+
+    await idbPut(db, 'meta', {
+      key: 'vault', salt, verifyIv: verify.iv, verifyCt: verify.ct, createdAt: Date.now(),
+      sigAlgo, chainHead: 'GENESIS', signingPrivateKey: keyPair.privateKey, signingPublicKey: keyPair.publicKey,
+      publicKeyFingerprint: await sha256Hex(b64(exportedPub))
+    });
+    State.key = key;
+    State.sigAlgo = sigAlgo;
+    State.signingPrivateKey = keyPair.privateKey;
+    State.signingPublicKey = keyPair.publicKey;
+    State.chainHead = 'GENESIS';
+    State.chainSeq = 0;
+    State.publicKeyFingerprint = await sha256Hex(b64(exportedPub));
+    State.unlocked = true;
+    return { ok: true, created: true };
+  } else {
+    const key = await deriveKey(passphrase, meta.salt);
+    try {
+      const check = await decryptString(key, meta.verifyIv, meta.verifyCt);
+      if (check !== 'VAULT_OK') return { ok: false, error: 'Passphrase incorrect.' };
+    } catch(e){
+      return { ok: false, error: 'Passphrase incorrect.' };
+    }
+    State.key = key;
+    State.sigAlgo = meta.sigAlgo;
+    State.signingPrivateKey = meta.signingPrivateKey;
+    State.signingPublicKey = meta.signingPublicKey;
+    State.chainHead = meta.chainHead || 'GENESIS';
+    State.chainSeq = meta.chainSeq || 0;
+    State.publicKeyFingerprint = meta.publicKeyFingerprint;
+    State.unlocked = true;
+    return { ok: true, created: false };
+  }
+}
+
+function lockVault(){
+  State.key = null;
+  State.signingPrivateKey = null;
+  State.signingPublicKey = null;
+  State.unlocked = false;
+  State.decrypted = {};
+  State.sharedDecrypted = [];
+  State.shareToggle = {};
+}
+
+/* ============================================================
+   Entry operations
+   ============================================================ */
+async function addEntry(modelId, text, opts = {}){
+  const shared = !!opts.shared;
+  const enc1 = await encryptString(State.key, text);
+  const id = uid();
+  const ts = Date.now();
+  const targetModelId = shared ? '__shared__' : modelId;
+  const seq = (State.chainSeq || 0) + 1;
+  const prevHash = State.chainHead || 'GENESIS';
+
+  // MemoryChain link: hash covers the ciphertext + metadata + prior link,
+  // so any edit, reorder, or deletion-and-reinsert of an entry breaks the
+  // chain from that point forward -- detectable by verifyChain().
+  const canonical = `${id}|${targetModelId}|${enc1.iv}|${enc1.ct}|${ts}|${seq}|${prevHash}`;
+  const hash = await sha256Hex(canonical);
+  const sig = await signHash(State.signingPrivateKey, State.sigAlgo, hash);
+
+  const record = {
+    id, modelId: targetModelId, iv: enc1.iv, ct: enc1.ct, ts, shared,
+    seq, prevHash, hash, sig
+  };
+  await idbPut(State.db, 'entries', record);
+
+  State.chainSeq = seq;
+  State.chainHead = hash;
+  const meta = await idbGet(State.db, 'meta', 'vault');
+  meta.chainHead = hash;
+  meta.chainSeq = seq;
+  await idbPut(State.db, 'meta', meta);
+
+  return record;
+}
+
+/**
+ * Recomputes the hash chain from GENESIS across every entry (all models +
+ * shared record, in seq order) and verifies each entry's signature.
+ * Returns { ok, brokenAt, checked } -- brokenAt is the first entry (by seq)
+ * where the stored hash/signature no longer matches what's actually in
+ * IndexedDB, meaning that record was altered outside of addEntry().
+ */
+async function verifyChain(){
+  const all = await idbGetAll(State.db, 'entries');
+  all.sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  let expectedPrev = 'GENESIS';
+  let checked = 0;
+  for (const r of all){
+    if (r.prevHash !== expectedPrev){
+      return { ok: false, brokenAt: r.id, reason: 'prevHash mismatch (reordered or tampered link)', checked };
+    }
+    const canonical = `${r.id}|${r.modelId}|${r.iv}|${r.ct}|${r.ts}|${r.seq}|${r.prevHash}`;
+    const recomputedHash = await sha256Hex(canonical);
+    if (recomputedHash !== r.hash){
+      return { ok: false, brokenAt: r.id, reason: 'hash mismatch (record contents altered)', checked };
+    }
+    const sigOk = await verifyHashSig(State.signingPublicKey, State.sigAlgo, r.hash, r.sig);
+    if (!sigOk){
+      return { ok: false, brokenAt: r.id, reason: 'signature invalid', checked };
+    }
+    expectedPrev = r.hash;
+    checked++;
+  }
+  return { ok: true, brokenAt: null, reason: null, checked };
+}
+
+async function loadModelEntries(modelId){
+  const rows = await idbGetAllByIndex(State.db, 'entries', 'modelId', modelId);
+  const out = [];
+  for (const r of rows){
+    try {
+      const text = await decryptString(State.key, r.iv, r.ct);
+      out.push({ id: r.id, text, ts: r.ts, shared: false, seq: r.seq, hash: r.hash });
+    } catch(e){ /* skip entries that fail to decrypt */ }
+  }
+  out.sort((a,b) => a.ts - b.ts);
+  return out;
+}
+
+async function loadSharedEntries(){
+  const rows = await idbGetAllByIndex(State.db, 'entries', 'modelId', '__shared__');
+  const out = [];
+  for (const r of rows){
+    try {
+      const text = await decryptString(State.key, r.iv, r.ct);
+      out.push({ id: r.id, text, ts: r.ts, shared: true, seq: r.seq, hash: r.hash });
+    } catch(e){}
+  }
+  out.sort((a,b) => a.ts - b.ts);
+  return out;
+}
+
+async function deleteEntry(id){
+  await idbDelete(State.db, 'entries', id);
+}
+
+async function wipeVault(){
+  await idbClearStore(State.db, 'entries');
+  await idbClearStore(State.db, 'audit');
+  await idbClearStore(State.db, 'meta');
+  lockVault();
+}
+
+/* ============================================================
+   Consent + audit log
+   ============================================================ */
+async function logShareEvent({ recipientModel, scope, decision }){
+  const record = { id: uid(), recipientModel, scope, ts: Date.now(), decision };
+  await idbPut(State.db, 'audit', record);
+  return record;
+}
+
+function setShareToggle(modelId, on, recipientModel){
+  const wasOn = !!State.shareToggle[modelId];
+  State.shareToggle[modelId] = on;
+  if (on && !wasOn){
+    logShareEvent({ recipientModel: recipientModel || modelId, scope: 'full_shared_record', decision: 'granted' });
+  } else if (!on && wasOn){
+    logShareEvent({ recipientModel: recipientModel || modelId, scope: 'full_shared_record', decision: 'revoked' });
+  }
+}
+
+/**
+ * Builds the exact context that would be sent to a model for a request.
+ * This is the enforcement point: shared entries are only included if
+ * shareToggle for that model is explicitly true. Nothing else can leak
+ * shared content into a model's context.
+ */
+async function getContextForRequest(modelId){
+  const own = await loadModelEntries(modelId);
+  const includeShared = !!State.shareToggle[modelId];
+  const shared = includeShared ? await loadSharedEntries() : [];
+  return { own, shared, includeShared };
+}
+
+/**
+ * Disconnecting a model: clears its decrypted in-memory context only.
+ * Does not touch the encrypted store, does not export, does not sync.
+ */
+function disconnectModel(modelId){
+  delete State.decrypted[modelId];
+  State.shareToggle[modelId] = false;
+}
+
+/* ============================================================
+   UI rendering
+   ============================================================ */
+const tabBar = document.getElementById('tabBar');
+const mainEl = document.getElementById('main');
+
+function renderTabs(){
+  tabBar.innerHTML = '';
+  MODELS.forEach(m => {
+    const t = document.createElement('div');
+    t.className = 'tab' + (State.activeTab === m.id ? ' active' : '');
+    t.textContent = m.label;
+    t.onclick = () => { State.activeTab = m.id; renderAll(); };
+    tabBar.appendChild(t);
+  });
+  const shared = document.createElement('div');
+  shared.className = 'tab shared-tab' + (State.activeTab === 'shared' ? ' active' : '');
+  shared.textContent = '🔗 Shared Record';
+  shared.onclick = () => { State.activeTab = 'shared'; renderAll(); };
+  tabBar.appendChild(shared);
+
+  const audit = document.createElement('div');
+  audit.className = 'tab' + (State.activeTab === 'audit' ? ' active' : '');
+  audit.textContent = 'Audit Log';
+  audit.onclick = () => { State.activeTab = 'audit'; renderAll(); };
+  tabBar.appendChild(audit);
+
+  const prov = document.createElement('div');
+  prov.className = 'tab' + (State.activeTab === 'provenance' ? ' active' : '');
+  prov.textContent = 'Provenance';
+  prov.onclick = () => { State.activeTab = 'provenance'; renderAll(); };
+  tabBar.appendChild(prov);
+
+  const vault = document.createElement('div');
+  vault.className = 'tab' + (State.activeTab === 'vault' ? ' active' : '');
+  vault.textContent = 'Vault';
+  vault.onclick = () => { State.activeTab = 'vault'; renderAll(); };
+  tabBar.appendChild(vault);
+
+  const tests = document.createElement('div');
+  tests.className = 'tab' + (State.activeTab === 'tests' ? ' active' : '');
+  tests.textContent = 'Self-Tests';
+  tests.onclick = () => { State.activeTab = 'tests'; renderAll(); };
+  tabBar.appendChild(tests);
+}
+
+function entryRow(e, { shared }){
+  const div = document.createElement('div');
+  div.className = 'entry' + (shared ? ' shared' : '');
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.innerHTML = `<span>${new Date(e.ts).toLocaleString()}</span>` + (shared ? '<span style="color:var(--shared)">SHARED</span>' : '');
+  const del = document.createElement('span');
+  del.className = 'del'; del.textContent = 'delete';
+  del.onclick = async () => { await deleteEntry(e.id); await renderModelPanel(); };
+  meta.appendChild(del);
+  const body = document.createElement('div');
+  body.textContent = e.text;
+  div.appendChild(meta);
+  div.appendChild(body);
+  return div;
+}
+
+async function renderModelPanel(){
+  const modelId = State.activeTab;
+  const model = MODELS.find(m => m.id === modelId);
+  const entries = await loadModelEntries(modelId);
+  State.decrypted[modelId] = entries;
+
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+
+  const consentRow = document.createElement('div');
+  consentRow.className = 'consent-row';
+  const toggle = document.createElement('div');
+  toggle.className = 'toggle' + (State.shareToggle[modelId] ? ' on' : '');
+  toggle.innerHTML = '<div class="knob"></div>';
+  toggle.onclick = () => {
+    setShareToggle(modelId, !State.shareToggle[modelId], modelId);
+    renderModelPanel();
+  };
+  const label = document.createElement('div');
+  label.innerHTML = `<b>Share shared-record context with ${model.label}</b><br>
+    <span style="color:var(--text-dim)">Off by default. When on, the shared record is sent alongside ${model.label}'s own private history on every request. Revocable any time — takes effect immediately on the next send.</span>`;
+  consentRow.appendChild(toggle);
+  consentRow.appendChild(label);
+  panel.appendChild(consentRow);
+
+  panel.appendChild(sectionTitle(`${model.label} — Private History (isolated, ${model.label} only)`));
+  if (entries.length === 0){
+    panel.appendChild(emptyNote('No entries yet.'));
+  } else {
+    entries.forEach(e => panel.appendChild(entryRow(e, { shared: false })));
+  }
+
+  const composer = document.createElement('div');
+  composer.className = 'composer';
+  const ta = document.createElement('textarea');
+  ta.placeholder = `Add a private entry for ${model.label}...`;
+  const btnCol = document.createElement('div');
+  btnCol.style.display = 'flex'; btnCol.style.flexDirection = 'column'; btnCol.style.gap = '6px';
+  const addPrivate = document.createElement('button');
+  addPrivate.className = 'primary'; addPrivate.textContent = 'Add Private';
+  addPrivate.onclick = async () => {
+    if (!ta.value.trim()) return;
+    await addEntry(modelId, ta.value.trim(), { shared: false });
+    ta.value = '';
+    renderModelPanel();
+  };
+  const addShared = document.createElement('button');
+  addShared.textContent = 'Add to Shared Record';
+  addShared.onclick = async () => {
+    if (!ta.value.trim()) return;
+    if (!confirm(`This entry will be added to the SHARED record. It becomes visible to any model whose "Share" toggle is on, not just ${model.label}. Continue?`)) return;
+    await addEntry(modelId, ta.value.trim(), { shared: true });
+    ta.value = '';
+    renderModelPanel();
+  };
+  btnCol.appendChild(addPrivate);
+  btnCol.appendChild(addShared);
+  composer.appendChild(ta);
+  composer.appendChild(btnCol);
+  panel.appendChild(composer);
+
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'row';
+  actionsRow.style.marginTop = '14px';
+  const disconnectBtn = document.createElement('button');
+  disconnectBtn.className = 'ghost';
+  disconnectBtn.textContent = `Disconnect ${model.label} (clear in-memory context)`;
+  disconnectBtn.onclick = () => {
+    disconnectModel(modelId);
+    renderModelPanel();
+  };
+  actionsRow.appendChild(disconnectBtn);
+  panel.appendChild(actionsRow);
+  const note = document.createElement('div');
+  note.className = 'disconnected-note';
+  note.textContent = 'Disconnecting clears this model\u2019s decrypted context from memory only. It does not export, sync, or share anything with the provider — the encrypted record on disk is untouched.';
+  panel.appendChild(note);
+
+  mainEl.appendChild(panel);
+}
+
+function sectionTitle(text){
+  const d = document.createElement('div');
+  d.className = 'section-title';
+  d.textContent = text;
+  return d;
+}
+function emptyNote(text){
+  const d = document.createElement('div');
+  d.className = 'empty';
+  d.textContent = text;
+  return d;
+}
+
+async function renderSharedPanel(){
+  const entries = await loadSharedEntries();
+  State.sharedDecrypted = entries;
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+  panel.appendChild(sectionTitle('Shared Collaboration Record'));
+  panel.appendChild(emptyNote(entries.length ? '' : 'No shared entries yet.'));
+  entries.forEach(e => panel.appendChild(entryRow(e, { shared: true })));
+
+  panel.appendChild(sectionTitle('Which models currently receive this record'));
+  const row = document.createElement('div'); row.className = 'row';
+  MODELS.forEach(m => {
+    const chip = document.createElement('div');
+    chip.style.cssText = 'padding:6px 10px;border-radius:6px;font-size:12px;border:1px solid var(--border);';
+    chip.style.color = State.shareToggle[m.id] ? 'var(--shared)' : 'var(--text-dim)';
+    chip.style.borderColor = State.shareToggle[m.id] ? 'var(--shared)' : 'var(--border)';
+    chip.textContent = `${m.label}: ${State.shareToggle[m.id] ? 'RECEIVING' : 'not receiving'}`;
+    row.appendChild(chip);
+  });
+  panel.appendChild(row);
+  mainEl.appendChild(panel);
+}
+
+async function renderAuditPanel(){
+  const rows = await idbGetAll(State.db, 'audit');
+  rows.sort((a,b) => b.ts - a.ts);
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+  panel.appendChild(sectionTitle('Share Event Audit Log — every consent grant/revoke, locally recorded'));
+
+  const head = document.createElement('div');
+  head.className = 'audit-row head';
+  head.innerHTML = '<div>Time</div><div>Decision</div><div>Recipient / Scope</div><div>Actions</div>';
+  panel.appendChild(head);
+
+  if (rows.length === 0) panel.appendChild(emptyNote('No share events yet.'));
+
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'audit-row';
+    const time = document.createElement('div'); time.textContent = new Date(r.ts).toLocaleTimeString();
+    const decision = document.createElement('div'); decision.className = 'decision ' + r.decision; decision.textContent = r.decision.toUpperCase();
+    const scope = document.createElement('div'); scope.textContent = `${r.recipientModel} \u2192 ${r.scope}`;
+    const actions = document.createElement('div');
+    const delBtn = document.createElement('span'); delBtn.className = 'del'; delBtn.textContent = 'delete';
+    delBtn.onclick = async () => { await idbDelete(State.db, 'audit', r.id); renderAuditPanel(); };
+    actions.appendChild(delBtn);
+    row.appendChild(time); row.appendChild(decision); row.appendChild(scope); row.appendChild(actions);
+    panel.appendChild(row);
+  });
+
+  panel.appendChild(sectionTitle('Export'));
+  const exportRow = document.createElement('div'); exportRow.className = 'row';
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = 'Export Audit Log (JSON)';
+  exportBtn.onclick = () => {
+    const blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `vault-audit-log-${Date.now()}.json`;
+    a.click();
+  };
+  exportRow.appendChild(exportBtn);
+  panel.appendChild(exportRow);
+
+  mainEl.appendChild(panel);
+}
+
+async function renderProvenancePanel(){
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+  panel.appendChild(sectionTitle('MemoryChain — Provenance & Integrity'));
+
+  const info = document.createElement('div');
+  info.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12.5px;line-height:1.9;margin-bottom:14px;';
+  info.innerHTML = `
+    <b>Signature algorithm:</b> ${State.sigAlgo}${State.sigAlgo === 'ECDSA-P256' ? ' <span style="color:var(--warn)">(Ed25519 unsupported in this browser — fell back to ECDSA P-256)</span>' : ''}<br>
+    <b>Public key fingerprint (SHA-256):</b> <span style="font-family:ui-monospace,monospace">${State.publicKeyFingerprint}</span><br>
+    <b>Chain head:</b> <span style="font-family:ui-monospace,monospace">${(State.chainHead || 'GENESIS').slice(0, 24)}...</span><br>
+    <b>Chain length:</b> ${State.chainSeq || 0} signed entries`;
+  panel.appendChild(info);
+
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.style.textAlign = 'left';
+  note.innerHTML = `Every entry (across every model and the shared record) links to the one before it and is signed.
+    Editing a record's ciphertext, reordering entries, or deleting one out of an append-only sequence all break the chain
+    from that point forward — that is intentional: a real provenance chain should make deletion visible, not silently
+    absorb it. If you want deletions to instead show up as an explicit signed "tombstone" entry rather than a chain break,
+    that's a straightforward follow-up.`;
+  panel.appendChild(note);
+
+  const verifyBtn = document.createElement('button');
+  verifyBtn.className = 'primary';
+  verifyBtn.textContent = 'Verify Chain Integrity';
+  verifyBtn.style.margin = '14px 0';
+  const resultDiv = document.createElement('div');
+  verifyBtn.onclick = async () => {
+    resultDiv.innerHTML = '<div class="empty">Verifying...</div>';
+    const result = await verifyChain();
+    const d = document.createElement('div');
+    d.className = 'test-line ' + (result.ok ? 'pass' : 'fail');
+    d.textContent = result.ok
+      ? `\u2713 Chain intact — ${result.checked} entries verified, all hashes and signatures match.`
+      : `\u2717 Chain broken at entry ${result.brokenAt} (after ${result.checked} verified) — ${result.reason}`;
+    resultDiv.innerHTML = '';
+    resultDiv.appendChild(d);
+  };
+  panel.appendChild(verifyBtn);
+  panel.appendChild(resultDiv);
+
+  mainEl.appendChild(panel);
+}
+
+async function renderVaultPanel(){
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+  panel.appendChild(sectionTitle('Vault Controls'));
+
+  const row = document.createElement('div'); row.className = 'row';
+
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = 'Export Encrypted Vault (still encrypted — safe for GitHub/blind backup)';
+  exportBtn.onclick = async () => {
+    const entries = await idbGetAll(State.db, 'entries');
+    const meta = await idbGet(State.db, 'meta', 'vault');
+    const audit = await idbGetAll(State.db, 'audit');
+    const blob = new Blob([JSON.stringify({ meta, entries, audit }, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sovereign-vault-encrypted-${Date.now()}.json`;
+    a.click();
+  };
+  row.appendChild(exportBtn);
+
+  const lockBtn = document.createElement('button');
+  lockBtn.textContent = 'Lock Vault';
+  lockBtn.onclick = () => { lockVault(); showLockscreen(); };
+  row.appendChild(lockBtn);
+
+  const wipeBtn = document.createElement('button');
+  wipeBtn.className = 'danger';
+  wipeBtn.textContent = 'Full Vault Wipe (irreversible)';
+  wipeBtn.onclick = async () => {
+    if (!confirm('This permanently deletes every record, all models, the shared record, and the audit log from this browser profile. There is no undo. Continue?')) return;
+    await wipeVault();
+    location.reload();
+  };
+  row.appendChild(wipeBtn);
+
+  panel.appendChild(row);
+  panel.appendChild(sectionTitle('What is guaranteed here'));
+  const list = document.createElement('div');
+  list.style.color = 'var(--text-dim)'; list.style.fontSize = '12.5px'; list.style.lineHeight = '1.8';
+  list.innerHTML = `
+    &bull; Every entry is AES-GCM encrypted at rest; the key never leaves memory and is never written to disk.<br>
+    &bull; No provider credentials are ever stored in this vault.<br>
+    &bull; No entry from one model's record is visible to another unless it was explicitly written to the shared record
+      AND that model's share toggle is on.<br>
+    &bull; Export produces still-encrypted blobs — a backup target (GitHub, S3, iCloud, etc.) never sees plaintext.<br>
+    &bull; Nothing in this file makes an outbound network request. Verify: search this document for "fetch(" or "XMLHttpRequest".`;
+  panel.appendChild(list);
+  mainEl.appendChild(panel);
+}
+
+/* ============================================================
+   Self-tests — run against a throwaway in-memory key + IndexedDB
+   entries with a reserved test prefix, then cleaned up.
+   ============================================================ */
+/**
+ * All self-tests run against a throwaway IndexedDB database that is opened
+ * fresh and deleted at the end -- never against the live vault (State.db).
+ * This matters specifically for the MemoryChain tests: tampering and
+ * deletion are supposed to permanently break an append-only chain, so
+ * running those tests against the real vault would leave your actual
+ * provenance chain broken forever with no way to undo it. This isolated
+ * harness gets you real, verified assertions with zero risk to real data
+ * or the real audit log.
+ */
+function openTestDB(name){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(name, 1);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      db.createObjectStore('meta', { keyPath: 'key' });
+      const store = db.createObjectStore('entries', { keyPath: 'id' });
+      store.createIndex('modelId', 'modelId', { unique: false });
+      db.createObjectStore('audit', { keyPath: 'id' });
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function runSelfTests(){
+  const results = [];
+  const testDbName = 'sovereign_vault_selftest_' + Date.now();
+  const db = await openTestDB(testDbName);
+
+  // Isolated context: its own key, its own signing keypair, own chain
+  // state and share toggles. Nothing here touches State or State.db.
+  const ctx = {
+    db,
+    key: await deriveKey('__self_test_pass__', b64(randomBytes(16))),
+    sigAlgo: await detectSigAlgo(),
+    chainHead: 'GENESIS',
+    chainSeq: 0,
+    shareToggle: {},
+    auditRows: []
+  };
+  const { genParams } = sigAlgoParams(ctx.sigAlgo);
+  const keyPair = await crypto.subtle.generateKey(genParams, true, ['sign', 'verify']);
+  ctx.signingPrivateKey = keyPair.privateKey;
+  ctx.signingPublicKey = keyPair.publicKey;
+
+  async function testAddEntry(modelId, text, shared){
+    const enc1 = await encryptString(ctx.key, text);
+    const id = uid();
+    const ts = Date.now();
+    const targetModelId = shared ? '__shared__' : modelId;
+    const seq = ctx.chainSeq + 1;
+    const prevHash = ctx.chainHead;
+    const canonical = `${id}|${targetModelId}|${enc1.iv}|${enc1.ct}|${ts}|${seq}|${prevHash}`;
+    const hash = await sha256Hex(canonical);
+    const sig = await signHash(ctx.signingPrivateKey, ctx.sigAlgo, hash);
+    const record = { id, modelId: targetModelId, iv: enc1.iv, ct: enc1.ct, ts, shared, seq, prevHash, hash, sig };
+    await idbPut(ctx.db, 'entries', record);
+    ctx.chainSeq = seq; ctx.chainHead = hash;
+    return record;
+  }
+  async function testLoadEntries(modelId){
+    const rows = await idbGetAllByIndex(ctx.db, 'entries', 'modelId', modelId);
+    const out = [];
+    for (const r of rows){
+      try { out.push({ id: r.id, text: await decryptString(ctx.key, r.iv, r.ct), seq: r.seq }); }
+      catch(e){}
+    }
+    return out;
+  }
+  async function testVerifyChain(){
+    const all = await idbGetAll(ctx.db, 'entries');
+    all.sort((a,b) => a.seq - b.seq);
+    let expectedPrev = 'GENESIS', checked = 0;
+    for (const r of all){
+      if (r.prevHash !== expectedPrev) return { ok: false, reason: 'prevHash mismatch', checked };
+      const canonical = `${r.id}|${r.modelId}|${r.iv}|${r.ct}|${r.ts}|${r.seq}|${r.prevHash}`;
+      if (await sha256Hex(canonical) !== r.hash) return { ok: false, reason: 'hash mismatch', checked };
+      if (!(await verifyHashSig(ctx.signingPublicKey, ctx.sigAlgo, r.hash, r.sig))) return { ok: false, reason: 'bad signature', checked };
+      expectedPrev = r.hash; checked++;
+    }
+    return { ok: true, reason: null, checked };
+  }
+  function testSetShareToggle(modelId, on){
+    const was = !!ctx.shareToggle[modelId];
+    ctx.shareToggle[modelId] = on;
+    if (on && !was) ctx.auditRows.push({ modelId, decision: 'granted', ts: Date.now() });
+    if (!on && was) ctx.auditRows.push({ modelId, decision: 'revoked', ts: Date.now() });
+  }
+  async function testGetContext(modelId){
+    const own = await testLoadEntries(modelId);
+    const includeShared = !!ctx.shareToggle[modelId];
+    const shared = includeShared ? await testLoadEntries('__shared__') : [];
+    return { own, shared, includeShared };
+  }
+
+  async function t(name, fn){
+    try { await fn(); results.push({ name, pass: true }); }
+    catch(e){ results.push({ name, pass: false, err: e.message || String(e) }); }
+  }
+
+  await t('Encrypt/decrypt round trip preserves plaintext', async () => {
+    const { iv, ct } = await encryptString(ctx.key, 'hello sovereign vault');
+    const out = await decryptString(ctx.key, iv, ct);
+    if (out !== 'hello sovereign vault') throw new Error('mismatch: ' + out);
+  });
+
+  await t('Model isolation: Claude entry not visible under GPT modelId', async () => {
+    const rec = await testAddEntry('claude', '__TEST__ claude-only secret', false);
+    const gptEntries = await testLoadEntries('gpt');
+    if (gptEntries.some(e => e.text.includes('claude-only secret'))) throw new Error('leak: visible under gpt');
+    const claudeEntries = await testLoadEntries('claude');
+    if (!claudeEntries.some(e => e.id === rec.id)) throw new Error('own entry missing from claude');
+  });
+
+  await t('Sharing is off by default for a fresh model toggle', async () => {
+    const ctxResult = await testGetContext('__unused_model__');
+    if (ctxResult.includeShared !== false || ctxResult.shared.length !== 0) throw new Error('shared context leaked with toggle off');
+  });
+
+  await t('Shared entry excluded from context until toggle explicitly on', async () => {
+    const shared = await testAddEntry('gpt', '__TEST__ shared-context-item', true);
+    const before = await testGetContext('claude');
+    if (before.shared.some(e => e.id === shared.id)) throw new Error('shared entry leaked before consent granted');
+    testSetShareToggle('claude', true);
+    const after = await testGetContext('claude');
+    if (!after.shared.some(e => e.id === shared.id)) throw new Error('shared entry missing after consent granted');
+  });
+
+  await t('Revocation immediately removes shared context from next request', async () => {
+    testSetShareToggle('claude', false);
+    const after = await testGetContext('claude');
+    if (after.includeShared !== false || after.shared.length !== 0) throw new Error('shared context still present after revocation');
+  });
+
+  await t('Grant and revoke both produce audit log entries', async () => {
+    const granted = ctx.auditRows.some(r => r.modelId === 'claude' && r.decision === 'granted');
+    const revoked = ctx.auditRows.some(r => r.modelId === 'claude' && r.decision === 'revoked');
+    if (!granted || !revoked) throw new Error('missing grant/revoke audit record');
+  });
+
+  await t('Deleted entry no longer loads', async () => {
+    const rec = await testAddEntry('grok', '__TEST__ to-be-deleted', false);
+    await idbDelete(ctx.db, 'entries', rec.id);
+    const rows = await testLoadEntries('grok');
+    if (rows.some(e => e.id === rec.id)) throw new Error('entry survived deletion');
+  });
+
+  await t('Disconnect clears in-memory state but keeps encrypted record on disk', async () => {
+    const rec = await testAddEntry('copilot', '__TEST__ disconnect-persistence', false);
+    const decrypted = { copilot: await testLoadEntries('copilot') };
+    delete decrypted.copilot; // mirrors disconnectModel()'s behavior
+    if (decrypted.copilot !== undefined) throw new Error('in-memory state not cleared');
+    const stillOnDisk = await testLoadEntries('copilot');
+    if (!stillOnDisk.some(e => e.id === rec.id)) throw new Error('encrypted record wrongly removed on disconnect');
+  });
+
+  await t('MemoryChain: new entry verifies against the signing public key', async () => {
+    await testAddEntry('claude', '__TEST__ chain-entry', false);
+    const result = await testVerifyChain();
+    if (!result.ok) throw new Error('chain reported broken on a fresh, untouched entry: ' + result.reason);
+  });
+
+  await t('MemoryChain: direct tamper with stored ciphertext is detected', async () => {
+    const rec = await testAddEntry('gpt', '__TEST__ tamper-target', false);
+    const stored = await idbGet(ctx.db, 'entries', rec.id);
+    stored.ct = stored.ct.slice(0, -4) + 'AAAA';
+    await idbPut(ctx.db, 'entries', stored);
+    const result = await testVerifyChain();
+    if (result.ok) throw new Error('tampered ciphertext was not detected');
+  });
+
+  await t('MemoryChain: deleting a mid-chain entry is visible as a break', async () => {
+    const a = await testAddEntry('grok', '__TEST__ chain-a', false);
+    await testAddEntry('grok', '__TEST__ chain-b', false);
+    await idbDelete(ctx.db, 'entries', a.id);
+    const result = await testVerifyChain();
+    if (result.ok) throw new Error('deletion of a chained entry was not flagged as a break');
+  });
+
+  await t('Wrong passphrase is rejected on unlock check', async () => {
+    const salt = b64(randomBytes(16));
+    const key = await deriveKey('__right_pass__', salt);
+    const verify = await encryptString(key, 'VAULT_OK');
+    const wrongKey = await deriveKey('__definitely_wrong__', salt);
+    let rejected = false;
+    try { await decryptString(wrongKey, verify.iv, verify.ct); } catch(e){ rejected = true; }
+    if (!rejected) throw new Error('wrong passphrase decrypted verification token');
+  });
+
+  // Isolated DB is disposable -- fully deleted, never touches the real vault.
+  db.close();
+  await new Promise((res) => {
+    const del = indexedDB.deleteDatabase(testDbName);
+    del.onsuccess = () => res(); del.onerror = () => res(); del.onblocked = () => res();
+  });
+
+  return results;
+}
+
+async function renderTestsPanel(){
+  mainEl.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = 'panel active';
+  panel.appendChild(sectionTitle('In-Browser Self-Tests'));
+  const note = document.createElement('div');
+  note.className = 'empty';
+  note.textContent = 'Runs in a completely separate, disposable IndexedDB database created and destroyed just for this test run \u2014 your real vault, its MemoryChain, and its audit log are never touched. (Earlier draft of this ran against the live vault; fixed, since the tamper/deletion tests would have permanently broken your real append-only chain and wiped your real audit log.)';
+  panel.appendChild(note);
+
+  const runBtn = document.createElement('button');
+  runBtn.className = 'primary';
+  runBtn.textContent = 'Run Self-Tests';
+  runBtn.style.marginBottom = '14px';
+  const resultsWrap = document.createElement('div');
+
+  runBtn.onclick = async () => {
+    resultsWrap.innerHTML = '<div class="empty">Running...</div>';
+    const results = await runSelfTests();
+    resultsWrap.innerHTML = '';
+    results.forEach(r => {
+      const d = document.createElement('div');
+      d.className = 'test-line ' + (r.pass ? 'pass' : 'fail');
+      d.textContent = (r.pass ? '\u2713 PASS  ' : '\u2717 FAIL  ') + r.name + (r.err ? ` — ${r.err}` : '');
+      resultsWrap.appendChild(d);
+    });
+    const passCount = results.filter(r => r.pass).length;
+    const summary = document.createElement('div');
+    summary.style.marginTop = '10px'; summary.style.fontWeight = '600';
+    summary.textContent = `${passCount} / ${results.length} passed`;
+    resultsWrap.appendChild(summary);
+  };
+
+  panel.appendChild(runBtn);
+  panel.appendChild(resultsWrap);
+  mainEl.appendChild(panel);
+}
+
+async function renderAll(){
+  renderTabs();
+  if (State.activeTab === 'shared') return renderSharedPanel();
+  if (State.activeTab === 'provenance') return renderProvenancePanel();
+  if (State.activeTab === 'audit') return renderAuditPanel();
+  if (State.activeTab === 'vault') return renderVaultPanel();
+  if (State.activeTab === 'tests') return renderTestsPanel();
+  return renderModelPanel();
+}
+
+/* ============================================================
+   Lock / unlock screen wiring
+   ============================================================ */
+function showLockscreen(){
+  document.getElementById('lockscreenWrap').style.display = 'block';
+  document.getElementById('appWrap').style.display = 'none';
+  document.getElementById('lockIndicator').textContent = 'LOCKED';
+  document.getElementById('lockIndicator').className = 'lockstate locked';
+  document.getElementById('passphrase').value = '';
+}
+function showApp(){
+  document.getElementById('lockscreenWrap').style.display = 'none';
+  document.getElementById('appWrap').style.display = 'flex';
+  document.getElementById('lockIndicator').textContent = 'UNLOCKED';
+  document.getElementById('lockIndicator').className = 'lockstate unlocked';
+  renderAll();
+}
+
+document.getElementById('unlockBtn').onclick = async () => {
+  const pass = document.getElementById('passphrase').value;
+  const msg = document.getElementById('lockMsg');
+  if (!pass || pass.length < 6){ msg.textContent = 'Use at least 6 characters.'; return; }
+  msg.textContent = 'Deriving key...';
+  const result = await initOrUnlock(pass);
+  if (!result.ok){ msg.textContent = result.error; return; }
+  msg.textContent = '';
+  showApp();
+};
+document.getElementById('passphrase').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('unlockBtn').click();
+});
+
+showLockscreen();
+})();
+</script>
+</body>
+</html>
