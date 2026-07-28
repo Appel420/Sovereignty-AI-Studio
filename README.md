@@ -1,8 +1,8 @@
 # Sovereignty AI Studio
 
-@claude @codex @copilot @grok
+@claude @codex @copilot @grok @duckai
 
-This is the main dedicated branch. All changes by Claude Grok/Ara GPT/Codex Copilot must be made in their dedicated branch. Do not push directly to main. Create a Pull Request for review.
+This is the main dedicated branch. All changes by Claude Grok/Ara DuckAI GPT/Codex Copilot must be made in their dedicated branch. Do not push directly to main. Create a Pull Request for review.
 
 
 Sovereignty AI Studio is a self-hosted, offline-first AI control surface and
