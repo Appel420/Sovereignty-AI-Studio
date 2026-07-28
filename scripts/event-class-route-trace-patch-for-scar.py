@@ -1,7 +1,12 @@
-# SCAR route-trace patch template
+"""Documentation pointer for the SCAR route-trace patch template.
 
-This file is retained only as a compatibility pointer. The patch is documentation, not an executable Python module.
+The complete instructional patch is documented in
+``docs/event-class-route-trace-patch-for-scar.md``. This compatibility module
+must remain inert: it is not imported by the runtime and contains no executable
+SCAR implementation.
 
-The complete template is documented in [`docs/event-class-route-trace-patch-for-scar.md`](../docs/event-class-route-trace-patch-for-scar.md).
+Runtime implementations must apply the documented changes to the actual SCAR
+ledger module using that module's existing imports and project-local types.
+"""
 
-Do not import or execute this file. Runtime implementations must apply the patch to the actual SCAR ledger module and provide all project-local imports and types.
+# Intentionally no runtime code.
