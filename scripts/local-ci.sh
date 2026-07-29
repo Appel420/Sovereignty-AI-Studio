@@ -6,6 +6,15 @@ cd "$ROOT_DIR"
 
 python3 -m compileall -q --exclude external --exclude .venv .
 python3 scripts/validate-runtime-coherence.py
+python3 scripts/validate-branch-ownership.py --branch "$(git branch --show-current)" --scope "$(python3 - <<'PY'
+from pathlib import Path
+changed = {p.parts[0] for p in Path('.').rglob('*') if p.is_file() and '.git' not in p.parts and 'external' not in p.parts}
+print('coordination' if 'backend' in changed else 'verification')
+PY
+)" || {
+  echo "branch ownership validation failed; use a registered owner branch or pass an approved scope" >&2
+  exit 1
+}
 node --check server_9899.js
 node --check node-bridge/server.js
 node --check backend/api/providers/index.js
@@ -14,6 +23,7 @@ node --check frontend/runtime/transport.js
 node --check frontend/runtime/hawking-channel.js
 node --check frontend/runtime/sg-hawking-integration.js
 node --check frontend/runtime/sghv119-bootstrap.js
+node --check helpers/command_bus.js
 
 bash -n scripts/create-device-family-tree.sh scripts/validate-local-state.sh
 scripts/validate-local-state.sh
@@ -27,10 +37,7 @@ node frontend/scripts/test-sghv119-bootstrap.js
 node frontend/scripts/test-sghv119-ownership.js
 node frontend/scripts/verify-sovereign-frontend.js
 
-# Pylint is intentionally blocking. Do not append `|| true`: a green run must
-# mean the configured Python scope passed lint.
 make py-lint
-
 if [[ -x .venv/bin/pytest ]]; then
   .venv/bin/pytest -q
 elif command -v pytest >/dev/null 2>&1; then
