@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
@@ -34,6 +34,15 @@ if (( NODE_MAJOR < 20 )); then
 fi
 
 cd "$SCRIPT_DIR"
+if [[ ! -f requirements-runtime.txt ]]; then
+  echo "ERROR: requirements-runtime.txt is missing from the repository root." >&2
+  exit 1
+fi
+if [[ ! -f package-lock.json || ! -f node-bridge/package-lock.json ]]; then
+  echo "ERROR: npm lockfiles are required for deterministic installation." >&2
+  exit 1
+fi
+
 "$PYTHON_BIN" -m venv .venv
 VENV_PYTHON="$SCRIPT_DIR/.venv/bin/python"
 
@@ -42,13 +51,17 @@ NPM_ARGS=()
 if (( OFFLINE )); then
   PIP_ARGS+=(--no-index)
   NPM_ARGS+=(--offline)
+else
+  "$VENV_PYTHON" -m pip install --upgrade pip
 fi
 
-"$VENV_PYTHON" -m pip install "${PIP_ARGS[@]}" --upgrade pip
 "$VENV_PYTHON" -m pip install "${PIP_ARGS[@]}" -r requirements-runtime.txt
 npm ci "${NPM_ARGS[@]}" --ignore-scripts
 npm --prefix node-bridge ci "${NPM_ARGS[@]}" --ignore-scripts
 
-"$VENV_PYTHON" -c "import websockets; print('Python runtime dependencies verified')"
+"$VENV_PYTHON" - <<'PY'
+import websockets
+print(f"Python runtime dependencies verified (websockets {websockets.__version__})")
+PY
 node --check node-bridge/server.js
 echo "Installation complete. Configure only an approved local inference provider, then run ./START_SERVER.sh."

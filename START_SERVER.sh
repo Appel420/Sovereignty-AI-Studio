@@ -1,19 +1,53 @@
 #!/bin/bash
+set -Eeuo pipefail
 # ═══════════════════════════════════════════════════════
-# SOVEREIGNTY AI STUDIO — STARTUP
-# Port architecture:
-#   9898 — KODER frontend (SGHv119.html static file server)
-#   9897 — Python AI backend (bridge.py)
-#   9899 — Node bridge proxy (server.js — HTTP/API bridge; optional WS)
-# Zero Meta · Zero Google · Zero LLaMA · Zero Ollama
-# All AI: DDG Privacy Bridge + Piper TTS (local only)
+# SOVEREIGNTY AI STUDIO — CANONICAL LOCAL STARTUP
+#   9898 — SGHv119.html static dashboard
+#   9897 — Python bridge
+#   9899 — Node bridge/API proxy
+#
+# The root launcher is the only supported local runtime entry point.
+# External, Docker, PM2, and legacy launchers are not started here.
 # ═══════════════════════════════════════════════════════
 
-# Set your Piper model path.
+export SG_DEVICE_MODE="${SG_DEVICE_MODE:-ghost}"
+export SG_NETWORK_MODE="${SG_NETWORK_MODE:-offline}"
+export SG_ENABLE_REMOTE_NETWORK="${SG_ENABLE_REMOTE_NETWORK:-0}"
+export SG_ALLOW_BACKGROUND_POLLING="${SG_ALLOW_BACKGROUND_POLLING:-0}"
+export SG_ENABLE_WEBSOCKET="${SG_ENABLE_WEBSOCKET:-0}"
+export SG_ENABLE_SSE="${SG_ENABLE_SSE:-0}"
+export SG_RUNTIME_OWNER="SGHv119.html"
+
+case "$SG_DEVICE_MODE" in
+  ghost)
+    # Ghost is the device-level high-assurance mode. The existing bridge
+    # network policy uses "offline" for the same transport boundary.
+    SG_NETWORK_MODE=offline
+    SG_ENABLE_REMOTE_NETWORK=0
+    SG_ALLOW_BACKGROUND_POLLING=0
+    SG_ENABLE_WEBSOCKET=0
+    SG_ENABLE_SSE=0
+    export SG_NETWORK_MODE SG_ENABLE_REMOTE_NETWORK SG_ALLOW_BACKGROUND_POLLING SG_ENABLE_WEBSOCKET SG_ENABLE_SSE
+    ;;
+  hybrid|online)
+    ;;
+  *)
+    echo "ERROR: unsupported SG_DEVICE_MODE=$SG_DEVICE_MODE" >&2
+    echo "Allowed modes: ghost, hybrid, online" >&2
+    exit 1
+    ;;
+esac
+
+case "$SG_NETWORK_MODE" in
+  offline|hybrid|online) ;;
+  *)
+    echo "ERROR: unsupported SG_NETWORK_MODE=$SG_NETWORK_MODE" >&2
+    exit 1
+    ;;
+esac
+
 export PIPER_MODEL="${PIPER_MODEL:-./models/en_US-lessac-medium.onnx}"
 export PIPER_DIR="${PIPER_DIR:-./piper-tts}"
-
-# Optional: your self-signed TLS cert
 export TLS_CERT="${TLS_CERT:-}"
 export TLS_KEY="${TLS_KEY:-}"
 
@@ -38,47 +72,61 @@ if ! "$PYTHON_BIN" -c "import websockets" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Starting Python AI backend (bridge.py) on port 9897..."
-echo "Piper model: $PIPER_MODEL"
-echo "Network: local-only by default — override with env vars for hosted deployments"
+cd "$SCRIPT_DIR"
+echo "Starting canonical Sovereignty AI Studio runtime..."
+echo "Runtime owner: $SG_RUNTIME_OWNER"
+echo "Device mode: $SG_DEVICE_MODE"
+echo "Network policy: $SG_NETWORK_MODE"
+echo "Background polling: $SG_ALLOW_BACKGROUND_POLLING"
+echo "WebSocket capability: $SG_ENABLE_WEBSOCKET"
+echo "SSE capability: $SG_ENABLE_SSE"
+echo "Remote network: $SG_ENABLE_REMOTE_NETWORK"
 echo ""
 
-# Start Python backend in background
-SG_PORT=9897 "$PYTHON_BIN" bridge.py &
+SG_PORT=9897 \
+SG_HOST=127.0.0.1 \
+SG_NETWORK_MODE="$SG_NETWORK_MODE" \
+SG_DEVICE_MODE="$SG_DEVICE_MODE" \
+SG_ALLOW_BACKGROUND_POLLING="$SG_ALLOW_BACKGROUND_POLLING" \
+SG_ENABLE_WEBSOCKET="$SG_ENABLE_WEBSOCKET" \
+SG_ENABLE_SSE="$SG_ENABLE_SSE" \
+SG_ENABLE_REMOTE_NETWORK="$SG_ENABLE_REMOTE_NETWORK" \
+"$PYTHON_BIN" bridge.py &
 BRIDGE_PID=$!
 
-echo "Starting node-bridge proxy on port 9899..."
 NODE_BRIDGE_PORT=9899 \
+NODE_BRIDGE_HOST=127.0.0.1 \
 SG_BRIDGE_URL="${SG_BRIDGE_URL:-}" \
 SG_BRIDGE_HTTP_URL="${SG_BRIDGE_HTTP_URL:-http://127.0.0.1:9897}" \
 CORS_ORIGIN="${CORS_ORIGIN:-http://127.0.0.1:9898}" \
+SG_NETWORK_MODE="$SG_NETWORK_MODE" \
+SG_DEVICE_MODE="$SG_DEVICE_MODE" \
+SG_ALLOW_BACKGROUND_POLLING="$SG_ALLOW_BACKGROUND_POLLING" \
+SG_ENABLE_WEBSOCKET="$SG_ENABLE_WEBSOCKET" \
+SG_ENABLE_SSE="$SG_ENABLE_SSE" \
+SG_ENABLE_REMOTE_NETWORK="$SG_ENABLE_REMOTE_NETWORK" \
 node "$NODE_BRIDGE_DIR/server.js" &
 NODE_PID=$!
 
-echo "Starting KODER frontend static server on port 9898..."
-# Serve SGHv119.html at http://127.0.0.1:9898 — python3 is always available
 "$PYTHON_BIN" -m http.server 9898 --bind 127.0.0.1 --directory "$SCRIPT_DIR" &
 STATIC_PID=$!
 
-# Ensure all services are stopped on exit (Ctrl+C or crash)
 cleanup() {
-  echo "Stopping services..."
+  echo "Stopping canonical services..."
   kill "$BRIDGE_PID" "$NODE_PID" "$STATIC_PID" 2>/dev/null || true
   wait "$BRIDGE_PID" "$NODE_PID" "$STATIC_PID" 2>/dev/null || true
 }
 trap cleanup EXIT INT TERM
 
-echo ""
-echo "Services running:"
-echo "  bridge.py   PID=$BRIDGE_PID   → http://127.0.0.1:9897 (Python backend)"
-echo "  node-bridge PID=$NODE_PID     → http://127.0.0.1:9899 (HTTP bridge/API proxy)"
-echo "  static srv  PID=$STATIC_PID   → http://127.0.0.1:9898 (KODER frontend)"
-echo ""
-echo "Open KODER at: http://127.0.0.1:9898/SGHv119.html"
-echo "Press Ctrl+C to stop all services."
+cat <<EOF
+Services running:
+  dashboard  PID=$STATIC_PID  -> http://127.0.0.1:9898/SGHv119.html
+  python     PID=$BRIDGE_PID  -> http://127.0.0.1:9897 (WebSocket backend capability)
+  node       PID=$NODE_PID    -> http://127.0.0.1:9899 (HTTP/API bridge)
+  mode       $SG_DEVICE_MODE / $SG_NETWORK_MODE
+EOF
 
-# If any service exits, terminate the remaining services instead of leaving a
-# partially functional dashboard running.
+echo "Press Ctrl+C to stop all services."
 wait -n "$BRIDGE_PID" "$NODE_PID" "$STATIC_PID"
 status=$?
 exit "$status"
