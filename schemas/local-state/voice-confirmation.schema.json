@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "local-state/voice-confirmation.schema.json",
+  "title": "Local voice transcription confirmation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["rawTranscript", "level", "needsConfirmation", "blocked"],
+  "properties": {
+    "rawTranscript": {"type": "string"},
+    "normalizedTranscript": {"type": "string"},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "level": {"enum": ["none", "review", "required", "blocked"]},
+    "needsConfirmation": {"type": "boolean"},
+    "blocked": {"type": "boolean"},
+    "candidates": {"type": "array"},
+    "repositoryTerms": {"type": "array", "items": {"type": "string"}},
+    "riskTerms": {"type": "array", "items": {"type": "string"}},
+    "localFirstConflict": {"type": "boolean"}
+  }
+}
