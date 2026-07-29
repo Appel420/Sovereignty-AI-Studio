@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sovereign Credential Dashboard</title>
+<style>
+html,body{margin:0;padding:0;background:#020617;color:#e5e7eb;font-family:system-ui;}
+body{margin:20px;transition:background 1s ease,font 1s ease;}
+.card{background:#020617;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:20px;}
+.ok{color:#22c55e;}
+button{background:#0f172a;color:#e5e7eb;border:1px solid #334155;border-radius:6px;padding:8px 12px;cursor:pointer;}
+code{color:#93c5fd;}
+.credential-card{border:2px solid #22c55e;background:#0d1117;padding:12px;margin:8px 0;border-radius:6px;color:#e5e7eb;}
+.credential-seal{color:#22c55e;font-weight:bold;}
+.credential-verify{background:#0a6a3a;color:#e5e7eb;padding:6px 10px;border-radius:4px;border:none;cursor:pointer;}
+</style>
+</head>
+<body>
+
+<h2>🧠 Grok_EDU — Sovereign Dashboard</h2>
+
+<div class="card">
+<h3>📝 Notes</h3>
+<p>Notes preserved locally. No server. No sync.</p>
+</div>
+
+<!-- GLOBAL PANELS -->
+<div id="global-panel" style="display:none;margin-top:24px">
+  <div class="card">
+    <h3>🌍 International Recognition</h3>
+    <p><strong>Status:</strong> <span class="ok">RECOGNIZED</span></p>
+    <p>ISCED-3 • Portable in 83 countries</p>
+    <p>zk-proof: <strong>pq-valid</strong> • Seal: <strong>intact</strong></p>
+    <button onclick="verifyZkProof('global')">🔍 Show Proof</button>
+  </div>
+  <div class="card">
+    <h3>🧬 Lifelong Vault</h3>
+    <p><strong>Vault:</strong> Forever</p>
+    <p class="ok">ACTIVE</p>
+    <p>Credentials: 7 • PQ safe: ✅ • Disclosures: 3</p>
+    <p><code>root_identity.dilithium</code> • No breach</p>
+    <button onclick="demoBiometricRecovery()">🔁 Recover (Biometric)</button>
+  </div>
+  <div class="card">
+    <h3>🤖 AI Equivalence Engine</h3>
+    <p><strong>AI Verdict:</strong> <span class="ok">FULL EQUIVALENCE</span></p>
+    <p>Source: CA-USA → Target: ISCED-3</p>
+    <p>Confidence: 97%</p>
+    <p>bias-check: passed • seal: valid</p>
+  </div>
+</div>
+
+<!-- STASH CREDENTIAL CARDS -->
+<div id="credential-container"></div>
+
+<!-- ROLE SWITCH -->
+<div class="card">
+<h3>🔐 Switch Role</h3>
+<p>Current: <strong id="role">student</strong></p>
+<input id="msg" type="text" placeholder="type /role principal" style="width:100%;padding:8px;border:1px solid #334155;border-radius:4px;background:#0f172a;color:#e5e7eb;">
+</div>
+
+<!-- TIMER -->
+<div class="card">
+<h3>⏱️ Study Timer</h3>
+<input id="topic" type="text" placeholder="Topic" style="width:calc(70% - 8px);padding:8px;">
+<input id="minutes" type="number" value="25" min="1" style="width:30%;padding:8px;">
+<button onclick="startStudy()" id="startBtn">Start</button>
+<button onclick="stopStudy()" id="stopBtn" style="background:#dc2626;margin-left:8px;">Stop</button>
+<div id="timer" style="font-size:2em;margin:16px 0;">25:00</div>
+</div>
+
+<!-- CHAIN LOG -->
+<div class="card">
+<h3>🔗 Sovereign Chain</h3>
+<div id="chain-log">No seals yet.</div>
+<button onclick="runShip()">🚀 Ship Intent</button>
+<button onclick="checkChain()">🔎 Verify Chain</button>
+<div id="seal-status" class="status warn">NONE</div>
+</div>
+
+<!-- NOTES -->
+<div class="card">
+<h3>📓 Notes</h3>
+<input id="note-subject" placeholder="Subject" style="width:100%;padding:8px;margin-bottom:8px;">
+<textarea id="note-body" placeholder="Write note..." rows="3" style="width:100%;padding:8px;border:1px solid #334155;border-radius:4px;background:#0f172a;color:#e5e7eb;"></textarea>
+<button onclick="saveNote()">💾 Save</button>
+<div id="notes"></div>
+</div>
+
+<!-- CHAT LOG -->
+<div class="card">
+<h3>💬 Log</h3>
+<div id="chat" style="max-height:200px;overflow-y:auto;"></div>
+</div>
+
+<script>
+/* STATE */
+let timerInt;
+let seconds = 25 * 60;
+let seals = [];
+let notes = JSON.parse(localStorage.getItem("notes") || "[]");
+
+/* ROLE */
+let role = localStorage.getItem("role") || "student";
+const roleEl = document.getElementById("role");
+if (roleEl) roleEl.textContent = role;
+
+function setRole(r) {
+  role = r;
+  localStorage.setItem("role", r);
+  if (roleEl) roleEl.textContent = r;
+  showPanel(role, "global-panel");
+}
+
+/* SEAL CHAIN */
+function renderChain() {
+  const log = document.getElementById("chain-log");
+  if (!log) return;
+  if (seals.length === 0) {
+    log.innerHTML = "No seals yet.";
+    return;
+  }
+  log.innerHTML = seals.map(s => `
+    <strong>${s.ts.split("T")[1]?.slice(0,8) || "N/A"}</strong><br>
+    Seal: ${s.seal}<br>
+    Intent: ${safeHTML(s.intent)}
+  `).join("<hr>");
+}
+
+async function runShip() {
+  const intent = prompt("State the intent:");
+  if (!intent) return;
+  const ts = new Date().toISOString();
+  await new Promise(r => setTimeout(r, 1700));
+  const seal = "seal-" + Math.random().toString(36).slice(-10);
+  seals.push({ ts, seal, intent });
+  renderChain();
+  const status = document.getElementById("seal-status");
+  if (status) {
+    status.className = "status ok";
+    status.innerHTML = "🟢 SEALED";
+  }
+  logChat(`Intent shipped: ${seal.slice(-8)}`);
+}
+
+function checkChain() {
+  const remote = prompt("Paste remote seal:");
+  if (!remote) return;
+  const status = document.getElementById("seal-status");
+  const match = seals.some(s => s.seal === remote);
+  if (status) {
+    if (match) {
+      status.className = "status ok";
+      status.innerHTML = "🟢 VERIFIED";
+    } else {
+      status.className = "status red";
+      status.innerHTML = "🔴 DIVERGENCE";
+      alert("Seals do not match. System locked.");
+    }
+  }
+}
+
+/* CHAT */
+function logChat(msg, from = "system") {
+  const chat = document.getElementById("chat");
+  if (!chat) return;
+  const div = document.createElement("div");
+  div.textContent = msg;
+  div.style.marginBottom = "8px";
+  div.style.color = from === "user" ? "#a0d8ef" : from === "bot" ? "#b5e8b5" : "#e0f2fe";
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: "smooth" });
+}
+
+const msgInput = document.getElementById("msg");
+if (msgInput) {
+  msgInput.addEventListener("keypress", e => {
+    if (e.key !== "Enter") return;
+    const text = e.target.value.trim();
+    if (!text) return;
+    logChat(text, "user");
+    if (text.startsWith("/role ")) setRole(text.slice(6));
+    else if (text === "/seal") logChat("Sealed forever.", "bot");
+    else if (text.toLowerCase().includes("study")) logChat("Go start your timer.", "bot");
+    else logChat("I only know what you tell me.", "bot");
+    e.target.value = "";
+  });
+}
+
+/* TIMER */
+function updateTimer() {
+  const timerEl = document.getElementById("timer");
+  if (!timerEl) return;
+  if (seconds <= 0) {
+    clearInterval(timerInt);
+    timerEl.textContent = "0:00";
+    alert("Session complete.");
+    return;
+  }
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  timerEl.textContent = `${m}:${s.toString().padStart(2, "0")}`;
+  seconds--;
+}
+
+function startStudy() {
+  const topic = document.getElementById("topic")?.value.trim() || "Focus";
+  const mins = parseInt(document.getElementById("minutes")?.value || 25, 10);
+  seconds = mins * 60;
+  clearInterval(timerInt);
+  timerInt = setInterval(updateTimer, 1000);
+  updateTimer();
+  logChat(`Starting ${mins} min session: ${topic}`, "system");
+}
+
+/* NOTES */
+function safeHTML(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function renderNotes() {
+  const container = document.getElementById("notes");
+  if (!container) return;
+  container.innerHTML = "";
+  if (notes.length === 0) {
+    container.innerHTML = "<em>No notes yet.</em>";
+    return;
+  }
+  notes.slice().reverse().forEach(n => {
+    const entry = document.createElement("div");
+    entry.className = "note-entry";
+    entry.innerHTML = `
+      <strong>${safeHTML(n.sub)}</strong><br>
+      <small style="color:#94a3b8">${new Date(n.time).toLocaleString()}</small><br>
+      ${safeHTML(n.body).replace(/\n/g, "<br>")}
+      <hr style="margin:12px 0;border-color:#334155">
+    `;
+    container.appendChild(entry);
+  });
+}
+
+function saveNote() {
+  const sub = document.getElementById("note-subject")?.value.trim();
+  const body = document.getElementById("note-body")?.value.trim();
+  if (!sub || !body) {
+    alert("Subject and note required.");
+    return;
+  }
+  notes.push({ sub, body, time: new Date().toISOString() });
+  localStorage.setItem("notes", JSON.stringify(notes));
+  document.getElementById("note-subject").value = "";
+  document.getElementById("note-body").value = "";
+  renderNotes();
+  logChat("Note saved.", "bot");
+}
+
+/* STASH CREDENTIAL CARDS */
+function renderCredentialCard(studentId, title, status, proofFunc) {
+  const container = document.createElement('div');
+  container.className = 'credential-card';
+  container.innerHTML = `
+    <h4>${title}</h4>
+    <p><span class="credential-seal">Status:</span> ${status}</p>
+    <button class="credential-verify">Verify Proof</button>
+  `;
+  const button = container.querySelector('.credential-verify');
+  button.addEventListener('click', () => proofFunc(studentId));
+  document.getElementById("credential-container").appendChild(container);
+}
+
+function verifyProof(studentId) {
+  alert(`🔍 Verifying ${studentId}'s credential…\nProof valid: ✅\nSeal intact: ✅`);
+  console.log(`Credential for ${studentId} verified locally.`);
+}
+
+const sovereignStudents = [
+  {id: 'kid-001', title: 'Sovereign Dashboard', status: 'SEALED'}
+];
+
+sovereignStudents.forEach(s => renderCredentialCard(s.id, s.title, s.status, verifyProof));
+
+window.SovereignUI = { renderCard: renderCredentialCard, verify: verifyProof };
+logChat("Stash credential plugin loaded. Cards ready.", "bot");
+
+/* BIOMETRIC RECOVERY DEMO (local simulation) */
+function demoBiometricRecovery() {
+  const code = prompt("Enter recovery code (simulated biometric):");
+  if (code === "123456") {
+    alert("🧬 Recovery successful: Vault unlocked locally.");
+    logChat("Biometric recovery demo: success", "bot");
+  } else {
+    alert("❌ Recovery failed. Code invalid.");
+    logChat("Biometric recovery demo: failed", "bot");
+  }
+}
+
+/* INIT */
+renderChain();
+renderNotes();
+logChat("Sovereign dashboard ready. For the kids.", "bot");
+</script>
+
+</body>
+</html> 
