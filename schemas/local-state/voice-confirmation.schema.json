@@ -12,9 +12,23 @@
     "level": {"enum": ["none", "review", "required", "blocked"]},
     "needsConfirmation": {"type": "boolean"},
     "blocked": {"type": "boolean"},
-    "candidates": {"type": "array"},
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["canonical", "heard", "confidence", "repositoryAware"],
+        "properties": {
+          "canonical": {"type": "string"},
+          "heard": {"type": "string"},
+          "confidence": {"type": "string"},
+          "repositoryAware": {"type": "boolean"}
+        }
+      }
+    },
     "repositoryTerms": {"type": "array", "items": {"type": "string"}},
     "riskTerms": {"type": "array", "items": {"type": "string"}},
-    "localFirstConflict": {"type": "boolean"}
+    "localFirstConflict": {"type": "boolean"},
+    "reasons": {"type": "array", "items": {"type": "string"}}
   }
 }
