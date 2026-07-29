@@ -34,7 +34,7 @@ def test_contract_files_do_not_generate_keys_or_use_network_tools() -> None:
         ROOT / 'frontend' / 'public' / 'voice-confirmation.js',
         ROOT / 'policies' / 'local-state-boundary.md',
     ]
-    forbidden = ('curl', 'wget', 'git clone', 'generate_key', 'generate_keypair', 'token_urlsafe', 'token_hex')
+    forbidden = ('curl', 'wget', 'git clone', 'generate_key', 'generate_keypair', 'token_urlsafe', 'token_hex', 'os.urandom')
     for path in paths:
         source = path.read_text(encoding='utf-8').lower()
         assert not any(token in source for token in forbidden), path
