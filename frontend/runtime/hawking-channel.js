@@ -3,24 +3,18 @@
  *
  * Local-first encrypted message channel for SGHv119 integration.
  *
- * The browser implementation uses WebCrypto P-256 ECDH and ECDSA because these
- * are broadly available in browser WebCrypto. It does not claim X25519 or
- * Ed25519 support. Native PQC and device identity integration belong behind a
- * separately verified adapter.
+ * Browser baseline: P-256 ECDH, HKDF-SHA-256, AES-256-GCM, and ECDSA
+ * P-256/SHA-256. This module does not claim X25519, Ed25519, or PQC support.
+ * Native adapters must be verified separately before those algorithms are shown
+ * as active.
  *
  * Local/offline mode dispatches only a local DOM event. Hybrid/online transport
- * is injected by the caller and remains policy-gated; this module never invents
- * relay or satellite endpoints and never performs background listening.
+ * is injected by the caller and remains policy-gated.
  */
 (function (global) {
   'use strict';
 
-  var STATUS = {
-    INIT: 'INIT',
-    KEYGEN: 'KEYGEN',
-    READY: 'READY',
-    ERROR: 'ERROR'
-  };
+  var STATUS = { INIT: 'INIT', KEYGEN: 'KEYGEN', READY: 'READY', ERROR: 'ERROR' };
 
   function base64UrlEncode(buffer) {
     var bytes = new Uint8Array(buffer);
@@ -48,14 +42,13 @@
     try { return localStorage.getItem('sgh_mode') || 'local'; } catch (error) { return 'local'; }
   }
 
-  function isLocalMode(mode) {
-    return mode === 'local' || mode === 'offline';
-  }
+  function isLocalMode(mode) { return mode === 'local' || mode === 'offline'; }
 
   function create(options) {
     options = options || {};
     var cryptoApi = options.crypto || global.crypto;
     var eventTarget = options.eventTarget || global.document;
+    var customEvent = options.CustomEvent || global.CustomEvent;
     var status = STATUS.INIT;
     var identity = null;
     var listeners = [];
@@ -81,11 +74,12 @@
       var signKeyPair = await cryptoApi.subtle.generateKey(
         { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']
       );
-      var publicKey = await cryptoApi.subtle.exportKey('raw', signKeyPair.publicKey);
+      var signPublicKey = await cryptoApi.subtle.exportKey('raw', signKeyPair.publicKey);
       identity = {
         dhKeyPair: dhKeyPair,
         signKeyPair: signKeyPair,
-        fingerprint: hex(await cryptoApi.subtle.digest('SHA-256', publicKey)).slice(0, 16)
+        signPublicKey: signPublicKey,
+        fingerprint: hex(await cryptoApi.subtle.digest('SHA-256', signPublicKey)).slice(0, 16)
       };
       setStatus(STATUS.READY, identity.fingerprint);
       return identity;
@@ -115,8 +109,9 @@
 
     async function seal(message, remoteDhPublic) {
       var local = await init();
-      if (!remoteDhPublic) throw new Error('A recipient public key is required for sealing');
-      var key = await deriveSession(remoteDhPublic);
+      /* Local mode uses an explicit ephemeral self-session for local dispatch. */
+      var recipientDhPublic = remoteDhPublic || await cryptoApi.subtle.exportKey('raw', local.dhKeyPair.publicKey);
+      var key = await deriveSession(recipientDhPublic);
       var iv = cryptoApi.getRandomValues(new Uint8Array(12));
       var plaintext = typeof message === 'string' ? message : JSON.stringify(message);
       var ciphertext = await cryptoApi.subtle.encrypt(
@@ -130,6 +125,7 @@
         algorithm: 'P-256-ECDH+A256GCM+ECDSA-SHA256',
         fingerprint: local.fingerprint,
         dhPublicKey: base64UrlEncode(await cryptoApi.subtle.exportKey('raw', local.dhKeyPair.publicKey)),
+        signPublicKey: base64UrlEncode(local.signPublicKey),
         iv: base64UrlEncode(iv),
         ciphertext: base64UrlEncode(ciphertext),
         signature: base64UrlEncode(signature),
@@ -137,8 +133,23 @@
       };
     }
 
+    async function verify(envelope) {
+      if (!envelope || envelope.version !== 1 || !envelope.signPublicKey || !envelope.signature) {
+        throw new Error('Invalid Hawking signature envelope');
+      }
+      var publicKey = await cryptoApi.subtle.importKey(
+        'raw', base64UrlDecode(envelope.signPublicKey),
+        { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']
+      );
+      return cryptoApi.subtle.verify(
+        { name: 'ECDSA', hash: 'SHA-256' }, publicKey,
+        base64UrlDecode(envelope.signature), base64UrlDecode(envelope.ciphertext)
+      );
+    }
+
     async function unseal(envelope, remoteDhPublic) {
       if (!envelope || envelope.version !== 1) throw new Error('Unsupported Hawking envelope');
+      if (!await verify(envelope)) throw new Error('Hawking signature verification failed');
       var key = await deriveSession(remoteDhPublic || base64UrlDecode(envelope.dhPublicKey));
       var plaintext = await cryptoApi.subtle.decrypt(
         { name: 'AES-GCM', iv: base64UrlDecode(envelope.iv) },
@@ -154,8 +165,8 @@
       var envelope = await seal(message, optionsForSend.remoteDhPublic);
 
       if (isLocalMode(mode)) {
-        if (eventTarget && typeof eventTarget.dispatchEvent === 'function') {
-          eventTarget.dispatchEvent(new CustomEvent('sg:hawkingMsg', {
+        if (eventTarget && typeof eventTarget.dispatchEvent === 'function' && typeof customEvent === 'function') {
+          eventTarget.dispatchEvent(new customEvent('sg:hawkingMsg', {
             detail: { envelope: envelope, local: true }
           }));
         }
@@ -173,6 +184,7 @@
     return {
       init: init,
       seal: seal,
+      verify: verify,
       unseal: unseal,
       send: send,
       getStatus: function () { return status; },

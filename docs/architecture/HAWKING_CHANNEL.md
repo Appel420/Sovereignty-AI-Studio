@@ -9,18 +9,20 @@ The browser implementation uses:
 - P-256 ECDH for session key agreement.
 - HKDF-SHA-256 for session-key derivation.
 - AES-256-GCM for authenticated encryption.
-- ECDSA P-256/SHA-256 for sender signatures.
+- ECDSA P-256/SHA-256 for sender signatures and verification.
 
 It does not claim X25519 or Ed25519 support. Those algorithms require a verified native or WebCrypto adapter and must not be represented as active merely because a dashboard label says so.
 
 ## Modes
 
-- `local` and `offline`: seal the message and dispatch `sg:hawkingMsg` locally. No relay, satellite, mesh, or external fetch is attempted.
+- `local` and `offline`: seal the message using a local self-session and dispatch `sg:hawkingMsg`. No relay, satellite, mesh, or external fetch is attempted.
 - `hybrid` and `online`: require an explicit caller-supplied transport function. This module does not read relay URLs from storage and does not invent endpoints.
 
 ## Identity and key handling
 
 Keys are generated in memory for the session. Private keys are not written to `localStorage`. Device-persistent identity requires an approved local keystore adapter and explicit owner policy.
+
+Every envelope carries the sender signing public key. `unseal()` verifies the signature before decrypting and rejects tampered ciphertext or signatures.
 
 ## Integration rule
 
@@ -28,4 +30,4 @@ The dashboard must show the channel as `DECLARED`, `AVAILABLE`, `VERIFIED`, or `
 
 ## SGHv119 wiring
 
-The module is intentionally added before wiring the monolithic dashboard. The next integration step must replace duplicate Hawking code with this single module and connect its status to the existing dashboard indicator without adding another retry loop or outbound path.
+The module is intentionally kept separate from the monolithic dashboard until the dashboard uses one shared channel instance and one transport boundary. The next integration step must replace duplicate Hawking code without adding another retry loop or outbound path.
