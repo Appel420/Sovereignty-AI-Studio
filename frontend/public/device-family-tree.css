@@ -1,0 +1,12 @@
+/* Device-local family-tree dashboard; no framework, CDN, or remote provider dependency. */
+:root { color-scheme: dark; --bg:#05070d; --panel:#0e1420; --panel2:#131c2b; --border:#26344a; --text:#e8eef8; --muted:#91a1b8; --accent:#54e1b1; --warn:#ffc36b; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,sans-serif; }
+.shell { width:min(1180px,calc(100% - 32px)); margin:auto; padding:40px 0 64px; }
+.hero { margin-bottom:24px; }.eyebrow { color:var(--accent); font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; } h1,h2,h3 { margin:0 0 8px; }.lede,.boundary,.muted { color:var(--muted); }
+.family-tree-panel,.panel { padding:22px; border:1px solid var(--border); border-radius:16px; background:var(--panel); box-shadow:0 14px 40px #0005; margin-bottom:20px; }
+.panel-heading { display:flex; justify-content:space-between; align-items:start; gap:16px; }.status { border:1px solid var(--border); border-radius:999px; padding:5px 9px; color:var(--warn); font-size:12px; white-space:nowrap; }.boundary { font:12px ui-monospace,monospace; }
+.tree-root { margin:18px 0; padding:12px; border-left:2px solid var(--accent); font-family:ui-monospace,monospace; }.tree-children { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin-top:12px; }
+.provider-card { border:1px solid var(--border); border-radius:12px; padding:14px; background:var(--panel2); }.provider-card h3 { color:var(--accent); }.field { margin:7px 0; }.field strong { display:block; color:var(--muted); font-size:11px; letter-spacing:.08em; }.field span { overflow-wrap:anywhere; }.authorization { color:var(--warn); }.disclaimer { color:var(--muted); font-size:12px; }
+.council { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }.council-list { display:flex; flex-wrap:wrap; gap:8px; padding:0; list-style:none; }.council-list li { padding:6px 9px; border:1px solid var(--border); border-radius:8px; background:#0a101b; }
+@media (max-width:700px) { .panel-heading { flex-direction:column; } }
