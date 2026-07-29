@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Compute an incremental local-CI scope from Git changes.
+"""Compute an offline, incremental local-CI scope from Git changes.
 
-The default is conservative: dependency, workflow, build, runtime-map, or CI
-changes require the full gate. Ordinary source changes only validate changed
-files and changed test modules. Set FULL_CI=1 to force the complete suite.
+This module never installs dependencies and never contacts package registries.
+Full validation is selected only for dependency/build/workflow changes or an
+explicit FULL_CI=1 request. The local CI runner decides how to execute checks.
 """
 from __future__ import annotations
 
@@ -18,6 +18,7 @@ FULL_MARKERS = (
     "pyproject.toml",
     "package.json",
     "package-lock.json",
+    "npm-shrinkwrap.json",
     "pytest.ini",
     "Makefile",
     "Dockerfile",
@@ -43,24 +44,34 @@ def git_names(*args: str) -> set[str]:
 def changed_files() -> set[str]:
     names = git_names()
     names |= git_names("--cached")
+
+    # Include untracked files without reading or contacting any remote.
+    untracked = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files", "--others", "--exclude-standard"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    names |= {line.strip() for line in untracked.stdout.splitlines() if line.strip()}
+
     base = os.environ.get("BASE_SHA") or os.environ.get("GITHUB_BASE_SHA")
     head = os.environ.get("HEAD_SHA") or os.environ.get("GITHUB_SHA")
     if base and head:
         names |= git_names(f"{base}...{head}")
     elif not names:
         names |= git_names("HEAD~1", "HEAD")
+
     return {name for name in names if not name.startswith("external/")}
 
 
 def scope(names: set[str]) -> dict[str, object]:
     full = bool(os.environ.get("FULL_CI")) or any(
-        any(name == marker or name.startswith(marker) for marker in FULL_MARKERS)
+        name == marker or name.startswith(marker)
         for name in names
+        for marker in FULL_MARKERS
     )
     python_files = sorted(name for name in names if name.endswith(".py"))
-    node_files = sorted(
-        name for name in names if name.endswith(('.js', '.mjs', '.cjs'))
-    )
+    node_files = sorted(name for name in names if name.endswith((".js", ".mjs", ".cjs")))
     shell_files = sorted(name for name in names if name.endswith(".sh"))
     test_files = sorted(
         name for name in names if name.startswith("tests/") and name.endswith(".py")
@@ -88,8 +99,7 @@ def main() -> int:
 
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
-    key = sys.argv[1]
-    value = result.get(key)
+    value = result.get(sys.argv[1])
     if isinstance(value, list):
         print("\n".join(str(item) for item in value))
     elif isinstance(value, bool):
