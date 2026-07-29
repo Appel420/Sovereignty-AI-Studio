@@ -14,7 +14,7 @@ The split is logical, not a second runtime:
 Sovereignty-AI-Studio
 ├── schemas/local-state/       canonical data contracts
 ├── registry/                  public-safe example metadata
-├── policies/local-state/      local-first rules
+├── policies/                  local-first rules
 ├── scripts/                   local validators and initializers
 ├── tests/                     contract tests
 └── frontend/                  read-only presentation adapter
