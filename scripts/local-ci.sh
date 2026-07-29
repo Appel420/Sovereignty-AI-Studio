@@ -27,6 +27,10 @@ node frontend/scripts/test-sghv119-bootstrap.js
 node frontend/scripts/test-sghv119-ownership.js
 node frontend/scripts/verify-sovereign-frontend.js
 
+# Pylint is intentionally blocking. Do not append `|| true`: a green run must
+# mean the configured Python scope passed lint.
+make py-lint
+
 if [[ -x .venv/bin/pytest ]]; then
   .venv/bin/pytest -q
 elif command -v pytest >/dev/null 2>&1; then
