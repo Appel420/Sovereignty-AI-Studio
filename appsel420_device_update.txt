@@ -1,0 +1,59 @@
+# Device Owner Update
+
+Owner: Appel420
+Contact: appel420@tutamail.com
+
+Date recorded: July 25, 2026
+
+This is not a theory.
+
+Device Owner Appel420 asked that the project be tied together before it moves to conversational use, without losing state or failing to connect the system's components. The system must represent a self-sustaining, balanced ecosystem that is connected, transparent, and never deceptive.
+
+## Owner requirements
+
+- State must persist when the user logs in or speaks directly to the device.
+- The user chooses the wake word.
+- The system must always present options.
+- The system exists for the user and device owner, not for databanks or unauthorized data collection.
+- AI hallucination or anomalous behavior must automatically alert the owner.
+- A council of owner-chosen on-device models, LLMs, and VLMs must be available for review.
+- Authorization decisions must be visible as `AUTHORIZATION` or `ACCESS_DENIED`.
+- Denied or anomalous operations require full sanitation, quarantine, and local audit recording.
+- Device-owner data remains local by default and is protected from unauthorized access or transfer.
+- All inter-repository and provider communication must pass through the local assistant/router, policy gate, and owner authorization boundary.
+
+## Authority model
+
+```text
+HUMAN OWNER
+  ↓ explicit approval
+SCOPED CAPABILITY
+  ↓
+DEVASSIST420 LOCAL ROUTER
+  ↓
+GOVERNANCE / COUNCIL / WATCHDOG
+  ↓
+AUTHORIZED LOCAL OR EXTERNAL ADAPTER
+  ↓
+LOCAL SCAR + PERSISTENT DEVICE STATE
+```
+
+## Fail-closed requirements
+
+If canonical state is missing, invalid, unverifiable, or stale:
+
+- do not start provider access;
+- do not access credentials;
+- do not communicate externally;
+- do not execute sensitive actions;
+- record a local threat event;
+- alert the owner;
+- preserve the evidence locally.
+
+## System boundary
+
+The dashboard is the user-facing front face. DevAssist420 is the device-local assistant and router. The orchestrator coordinates only explicitly authorized participants. Governance, watchdog, council, and persistence components enforce the user's ownership and safety boundaries.
+
+No component may self-authorize, silently change policy, treat credential access as permission, download models, install dependencies, or transfer owner data without explicit scoped authorization.
+
+This file is a device-owner requirement and must be loaded as canonical startup state before conversational or autonomous operation is enabled.
