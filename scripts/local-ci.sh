@@ -1,50 +1,76 @@
 #!/usr/bin/env bash
-# Deterministic local CI. No cloud agent, hosted runner, publishing, or provider calls.
+# Incremental local CI. Full validation is reserved for dependency, workflow,
+# build, runtime-map changes, or an explicit FULL_CI=1.
 set -Eeuo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-python3 -m compileall -q --exclude external --exclude .venv .
-python3 scripts/validate-runtime-coherence.py
-python3 scripts/validate-branch-ownership.py --branch "$(git branch --show-current)" --scope "$(python3 - <<'PY'
-from pathlib import Path
-changed = {p.parts[0] for p in Path('.').rglob('*') if p.is_file() and '.git' not in p.parts and 'external' not in p.parts}
-print('coordination' if 'backend' in changed else 'verification')
-PY
-)" || {
-  echo "branch ownership validation failed; use a registered owner branch or pass an approved scope" >&2
-  exit 1
-}
-node --check server_9899.js
-node --check node-bridge/server.js
-node --check backend/api/providers/index.js
-node --check backend/api/providers/local.js
-node --check frontend/runtime/transport.js
-node --check frontend/runtime/hawking-channel.js
-node --check frontend/runtime/sg-hawking-integration.js
-node --check frontend/runtime/sghv119-bootstrap.js
-node --check helpers/command_bus.js
+PYTHON="${PYTHON:-python3}"
+SCOPE_JSON="$($PYTHON scripts/ci_scope.py --json)"
+FULL="$($PYTHON scripts/ci_scope.py full)"
 
-bash -n scripts/create-device-family-tree.sh scripts/validate-local-state.sh
-scripts/validate-local-state.sh
-python3 scripts/report-dashboard-duplicates.py
-node frontend/scripts/test-voice-confirmation.js
-node frontend/scripts/test-no-ollama.js
-node frontend/scripts/test-runtime-transport.js
-node frontend/scripts/test-hawking-channel.js
-node frontend/scripts/test-sg-hawking-integration.js
-node frontend/scripts/test-sghv119-bootstrap.js
-node frontend/scripts/test-sghv119-ownership.js
-node frontend/scripts/verify-sovereign-frontend.js
+printf '%s\n' "$SCOPE_JSON"
 
-make py-lint
-if [[ -x .venv/bin/pytest ]]; then
-  .venv/bin/pytest -q
-elif command -v pytest >/dev/null 2>&1; then
-  pytest -q
-else
-  echo "pytest is required for local CI" >&2
-  exit 1
+if [[ "$FULL" == "1" ]]; then
+  echo "CI scope: full (dependency, workflow, build, or explicit FULL_CI change)"
+  "$PYTHON" -m compileall -q --exclude external --exclude .venv .
+  make py-lint
+  if [[ -x .venv/bin/pytest ]]; then
+    .venv/bin/pytest -q
+  else
+    "$PYTHON" -m pytest -q
+  fi
+  npm run check
+  npm test --if-present
+  echo "full local CI passed"
+  exit 0
 fi
 
-echo "local CI passed"
+echo "CI scope: incremental"
+
+mapfile -t PYTHON_FILES < <($PYTHON scripts/ci_scope.py python)
+mapfile -t NODE_FILES < <($PYTHON scripts/ci_scope.py node)
+mapfile -t SHELL_FILES < <($PYTHON scripts/ci_scope.py shell)
+mapfile -t TEST_FILES < <($PYTHON scripts/ci_scope.py tests)
+
+if ((${#PYTHON_FILES[@]})); then
+  echo "Checking changed Python files"
+  "$PYTHON" -m compileall -q "${PYTHON_FILES[@]}"
+  if command -v pylint >/dev/null 2>&1; then
+    pylint "${PYTHON_FILES[@]}"
+  fi
+fi
+
+if ((${#NODE_FILES[@]})); then
+  echo "Checking changed Node files"
+  for file in "${NODE_FILES[@]}"; do
+    node --check "$file"
+  done
+fi
+
+if ((${#SHELL_FILES[@]})); then
+  echo "Checking changed shell files"
+  for file in "${SHELL_FILES[@]}"; do
+    bash -n "$file"
+  done
+fi
+
+if ((${#TEST_FILES[@]})); then
+  echo "Running changed Python tests only"
+  if [[ -x .venv/bin/pytest ]]; then
+    .venv/bin/pytest -q "${TEST_FILES[@]}"
+  else
+    "$PYTHON" -m pytest -q "${TEST_FILES[@]}"
+  fi
+fi
+
+if [[ "$($PYTHON scripts/ci_scope.py frontend)" == "1" ]]; then
+  echo "Running frontend verification"
+  node frontend/scripts/verify-sovereign-frontend.js
+fi
+
+if ((${#PYTHON_FILES[@]} == 0 && ${#NODE_FILES[@]} == 0 && ${#SHELL_FILES[@]} == 0 && ${#TEST_FILES[@]} == 0)); then
+  echo "No executable source changes detected; source checks skipped."
+fi
+
+echo "incremental local CI passed"
