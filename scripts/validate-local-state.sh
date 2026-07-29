@@ -24,6 +24,13 @@ assert wake['remote_recognition'] is False
 assert wake['status'] == 'not_configured'
 PY
 
+for file in scripts/create-device-family-tree.sh frontend/public/voice-confirmation.js; do
+  if [[ ! -f "$file" ]]; then
+    echo "local-state validation failed: expected contract file missing: $file" >&2
+    exit 1
+  fi
+done
+
 if grep -nE '(^|[[:space:]])(curl|wget|git[[:space:]]+clone)([[:space:]]|$)|generate_key|generate_keypair|token_urlsafe|token_hex|os\.urandom' scripts/create-device-family-tree.sh >/dev/null; then
   echo 'local-state validation failed: forbidden network or key-generation pattern found' >&2
   exit 1
