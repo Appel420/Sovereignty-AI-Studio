@@ -26,8 +26,8 @@ agent orchestration, and optional self-hosted integrations.
 
 Requirements:
 
-- Python 3.11 or later
-- Node.js 20 or later
+- Python 3.13 or later
+- Node.js 24 or later
 
 Install the checked-in runtime dependencies. This creates `.venv` and installs
 both Node workspaces; it does not create credentials, substitute a model, or
