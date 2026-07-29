@@ -24,6 +24,8 @@ def test_source_changes_are_incremental() -> None:
 def test_vendor_changes_are_excluded() -> None:
     result = MODULE.scope({"external/vendor/file.py"})
     assert result["changed"] == []
+    assert result["python"] == []
+    assert result["full"] is False
 
 
 def test_scope_has_no_install_or_network_policy() -> None:

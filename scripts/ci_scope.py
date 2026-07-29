@@ -31,6 +31,14 @@ FULL_MARKERS = (
 )
 
 
+def runtime_files(names: set[str]) -> set[str]:
+    """Return runtime paths, excluding external vendor/reference content."""
+    return {
+        name for name in names
+        if name and name != "external" and not name.startswith("external/")
+    }
+
+
 def git_names(*args: str) -> set[str]:
     result = subprocess.run(
         ["git", "-C", str(ROOT), "diff", "--name-only", *args],
@@ -45,7 +53,6 @@ def changed_files() -> set[str]:
     names = git_names()
     names |= git_names("--cached")
 
-    # Include untracked files without reading or contacting any remote.
     untracked = subprocess.run(
         ["git", "-C", str(ROOT), "ls-files", "--others", "--exclude-standard"],
         check=False,
@@ -60,11 +67,11 @@ def changed_files() -> set[str]:
         names |= git_names(f"{base}...{head}")
     elif not names:
         names |= git_names("HEAD~1", "HEAD")
-
-    return {name for name in names if not name.startswith("external/")}
+    return runtime_files(names)
 
 
 def scope(names: set[str]) -> dict[str, object]:
+    names = runtime_files(names)
     full = bool(os.environ.get("FULL_CI")) or any(
         name == marker or name.startswith(marker)
         for name in names
@@ -96,7 +103,6 @@ def main() -> int:
     result = scope(names)
     if len(sys.argv) == 1 or sys.argv[1] == "--json":
         import json
-
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0
     value = result.get(sys.argv[1])
