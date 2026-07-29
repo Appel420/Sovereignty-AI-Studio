@@ -18,8 +18,20 @@ function fail(message) {
 if (!fs.existsSync(path.join(publicDir, 'index.html'))) fail('public/index.html is missing');
 if (!fs.existsSync(path.join(publicDir, 'code-narration.js'))) fail('code narration parser is missing');
 if (!fs.existsSync(path.join(publicDir, 'code-narration-ui.js'))) fail('code narration UI is missing');
+if (!fs.existsSync(path.join(publicDir, 'device-family-tree.js'))) fail('device family-tree dashboard is missing');
+if (!fs.existsSync(path.join(publicDir, 'device-family-tree.css'))) fail('device family-tree styles are missing');
 if (pkg.sovereignty?.react !== false) fail('React must remain disabled');
 if (Object.keys(pkg.dependencies || {}).length !== 0) fail('static frontend must have no runtime dependencies');
+
+const index = fs.readFileSync(path.join(publicDir, 'index.html'), 'utf8');
+const familyTree = fs.readFileSync(path.join(publicDir, 'device-family-tree.js'), 'utf8');
+if (!index.includes('family-tree-panel')) fail('family-tree panel is not mounted');
+if (!index.includes('device-family-tree.js')) fail('family-tree script is not loaded');
+if (!familyTree.includes('network !== \'disabled\'')) fail('network boundary is not enforced');
+if (!familyTree.includes('remote_recognition !== false')) fail('remote listening boundary is not enforced');
+if (!familyTree.includes('NOT EVALUATED')) fail('authorization default is missing');
+if (!familyTree.includes('LOCAL-ONLY / UNAVAILABLE')) fail('local SCAR fallback is missing');
+if (familyTree.includes('http://') || familyTree.includes('https://')) fail('remote URL found in dashboard');
 
 const context = { console, globalThis: {} };
 vm.createContext(context);
