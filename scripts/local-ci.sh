@@ -24,6 +24,7 @@ node frontend/scripts/test-runtime-transport.js
 node frontend/scripts/test-hawking-channel.js
 node frontend/scripts/test-sg-hawking-integration.js
 node frontend/scripts/test-sghv119-bootstrap.js
+node frontend/scripts/test-sghv119-ownership.js
 node frontend/scripts/verify-sovereign-frontend.js
 
 if [[ -x .venv/bin/pytest ]]; then

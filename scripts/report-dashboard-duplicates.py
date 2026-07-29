@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Report duplicate runtime ownership markers without modifying dashboard files."""
+"""Report and validate canonical SGHv119 ownership boundaries."""
 from __future__ import annotations
 
 import re
@@ -14,6 +14,7 @@ PATTERNS = {
     "bridge_fetch_fallback": r"/error_ping|/chat",
     "duplicate_ws_manager": r"new\s+WebSocket\s*\(|WebSocket\s*=",
     "legacy_local_block": r"Blocked in local/offline mode",
+    "truncated_placeholder": r"trimmed for brevity",
 }
 
 
@@ -27,12 +28,18 @@ def main() -> int:
         for name, pattern in PATTERNS.items():
             count = len(re.findall(pattern, source, flags=re.IGNORECASE))
             print(f"  {name}: {count}")
-            if name == "legacy_local_block" and count:
+            if count and name in {
+                "hawking_definition",
+                "bridge_singleton",
+                "duplicate_ws_manager",
+                "legacy_local_block",
+                "truncated_placeholder",
+            } and path.name == "SGHv119.html":
                 failed = True
     if failed:
-        print("dashboard cleanup required: local mode still blocks all loopback bridge traffic", file=sys.stderr)
+        print("SGHv119 cleanup required: canonical dashboard still owns duplicate or truncated runtime code", file=sys.stderr)
         return 1
-    print("dashboard duplicate report completed")
+    print("dashboard ownership report passed")
     return 0
 
 
