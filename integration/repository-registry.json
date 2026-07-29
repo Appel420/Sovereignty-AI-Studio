@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "status": "declarative-only",
+  "repositories": [
+    {"id":"sovereignty-ai-gate","repository":"Appel420/Sovereignty-AI-Gate","role":"authority-policy-evidence","required":true,"capabilities":["identity","authorization","memory-governance","evidence"],"trust_level":"root-boundary","network":"policy-gated"},
+    {"id":"devassist420","repository":"Appel420/DevAssist420","role":"device-client","required":false,"capabilities":["conversation","voice-ui","developer-ui"],"trust_level":"client","network":"policy-gated"},
+    {"id":"sovereignty-ai-studio","repository":"Appel420/Sovereignty-AI-Studio","role":"integration-host","required":true,"capabilities":["dashboard","adapters","local-ci"],"trust_level":"integration","network":"loopback-only"},
+    {"id":"risk-engine-runtime-assurance","repository":"Appel420/Sovereignty-Risk-Engine-Runtime-Assurance","role":"runtime-assurance","required":true,"capabilities":["risk-evaluation","runtime-assurance"],"trust_level":"assurance","network":"policy-gated"},
+    {"id":"supergrok-heavy-4-2-skeleton","repository":"Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton","role":"reference-skeleton","required":false,"capabilities":["reference-ui","reference-runtime"],"trust_level":"reference","network":"disabled"},
+    {"id":"x-ai-fortress","repository":"Appel420/X.AI-Fortress","role":"security-protocol","required":false,"capabilities":["security-controls","audit"],"trust_level":"security","network":"policy-gated"},
+    {"id":"xai-fortress","repository":"Appel420/xai-fortress","role":"post-quantum-fortress","required":false,"capabilities":["ml-dsa","ml-kem","enclave","audit-chain"],"trust_level":"security","network":"policy-gated"},
+    {"id":"sovereign-self-fixer","repository":"Appel420/sovereign-self-fixer","role":"self-healing-assurance","required":false,"capabilities":["tpm-attestation","repair-assistance"],"trust_level":"assurance","network":"policy-gated"},
+    {"id":"every-cloud-for-everyone","repository":"Appel420/every-cloud-for-everyone","role":"privacy-policy-enforcement","required":false,"capabilities":["customer-key-policy","privacy-enforcement"],"trust_level":"policy","network":"policy-gated"},
+    {"id":"familyguard","repository":"Appel420/FamilyGuard","role":"device-privacy","required":false,"capabilities":["e2ee","family-protection"],"trust_level":"client","network":"policy-gated"},
+    {"id":"sovereign-mldsa-native","repository":"Appel420/sovereign-mldsa-native","role":"native-cryptography","required":false,"capabilities":["ml-dsa","fips-204"],"trust_level":"crypto","network":"disabled"},
+    {"id":"sovereign-a-shell","repository":"Appel420/Sovereign-a-shell","role":"device-terminal","required":false,"capabilities":["terminal","local-shell"],"trust_level":"client","network":"policy-gated"},
+    {"id":"sovereignty-one-core","repository":"Appel420/sovereignty-one-core","role":"local-core","required":false,"capabilities":["quad-ratchet","rag","core-services"],"trust_level":"core","network":"policy-gated"},
+    {"id":"sovereignty-quantumeegnet","repository":"Appel420/Sovereignty-QuantumEEGNet","role":"research-module","required":false,"capabilities":["qeeg","quantum-ml"],"trust_level":"research","network":"policy-gated"},
+    {"id":"sovereignty-medicalai","repository":"Appel420/Sovereignty_medicalAI","role":"medical-research-module","required":false,"capabilities":["medical-ai"],"trust_level":"research","network":"policy-gated"}
+  ]
+}
