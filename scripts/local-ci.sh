@@ -5,6 +5,7 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 python3 -m compileall -q --exclude external --exclude .venv .
+python3 scripts/validate-runtime-coherence.py
 node --check server_9899.js
 node --check node-bridge/server.js
 node --check backend/api/providers/index.js
