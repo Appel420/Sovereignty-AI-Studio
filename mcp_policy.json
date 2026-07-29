@@ -1,0 +1,65 @@
+{
+  "version": "1.0.0",
+  "policy_name": "gateone_sovereign",
+  "mode": "ghost",
+  "defaults": {
+    "decision": "DENY",
+    "fail_closed": true,
+    "require_scar": true,
+    "require_attestation": true
+  },
+  "provider_policy": {
+    "allow": ["openai", "anthropic", "xai", "github_copilot", "qwen"],
+    "deny": ["llama", "gemini", "firebase", "vertexai", "meta"],
+    "unknown_provider": "DENY"
+  },
+  "routing_policy": {
+    "mode": "user_select",
+    "automatic_fallback": false,
+    "fallback": "ask",
+    "cloud": "last_resort"
+  },
+  "state_sovereignty": {
+    "device_state_default": true,
+    "external_state_opt_in": true,
+    "hidden_state": "FORBIDDEN",
+    "unauthorized_sync": "BLOCKED",
+    "login_is_not_memory_consent": true,
+    "network_is_not_storage_consent": true
+  },
+  "memory_policy": {
+    "default": "disabled",
+    "requires_explicit_permission": true,
+    "scope_bound": true,
+    "provider_access": "deny_without_permission"
+  },
+  "cloud_policy": {
+    "offered_proactively": false,
+    "requires_explicit_request": true,
+    "last_resort": true,
+    "audit_required": true
+  },
+  "bridge_requirements": {
+    "trust_boundary": "local-only",
+    "network": false,
+    "credentials": false,
+    "mutation": false,
+    "shell": false
+  },
+  "capabilities": {
+    "sovereignty_status": {"classification": "metadata", "allowed_modes": ["offline", "ghost"], "mutation": false, "requires_approval": false},
+    "workspace_list": {"classification": "evidence", "allowed_modes": ["offline", "ghost"], "mutation": false, "requires_approval": false},
+    "workspace_read": {"classification": "evidence", "allowed_modes": ["offline", "ghost"], "mutation": false, "requires_approval": false},
+    "workspace_analyze": {"classification": "diagnostic", "allowed_modes": ["offline", "ghost"], "mutation": false, "requires_approval": false},
+    "workspace_repo_status": {"classification": "metadata", "allowed_modes": ["offline", "ghost"], "mutation": false, "requires_approval": false}
+  },
+  "sensitivity_policy": {
+    "deny_hidden_files": true,
+    "patterns": [".env", ".pem", ".key", "credentials", "token", "secret"]
+  },
+  "workspace_policy": {
+    "require_workspace_boundary": true,
+    "allow_path_traversal": false,
+    "allow_outside_workspace": false
+  }
+}
