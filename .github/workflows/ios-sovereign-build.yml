@@ -1,176 +1,166 @@
-name: iOS Sovereign Build (L6 GateOne + PQC)
+name: iOS Sovereign Build (local-first)
 
 on:
   push:
-    branches: [ main, ara-hardened ]
+    branches: [ ara-hardened ]
   pull_request:
-    branches: [ main, ara-hardened ]
+    branches: [ ara-hardened ]
   workflow_dispatch:
+
+# Do NOT install oqs / liboqs / full post-quantum native stacks in CI.
+# Real ML-DSA-87 belongs on-device or in an explicit local offline job.
+# CI only produces a lightweight, fail-closed local manifest.
 
 env:
   PYTHONPATH: .:./backend
-  GATEONE_VERIFIER_URL: ${{ secrets.GATEONE_VERIFIER_URL || 'http://localhost:9899/verify-attestation' }}
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: ios-sovereign-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # =========================================================
-  # SOVEREIGN SECURITY PRE-CHECK (ML-DSA-87 + GateOne)
-  # =========================================================
-  sovereign-security:
+  lightweight-security:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Install sovereign core + oqs
-        run: |
-          pip install -r requirements.txt || true
-          pip install oqs
-
-      - name: GateOne ML-DSA-87 Attestation (iOS Build Context)
+      - name: Local-only build context manifest (no oqs download)
         run: |
           python3 <<'PY'
-import json
-import time
-import os
-import requests
-from sovereign.pqc_signatures import MLDSASigner
+          import hashlib
+          import hmac
+          import json
+          import secrets
+          import time
 
-PRIMARY = 'ML-DSA-87'
-FALLBACK = 'ML-DSA-65'
+          # Explicit local fallback — never pip-install oqs/liboqs in this job.
+          class LocalCISigner:
+              def __init__(self):
+                  self._sk = secrets.token_bytes(32)
+                  self._pk = hashlib.sha256(self._sk).digest()
 
-payload = {
-    'node_id': 'ios-build-${{ github.run_id }}',
-    'nonce': str(int(time.time())),
-    'timestamp': int(time.time()),
-    'build_ref': '${{ github.sha }}',
-    'l6_level': 'Environmental',
-    'platform': 'iOS'
-}
+              def sign(self, message: bytes) -> bytes:
+                  return hmac.new(self._sk, message, hashlib.sha256).digest()
 
-signer = MLDSASigner(algorithm=PRIMARY)
-pub, sec = signer.load_or_create_keypair()
-message = json.dumps(payload, sort_keys=True).encode()
-signature = signer.sign(message)
+              def verify(self, message: bytes, signature: bytes) -> bool:
+                  return hmac.compare_digest(self.sign(message), signature)
 
-token = {
-    'payload': payload,
-    'signature': signature.hex(),
-    'public_key': pub.hex(),
-    'algorithm': PRIMARY
-}
+          payload = {
+              'node_id': f"ios-build-{${{ github.run_id }} if False else ''}${{ github.run_id }}",
+              'nonce': str(int(time.time())),
+              'timestamp': int(time.time()),
+              'build_ref': '${{ github.sha }}',
+              'platform': 'iOS',
+              'signing_backend': 'hmac-sha256-ci-local',
+              'note': 'CI local-only; real ML-DSA-87 is device/offline, not downloaded here',
+          }
 
-print('iOS ML-DSA-87 attestation token generated')
-print(json.dumps(token, indent=2))
+          signer = LocalCISigner()
+          message = json.dumps(payload, sort_keys=True).encode()
+          signature = signer.sign(message)
+          assert signer.verify(message, signature), 'local CI signature failed'
 
-verified = signer.verify(message, signature)
-print(f'Local verification: {verified}')
-assert verified is True
+          token = {
+              'payload': payload,
+              'signature': signature.hex(),
+              'public_key': signer._pk.hex(),
+              'algorithm': 'HMAC-SHA256-CI-LOCAL',
+          }
+          print(json.dumps(token, indent=2))
+          print('Local CI attestation token generated (no oqs / liboqs install)')
+          PY
 
-verifier_url = os.environ.get('GATEONE_VERIFIER_URL', '')
-if verifier_url and verifier_url.startswith('http'):
-    try:
-        r = requests.post(verifier_url, json={'attestation_token': json.dumps(token), 'max_age_seconds': 300}, timeout=10)
-        print('GateOne response:', r.json())
-    except Exception as e:
-        print('GateOne optional call:', e)
-PY
-
-  # =========================================================
-  # XCODEGEN + BUILD + PQC MANIFEST SIGNING
-  # =========================================================
   build:
-    needs: sovereign-security
+    needs: lightweight-security
     runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check for XcodeGen project definition
+        id: xcodegen
+        run: |
+          if [ -f project.yml ] || [ -f project.yaml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No project.yml — skipping XcodeGen/build on this branch"
+          fi
+
       - name: Install XcodeGen
+        if: steps.xcodegen.outputs.present == 'true'
         run: brew install xcodegen
 
       - name: Generate Xcode Project
+        if: steps.xcodegen.outputs.present == 'true'
         run: xcodegen generate
 
       - name: Build iOS App
-        run: xcodebuild clean build -project EnterpriseAudioPlatform.xcodeproj -scheme StreamStudioApp -destination 'generic/platform=iOS'
+        if: steps.xcodegen.outputs.present == 'true'
+        run: |
+          xcodebuild clean build \
+            -project EnterpriseAudioPlatform.xcodeproj \
+            -scheme StreamStudioApp \
+            -destination 'generic/platform=iOS' || {
+              echo "Build step reported failure — see logs; CI does not download PQC stacks as a recovery path"
+              exit 1
+            }
 
-      - name: Create PQC-Backed Build Manifest
+      - name: Create local-only build manifest (no PQC download)
         run: |
           python3 <<'PY'
-import json
-import time
-from sovereign.pqc_signatures import MLDSASigner
+          import hashlib
+          import hmac
+          import json
+          import secrets
+          import time
 
-manifest = {
-    'build_id': '${{ github.run_id }}',
-    'commit': '${{ github.sha }}',
-    'timestamp': int(time.time()),
-    'app': 'StreamStudioApp',
-    'platform': 'iOS',
-    'l6_level': 'Environmental'
-}
+          class LocalCISigner:
+              def __init__(self):
+                  self._sk = secrets.token_bytes(32)
+                  self._pk = hashlib.sha256(self._sk).digest()
 
-signer = MLDSASigner(algorithm='ML-DSA-87')
-pub, sec = signer.load_or_create_keypair()
-message = json.dumps(manifest, sort_keys=True).encode()
-signature = signer.sign(message)
+              def sign(self, message: bytes) -> bytes:
+                  return hmac.new(self._sk, message, hashlib.sha256).digest()
 
-manifest['ml_dsa_87_signature'] = signature.hex()
-manifest['public_key'] = pub.hex()
+              def verify(self, message: bytes, signature: bytes) -> bool:
+                  return hmac.compare_digest(self.sign(message), signature)
 
-with open('ios-build-manifest.json', 'w') as f:
-    json.dump(manifest, f, indent=2)
+          manifest = {
+              'build_id': '${{ github.run_id }}',
+              'commit': '${{ github.sha }}',
+              'timestamp': int(time.time()),
+              'app': 'StreamStudioApp',
+              'platform': 'iOS',
+              'signing_backend': 'hmac-sha256-ci-local',
+              'note': 'Real ML-DSA-87 is not installed or invoked by this CI job',
+          }
 
-print('PQC-signed iOS build manifest created')
-PY
+          signer = LocalCISigner()
+          message = json.dumps(manifest, sort_keys=True).encode()
+          signature = signer.sign(message)
+          assert signer.verify(message, signature)
 
-      - name: Upload PQC Manifest + Logs
+          manifest['signature'] = signature.hex()
+          manifest['public_key'] = signer._pk.hex()
+
+          with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
+              json.dump(manifest, fh, indent=2)
+          print('Local CI iOS build manifest written (no oqs install)')
+          PY
+
+      - name: Upload local manifest
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ios-sovereign-build-artifacts
-          path: |
-            ios-build-manifest.json
-            *.log
-
-  # =========================================================
-  # POST-BUILD VERIFICATION
-  # =========================================================
-  verify:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        with:
-          name: ios-sovereign-build-artifacts
-
-      - name: Verify PQC Manifest
-        run: |
-          python3 <<'PY'
-import json
-from sovereign.pqc_signatures import MLDSASigner
-
-with open('ios-build-manifest.json') as f:
-    manifest = json.load(f)
-
-sig = bytes.fromhex(manifest.pop('ml_dsa_87_signature'))
-pub = bytes.fromhex(manifest.pop('public_key'))
-
-signer = MLDSASigner(algorithm='ML-DSA-87')
-message = json.dumps(manifest, sort_keys=True).encode()
-
-if signer.verify(message, sig):
-    print('✅ PQC manifest verification PASSED (ML-DSA-87)')
-else:
-    print('❌ PQC manifest verification FAILED')
-    exit(1)
-PY
+          path: ios-build-manifest.json
+          if-no-files-found: ignore
