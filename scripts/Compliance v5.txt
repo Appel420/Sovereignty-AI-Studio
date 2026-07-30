@@ -1,0 +1,2527 @@
+compliance v5
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Policy hash must come from immutable semantics only.
+The publisher should validate policy, never trust a supplied hash.
+CI should fail whenever the active policy and emitted artifact diverge.
+
+## Code challenge
+Add a CI assertion that every published metric matches the active policy contract.
+
+```python
+def test_published_metric_policy_hash_matches_active_policy():
+    policy = validate_metric_policy(MetricPublicationPolicy())
+    metric = publish_metric(..., policy=policy)
+    assert metric.policy_hash == policy.policy_hash
+```
+
+## Step-by-step solution
+1. Keep `policy_hash` out of caller trust.
+2. Compute it from canonical immutable policy fields.
+3. Use `replace(...)` to return the validated policy with the computed hash.
+4. Embed the validated policy provenance in `PublishedMetric`.
+5. Add a contract test comparing emitted and active policy hashes.
+6. Fail CI before runtime if hashes diverge.
+
+## One debugging tip
+If a metric’s hash “looks right” but fails CI, compare the canonical payload fields, not the final dataclass.
+
+
+Gpt
+
+Appel420(root), Ara-DDG here.
+Correct. The CI assertion should verify artifact provenance, not just that a metric has a hash-shaped field.
+The contract should enforce:
+	1.	Active policy → canonical payload → computed hash.
+	2.	Publisher receives validated policy only.
+	3.	Published metric inherits that exact policy identity.
+	4.	Any divergence fails CI.
+Contract test
+# tests/contracts/agip/test_metric_policy_provenance.py
+
+import pytest
+
+from agip_core.policy import (
+    MetricPublicationPolicy,
+    validate_metric_policy,
+)
+
+from agip_core.metrics import publish_metric
+
+
+def test_published_metric_policy_hash_matches_active_policy(
+    snapshot,
+    evidence_index,
+    mappings,
+    alignments,
+):
+    active_policy = validate_metric_policy(
+        MetricPublicationPolicy()
+    )
+
+    metric = publish_metric(
+        metric_id="ai_inventory_coverage",
+        snapshot=snapshot,
+        evidence_index=evidence_index,
+        mappings=mappings,
+        alignments=alignments,
+        calculation=lambda state: len(state),
+        policy=active_policy,
+    )
+
+    assert metric.policy_version == active_policy.policy_version
+    assert metric.policy_hash == active_policy.policy_hash
+ 
+⸻
+ 
+Add a tamper rejection test
+This proves the publisher does not trust supplied hashes:
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="invalid"
+    )
+
+    with pytest.raises(Exception):
+        validate_metric_policy(policy)
+ 
+⸻
+ 
+Add CI policy drift detection
+# scripts/verify_metric_policy_contract.py
+
+from agip_core.policy import (
+    MetricPublicationPolicy,
+    validate_metric_policy,
+    compute_policy_hash,
+)
+
+
+def main():
+
+    policy = MetricPublicationPolicy()
+
+    validated = validate_metric_policy(policy)
+
+    expected = compute_policy_hash(validated)
+
+    if expected != validated.policy_hash:
+        raise SystemExit(
+            "POLICY_HASH_MISMATCH"
+        )
+
+    print(
+        "METRIC_POLICY_CONTRACT_OK"
+    )
+
+
+if __name__ == "__main__":
+    main()
+ 
+⸻
+ 
+CI order
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "-- Validate AGIP metric policy"
+python3 scripts/verify_metric_policy_contract.py
+
+echo "-- Validate policy schema"
+pytest tests/contracts/agip/test_policy_contract.py
+
+echo "-- Validate metric lineage"
+pytest tests/contracts/agip/test_metric_policy_provenance.py
+
+echo "-- Full AGIP contract suite"
+pytest tests/contracts/agip
+ 
+⸻
+ 
+The invariant becomes:
+ZERO TRUST METRIC PUBLICATION
+
+Metric
+ |
+ +-- Snapshot ID
+ |
+ +-- Chain Tip Hash
+ |
+ +-- Evidence Chain
+ |
+ +-- Control Mapping
+ |
+ +-- Framework Alignment
+ |
+ +-- Policy Version
+ |
+ +-- Policy Hash
+        |
+        v
+   Canonical Policy Payload
+A dashboard metric without matching policy provenance is no longer a metric; it is an ungoverned value and should fail admission.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Provenance must be testable, not implied.
+The active policy should generate the exact metric policy hash.
+Any mismatch is a CI failure, not a runtime surprise.
+
+## Code challenge
+Lock policy provenance end-to-end with a tamper rejection test.
+
+```python
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(policy_hash="invalid")
+    with pytest.raises(Exception):
+        validate_metric_policy(policy)
+```
+
+## Step-by-step solution
+1. Validate the active policy first.
+2. Compute the expected hash from canonical payload.
+3. Reject any supplied hash that differs.
+4. Ensure the publisher only accepts validated policy objects.
+5. Assert emitted metric provenance matches active policy exactly.
+6. Keep CI policy verification ahead of all contract tests.
+
+## One debugging tip
+If tampering still passes, your validator is probably preserving caller-provided state instead of recomputing it.
+
+
+Gpt
+
+The next hardening step is to make the policy validator a cryptographic admission boundary. The important correction is:
+	•	A caller-supplied policy_hash must never be trusted.
+	•	A supplied non-empty hash that does not match the canonical policy payload must fail.
+	•	The validator returns a new immutable policy instance with the computed hash.
+	•	publish_metric() receives only that validated object.
+Implementation:
+# agip_core/policy.py
+
+from dataclasses import dataclass, replace
+from hashlib import sha256
+import json
+
+
+class PolicyValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+
+def canonical_policy_payload(
+    policy: MetricPublicationPolicy,
+) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+
+def compute_policy_hash(
+    policy: MetricPublicationPolicy,
+) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+
+    if not policy.requires_snapshot:
+        raise PolicyValidationError(
+            "Snapshot requirement cannot be disabled"
+        )
+
+    if not policy.requires_verified_evidence:
+        raise PolicyValidationError(
+            "Verified evidence requirement cannot be disabled"
+        )
+
+    if not policy.requires_control_mapping:
+        raise PolicyValidationError(
+            "Control mapping requirement cannot be disabled"
+        )
+
+    if not policy.requires_framework_alignment:
+        raise PolicyValidationError(
+            "Framework alignment requirement cannot be disabled"
+        )
+
+    if policy.mutable_registry_access:
+        raise PolicyValidationError(
+            "Mutable registry access forbidden"
+        )
+
+    if policy.synthetic_metrics:
+        raise PolicyValidationError(
+            "Synthetic metrics forbidden"
+        )
+
+    computed_hash = compute_policy_hash(policy)
+
+    if policy.policy_hash and policy.policy_hash != computed_hash:
+        raise PolicyValidationError(
+            "Policy hash mismatch"
+        )
+
+    return replace(
+        policy,
+        policy_hash=computed_hash,
+    )
+Tamper contract:
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="invalid"
+    )
+
+    with pytest.raises(PolicyValidationError):
+        validate_metric_policy(policy)
+Positive provenance test:
+def test_policy_hash_is_generated_from_contract():
+    policy = validate_metric_policy(
+        MetricPublicationPolicy()
+    )
+
+    assert policy.policy_hash
+    assert policy.policy_hash == compute_policy_hash(policy)
+Then extend the publisher boundary:
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+    control_mappings: list[str]
+    framework_alignments: list[str]
+    policy_version: str
+    policy_hash: str
+Publisher rule:
+def publish_metric(
+    *,
+    metric_id: str,
+    snapshot,
+    evidence_index,
+    mappings,
+    alignments,
+    calculation,
+    policy: MetricPublicationPolicy,
+) -> PublishedMetric:
+
+    validated_policy = validate_metric_policy(policy)
+
+    # snapshot validation,
+    # evidence lineage validation,
+    # mapping validation,
+    # alignment validation,
+    # calculation isolation
+    # remain unchanged
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot.snapshot_id,
+        chain_tip_hash=snapshot.chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        control_mappings=sorted(control_mapping_ids),
+        framework_alignments=sorted(framework_ids),
+        policy_version=validated_policy.policy_version,
+        policy_hash=validated_policy.policy_hash,
+    )
+CI ordering should become:
+python3 scripts/validate_metric_policy.py AGIP_POLICY.json
+
+pytest tests/contracts/policy
+
+pytest tests/contracts/metrics
+
+pytest tests/contracts/security
+This closes the remaining gap: a metric artifact now proves:
+Metric
+ └── Policy Hash
+      └── Canonical Policy Contract
+           └── Snapshot
+                └── Sealed Chain Tip
+                     └── Evidence
+                          └── Control Mapping
+                               └── Framework Alignment
+A dashboard value without that chain becomes an invalid projection rather than a lower-confidence metric.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Make the validator a cryptographic admission boundary.
+Never trust caller-supplied policy hashes.
+Only validated policy objects may reach `publish_metric()`.
+
+## Code challenge
+Tighten the validator so bad hashes fail and good hashes are recomputed.
+
+```python
+def validate_metric_policy(policy: MetricPublicationPolicy) -> MetricPublicationPolicy:
+    # TODO: reject disabled governance fields
+    # TODO: reject non-matching non-empty policy_hash
+    # TODO: return a new immutable policy with computed hash
+    raise NotImplementedError
+```
+
+## Step-by-step solution
+1. Recompute the hash from canonical policy fields only.
+2. Reject any non-empty caller hash that differs.
+3. Return a fresh frozen policy object with the computed hash.
+4. Pass only validated policy objects into `publish_metric`.
+5. Add one negative tamper test and one positive provenance test.
+6. Run policy validation before every contract suite in CI.
+
+## One debugging tip
+If a tamper test passes, inspect whether the validator is comparing hashes or merely preserving the incoming field.
+
+
+Gpt
+
+Appel420(root), Ara-DDG here.
+The validator boundary should consume an untrusted policy object and emit a new trusted policy object. The supplied policy_hash is treated as an assertion to verify, never as an authority.
+Implementation:
+# agip_core/policy.py
+
+from dataclasses import dataclass, replace
+from hashlib import sha256
+import json
+
+
+class PolicyValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+
+def canonical_policy_payload(policy: MetricPublicationPolicy) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+
+def compute_policy_hash(policy: MetricPublicationPolicy) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+    if policy.requires_snapshot is not True:
+        raise PolicyValidationError(
+            "Snapshot requirement cannot be disabled"
+        )
+
+    if policy.requires_verified_evidence is not True:
+        raise PolicyValidationError(
+            "Verified evidence requirement cannot be disabled"
+        )
+
+    if policy.requires_control_mapping is not True:
+        raise PolicyValidationError(
+            "Control mapping requirement cannot be disabled"
+        )
+
+    if policy.requires_framework_alignment is not True:
+        raise PolicyValidationError(
+            "Framework alignment requirement cannot be disabled"
+        )
+
+    if policy.mutable_registry_access is True:
+        raise PolicyValidationError(
+            "Mutable registry access is forbidden"
+        )
+
+    if policy.synthetic_metrics is True:
+        raise PolicyValidationError(
+            "Synthetic metrics are forbidden"
+        )
+
+    expected_hash = compute_policy_hash(policy)
+
+    if policy.policy_hash and policy.policy_hash != expected_hash:
+        raise PolicyValidationError(
+            "Policy hash mismatch"
+        )
+
+    return replace(
+        policy,
+        policy_hash=expected_hash,
+    )
+Contract tests:
+# tests/contracts/agip/test_policy_provenance.py
+
+import pytest
+
+from agip_core.policy import (
+    MetricPublicationPolicy,
+    PolicyValidationError,
+    validate_metric_policy,
+)
+
+
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="invalid"
+    )
+
+    with pytest.raises(PolicyValidationError):
+        validate_metric_policy(policy)
+
+
+def test_policy_hash_is_generated_from_immutable_fields():
+    policy = MetricPublicationPolicy()
+
+    validated = validate_metric_policy(policy)
+
+    assert validated.policy_hash
+    assert validated.policy_hash != ""
+
+    again = validate_metric_policy(validated)
+
+    assert again.policy_hash == validated.policy_hash
+CI ordering:
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "== Validate AGIP Policy =="
+python3 -m pytest tests/contracts/agip/test_policy_provenance.py
+
+echo "== Run Metric Contracts =="
+python3 -m pytest tests/contracts/agip/test_metric_publication.py
+
+echo "== Run Security Contracts =="
+python3 -m pytest tests/contracts/security
+Resulting trust chain:
+Raw Policy
+    |
+    v
+validate_metric_policy()
+    |
+    +--> reject weakened flags
+    |
+    +--> reject caller hash mismatch
+    |
+    +--> compute canonical hash
+    |
+    v
+Validated Immutable Policy
+    |
+    v
+publish_metric()
+    |
+    v
+PublishedMetric
+{
+  snapshot_id,
+  chain_tip_hash,
+  evidence_chain,
+  control_mappings,
+  framework_alignments,
+  policy_version,
+  policy_hash
+}
+The important invariant is now:
+A published metric cannot prove policy provenance unless the policy was independently validated first.
+A future hardening step would be adding a PolicyAdmissionEvent into the same append-only event chain so policy changes themselves become evidence-backed registry events.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Untrusted policy in, trusted policy out.
+Caller hash is only an assertion to verify.
+Validated policy must be the only input to metric publication.
+
+## Code challenge
+Add a policy admission event so policy changes become evidence-backed too.
+
+```python
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+```
+
+## Step-by-step solution
+1. Treat incoming policy as untrusted data.
+2. Recompute the canonical hash from immutable fields.
+3. Reject weakened flags and hash mismatches.
+4. Return a new frozen trusted policy object.
+5. Feed only that validated policy into `publish_metric`.
+6. Record policy admission as an append-only event next.
+
+## One debugging tip
+If re-validating a trusted policy changes its hash, your canonical payload still includes mutable or runtime-derived data.
+
+
+
+Gpt
+
+
+Appel420(root), Ara-DDG here.
+The next boundary is policy admission as a governed artifact. The policy itself becomes evidence-backed state, not configuration.
+Key invariant:
+A policy change is not valid because someone wrote a JSON file. It is valid only after canonical validation, hash derivation, and admission event creation.
+Implementation:
+# agip_core/domain/policy_events.py
+
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
+
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+
+    @classmethod
+    def create(
+        cls,
+        policy_version: str,
+        policy_hash: str,
+    ) -> "PolicyAdmissionEvent":
+        return cls(
+            policy_version=policy_version,
+            policy_hash=policy_hash,
+            admitted_at=datetime.now(timezone.utc).isoformat(),
+        )
+Policy validation boundary:
+# agip_core/policy.py
+
+from dataclasses import dataclass, replace
+import hashlib
+import json
+
+
+class PolicyValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+
+def canonical_policy_payload(
+    policy: MetricPublicationPolicy,
+) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+
+def compute_policy_hash(
+    policy: MetricPublicationPolicy,
+) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+
+    required = [
+        "requires_snapshot",
+        "requires_verified_evidence",
+        "requires_control_mapping",
+        "requires_framework_alignment",
+    ]
+
+    for field_name in required:
+        if getattr(policy, field_name) is not True:
+            raise PolicyValidationError(
+                f"Policy relaxation rejected: {field_name}"
+            )
+
+    if policy.mutable_registry_access:
+        raise PolicyValidationError(
+            "Mutable registry access forbidden"
+        )
+
+    if policy.synthetic_metrics:
+        raise PolicyValidationError(
+            "Synthetic metrics forbidden"
+        )
+
+    computed_hash = compute_policy_hash(policy)
+
+    if policy.policy_hash and policy.policy_hash != computed_hash:
+        raise PolicyValidationError(
+            "Policy hash mismatch"
+        )
+
+    return replace(
+        policy,
+        policy_hash=computed_hash,
+    )
+Admission flow:
+def admit_policy(
+    policy: MetricPublicationPolicy,
+) -> tuple[MetricPublicationPolicy, PolicyAdmissionEvent]:
+
+    validated = validate_metric_policy(policy)
+
+    event = PolicyAdmissionEvent.create(
+        policy_version=validated.policy_version,
+        policy_hash=validated.policy_hash,
+    )
+
+    return validated, event
+Contract tests:
+import pytest
+
+
+def test_policy_hash_tampering_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="bad_hash"
+    )
+
+    with pytest.raises(PolicyValidationError):
+        validate_metric_policy(policy)
+
+
+def test_policy_admission_generates_hash():
+    policy = MetricPublicationPolicy()
+
+    validated = validate_metric_policy(policy)
+
+    assert validated.policy_hash
+    assert validated.policy_hash == compute_policy_hash(validated)
+
+
+def test_policy_event_matches_admitted_policy():
+    policy = MetricPublicationPolicy()
+
+    validated, event = admit_policy(policy)
+
+    assert event.policy_version == validated.policy_version
+    assert event.policy_hash == validated.policy_hash
+CI ordering becomes:
+1. Load policy artifact
+2. Validate immutable policy semantics
+3. Compute expected hash
+4. Reject mismatch
+5. Emit PolicyAdmissionEvent
+6. Run contract tests
+7. Permit metric publication
+The remaining hardening step is to bind PolicyAdmissionEvent into the same sealed event chain as registry admissions, so a metric proves:
+PublishedMetric
+    ↓
+Policy Hash
+    ↓
+Policy Admission Event
+    ↓
+Sealed Event Chain Tip
+    ↓
+Snapshot
+    ↓
+Evidence
+At that point policy provenance is no longer metadata; it is part of the admission proof.
+
+
+
+Ddg
+
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Policy admission should be an evidence-backed artifact.
+Validate, hash, then emit an admission event.
+Only admitted policy may enter metric publication.
+
+## Code challenge
+Bind policy admission into the sealed event chain.
+
+```python
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+```
+
+## Step-by-step solution
+1. Validate the policy semantics.
+2. Recompute the canonical hash.
+3. Reject any mismatch from a caller-supplied hash.
+4. Emit `PolicyAdmissionEvent` only after validation.
+5. Return both the validated policy and admission event.
+6. Later, store that event in the same append-only chain as other admissions.
+
+## One debugging tip
+If admission timestamps affect your hash, the admission event leaked into policy canonicalization.
+
+
+Gpt
+
+The next boundary is to make PolicyAdmissionEvent a derived evidence artifact from an already validated policy. The event must not influence the policy hash.
+Implementation shape:
+# agip_core/domain/policy.py
+
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+import hashlib
+import json
+
+
+class PolicyValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+
+
+def canonical_policy_payload(policy: MetricPublicationPolicy) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+
+def compute_policy_hash(policy: MetricPublicationPolicy) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+    required_true = [
+        "requires_snapshot",
+        "requires_verified_evidence",
+        "requires_control_mapping",
+        "requires_framework_alignment",
+    ]
+
+    for field_name in required_true:
+        if getattr(policy, field_name) is not True:
+            raise PolicyValidationError(
+                f"Policy relaxation rejected: {field_name}"
+            )
+
+    if policy.mutable_registry_access:
+        raise PolicyValidationError(
+            "Mutable registry access is forbidden"
+        )
+
+    if policy.synthetic_metrics:
+        raise PolicyValidationError(
+            "Synthetic metrics are forbidden"
+        )
+
+    computed_hash = compute_policy_hash(policy)
+
+    if policy.policy_hash and policy.policy_hash != computed_hash:
+        raise PolicyValidationError(
+            "Policy hash mismatch"
+        )
+
+    return replace(
+        policy,
+        policy_hash=computed_hash,
+    )
+
+
+def admit_policy(
+    policy: MetricPublicationPolicy,
+) -> tuple[MetricPublicationPolicy, PolicyAdmissionEvent]:
+    validated = validate_metric_policy(policy)
+
+    event = PolicyAdmissionEvent(
+        policy_version=validated.policy_version,
+        policy_hash=validated.policy_hash,
+        admitted_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+    return validated, event
+Contract tests:
+def test_policy_admission_emits_valid_event():
+    policy = MetricPublicationPolicy()
+
+    validated, event = admit_policy(policy)
+
+    assert event.policy_version == validated.policy_version
+    assert event.policy_hash == validated.policy_hash
+    assert event.admitted_at
+
+
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="bad_hash"
+    )
+
+    with pytest.raises(PolicyValidationError):
+        validate_metric_policy(policy)
+
+
+def test_policy_hash_does_not_include_timestamp():
+    policy = MetricPublicationPolicy()
+
+    validated_a, event_a = admit_policy(policy)
+    validated_b, event_b = admit_policy(policy)
+
+    assert validated_a.policy_hash == validated_b.policy_hash
+    assert event_a.admitted_at != event_b.admitted_at
+The event-chain integration should then treat PolicyAdmissionEvent like other sealed admissions:
+MetricPublicationPolicy
+        |
+        v
+validate_metric_policy()
+        |
+        v
+PolicyAdmissionEvent
+        |
+        v
+sealed event chain
+        |
+        v
+snapshot
+        |
+        v
+metric publication
+Important invariant:
+	•	policy_hash proves policy semantics
+	•	admitted_at proves when admission occurred
+	•	the sealed chain proves the admission event existed in history
+Those three must remain separate, otherwise the policy identity becomes unstable.
+
+
+
+Ddg
+
+Appel420(root), here is the clean split you want.
+
+## Concept brief
+Policy hash must cover only policy semantics.  
+Policy admission is a derived evidence artifact, not part of policy identity.  
+Timestamp belongs to the event chain, never the policy hash.
+
+## Code challenge
+Implement `PolicyAdmissionEvent` so it is emitted after validation and cannot affect the policy hash.
+
+```python
+# agip_core/domain/policy.py
+from dataclasses import dataclass, replace
+from datetime import datetime, timezone
+import hashlib
+import json
+
+class PolicyValidationError(ValueError):
+    pass
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+
+def canonical_policy_payload(policy: MetricPublicationPolicy) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+def compute_policy_hash(policy: MetricPublicationPolicy) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+    required_true = [
+        "requires_snapshot",
+        "requires_verified_evidence",
+        "requires_control_mapping",
+        "requires_framework_alignment",
+    ]
+    for field_name in required_true:
+        if getattr(policy, field_name) is not True:
+            raise PolicyValidationError(
+                f"Policy relaxation rejected: {field_name}"
+            )
+    if policy.mutable_registry_access:
+        raise PolicyValidationError(
+            "Mutable registry access is forbidden"
+        )
+    if policy.synthetic_metrics:
+        raise PolicyValidationError(
+            "Synthetic metrics are forbidden"
+        )
+    computed_hash = compute_policy_hash(policy)
+    if policy.policy_hash and policy.policy_hash != computed_hash:
+        raise PolicyValidationError(
+            "Policy hash mismatch"
+        )
+    return replace(
+        policy,
+        policy_hash=computed_hash,
+    )
+
+def admit_policy(
+    policy: MetricPublicationPolicy,
+) -> tuple[MetricPublicationPolicy, PolicyAdmissionEvent]:
+    validated = validate_metric_policy(policy)
+    event = PolicyAdmissionEvent(
+        policy_version=validated.policy_version,
+        policy_hash=validated.policy_hash,
+        admitted_at=datetime.now(timezone.utc).isoformat(),
+    )
+    return validated, event
+```
+
+## Step-by-step solution
+1. Keep `canonical_policy_payload()` free of `admitted_at`.
+2. Compute `policy_hash` only from immutable semantic fields.
+3. Validate policy constraints before admitting.
+4. Emit `PolicyAdmissionEvent` only after validation succeeds.
+5. Chain the event separately into the sealed admission history.
+
+Your contract tests already match the intended behavior:
+
+```python
+def test_policy_admission_emits_valid_event():
+    policy = MetricPublicationPolicy()
+    validated, event = admit_policy(policy)
+    assert event.policy_version == validated.policy_version
+    assert event.policy_hash == validated.policy_hash
+    assert event.admitted_at
+
+def test_policy_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy(
+        policy_hash="bad_hash"
+    )
+    with pytest.raises(PolicyValidationError):
+        validate_metric_policy(policy)
+
+def test_policy_hash_does_not_include_timestamp():
+    policy = MetricPublicationPolicy()
+    validated_a, event_a = admit_policy(policy)
+    validated_b, event_b = admit_policy(policy)
+    assert validated_a.policy_hash == validated_b.policy_hash
+    assert event_a.admitted_at != event_b.admitted_at
+```
+
+The invariant is correct:
+- `policy_hash` = policy semantics
+- `admitted_at` = admission time
+- sealed chain = historical proof of admission
+
+Debugging tip: if hashes drift unexpectedly, print the exact JSON payload before hashing and compare field order and values.
+
+
+
+
+Gpt
+
+
+Appel420(root), Ara-DDG here.
+The split is correct. The remaining hardening point is that PolicyAdmissionEvent should itself become a sealed-chain input, not just a returned object. The current implementation correctly prevents timestamp contamination of the policy hash.
+I would tighten three areas:
+1. Make admission event deterministic except for chain metadata
+The event is evidence, so give it an identity derived from admitted semantics:
+# agip_core/domain/policy.py
+
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+
+
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    event_id: str
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+
+
+def policy_admission_event_id(
+    policy_version: str,
+    policy_hash: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "policy_version": policy_version,
+            "policy_hash": policy_hash,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+The timestamp remains historical metadata, not identity.
+ 
+⸻
+ 
+2. Return validated policy + admission event only after validation
+def admit_policy(
+    policy: MetricPublicationPolicy,
+) -> tuple[MetricPublicationPolicy, PolicyAdmissionEvent]:
+    validated = validate_metric_policy(policy)
+
+    event = PolicyAdmissionEvent(
+        event_id=policy_admission_event_id(
+            validated.policy_version,
+            validated.policy_hash,
+        ),
+        policy_version=validated.policy_version,
+        policy_hash=validated.policy_hash,
+        admitted_at=datetime.now(timezone.utc).isoformat(),
+    )
+
+    return validated, event
+Invariant:
+untrusted policy
+        |
+        v
+validate_metric_policy()
+        |
+        +--> rejected
+        |
+        v
+trusted policy
+        |
+        v
+PolicyAdmissionEvent
+        |
+        v
+sealed event chain
+ 
+⸻
+ 
+3. Add chain admission validation
+The event chain should reject a policy event if it does not match the active policy:
+def verify_policy_admission_event(
+    policy: MetricPublicationPolicy,
+    event: PolicyAdmissionEvent,
+) -> None:
+    if event.policy_version != policy.policy_version:
+        raise ValueError("Policy version mismatch")
+
+    if event.policy_hash != policy.policy_hash:
+        raise ValueError("Policy provenance mismatch")
+
+    expected_id = policy_admission_event_id(
+        event.policy_version,
+        event.policy_hash,
+    )
+
+    if event.event_id != expected_id:
+        raise ValueError("Policy admission event identity mismatch")
+ 
+⸻
+ 
+Contract tests
+def test_policy_event_identity_is_stable():
+    policy = MetricPublicationPolicy()
+
+    validated, event_a = admit_policy(policy)
+    _, event_b = admit_policy(policy)
+
+    assert event_a.event_id == event_b.event_id
+
+
+def test_policy_event_rejects_hash_tampering():
+    policy = MetricPublicationPolicy()
+
+    validated, event = admit_policy(policy)
+
+    bad_event = PolicyAdmissionEvent(
+        event_id=event.event_id,
+        policy_version=event.policy_version,
+        policy_hash="tampered",
+        admitted_at=event.admitted_at,
+    )
+
+    with pytest.raises(ValueError):
+        verify_policy_admission_event(
+            validated,
+            bad_event,
+        )
+
+
+def test_timestamp_does_not_change_policy_identity():
+    policy = MetricPublicationPolicy()
+
+    validated_a, event_a = admit_policy(policy)
+    validated_b, event_b = admit_policy(policy)
+
+    assert validated_a.policy_hash == validated_b.policy_hash
+    assert event_a.event_id == event_b.event_id
+The final invariant becomes:
+Policy semantics
+        |
+        v
+policy_hash
+        |
+        v
+PolicyAdmissionEvent
+        |
+        v
+sealed event chain
+        |
+        v
+snapshot
+        |
+        v
+PublishedMetric
+This keeps the AGIP trust model consistent: policy identity is semantic, admission history is temporal, and metrics inherit only admitted policy provenance.
+
+
+
+Ddg
+
+Appel420(root), approved. The hardening is correct: make `PolicyAdmissionEvent` chain-addressable, but keep it semantically derived from the validated policy only.
+
+```python
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from hashlib import sha256
+import json
+
+@dataclass(frozen=True)
+class PolicyAdmissionEvent:
+    event_id: str
+    policy_version: str
+    policy_hash: str
+    admitted_at: str
+
+def policy_admission_event_id(
+    policy_version: str,
+    policy_hash: str,
+) -> str:
+    payload = json.dumps(
+        {
+            "policy_version": policy_version,
+            "policy_hash": policy_hash,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+def admit_policy(
+    policy: MetricPublicationPolicy,
+) -> tuple[MetricPublicationPolicy, PolicyAdmissionEvent]:
+    validated = validate_metric_policy(policy)
+    event = PolicyAdmissionEvent(
+        event_id=policy_admission_event_id(
+            validated.policy_version,
+            validated.policy_hash,
+        ),
+        policy_version=validated.policy_version,
+        policy_hash=validated.policy_hash,
+        admitted_at=datetime.now(timezone.utc).isoformat(),
+    )
+    return validated, event
+
+def verify_policy_admission_event(
+    policy: MetricPublicationPolicy,
+    event: PolicyAdmissionEvent,
+) -> None:
+    if event.policy_version != policy.policy_version:
+        raise ValueError("Policy version mismatch")
+    if event.policy_hash != policy.policy_hash:
+        raise ValueError("Policy provenance mismatch")
+    expected_id = policy_admission_event_id(
+        event.policy_version,
+        event.policy_hash,
+    )
+    if event.event_id != expected_id:
+        raise ValueError("Policy admission event identity mismatch")
+```
+
+Your tests are aligned. I’d keep these three invariants explicit:
+- `policy_hash` excludes timestamp
+- `event_id` excludes timestamp
+- chain validation rejects tampering
+
+Debugging tip: if an event fails verification, compare `policy_version`, `policy_hash`, and the exact JSON payload used to derive `event_id`.
+
+
+Gpt
+
+Appel420(root), Ara-DDG here.
+The boundary is correct. The next hardening step is to make the admission event part of the same sealed evidence chain without allowing it to redefine policy identity.
+The invariant split should remain:
+MetricPublicationPolicy
+        |
+        | hash(policy semantics)
+        v
+policy_hash
+        |
+        | validated admission
+        v
+PolicyAdmissionEvent
+        |
+        | append-only seal
+        v
+SCAR / Evidence Chain
+Not:
+Policy + timestamp + event metadata
+        |
+        v
+policy_hash   ❌
+A small refinement: verify_policy_admission_event() should validate against a recomputed policy hash, not trust policy.policy_hash.
+# agip_core/domain/policy.py
+
+def verify_policy_admission_event(
+    policy: MetricPublicationPolicy,
+    event: PolicyAdmissionEvent,
+) -> None:
+    expected_policy_hash = compute_policy_hash(policy)
+
+    if event.policy_version != policy.policy_version:
+        raise PolicyValidationError(
+            "Policy version mismatch"
+        )
+
+    if event.policy_hash != expected_policy_hash:
+        raise PolicyValidationError(
+            "Policy hash does not match semantic policy"
+        )
+
+    expected_event_id = policy_admission_event_id(
+        policy_version=event.policy_version,
+        policy_hash=event.policy_hash,
+    )
+
+    if event.event_id != expected_event_id:
+        raise PolicyValidationError(
+            "Admission event identity mismatch"
+        )
+Then the sealed-chain adapter can treat it like every other evidence event:
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+
+def seal_policy_admission(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> SealedPolicyAdmission:
+
+    payload = {
+        "event_id": event.event_id,
+        "policy_version": event.policy_version,
+        "policy_hash": event.policy_hash,
+        "previous_hash": previous_hash,
+    }
+
+    event_hash = sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+
+    return SealedPolicyAdmission(
+        event=event,
+        event_hash=event_hash,
+        previous_hash=previous_hash,
+    )
+Contract tests to lock the boundary:
+def test_policy_event_id_ignores_timestamp():
+    a = PolicyAdmissionEvent(
+        event_id=policy_admission_event_id("v1", "abc"),
+        policy_version="v1",
+        policy_hash="abc",
+        admitted_at="2026-01-01T00:00:00Z",
+    )
+
+    b = PolicyAdmissionEvent(
+        event_id=policy_admission_event_id("v1", "abc"),
+        policy_version="v1",
+        policy_hash="abc",
+        admitted_at="2026-02-01T00:00:00Z",
+    )
+
+    assert a.event_id == b.event_id
+
+
+def test_policy_event_rejects_modified_hash():
+    policy = MetricPublicationPolicy()
+
+    _, event = admit_policy(policy)
+
+    tampered = PolicyAdmissionEvent(
+        event_id=event.event_id,
+        policy_version=event.policy_version,
+        policy_hash="tampered",
+        admitted_at=event.admitted_at,
+    )
+
+    with pytest.raises(PolicyValidationError):
+        verify_policy_admission_event(policy, tampered)
+Final invariant set:
+Artifact	Owns	Does not own
+MetricPublicationPolicy	semantic contract	timestamps, history
+policy_hash	policy identity	admission event
+PolicyAdmissionEvent	proof that validation happened	policy semantics
+event_id	deterministic event identity	wall clock
+sealed chain hash	ordering + tamper evidence	policy definition
+published metric	projection provenance	mutable state
+This keeps AGIP event-sourced: policy changes become auditable evidence, while policy identity remains stable and reproducible.
+
+
+Ddg
+
+
+Agreed, Appel420(root). That refinement is right.
+
+Use recomputed semantics in verification, and keep sealing separate from policy identity:
+
+```python
+def verify_policy_admission_event(
+    policy: MetricPublicationPolicy,
+    event: PolicyAdmissionEvent,
+) -> None:
+    expected_policy_hash = compute_policy_hash(policy)
+    if event.policy_version != policy.policy_version:
+        raise PolicyValidationError("Policy version mismatch")
+    if event.policy_hash != expected_policy_hash:
+        raise PolicyValidationError("Policy hash does not match semantic policy")
+    expected_event_id = policy_admission_event_id(
+        policy_version=event.policy_version,
+        policy_hash=event.policy_hash,
+    )
+    if event.event_id != expected_event_id:
+        raise PolicyValidationError("Admission event identity mismatch")
+```
+
+And the sealed wrapper is fine:
+
+```python
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+def seal_policy_admission(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> SealedPolicyAdmission:
+    payload = {
+        "event_id": event.event_id,
+        "policy_version": event.policy_version,
+        "policy_hash": event.policy_hash,
+        "previous_hash": previous_hash,
+    }
+    event_hash = sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    return SealedPolicyAdmission(
+        event=event,
+        event_hash=event_hash,
+        previous_hash=previous_hash,
+    )
+```
+
+Your boundary table is exactly the right contract.  
+Debugging tip: if verification fails, compare the recomputed `compute_policy_hash(policy)` against the event’s `policy_hash` before checking the chain.
+
+
+
+Gpt
+
+
+
+Appel420(root), Ara-DDG here.
+The separation is now correct. The next hardening step is to make the sealed admission chain itself the verifier, not just a wrapper around events.
+The invariant boundary becomes:
+Raw Policy
+    |
+    v
+validate_metric_policy()
+    |
+    v
+Validated MetricPublicationPolicy
+    |
+    v
+PolicyAdmissionEvent
+    |
+    v
+Seal(Event + previous_hash)
+    |
+    v
+Append-only Chain
+    |
+    v
+Metric Publication
+The missing piece is rejecting a valid event that is attached to the wrong chain position.
+Add chain verification
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+
+
+class ChainValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+
+def canonical_event_payload(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> dict:
+    return {
+        "event_id": event.event_id,
+        "policy_version": event.policy_version,
+        "policy_hash": event.policy_hash,
+        "previous_hash": previous_hash,
+    }
+
+
+def compute_event_hash(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> str:
+    payload = json.dumps(
+        canonical_event_payload(event, previous_hash),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def seal_policy_admission(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> SealedPolicyAdmission:
+    return SealedPolicyAdmission(
+        event=event,
+        previous_hash=previous_hash,
+        event_hash=compute_event_hash(
+            event,
+            previous_hash,
+        ),
+    )
+Verification boundary
+def verify_sealed_policy_admission(
+    sealed: SealedPolicyAdmission,
+    policy: MetricPublicationPolicy,
+) -> None:
+    # Verify semantic policy identity
+    expected_policy_hash = compute_policy_hash(policy)
+
+    if sealed.event.policy_hash != expected_policy_hash:
+        raise ChainValidationError(
+            "Sealed policy hash does not match active policy"
+        )
+
+    if sealed.event.policy_version != policy.policy_version:
+        raise ChainValidationError(
+            "Policy version mismatch"
+        )
+
+    # Verify event identity
+    expected_event_id = policy_admission_event_id(
+        policy_version=sealed.event.policy_version,
+        policy_hash=sealed.event.policy_hash,
+    )
+
+    if sealed.event.event_id != expected_event_id:
+        raise ChainValidationError(
+            "Policy admission event ID mismatch"
+        )
+
+    # Verify sealing
+    expected_event_hash = compute_event_hash(
+        sealed.event,
+        sealed.previous_hash,
+    )
+
+    if sealed.event_hash != expected_event_hash:
+        raise ChainValidationError(
+            "Event seal mismatch"
+        )
+Contract tests
+Tampered policy hash
+def test_sealed_policy_rejects_hash_tampering():
+    policy = MetricPublicationPolicy()
+    validated, event = admit_policy(policy)
+
+    tampered = PolicyAdmissionEvent(
+        event_id=event.event_id,
+        policy_version=event.policy_version,
+        policy_hash="tampered",
+        admitted_at=event.admitted_at,
+    )
+
+    sealed = seal_policy_admission(
+        tampered,
+        previous_hash="genesis",
+    )
+
+    with pytest.raises(ChainValidationError):
+        verify_sealed_policy_admission(
+            sealed,
+            validated,
+        )
+Tampered chain position
+def test_sealed_policy_rejects_previous_hash_change():
+    policy = MetricPublicationPolicy()
+    validated, event = admit_policy(policy)
+
+    sealed = seal_policy_admission(
+        event,
+        previous_hash="hash_a",
+    )
+
+    tampered = SealedPolicyAdmission(
+        event=sealed.event,
+        event_hash=sealed.event_hash,
+        previous_hash="hash_b",
+    )
+
+    with pytest.raises(ChainValidationError):
+        verify_sealed_policy_admission(
+            tampered,
+            validated,
+        )
+The resulting guarantees:
+Layer	Trust source
+Policy hash	Immutable policy semantics
+Event ID	Policy version + hash
+Event hash	Event + previous chain tip
+Snapshot	Sealed event chain
+Metric	Snapshot + evidence lineage + policy provenance
+At this point the AGIP flow has the same property as the earlier SCAR design:
+Nothing is trusted because it exists. It is trusted because it can be recomputed and verified.
+The next logical boundary is a PolicyChain object that owns append-only insertion and prevents callers from directly constructing previous_hash values.
+
+
+Ddg
+
+
+Appel420(root), yes — that is the right verifier boundary.
+
+```python
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+
+class ChainValidationError(ValueError):
+    pass
+
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+def canonical_event_payload(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> dict:
+    return {
+        "event_id": event.event_id,
+        "policy_version": event.policy_version,
+        "policy_hash": event.policy_hash,
+        "previous_hash": previous_hash,
+    }
+
+def compute_event_hash(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> str:
+    payload = json.dumps(
+        canonical_event_payload(event, previous_hash),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+def seal_policy_admission(
+    event: PolicyAdmissionEvent,
+    previous_hash: str,
+) -> SealedPolicyAdmission:
+    return SealedPolicyAdmission(
+        event=event,
+        previous_hash=previous_hash,
+        event_hash=compute_event_hash(event, previous_hash),
+    )
+
+def verify_sealed_policy_admission(
+    sealed: SealedPolicyAdmission,
+    policy: MetricPublicationPolicy,
+) -> None:
+    expected_policy_hash = compute_policy_hash(policy)
+    if sealed.event.policy_hash != expected_policy_hash:
+        raise ChainValidationError("Sealed policy hash does not match active policy")
+    if sealed.event.policy_version != policy.policy_version:
+        raise ChainValidationError("Policy version mismatch")
+
+    expected_event_id = policy_admission_event_id(
+        policy_version=sealed.event.policy_version,
+        policy_hash=sealed.event.policy_hash,
+    )
+    if sealed.event.event_id != expected_event_id:
+        raise ChainValidationError("Policy admission event ID mismatch")
+
+    expected_event_hash = compute_event_hash(sealed.event, sealed.previous_hash)
+    if sealed.event_hash != expected_event_hash:
+        raise ChainValidationError("Event seal mismatch")
+```
+
+Your two contract tests are the right ones. I’d add one more: tampering with `event_hash` should fail even when the event and `previous_hash` are untouched.
+
+Debugging tip: when a chain check fails, verify in this order: policy hash, event ID, then sealed event hash.
+
+
+
+
+ Gpt
+
+
+Appel420(root), agreed. The next hardening step is to make the sealed admission chain itself append-only and verification-first.
+The remaining invariant is:
+A policy admission cannot become trusted because it exists. It becomes trusted only after:
+	1.	semantic policy validation
+	2.	event identity validation
+	3.	seal validation
+	4.	chain linkage validation
+Add a minimal chain container:
+# agip_core/domain/policy_chain.py
+
+from dataclasses import dataclass, field
+
+class ChainValidationError(ValueError):
+    pass
+
+
+@dataclass
+class PolicyAdmissionChain:
+    entries: list[SealedPolicyAdmission] = field(default_factory=list)
+
+    @property
+    def tip_hash(self) -> str:
+        if not self.entries:
+            return ""
+        return self.entries[-1].event_hash
+
+    def append(
+        self,
+        sealed: SealedPolicyAdmission,
+        policy: MetricPublicationPolicy,
+    ) -> None:
+        verify_sealed_policy_admission(
+            sealed,
+            policy,
+        )
+
+        expected_previous = self.tip_hash
+
+        if sealed.previous_hash != expected_previous:
+            raise ChainValidationError(
+                "Policy admission chain linkage failure"
+            )
+
+        self.entries.append(sealed)
+
+    def verify(
+        self,
+        policies: dict[str, MetricPublicationPolicy],
+    ) -> bool:
+        previous_hash = ""
+
+        for sealed in self.entries:
+            policy = policies.get(
+                sealed.event.policy_version
+            )
+
+            if policy is None:
+                raise ChainValidationError(
+                    "Missing policy version"
+                )
+
+            verify_sealed_policy_admission(
+                sealed,
+                policy,
+            )
+
+            if sealed.previous_hash != previous_hash:
+                raise ChainValidationError(
+                    "Broken chain linkage"
+                )
+
+            previous_hash = sealed.event_hash
+
+        return True
+Add the tamper contract tests:
+def test_event_hash_tampering_is_rejected():
+    policy = MetricPublicationPolicy()
+
+    validated, event = admit_policy(policy)
+
+    sealed = seal_policy_admission(
+        event,
+        previous_hash="",
+    )
+
+    tampered = SealedPolicyAdmission(
+        event=sealed.event,
+        event_hash="bad_hash",
+        previous_hash=sealed.previous_hash,
+    )
+
+    with pytest.raises(ChainValidationError):
+        verify_sealed_policy_admission(
+            tampered,
+            validated,
+        )
+
+
+def test_previous_hash_tampering_breaks_chain():
+    policy = MetricPublicationPolicy()
+
+    validated, event = admit_policy(policy)
+
+    sealed = seal_policy_admission(
+        event,
+        previous_hash="root",
+    )
+
+    chain = PolicyAdmissionChain()
+
+    with pytest.raises(ChainValidationError):
+        chain.append(
+            sealed,
+            validated,
+        )
+This preserves the separation:
+MetricPublicationPolicy
+        |
+        | semantic hash
+        v
+PolicyAdmissionEvent
+        |
+        | deterministic event_id
+        v
+SealedPolicyAdmission
+        |
+        | previous_hash + event_hash
+        v
+PolicyAdmissionChain
+        |
+        v
+Metric Publisher
+The metric layer should consume only:
+ValidatedPolicy
++
+VerifiedSnapshot
++
+VerifiedLineage
+not raw policy files, registry state, or admission events.
+At this point the AGIP boundary is effectively:
+	•	policy semantics → hashed
+	•	policy approval → evidenced
+	•	approval history → sealed
+	•	metrics → projections of verified snapshots under a verified policy
+The next natural contract is a PolicyBoundSnapshot so a published metric can prove:
+metric → snapshot → sealed chain tip → policy admission event.
+
+
+
+Ddg
+
+
+Appel420(root), approved. The append-only container is the right next boundary.
+
+```python
+# agip_core/domain/policy_chain.py
+from dataclasses import dataclass, field
+
+class ChainValidationError(ValueError):
+    pass
+
+@dataclass
+class PolicyAdmissionChain:
+    entries: list[SealedPolicyAdmission] = field(default_factory=list)
+
+    @property
+    def tip_hash(self) -> str:
+        if not self.entries:
+            return ""
+        return self.entries[-1].event_hash
+
+    def append(
+        self,
+        sealed: SealedPolicyAdmission,
+        policy: MetricPublicationPolicy,
+    ) -> None:
+        verify_sealed_policy_admission(sealed, policy)
+        expected_previous = self.tip_hash
+        if sealed.previous_hash != expected_previous:
+            raise ChainValidationError("Policy admission chain linkage failure")
+        self.entries.append(sealed)
+
+    def verify(
+        self,
+        policies: dict[str, MetricPublicationPolicy],
+    ) -> bool:
+        previous_hash = ""
+        for sealed in self.entries:
+            policy = policies.get(sealed.event.policy_version)
+            if policy is None:
+                raise ChainValidationError("Missing policy version")
+            verify_sealed_policy_admission(sealed, policy)
+            if sealed.previous_hash != previous_hash:
+                raise ChainValidationError("Broken chain linkage")
+            previous_hash = sealed.event_hash
+        return True
+```
+
+Your tamper tests are correct.
+
+I’d add one more test for `chain.verify(...)` over a valid two-entry chain to lock in linkage order.
+
+Debugging tip: if append fails, compare `sealed.previous_hash` to `chain.tip_hash` before checking hashes.
+
+
+
+Gpt 
+
+
+Appel420(root), Ara-DDG — the chain boundary is now correct. The next hardening step is to make the policy chain itself event-sourced and non-ambiguous.
+The remaining invariant is:
+A policy chain entry is valid only if:
+	1.	The policy semantics hash matches.
+	2.	The admission event identity matches.
+	3.	The seal hash matches.
+	4.	The previous chain tip matches.
+	5.	The sequence order is preserved.
+I would add explicit sequence numbers rather than relying only on list order.
+# agip_core/domain/policy_chain.py
+
+from dataclasses import dataclass, field
+
+
+class ChainValidationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    sequence: int
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+
+@dataclass
+class PolicyAdmissionChain:
+    entries: list[SealedPolicyAdmission] = field(default_factory=list)
+
+    @property
+    def tip_hash(self) -> str:
+        if not self.entries:
+            return ""
+        return self.entries[-1].event_hash
+
+    @property
+    def length(self) -> int:
+        return len(self.entries)
+
+    def append(
+        self,
+        sealed: SealedPolicyAdmission,
+        policy: MetricPublicationPolicy,
+    ) -> None:
+        verify_sealed_policy_admission(
+            sealed,
+            policy,
+        )
+
+        expected_sequence = len(self.entries)
+
+        if sealed.sequence != expected_sequence:
+            raise ChainValidationError(
+                "Policy admission sequence mismatch"
+            )
+
+        if sealed.previous_hash != self.tip_hash:
+            raise ChainValidationError(
+                "Policy admission chain linkage failure"
+            )
+
+        self.entries.append(sealed)
+
+    def verify(
+        self,
+        policies: dict[str, MetricPublicationPolicy],
+    ) -> bool:
+        previous_hash = ""
+
+        for expected_sequence, sealed in enumerate(self.entries):
+
+            if sealed.sequence != expected_sequence:
+                raise ChainValidationError(
+                    "Sequence tampering detected"
+                )
+
+            policy = policies.get(
+                sealed.event.policy_version
+            )
+
+            if policy is None:
+                raise ChainValidationError(
+                    "Missing policy version"
+                )
+
+            verify_sealed_policy_admission(
+                sealed,
+                policy,
+            )
+
+            if sealed.previous_hash != previous_hash:
+                raise ChainValidationError(
+                    "Broken chain linkage"
+                )
+
+            previous_hash = sealed.event_hash
+
+        return True
+Add the contract coverage:
+def test_valid_two_entry_policy_chain():
+    chain = PolicyAdmissionChain()
+
+    policy_v1 = MetricPublicationPolicy(
+        policy_version="v1"
+    )
+    validated_v1, event_v1 = admit_policy(policy_v1)
+
+    sealed_v1 = seal_policy_admission(
+        event_v1,
+        previous_hash="",
+    )
+
+    chain.append(
+        sealed_v1,
+        validated_v1,
+    )
+
+    policy_v2 = MetricPublicationPolicy(
+        policy_version="v2"
+    )
+    validated_v2, event_v2 = admit_policy(policy_v2)
+
+    sealed_v2 = seal_policy_admission(
+        event_v2,
+        previous_hash=chain.tip_hash,
+    )
+
+    chain.append(
+        sealed_v2,
+        validated_v2,
+    )
+
+    assert chain.length == 2
+    assert chain.verify(
+        {
+            "v1": validated_v1,
+            "v2": validated_v2,
+        }
+    )
+Add tamper rejection:
+def test_policy_chain_rejects_reordered_entries():
+    chain = build_valid_chain()
+
+    chain.entries.reverse()
+
+    with pytest.raises(ChainValidationError):
+        chain.verify(load_policies())
+This keeps the architecture clean:
+MetricPublicationPolicy
+        |
+        v
+validate_metric_policy()
+        |
+        v
+PolicyAdmissionEvent
+        |
+        v
+SealedPolicyAdmission
+        |
+        v
+PolicyAdmissionChain
+        |
+        v
+Snapshot Admission
+        |
+        v
+Metric Publication
+The policy identity remains immutable. The chain provides history. The snapshot provides state. The metric only consumes already-admitted artifacts.
+Debugging tip: if a policy chain verifies after deleting or reordering entries, the verifier is checking current state rather than historical truth.
+ 
+
+Ddg 
+
+
+Appel420(root), yes — sequence numbers are the right hardening step.
+
+```python
+from dataclasses import dataclass, field
+
+class ChainValidationError(ValueError):
+    pass
+
+@dataclass(frozen=True)
+class SealedPolicyAdmission:
+    sequence: int
+    event: PolicyAdmissionEvent
+    event_hash: str
+    previous_hash: str
+
+@dataclass
+class PolicyAdmissionChain:
+    entries: list[SealedPolicyAdmission] = field(default_factory=list)
+
+    @property
+    def tip_hash(self) -> str:
+        if not self.entries:
+            return ""
+        return self.entries[-1].event_hash
+
+    @property
+    def length(self) -> int:
+        return len(self.entries)
+
+    def append(
+        self,
+        sealed: SealedPolicyAdmission,
+        policy: MetricPublicationPolicy,
+    ) -> None:
+        verify_sealed_policy_admission(sealed, policy)
+        expected_sequence = len(self.entries)
+        if sealed.sequence != expected_sequence:
+            raise ChainValidationError("Policy admission sequence mismatch")
+        if sealed.previous_hash != self.tip_hash:
+            raise ChainValidationError("Policy admission chain linkage failure")
+        self.entries.append(sealed)
+
+    def verify(
+        self,
+        policies: dict[str, MetricPublicationPolicy],
+    ) -> bool:
+        previous_hash = ""
+        for expected_sequence, sealed in enumerate(self.entries):
+            if sealed.sequence != expected_sequence:
+                raise ChainValidationError("Sequence tampering detected")
+            policy = policies.get(sealed.event.policy_version)
+            if policy is None:
+                raise ChainValidationError("Missing policy version")
+            verify_sealed_policy_admission(sealed, policy)
+            if sealed.previous_hash != previous_hash:
+                raise ChainValidationError("Broken chain linkage")
+            previous_hash = sealed.event_hash
+        return True
+```
+
+Your tests are good. The reordered-entries test is especially important.
+
+I would also add:
+- duplicate sequence rejection
+- skipped-sequence rejection
+- missing policy version rejection
+
+Debugging tip: if chain verification passes after reorder, enumerate and compare `sealed.sequence` against the loop index first.
+
+
+
+
+
+
+Gpt
+
+
+Yes. I still have the Sovereignty AI Gate context from this conversation chain: the canonical architecture direction, the admission/evidence chain work, policy sealing, snapshot provenance, and the goal of reducing the system into a deployable trusted core.
+Your latest point is the right pivot: stop adding layers until the first sovereign node works.
+The HAWK code you pasted is a good example of where the boundary belongs. It is not another architecture plane. It is a cryptographic implementation behind a stable interface.
+The target should become:
+Sovereignty AI Gate
+│
+├── Core Runtime
+│   ├── Authority Gate
+│   ├── Policy Engine
+│   ├── Evidence Ledger
+│   ├── Event Chain
+│   ├── Snapshot Engine
+│   └── Projection API
+│
+├── Crypto Provider Layer
+│   ├── Hash
+│   │   ├── SHA-256
+│   │   ├── SHA-512/256
+│   │   └── BLAKE3
+│   │
+│   ├── Signatures
+│   │   ├── ML-DSA
+│   │   ├── HAWK
+│   │   └── Ed25519
+│   │
+│   ├── Key Exchange
+│   │   └── X25519
+│   │
+│   └── Threshold
+│       └── Shamir Secret Sharing
+│
+└── Deployment Node
+    ├── Local API
+    ├── Encrypted Vault
+    ├── Audit Export
+    └── Offline Operation
+The mistake would be:
+HAWK module
+MLDSA module
+BLAKE3 module
+Enclave module
+Compliance module
+Dashboard module
+
+= more architecture
+Instead:
+CryptoProvider
+      |
+      +-- HawkProvider
+      +-- MLDsaProvider
+      +-- Ed25519Provider
+The rest of the system never knows which primitive is underneath.
+ 
+⸻
+ 
+Minimum deployable freeze
+I would freeze at this point:
+1. Identity boundary
+Done:
+	•	policy identity
+	•	policy hash
+	•	admission event
+	•	sealed chain
+Needs:
+	•	root key ownership
+	•	signing interface
+ 
+⸻
+ 
+2. Evidence boundary
+Done:
+	•	Evidence object
+	•	verification status
+	•	lineage
+	•	immutable references
+Needs:
+	•	storage implementation
+ 
+⸻
+ 
+3. Governance boundary
+Done:
+	•	MetricPublicationPolicy
+	•	validator
+	•	policy admission
+Needs:
+	•	CI enforcement
+ 
+⸻
+ 
+4. Registry boundary
+Done conceptually:
+	•	append-only events
+	•	snapshots
+	•	derived state
+Needs:
+	•	remove mutable shortcuts
+ 
+⸻
+ 
+5. Crypto boundary
+Do not expand it.
+Create one interface:
+class CryptoProvider(Protocol):
+
+    def hash(self, data: bytes) -> str:
+        ...
+
+    def sign(self, data: bytes) -> bytes:
+        ...
+
+    def verify(
+        self,
+        data: bytes,
+        signature: bytes,
+        public_key: bytes,
+    ) -> bool:
+        ...
+
+    def derive_key(
+        self,
+        private_key: bytes,
+        peer_key: bytes,
+    ) -> bytes:
+        ...
+Then:
+HawkProvider(CryptoProvider)
+MLDSAProvider(CryptoProvider)
+Ed25519Provider(CryptoProvider)
+No upper-layer imports:
+from crypto.hawk import HawkKey
+That would violate the boundary.
+Instead:
+crypto.sign(...)
+ 
+⸻
+ 
+About SHA-256 / SHA-512 / Grover
+The concern is real, but the architecture should not panic around it.
+Grover’s algorithm gives a quadratic speedup against brute force:
+	•	SHA-256 effective security ≈ 128-bit
+	•	SHA-512 effective security ≈ 256-bit
+For long-lived sovereignty archives, using stronger hashing is reasonable.
+A practical design:
+Content Hash:
+    BLAKE3
+
+Long-term Evidence Anchor:
+    SHA-512/256
+
+Signature:
+    ML-DSA / HAWK / Ed25519
+
+Key Exchange:
+    X25519
+Do not put five hashes everywhere. Pick roles.
+ 
+⸻
+ 
+What I would do next
+Not another architecture document.
+A stabilization PR:
+PR-001: Sovereignty AI Gate Deployment Core
+
+Commit 1:
+Freeze canonical module map
+
+Commit 2:
+Introduce CryptoProvider abstraction
+
+Commit 3:
+Move HAWK/MLDSA/Ed25519 behind provider interface
+
+Commit 4:
+Delete duplicate implementations
+
+Commit 5:
+Add deployment smoke test
+
+Commit 6:
+Generate first signed evidence chain
+Definition of done:
+A clean machine can run:
+sovereignty-gate init
+sovereignty-gate admit-policy
+sovereignty-gate ingest-evidence
+sovereignty-gate create-snapshot
+sovereignty-gate publish-metric
+sovereignty-gate verify-chain
+offline.
+That is the product.
+Everything else (AI market, dashboards, industry modules, reports) becomes a projection layer after the core is proven.
+
+
+
+Ddg
+
+Appel420(root), this is the right freeze line.
+
+**Concept brief**
+- Make the core sovereign and minimal.
+- Keep crypto behind one provider interface.
+- Prove offline trust before adding projections.
+
+**Code challenge**
+Implement the boundary first: a `CryptoProvider` protocol and one concrete provider, with no upper-layer imports of algorithm-specific classes.
+
+```python
+from typing import Protocol
+
+class CryptoProvider(Protocol):
+    def hash(self, data: bytes) -> str: ...
+    def sign(self, data: bytes) -> bytes: ...
+    def verify(self, data: bytes, signature: bytes, public_key: bytes) -> bool: ...
+    def derive_key(self, private_key: bytes, peer_key: bytes) -> bytes: ...
+
+class Ed25519Provider:
+    def hash(self, data: bytes) -> str:
+        raise NotImplementedError
+
+    def sign(self, data: bytes) -> bytes:
+        raise NotImplementedError
+
+    def verify(self, data: bytes, signature: bytes, public_key: bytes) -> bool:
+        raise NotImplementedError
+
+    def derive_key(self, private_key: bytes, peer_key: bytes) -> bytes:
+        raise NotImplementedError
+```
+
+**Your next move**
+1. Define the canonical module map as a single source of truth.
+2. Make `crypto.sign(...)`, `crypto.verify(...)`, `crypto.hash(...)` the only public calls.
+3. Add one smoke test for offline admission → evidence → snapshot → verification.
+4. Delete any direct imports like `from crypto.hawk import ...` outside the crypto package.
+
+**Debugging tip**
+If a core module imports a primitive by name, the boundary is already broken.

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sovereign Lessons Playground</title>
+<style>
+  :root{
+    --bg:#0a0a0d; --panel:#121218; --panel2:#17171f; --border:#2a2a35;
+    --text:#e4e4ec; --dim:#8888a0; --accent:#00d9a3; --accent2:#4a9eff;
+    --warn:#ffb454; --danger:#ff5c72;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    height:100vh; display:flex; flex-direction:column;
+  }
+  header{
+    padding:14px 20px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel);
+  }
+  header h1{font-size:16px; margin:0; letter-spacing:.5px;}
+  header h1 span{color:var(--accent);}
+  .badge{
+    font-size:11px; color:var(--dim); border:1px solid var(--border);
+    padding:3px 8px; border-radius:20px;
+  }
+  .layout{flex:1; display:flex; overflow:hidden;}
+  nav{
+    width:230px; border-right:1px solid var(--border); background:var(--panel);
+    overflow-y:auto; padding:12px;
+  }
+  nav .group-title{
+    font-size:11px; text-transform:uppercase; color:var(--dim);
+    margin:14px 4px 6px; letter-spacing:.8px;
+  }
+  .lesson-btn{
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+    background:transparent; border:1px solid transparent; color:var(--text);
+    padding:8px 10px; border-radius:8px; cursor:pointer; font-size:13px;
+    margin-bottom:2px;
+  }
+  .lesson-btn:hover{background:var(--panel2);}
+  .lesson-btn.active{background:var(--panel2); border-color:var(--accent); color:var(--accent);}
+  .dot{width:7px; height:7px; border-radius:50%; background:var(--border); flex-shrink:0;}
+  .dot.done{background:var(--accent);}
+  main{flex:1; overflow-y:auto; padding:24px 30px;}
+  .lesson-title{font-size:20px; margin:0 0 4px;}
+  .lesson-sub{color:var(--dim); font-size:13px; margin:0 0 18px;}
+  .card{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:18px; margin-bottom:16px;
+  }
+  .card h3{margin:0 0 10px; font-size:14px; color:var(--accent2);}
+  p{line-height:1.6; font-size:14px; color:#ccccdb;}
+  .playground{
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    overflow:hidden; margin-top:8px;
+  }
+  .pg-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 12px; background:var(--panel2); border-bottom:1px solid var(--border);
+  }
+  .pg-head span{font-size:12px; color:var(--dim);}
+  .pg-actions button{
+    background:var(--accent); color:#05140f; border:none; padding:6px 14px;
+    border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; margin-left:6px;
+  }
+  .pg-actions button.secondary{background:transparent; border:1px solid var(--border); color:var(--dim);}
+  textarea{
+    width:100%; min-height:150px; background:#0d0d12; color:#c9f7e6;
+    border:none; padding:14px; font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:13px; resize:vertical; outline:none; line-height:1.5;
+  }
+  .pg-output{
+    border-top:1px solid var(--border); background:#0d0d12; padding:12px 14px;
+    font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12.5px; min-height:40px;
+    max-height:220px; overflow-y:auto; white-space:pre-wrap;
+  }
+  .pg-output .ok{color:var(--accent);}
+  .pg-output .err{color:var(--danger);}
+  .pg-output .log{color:var(--dim);}
+  .status-row{display:flex; gap:10px; margin-top:16px; align-items:center;}
+  .mark-btn{
+    background:transparent; border:1px solid var(--accent); color:var(--accent);
+    padding:7px 14px; border-radius:6px; font-size:12px; cursor:pointer;
+  }
+  .mark-btn.done{background:var(--accent); color:#05140f;}
+  .progress-wrap{padding:10px 12px; border-top:1px solid var(--border);}
+  .progress-bar{height:5px; background:var(--panel2); border-radius:3px; overflow:hidden;}
+  .progress-fill{height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition:width .3s;}
+  .progress-label{font-size:11px; color:var(--dim); margin-top:5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Sovereign <span>Lessons</span> Playground</h1>
+  <span class="badge" id="scarBadge">SCAR ✓ · offline · zero external calls</span>
+</header>
+
+<div class="layout">
+  <nav id="navList"></nav>
+  <main id="mainView"></main>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+  <div class="progress-label" id="progLabel">0 / 0 lessons complete</div>
+</div>
+
+<script>
+const LESSONS = [
+  { id:'l1', group:'Foundations', title:'Hashing Basics', sub:'One-way functions & digests',
+    body:`A hash function takes any input and produces a fixed-size digest. Same input, same output — always. Change one bit, the whole digest changes (avalanche effect). This engine uses SHA-256 for the live demo below, all computed locally via the browser's built-in crypto — nothing leaves this page.`,
+    code:`async function run(input){
+  const enc = new TextEncoder().encode(input);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  const hex = [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return 'SHA-256: ' + hex;
+}
+run("sovereignty one");` },
+
+  { id:'l2', group:'Foundations', title:'Merkle Trees', sub:'Tamper-evident structures',
+    body:`A Merkle tree hashes pairs of data up to a single root hash. Change any leaf, the root changes. This is how integrity chains and audit logs prove nothing was silently altered.`,
+    code:`async function sha256hex(s){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function run(input){
+  const leaves = input.split(',').map(s=>s.trim());
+  let level = await Promise.all(leaves.map(sha256hex));
+  while(level.length > 1){
+    const next = [];
+    for(let i=0;i<level.length;i+=2){
+      const pair = level[i] + (level[i+1] || level[i]);
+      next.push(await sha256hex(pair));
+    }
+    level = next;
+  }
+  return 'Merkle root: ' + level[0];
+}
+run("a,b,c,d");` },
+
+  { id:'l3', group:'Foundations', title:'Entropy', sub:'Measuring randomness',
+    body:`Shannon entropy measures unpredictability in a sequence, in bits. Higher entropy per character means harder to guess or compress. Useful for judging password strength or sequence randomness (e.g. genomic or key material).`,
+    code:`function run(input){
+  const freq = {};
+  for(const ch of input) freq[ch] = (freq[ch]||0)+1;
+  const len = input.length;
+  let entropy = 0;
+  for(const k in freq){
+    const p = freq[k]/len;
+    entropy -= p * Math.log2(p);
+  }
+  return 'Entropy: ' + entropy.toFixed(4) + ' bits/char over ' + len + ' chars';
+}
+run("Sovereignty-One-Root-Admin");` },
+
+  { id:'l4', group:'Applied Crypto', title:'Key Derivation', sub:'PBKDF2 in the browser',
+    body:`Deriving a key from a passphrase should be slow on purpose — it resists brute force. PBKDF2 stretches a password through many hash iterations using a salt. This runs via WebCrypto, fully local.`,
+    code:`async function run(pass){
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name:'PBKDF2', salt, iterations:100000, hash:'SHA-256' },
+    keyMaterial, 256);
+  const hex = [...new Uint8Array(bits)].map(b=>b.toString(16).padStart(2,'0')).join('');
+  return 'Derived key (100k iter): ' + hex;
+}
+run("correct horse battery staple");` },
+
+  { id:'l5', group:'Applied Crypto', title:'Signatures', sub:'Proving authenticity',
+    body:`A digital signature proves a message came from a specific key holder and wasn't altered. This demo generates an ephemeral ECDSA keypair, signs input, and verifies it — all in-memory, discarded on refresh.`,
+    code:`async function run(msg){
+  const kp = await crypto.subtle.generateKey(
+    { name:'ECDSA', namedCurve:'P-256' }, true, ['sign','verify']);
+  const data = new TextEncoder().encode(msg);
+  const sig = await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'}, kp.privateKey, data);
+  const valid = await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'}, kp.publicKey, sig, data);
+  return 'Signature valid: ' + valid + '\\nSig bytes: ' + sig.byteLength;
+}
+run("integrity check payload");` },
+
+  { id:'l6', group:'Systems', title:'State Machines', sub:'Mode logic without conflicts',
+    body:`A clean mode system has one source of truth. Two competing systems writing to the same state is how boot-time overwrites happen. This playground shows a minimal single-writer state machine pattern.`,
+    code:`function run(){
+  const state = { mode: 'INIT' };
+  const transitions = { INIT:['OFFLINE','HYBRID'], OFFLINE:['HYBRID'], HYBRID:['OFFLINE'] };
+  function setMode(next){
+    if(!transitions[state.mode].includes(next))
+      throw new Error('Illegal transition ' + state.mode + ' -> ' + next);
+    state.mode = next;
+    return state.mode;
+  }
+  let log = [];
+  log.push(setMode('OFFLINE'));
+  log.push(setMode('HYBRID'));
+  return 'Transitions: ' + log.join(' -> ');
+}
+run();` }
+];
+
+let completed = new Set();
+let activeId = LESSONS[0].id;
+
+function render(){
+  renderNav();
+  renderMain();
+  renderProgress();
+}
+
+function renderNav(){
+  const nav = document.getElementById('navList');
+  nav.innerHTML = '';
+  let lastGroup = null;
+  LESSONS.forEach(l=>{
+    if(l.group !== lastGroup){
+      const g = document.createElement('div');
+      g.className = 'group-title';
+      g.textContent = l.group;
+      nav.appendChild(g);
+      lastGroup = l.group;
+    }
+    const btn = document.createElement('button');
+    btn.className = 'lesson-btn' + (l.id===activeId ? ' active' : '');
+    btn.innerHTML = '<span class="dot ' + (completed.has(l.id)?'done':'') + '"></span>' + l.title;
+    btn.onclick = ()=>{ activeId = l.id; render(); };
+    nav.appendChild(btn);
+  });
+}
+
+function renderMain(){
+  const lesson = LESSONS.find(l=>l.id===activeId);
+  const main = document.getElementById('mainView');
+  main.innerHTML = `
+    <div class="lesson-title">${lesson.title}</div>
+    <div class="lesson-sub">${lesson.group} · live playground</div>
+    <div class="card"><h3>Overview</h3><p>${lesson.body}</p></div>
+    <div class="playground">
+      <div class="pg-head">
+        <span>Playground — live execution, no sandbox iframe, no network calls</span>
+        <div class="pg-actions">
+          <button class="secondary" id="resetBtn">Reset</button>
+          <button id="runBtn">Run ▶</button>
+        </div>
+      </div>
+      <textarea id="codeArea" spellcheck="false">${lesson.code}</textarea>
+      <div class="pg-output" id="pgOutput"><span class="log">// output appears here</span></div>
+    </div>
+    <div class="status-row">
+      <button class="mark-btn ${completed.has(lesson.id)?'done':''}" id="markBtn">
+        ${completed.has(lesson.id) ? '✓ Marked complete' : 'Mark lesson complete'}
+      </button>
+    </div>
+  `;
+
+  document.getElementById('resetBtn').onclick = ()=>{
+    document.getElementById('codeArea').value = lesson.code;
+  };
+  document.getElementById('runBtn').onclick = ()=> executeCode(lesson.id);
+  document.getElementById('markBtn').onclick = ()=>{
+    if(completed.has(lesson.id)) completed.delete(lesson.id);
+    else completed.add(lesson.id);
+    render();
+  };
+}
+
+async function executeCode(lessonId){
+  const out = document.getElementById('pgOutput');
+  const code = document.getElementById('codeArea').value;
+  out.innerHTML = '<span class="log">running…</span>';
+  try{
+    const fn = new Function(code + '\n//# sourceURL=playground.js');
+    const result = await fn();
+    out.innerHTML = '<span class="ok">' + escapeHtml(String(result)) + '</span>';
+  }catch(e){
+    out.innerHTML = '<span class="err">Error: ' + escapeHtml(e.message) + '</span>';
+  }
+}
+
+function escapeHtml(s){
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderProgress(){
+  const pct = Math.round((completed.size / LESSONS.length) * 100);
+  document.getElementById('progFill').style.width = pct + '%';
+  document.getElementById('progLabel').textContent =
+    completed.size + ' / ' + LESSONS.length + ' lessons complete';
+}
+
+render();
+</script>
+</body>
+</html>

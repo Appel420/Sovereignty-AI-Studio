@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "canonical_runtime": {
+    "dashboard": "SGHv119.html",
+    "launcher": "START_SERVER.sh",
+    "python_bridge": "bridge.py",
+    "node_bridge": "node-bridge/server.js",
+    "local_ci": "scripts/local-ci.sh",
+    "repository_registry": "integration/repository-registry.json",
+    "transport": "frontend/runtime/transport.js",
+    "hawking_channel": "frontend/runtime/hawking-channel.js",
+    "hawking_integration": "frontend/runtime/sg-hawking-integration.js"
+  },
+  "ports": {
+    "dashboard": 9898,
+    "python_bridge": 9897,
+    "node_bridge": 9899
+  },
+  "aliases": {
+    "start-all.sh": "START_SERVER.sh",
+    "python3_bridge.py": "bridge.py",
+    "sovereignty_full_server.py": "bridge.py"
+  },
+  "legacy_or_separate_runtimes": [
+    "server_9897.py",
+    "server_9899.js",
+    "unified_server.js",
+    "sovereign_cicd_orchestrator.py",
+    "security_backend.py",
+    "security_layer.js",
+    "7-14-SGHV119.html",
+    "mini-SGHV119.html"
+  ],
+  "state_policy": {
+    "default_mode": "local",
+    "private_state_is_not_committed": true,
+    "provider_selection_is_owner_policy": true,
+    "missing_capability_is_explicit": true,
+    "implicit_fallback_is_disabled": true
+  }
+}

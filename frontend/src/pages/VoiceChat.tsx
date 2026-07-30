@@ -1,11 +1,40 @@
+/**
+ * VoiceChat source-file narration header
+ * Purpose: chat with Ara and provide speech-friendly code explanations.
+ * Depends on: VoiceAPI and local Code Narration parser.
+ * Used by: the frontend voice route.
+ * Security: narration parses code as text only; TTS receives explanation text, never executable code.
+ */
+
 import React, { useState } from 'react';
 import { SpeakerWaveIcon } from '@heroicons/react/24/outline';
 import { VoiceAPI } from '../services/api';
+import { containsCode, narrationText, type NarrationMode } from '../lib/codeNarration';
+
+interface VoiceMessage {
+  role: string;
+  text: string;
+}
 
 const VoiceChat: React.FC = () => {
   const [message, setMessage] = useState('');
-  const [history, setHistory] = useState<Array<{ role: string; text: string }>>([]);
+  const [history, setHistory] = useState<VoiceMessage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [speaking, setSpeaking] = useState<number | null>(null);
+
+  const speak = async (text: string, index: number, mode: NarrationMode) => {
+    if (!text.trim()) return;
+    setSpeaking(index);
+    try {
+      const result = await VoiceAPI.speak(narrationText(text, mode));
+      if (result.audio_file) {
+        const audio = new Audio(result.audio_file);
+        await audio.play().catch(() => undefined);
+      }
+    } finally {
+      setSpeaking(null);
+    }
+  };
 
   const handleSend = async () => {
     if (!message.trim() || loading) return;
@@ -16,10 +45,7 @@ const VoiceChat: React.FC = () => {
 
     try {
       const data = await VoiceAPI.chat(userMsg);
-      setHistory((prev) => [
-        ...prev,
-        { role: 'assistant', text: data.response },
-      ]);
+      setHistory((prev) => [...prev, { role: 'assistant', text: data.response }]);
     } catch {
       setHistory((prev) => [
         ...prev,
@@ -36,9 +62,7 @@ const VoiceChat: React.FC = () => {
         <div className="flex justify-center items-center mb-4">
           <SpeakerWaveIcon className="h-12 w-12 text-teal-500" />
         </div>
-        <h1 className="text-3xl font-bold text-gray-900 font-space-grotesk">
-          Voice Chat
-        </h1>
+        <h1 className="text-3xl font-bold text-gray-900 font-space-grotesk">Voice Chat</h1>
         <p className="text-lg text-gray-600 mt-2">
           Talk to Ara — AI voice interaction powered by Piper TTS
         </p>
@@ -68,7 +92,37 @@ const VoiceChat: React.FC = () => {
                 {msg.role === 'assistant' && (
                   <span className="text-xs font-medium text-teal-600 block mb-1">🔊 Ara</span>
                 )}
-                <p className="text-sm">{msg.text}</p>
+                <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                {msg.role === 'assistant' && (
+                  <div className="mt-3 flex flex-wrap gap-2" aria-label="Voice narration actions">
+                    <button
+                      type="button"
+                      onClick={() => speak(msg.text, i, 'read')}
+                      disabled={speaking === i}
+                      className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      {speaking === i ? 'Speaking…' : '▶ Listen'}
+                    </button>
+                    {containsCode(msg.text) && (
+                      <button
+                        type="button"
+                        onClick={() => speak(msg.text, i, 'explain-code')}
+                        disabled={speaking === i}
+                        className="text-xs px-2 py-1 rounded border border-teal-300 text-teal-700 hover:bg-teal-50 disabled:opacity-50"
+                      >
+                        🧠 Explain code
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => speak(msg.text, i, 'summarize')}
+                      disabled={speaking === i}
+                      className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      Summarize implementation
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
