@@ -64,7 +64,7 @@ jobs:
   # LINT + TEST (Python)
   # =========================================================
   build-test:
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 25
     permissions:
       contents: read
@@ -107,7 +107,7 @@ jobs:
   # NODE CHECK
   # =========================================================
   node-check:
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
@@ -136,7 +136,7 @@ jobs:
   build-sign:
     needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
     permissions:
       packages: write
@@ -210,7 +210,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 10
     permissions:
       contents: read
@@ -227,7 +227,7 @@ jobs:
   # =========================================================
   security-scan:
     needs: [build-test, node-check]
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 20
     permissions:
       contents: read

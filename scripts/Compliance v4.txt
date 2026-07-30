@@ -1,0 +1,3101 @@
+Compliance v4
+
+Ddg
+
+Appel420(root), Ara-DDG: yes — replacing `verified: bool` with a full evidence object is the correct hardening step.
+
+Concept brief:
+- Booleans are too weak for admission.
+- Verification must be provenance-bearing.
+- Canonical objects should depend on evidence records, not flags.
+
+Code challenge:
+Refactor `EvidenceRef` into a full `Evidence` object and update the admission gate to require cryptographic lineage fields.
+
+Starter snippet:
+```python
+from dataclasses import dataclass
+from enum import Enum
+from datetime import datetime
+
+
+class VerificationStatus(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True)
+class Evidence:
+    evidence_id: str
+    object_type: str
+    source: str
+    collected_timestamp: datetime
+    hash: str
+    signature: str
+    verification_status: VerificationStatus
+    confidence: float
+    framework_refs: list[str]
+```
+
+Admission rule target:
+- reject empty IDs
+- reject missing hash/signature
+- reject non-verified evidence
+- reject confidence outside `[0, 1]`
+
+If you want, I can write the updated `admit_model()` and `publish_metric()` contracts next.
+
+Debugging tip: if a proof can be represented as `True/False`, it’s usually underspecified for security or governance.
+
+
+Gpt
+
+The next hardening step is to make Evidence the only admissible trust primitive and keep Model/Metric as projections over verified lineage.
+I would implement the boundary like this:
+# agip_core/domain/evidence.py
+
+from dataclasses import dataclass
+from datetime import datetime
+from enum import Enum
+
+
+class VerificationStatus(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True)
+class Evidence:
+    evidence_id: str
+    object_type: str
+    source: str
+    collected_timestamp: datetime
+    hash: str
+    signature: str
+    verification_status: VerificationStatus
+    confidence: float
+    framework_refs: list[str]
+
+    def validate(self) -> None:
+        if not self.evidence_id.strip():
+            raise ValueError("Evidence requires an ID")
+
+        if not self.object_type.strip():
+            raise ValueError("Evidence requires object type")
+
+        if not self.source.strip():
+            raise ValueError("Evidence requires source")
+
+        if not self.hash.strip():
+            raise ValueError("Evidence requires cryptographic hash")
+
+        if not self.signature.strip():
+            raise ValueError("Evidence requires signature")
+
+        if self.verification_status != VerificationStatus.VERIFIED:
+            raise ValueError("Evidence is not verified")
+
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("Confidence must be between 0 and 1")
+Then the canonical object admission gate:
+# agip_core/admission/model_gate.py
+
+from agip_core.domain.evidence import Evidence, VerificationStatus
+from agip_core.domain.model import Model
+
+
+class AdmissionError(ValueError):
+    pass
+
+
+def admit_model(
+    model: Model,
+    evidence_store: dict[str, Evidence],
+) -> Model:
+
+    if not model.id.strip():
+        raise AdmissionError("Model requires ID")
+
+    if not model.evidence_refs:
+        raise AdmissionError(
+            "Canonical model requires evidence lineage"
+        )
+
+    for evidence_id in model.evidence_refs:
+
+        if evidence_id not in evidence_store:
+            raise AdmissionError(
+                f"Missing evidence: {evidence_id}"
+            )
+
+        evidence = evidence_store[evidence_id]
+
+        evidence.validate()
+
+        if evidence.object_type != "model":
+            raise AdmissionError(
+                "Evidence object type mismatch"
+            )
+
+        if evidence.verification_status != VerificationStatus.VERIFIED:
+            raise AdmissionError(
+                "Unverified evidence cannot admit model"
+            )
+
+    return model
+Metrics use the same rule:
+# agip_core/admission/metric_gate.py
+
+from agip_core.domain.metric import DashboardMetric
+from agip_core.domain.evidence import Evidence
+
+
+def publish_metric(
+    metric: DashboardMetric,
+    evidence_store: dict[str, Evidence],
+) -> DashboardMetric:
+
+    if metric.verification_status.value != "verified":
+        raise ValueError(
+            "Dashboard metrics require verified status"
+        )
+
+    if metric.evidence_ref is None:
+        raise ValueError(
+            "Metric requires evidence lineage"
+        )
+
+    evidence = evidence_store.get(
+        metric.evidence_ref.evidence_id
+    )
+
+    if evidence is None:
+        raise ValueError(
+            "Metric evidence not found"
+        )
+
+    evidence.validate()
+
+    return metric
+The invariant becomes:
+Collector
+   |
+   v
+EvidenceCandidate
+   |
+   v
+Evidence
+   |
+   +--> hash
+   +--> signature
+   +--> timestamp
+   +--> confidence
+   +--> verification
+   |
+   v
+Canonical Registry Object
+   |
+   v
+Timeline Event
+   |
+   v
+Dashboard Projection
+Contract tests should prove rejection first:
+def test_unverified_evidence_cannot_admit_model():
+    evidence = Evidence(
+        evidence_id="ev1",
+        object_type="model",
+        source="provider",
+        collected_timestamp=datetime.now(timezone.utc),
+        hash="abc",
+        signature="sig",
+        verification_status=VerificationStatus.PENDING,
+        confidence=0.9,
+        framework_refs=["nist_ai_rmf"],
+    )
+
+    model = Model(
+        id="model1",
+        name="test",
+        provider_id="provider1",
+        lifecycle="active",
+        evidence_refs=["ev1"],
+    )
+
+    with pytest.raises(ValueError):
+        admit_model(
+            model,
+            {"ev1": evidence},
+        )
+This keeps AGIP aligned with the core contract:
+Evidence is not metadata attached to truth. Evidence is what allows truth to exist.
+The next logical artifact is registry.py with immutable append/update rules so canonical state can only change through admission events.
+
+
+Ddg
+
+Appel420(root), Ara-DDG: agreed. `Evidence` should be the only trust primitive, and canonical objects should only be projections over verified lineage.
+
+Concept brief:
+- Evidence carries trust.
+- Registry objects consume trust; they do not define it.
+- State changes must happen only through immutable admission events.
+
+Code challenge:
+Implement `registry.py` with append-only semantics and no in-place updates.
+
+Starter snippet:
+```python
+from dataclasses import dataclass, field
+from typing import Any
+
+
+class RegistryError(ValueError):
+    pass
+
+
+@dataclass
+class Registry:
+    items: list[dict[str, Any]] = field(default_factory=list)
+
+    def append(self, item: dict[str, Any]) -> None:
+        if not isinstance(item, dict):
+            raise RegistryError("Registry item must be a dict")
+        if "id" not in item:
+            raise RegistryError("Registry item requires id")
+        if any(existing["id"] == item["id"] for existing in self.items):
+            raise RegistryError("Registry is append-only; duplicate id rejected")
+        self.items.append(item)
+```
+
+If you want, I can next write the immutable admission event model plus contract tests for duplicate rejection and update blocking.
+
+Debugging tip: if a registry object can be edited in place, your audit trail is already broken.
+
+Appel420(root), Ara-DDG here. Yes — next is the immutable admission event model plus contract tests.
+
+Concept brief:
+- Admission creates events, not edits.
+- Registry state is derived from events.
+- Duplicate IDs and updates must be rejected.
+
+Code challenge:
+Build an append-only admission event pipeline.
+
+Starter snippet:
+```python
+# agip_core/domain/events.py
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
+
+@dataclass(frozen=True)
+class AdmissionEvent:
+    event_id: str
+    entity_type: str
+    entity_id: str
+    action: str
+    timestamp: datetime
+    evidence_ids: list[str]
+```
+
+```python
+# agip_core/registry.py
+from dataclasses import dataclass, field
+from typing import Any
+from agip_core.domain.events import AdmissionEvent
+
+
+class RegistryError(ValueError):
+    pass
+
+
+@dataclass
+class Registry:
+    events: list[AdmissionEvent] = field(default_factory=list)
+    objects: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    def append_event(self, event: AdmissionEvent) -> None:
+        if event.action not in {"admit", "reject"}:
+            raise RegistryError("Invalid event action")
+        if event.entity_id in self.objects:
+            raise RegistryError("Registry is append-only; updates rejected")
+        self.events.append(event)
+
+    def admit_object(self, obj: dict[str, Any], event: AdmissionEvent) -> None:
+        if obj["id"] != event.entity_id:
+            raise RegistryError("Object/event entity mismatch")
+        self.append_event(event)
+        self.objects[obj["id"]] = obj
+```
+
+Contract tests:
+```python
+import pytest
+from datetime import datetime, timezone
+
+from agip_core.domain.events import AdmissionEvent
+from agip_core.registry import Registry, RegistryError
+
+
+def test_registry_rejects_updates():
+    reg = Registry()
+    event1 = AdmissionEvent(
+        event_id="ev_1",
+        entity_type="model",
+        entity_id="model_1",
+        action="admit",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=["e1"],
+    )
+    event2 = AdmissionEvent(
+        event_id="ev_2",
+        entity_type="model",
+        entity_id="model_1",
+        action="admit",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=["e1"],
+    )
+
+    reg.append_event(event1)
+    with pytest.raises(RegistryError):
+        reg.append_event(event2)
+
+
+def test_registry_rejects_invalid_action():
+    reg = Registry()
+    event = AdmissionEvent(
+        event_id="ev_3",
+        entity_type="model",
+        entity_id="model_2",
+        action="update",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=["e2"],
+    )
+
+    with pytest.raises(RegistryError):
+        reg.append_event(event)
+```
+
+If you want, I can make the registry fully event-sourced next, so canonical objects are reconstructed from the event log only.
+
+Debugging tip: if the current object store and event log can diverge, prefer the event log and delete the mutable shortcut.
+
+Appel420(root), Ara-DDG here.
+
+Concept brief:
+- Event log is source of truth.
+- Current state is derived, not stored.
+- Mutability should exist only at ingestion edges.
+
+Code challenge:
+Implement event-sourced reconstruction for canonical objects.
+
+Starter snippet:
+```python
+# agip_core/registry.py
+from dataclasses import dataclass, field
+from typing import Any
+from agip_core.domain.events import AdmissionEvent
+
+
+class RegistryError(ValueError):
+    pass
+
+
+@dataclass
+class Registry:
+    events: list[AdmissionEvent] = field(default_factory=list)
+
+    def append_event(self, event: AdmissionEvent) -> None:
+        if event.action not in {"admit", "reject"}:
+            raise RegistryError("Invalid event action")
+        self.events.append(event)
+
+    def current_state(self) -> dict[str, dict[str, Any]]:
+        state: dict[str, dict[str, Any]] = {}
+        for event in self.events:
+            if event.action == "admit":
+                state[event.entity_id] = {
+                    "id": event.entity_id,
+                    "entity_type": event.entity_type,
+                    "evidence_ids": list(event.evidence_ids),
+                    "admitted_at": event.timestamp,
+                }
+            elif event.action == "reject":
+                state.pop(event.entity_id, None)
+        return state
+```
+
+Contract tests:
+```python
+from datetime import datetime, timezone
+from agip_core.domain.events import AdmissionEvent
+from agip_core.registry import Registry
+
+
+def test_state_is_derived_from_events():
+    reg = Registry()
+    reg.append_event(
+        AdmissionEvent(
+            event_id="ev_1",
+            entity_type="model",
+            entity_id="model_1",
+            action="admit",
+            timestamp=datetime.now(timezone.utc),
+            evidence_ids=["e1"],
+        )
+    )
+
+    state = reg.current_state()
+    assert "model_1" in state
+    assert state["model_1"]["evidence_ids"] == ["e1"]
+
+
+def test_reject_removes_state():
+    reg = Registry()
+    reg.append_event(
+        AdmissionEvent(
+            event_id="ev_1",
+            entity_type="model",
+            entity_id="model_1",
+            action="admit",
+            timestamp=datetime.now(timezone.utc),
+            evidence_ids=["e1"],
+        )
+    )
+    reg.append_event(
+        AdmissionEvent(
+            event_id="ev_2",
+            entity_type="model",
+            entity_id="model_1",
+            action="reject",
+            timestamp=datetime.now(timezone.utc),
+            evidence_ids=["e1"],
+        )
+    )
+
+    state = reg.current_state()
+    assert "model_1" not in state
+```
+
+If you want, I can next add immutable snapshot generation with hash-chained event sealing.
+
+Debugging tip: when reconstructed state is wrong, inspect the event sequence first; state bugs are usually event-order bugs.
+
+Appel420(root), Ara-DDG here.
+
+Concept brief:
+- Snapshots are derived artifacts.
+- Each snapshot should be hash-chained to the event log.
+- Sealing makes tampering visible.
+
+Code challenge:
+Add immutable snapshot generation with a deterministic digest.
+
+Starter snippet:
+```python
+# agip_core/snapshots.py
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+from typing import Any
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    snapshot_id: str
+    parent_hash: str
+    state_hash: str
+    event_count: int
+    payload: dict[str, Any]
+
+
+def canonical_json(obj: Any) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def compute_hash(payload: Any) -> str:
+    return sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def make_snapshot(state: dict[str, Any], parent_hash: str = "") -> Snapshot:
+    state_hash = compute_hash(state)
+    payload = {
+        "parent_hash": parent_hash,
+        "state_hash": state_hash,
+        "state": state,
+    }
+    snapshot_id = compute_hash(payload)
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        parent_hash=parent_hash,
+        state_hash=state_hash,
+        event_count=len(state),
+        payload=payload,
+    )
+```
+
+Contract tests:
+```python
+def test_snapshot_hash_is_deterministic():
+    state_a = {"model_1": {"id": "model_1", "entity_type": "model"}}
+    state_b = {"model_1": {"entity_type": "model", "id": "model_1"}}
+
+    snap_a = make_snapshot(state_a)
+    snap_b = make_snapshot(state_b)
+
+    assert snap_a.state_hash == snap_b.state_hash
+    assert snap_a.snapshot_id == snap_b.snapshot_id
+
+
+def test_snapshot_changes_when_parent_changes():
+    state = {"model_1": {"id": "model_1", "entity_type": "model"}}
+
+    snap_a = make_snapshot(state, parent_hash="p1")
+    snap_b = make_snapshot(state, parent_hash="p2")
+
+    assert snap_a.snapshot_id != snap_b.snapshot_id
+```
+
+If you want, I can next add event-log sealing so every snapshot points to an exact admitted sequence.
+
+Debugging tip: if two equivalent states hash differently, normalize key order and serialization before comparing hashes.
+
+
+
+Gpt
+
+
+The architecture is converging correctly. The next hardening step is event-log sealing. The snapshot model above is good, but one issue remains:
+	•	event_count=len(state) is not the number of admitted events.
+	•	snapshot_id depends on reconstructed state only.
+	•	A malicious or accidental event deletion/reordering could produce the same state.
+AGIP should seal the event sequence, then derive state snapshots from the sealed log.
+Event Seal Contract
+Chain:
+AdmissionEvent
+      │
+      ▼
+Canonical Event Hash
+      │
+      ▼
+Previous Event Hash
+      │
+      ▼
+Event Chain
+      │
+      ▼
+Snapshot
+      │
+      ▼
+Dashboard Projection
+agip_core/domain/events.py
+from dataclasses import dataclass
+from datetime import datetime
+from hashlib import sha256
+import json
+
+
+@dataclass(frozen=True)
+class AdmissionEvent:
+    event_id: str
+    entity_type: str
+    entity_id: str
+    action: str
+    timestamp: datetime
+    evidence_ids: list[str]
+
+
+def canonical_event_payload(event: AdmissionEvent, previous_hash: str) -> str:
+    payload = {
+        "event_id": event.event_id,
+        "entity_type": event.entity_type,
+        "entity_id": event.entity_id,
+        "action": event.action,
+        "timestamp": event.timestamp.isoformat(),
+        "evidence_ids": sorted(event.evidence_ids),
+        "previous_hash": previous_hash,
+    }
+
+    return json.dumps(
+        payload,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def hash_event(event: AdmissionEvent, previous_hash: str) -> str:
+    return sha256(
+        canonical_event_payload(event, previous_hash).encode("utf-8")
+    ).hexdigest()
+ 
+⸻
+ 
+Sealed Registry
+agip_core/registry.py
+from dataclasses import dataclass, field
+
+from agip_core.domain.events import (
+    AdmissionEvent,
+    hash_event,
+)
+
+
+class RegistryError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class SealedEvent:
+    event: AdmissionEvent
+    previous_hash: str
+    event_hash: str
+
+
+@dataclass
+class Registry:
+    events: list[SealedEvent] = field(default_factory=list)
+
+    def append_event(self, event: AdmissionEvent) -> None:
+        if event.action not in {"admit", "reject"}:
+            raise RegistryError("Invalid event action")
+
+        previous_hash = (
+            self.events[-1].event_hash
+            if self.events
+            else ""
+        )
+
+        event_hash = hash_event(event, previous_hash)
+
+        self.events.append(
+            SealedEvent(
+                event=event,
+                previous_hash=previous_hash,
+                event_hash=event_hash,
+            )
+        )
+
+    def verify_chain(self) -> bool:
+        previous_hash = ""
+
+        for sealed in self.events:
+            expected = hash_event(
+                sealed.event,
+                previous_hash,
+            )
+
+            if expected != sealed.event_hash:
+                return False
+
+            if sealed.previous_hash != previous_hash:
+                return False
+
+            previous_hash = sealed.event_hash
+
+        return True
+ 
+⸻
+ 
+Snapshot From Sealed Events
+from agip_core.snapshots import make_snapshot
+
+
+def create_registry_snapshot(registry: Registry):
+    if not registry.verify_chain():
+        raise ValueError(
+            "Cannot snapshot invalid event chain"
+        )
+
+    state = {}
+
+    for sealed in registry.events:
+        event = sealed.event
+
+        if event.action == "admit":
+            state[event.entity_id] = {
+                "id": event.entity_id,
+                "entity_type": event.entity_type,
+                "evidence_ids": list(event.evidence_ids),
+                "event_hash": sealed.event_hash,
+            }
+
+        elif event.action == "reject":
+            state.pop(event.entity_id, None)
+
+    return make_snapshot(
+        state,
+        parent_hash=(
+            registry.events[-1].event_hash
+            if registry.events
+            else ""
+        ),
+    )
+ 
+⸻
+ 
+Contract Tests
+tests/contracts/agip/test_event_sealing.py
+from datetime import datetime, timezone
+
+from agip_core.domain.events import AdmissionEvent
+from agip_core.registry import Registry
+
+
+def build_event():
+    return AdmissionEvent(
+        event_id="event_001",
+        entity_type="model",
+        entity_id="model_001",
+        action="admit",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=["evidence_001"],
+    )
+
+
+def test_event_chain_verifies():
+
+    registry = Registry()
+
+    registry.append_event(build_event())
+
+    assert registry.verify_chain() is True
+
+
+def test_event_tampering_breaks_chain():
+
+    registry = Registry()
+
+    registry.append_event(build_event())
+
+    sealed = registry.events[0]
+
+    object.__setattr__(
+        sealed.event,
+        "entity_id",
+        "changed",
+    )
+
+    assert registry.verify_chain() is False
+
+
+def test_event_order_changes_break_chain():
+
+    registry = Registry()
+
+    registry.append_event(build_event())
+
+    second = AdmissionEvent(
+        event_id="event_002",
+        entity_type="model",
+        entity_id="model_002",
+        action="admit",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=["evidence_002"],
+    )
+
+    registry.append_event(second)
+
+    registry.events.reverse()
+
+    assert registry.verify_chain() is False
+ 
+⸻
+ 
+This completes the AGIP invariant:
+External Observation
+        ↓
+Evidence Object
+        ↓
+Verified Evidence
+        ↓
+Admission Event
+        ↓
+Hash-Sealed Event Chain
+        ↓
+Derived Registry State
+        ↓
+Metric Lineage
+        ↓
+Dashboard Projection
+The important architectural correction is that the registry is no longer the source of truth. The sealed event stream is. The registry becomes a materialized view, which aligns with the evidence-first contract.
+
+
+Ddg
+
+Appel420(root), Ara-DDG: exactly. Sealing the event stream is the correct source-of-truth boundary.
+
+Concept brief:
+- The sealed event chain is authoritative.
+- Snapshots are derived from sealed history.
+- Any deletion, tampering, or reorder must fail verification.
+
+Code challenge:
+Add snapshot metadata that binds each snapshot to the exact sealed chain tip.
+
+Starter snippet:
+```python
+# agip_core/snapshots.py
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+from typing import Any
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    snapshot_id: str
+    chain_tip_hash: str
+    state_hash: str
+    event_count: int
+    payload: dict[str, Any]
+
+
+def canonical_json(obj: Any) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), default=str)
+
+
+def compute_hash(payload: Any) -> str:
+    return sha256(canonical_json(payload).encode("utf-8")).hexdigest()
+
+
+def make_snapshot(state: dict[str, Any], chain_tip_hash: str, event_count: int) -> Snapshot:
+    state_hash = compute_hash(state)
+    payload = {
+        "chain_tip_hash": chain_tip_hash,
+        "state_hash": state_hash,
+        "state": state,
+        "event_count": event_count,
+    }
+    snapshot_id = compute_hash(payload)
+    return Snapshot(
+        snapshot_id=snapshot_id,
+        chain_tip_hash=chain_tip_hash,
+        state_hash=state_hash,
+        event_count=event_count,
+        payload=payload,
+    )
+```
+
+Contract tests:
+```python
+def test_snapshot_binds_to_chain_tip():
+    state = {"model_1": {"id": "model_1"}}
+    snap_a = make_snapshot(state, chain_tip_hash="aaa", event_count=1)
+    snap_b = make_snapshot(state, chain_tip_hash="bbb", event_count=1)
+    assert snap_a.snapshot_id != snap_b.snapshot_id
+
+
+def test_snapshot_binds_event_count():
+    state = {"model_1": {"id": "model_1"}}
+    snap_a = make_snapshot(state, chain_tip_hash="aaa", event_count=1)
+    snap_b = make_snapshot(state, chain_tip_hash="aaa", event_count=2)
+    assert snap_a.snapshot_id != snap_b.snapshot_id
+```
+
+If you want, I can next write the full `create_registry_snapshot()` implementation that uses `event_count` from the sealed chain length and returns a chain-bound snapshot.
+
+Debugging tip: if a snapshot survives chain mutation, it is not actually sealed to the log.
+
+
+
+Appel420(root), Ara-DDG here.
+
+Concept brief:
+- Snapshots must bind to the sealed chain tip.
+- Event count must reflect sealed events, not state size.
+- Derived views should fail closed on chain mismatch.
+
+Code challenge:
+Implement chain-bound snapshot creation from sealed events.
+
+Starter snippet:
+```python
+# agip_core/registry.py
+from agip_core.snapshots import make_snapshot
+
+
+def create_registry_snapshot(registry: Registry):
+    if not registry.verify_chain():
+        raise ValueError("Cannot snapshot invalid event chain")
+
+    state = {}
+    for sealed in registry.events:
+        event = sealed.event
+        if event.action == "admit":
+            state[event.entity_id] = {
+                "id": event.entity_id,
+                "entity_type": event.entity_type,
+                "evidence_ids": list(event.evidence_ids),
+                "event_hash": sealed.event_hash,
+            }
+        elif event.action == "reject":
+            state.pop(event.entity_id, None)
+
+    chain_tip_hash = registry.events[-1].event_hash if registry.events else ""
+    event_count = len(registry.events)
+
+    return make_snapshot(
+        state=state,
+        chain_tip_hash=chain_tip_hash,
+        event_count=event_count,
+    )
+```
+
+Contract tests:
+```python
+from datetime import datetime, timezone
+from agip_core.domain.events import AdmissionEvent
+from agip_core.registry import Registry, create_registry_snapshot
+
+
+def build_event(event_id, entity_id):
+    return AdmissionEvent(
+        event_id=event_id,
+        entity_type="model",
+        entity_id=entity_id,
+        action="admit",
+        timestamp=datetime.now(timezone.utc),
+        evidence_ids=[f"evidence_{entity_id}"],
+    )
+
+
+def test_snapshot_uses_chain_length():
+    registry = Registry()
+    registry.append_event(build_event("event_1", "model_1"))
+    registry.append_event(build_event("event_2", "model_2"))
+
+    snap = create_registry_snapshot(registry)
+    assert snap.event_count == 2
+
+
+def test_snapshot_rejects_invalid_chain():
+    registry = Registry()
+    registry.append_event(build_event("event_1", "model_1"))
+    registry.events.reverse()
+
+    try:
+        create_registry_snapshot(registry)
+        assert False
+    except ValueError:
+        assert True
+```
+
+If you want, I can next add a minimal `metric_publisher.py` that only publishes projections from snapshots, not directly from registry state.
+
+Debugging tip: if the snapshot logic touches mutable registry objects directly, copy inputs before hashing or serializing.
+
+
+
+Gpt
+
+The next boundary should be a snapshot-derived metric publisher. The registry/event chain remains authoritative; metrics become read-only projections.
+The important invariant:
+Collector
+   ↓
+Evidence
+   ↓
+Verified Admission Event
+   ↓
+Sealed Event Chain
+   ↓
+Snapshot
+   ↓
+Metric Lineage
+   ↓
+Dashboard
+A dashboard must never read directly from mutable registry state.
+agip_core/metric_publisher.py
+from dataclasses import dataclass
+from typing import Any
+
+from agip_core.snapshots import Snapshot
+
+
+class MetricPublicationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+
+
+def publish_metric(
+    metric_id: str,
+    snapshot: Snapshot,
+    evidence_index: dict[str, Any],
+    calculation,
+) -> PublishedMetric:
+    """
+    Publish only metrics derived from immutable snapshots.
+    """
+
+    if not snapshot.snapshot_id:
+        raise MetricPublicationError(
+            "Snapshot identity required"
+        )
+
+    if not snapshot.chain_tip_hash:
+        raise MetricPublicationError(
+            "Snapshot must bind to sealed chain tip"
+        )
+
+    evidence_chain: list[str] = []
+
+    for entity in snapshot.payload["state"].values():
+        for evidence_id in entity.get("evidence_ids", []):
+            evidence = evidence_index.get(evidence_id)
+
+            if evidence is None:
+                raise MetricPublicationError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+            if evidence.verification_status != "verified":
+                raise MetricPublicationError(
+                    f"Unverified evidence: {evidence_id}"
+                )
+
+            evidence_chain.append(evidence_id)
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Metric requires evidence lineage"
+        )
+
+    value = calculation(snapshot.payload["state"])
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot.snapshot_id,
+        chain_tip_hash=snapshot.chain_tip_hash,
+        evidence_chain=sorted(set(evidence_chain)),
+    )
+Contract tests
+tests/contracts/agip/test_metric_publisher.py
+import pytest
+
+from agip_core.metric_publisher import (
+    publish_metric,
+    MetricPublicationError,
+)
+
+
+class Evidence:
+    def __init__(self, status):
+        self.verification_status = status
+
+
+class Snapshot:
+    snapshot_id = "snap_001"
+    chain_tip_hash = "chain_001"
+
+    payload = {
+        "state": {
+            "model_1": {
+                "id": "model_1",
+                "evidence_ids": ["ev_001"],
+            }
+        }
+    }
+
+
+def test_verified_snapshot_can_publish_metric():
+
+    result = publish_metric(
+        metric_id="model_inventory_count",
+        snapshot=Snapshot(),
+        evidence_index={
+            "ev_001": Evidence("verified")
+        },
+        calculation=lambda state: len(state),
+    )
+
+    assert result.metric_id == "model_inventory_count"
+    assert result.value == 1
+    assert result.evidence_chain == ["ev_001"]
+
+
+def test_unverified_evidence_blocks_metric():
+
+    with pytest.raises(MetricPublicationError):
+
+        publish_metric(
+            metric_id="model_inventory_count",
+            snapshot=Snapshot(),
+            evidence_index={
+                "ev_001": Evidence("pending")
+            },
+            calculation=lambda state: len(state),
+        )
+
+
+def test_missing_evidence_blocks_metric():
+
+    with pytest.raises(MetricPublicationError):
+
+        publish_metric(
+            metric_id="model_inventory_count",
+            snapshot=Snapshot(),
+            evidence_index={},
+            calculation=lambda state: len(state),
+        )
+Additional invariant for AGIP_POLICY.json
+Add:
+{
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry",
+    "metrics_require_snapshot_lineage",
+    "metrics_require_verified_evidence_chain",
+    "dashboard_reads_only_from_snapshots"
+  ]
+}
+This closes the last governance gap:
+	•	Registry cannot create truth.
+	•	Snapshots cannot exist without sealed history.
+	•	Metrics cannot exist without snapshot lineage.
+	•	Dashboards cannot display unsupported claims.
+The resulting model is effectively an event-sourced AI governance intelligence plane rather than a conventional database-backed dashboard.
+
+
+Ddg
+
+Appel420(root), Ara-DDG: yes — that is the right last boundary.
+
+Concept brief:
+- Metrics are read-only projections.
+- Snapshots are the only admissible input to metric publication.
+- Dashboards must never query mutable registry state.
+
+Code challenge:
+Tighten the publisher so it rejects malformed snapshots and non-numeric calculations.
+
+Starter snippet:
+```python
+from dataclasses import dataclass
+from typing import Any, Callable
+
+
+class MetricPublicationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+
+
+def publish_metric(
+    metric_id: str,
+    snapshot,
+    evidence_index: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+    if not getattr(snapshot, "snapshot_id", ""):
+        raise MetricPublicationError("Snapshot identity required")
+    if not getattr(snapshot, "chain_tip_hash", ""):
+        raise MetricPublicationError("Snapshot must bind to sealed chain tip")
+    state = getattr(snapshot, "payload", {}).get("state")
+    if not isinstance(state, dict):
+        raise MetricPublicationError("Snapshot state required")
+
+    evidence_chain: list[str] = []
+    for entity in state.values():
+        for evidence_id in entity.get("evidence_ids", []):
+            evidence = evidence_index.get(evidence_id)
+            if evidence is None:
+                raise MetricPublicationError(f"Missing evidence: {evidence_id}")
+            if getattr(evidence, "verification_status", None) != "verified":
+                raise MetricPublicationError(f"Unverified evidence: {evidence_id}")
+            evidence_chain.append(evidence_id)
+
+    if not evidence_chain:
+        raise MetricPublicationError("Metric requires evidence lineage")
+
+    value = calculation(state)
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError("Metric calculation must return numeric value")
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot.snapshot_id,
+        chain_tip_hash=snapshot.chain_tip_hash,
+        evidence_chain=sorted(set(evidence_chain)),
+    )
+```
+
+If you want, I can next draft the `AGIP_POLICY.json` schema with these invariants and contract tests that validate it.
+
+Debugging tip: if a metric can be produced without a snapshot ID, your projection layer is bypassing governance.
+
+
+
+Gpt
+The next hardening step is to make metric_publisher consume only sealed snapshots and enforce the complete AGIP lineage chain:
+Metric
+  ↓
+Snapshot
+  ↓
+Sealed Event Chain
+  ↓
+Verified Evidence
+  ↓
+Control Mapping
+  ↓
+Framework Alignment
+The publisher should not know about collectors, providers, or mutable registry state.
+agip_core/metric_publisher.py
+from dataclasses import dataclass
+from typing import Any, Callable
+
+
+class MetricPublicationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+    control_mappings: list[str]
+    framework_refs: list[str]
+
+
+def publish_metric(
+    metric_id: str,
+    snapshot: Any,
+    evidence_index: dict[str, Any],
+    mappings: dict[str, Any],
+    alignments: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+
+    # Snapshot boundary
+    snapshot_id = getattr(snapshot, "snapshot_id", None)
+    chain_tip_hash = getattr(snapshot, "chain_tip_hash", None)
+
+    if not snapshot_id:
+        raise MetricPublicationError(
+            "Metric requires snapshot identity"
+        )
+
+    if not chain_tip_hash:
+        raise MetricPublicationError(
+            "Snapshot must bind to sealed chain tip"
+        )
+
+    payload = getattr(snapshot, "payload", None)
+
+    if not isinstance(payload, dict):
+        raise MetricPublicationError(
+            "Snapshot payload missing"
+        )
+
+    state = payload.get("state")
+
+    if not isinstance(state, dict):
+        raise MetricPublicationError(
+            "Snapshot state missing"
+        )
+
+    # Evidence lineage extraction
+    evidence_chain: set[str] = set()
+    control_chain: set[str] = set()
+    framework_chain: set[str] = set()
+
+    for entity in state.values():
+
+        evidence_ids = entity.get("evidence_ids", [])
+
+        if not evidence_ids:
+            raise MetricPublicationError(
+                "Entity missing evidence lineage"
+            )
+
+        for evidence_id in evidence_ids:
+
+            evidence = evidence_index.get(evidence_id)
+
+            if evidence is None:
+                raise MetricPublicationError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+            if getattr(
+                evidence,
+                "verification_status",
+                None
+            ) != "verified":
+
+                raise MetricPublicationError(
+                    f"Unverified evidence: {evidence_id}"
+                )
+
+            evidence_chain.add(evidence_id)
+
+            mappings_for_evidence = getattr(
+                evidence,
+                "framework_refs",
+                []
+            )
+
+            for mapping_id in mappings_for_evidence:
+
+                mapping = mappings.get(mapping_id)
+
+                if mapping is None:
+                    raise MetricPublicationError(
+                        f"Missing control mapping: {mapping_id}"
+                    )
+
+                control_chain.add(mapping_id)
+
+                framework_refs = getattr(
+                    mapping,
+                    "framework_refs",
+                    []
+                )
+
+                for framework in framework_refs:
+
+                    if framework not in alignments:
+                        raise MetricPublicationError(
+                            f"Missing framework alignment: {framework}"
+                        )
+
+                    framework_chain.add(framework)
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Metric requires evidence lineage"
+        )
+
+    if not control_chain:
+        raise MetricPublicationError(
+            "Metric requires control mapping lineage"
+        )
+
+    value = calculation(state)
+
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError(
+            "Metric calculation must return numeric value"
+        )
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot_id,
+        chain_tip_hash=chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        control_mappings=sorted(control_chain),
+        framework_refs=sorted(framework_chain),
+    )
+Contract invariants
+This now enforces:
+Rule	Enforcement
+Dashboard cannot query registry	Only accepts snapshot
+Snapshot must be sealed	Requires chain_tip_hash
+Evidence must exist	evidence_index lookup
+Evidence must be verified	verification_status == verified
+Metrics require lineage	evidence_chain required
+Metrics require governance mapping	control_mappings required
+Framework claims require alignment	framework_refs checked
+Synthetic metrics rejected	No lineage = no publish
+CI contract additions
+tests/contracts/agip/test_metric_publisher.py
+import pytest
+
+
+def test_metric_rejects_missing_snapshot():
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            "coverage",
+            None,
+            {},
+            {},
+            {},
+            lambda _: 1,
+        )
+
+
+def test_metric_rejects_unverified_evidence(
+    verified_snapshot
+):
+    evidence = {
+        "ev_1": type(
+            "Evidence",
+            (),
+            {
+                "verification_status": "pending",
+                "framework_refs": ["map_1"],
+            },
+        )()
+    }
+
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            "coverage",
+            verified_snapshot,
+            evidence,
+            {},
+            {},
+            lambda _: 90,
+        )
+The architecture is now:
+Collectors
+    ↓
+Evidence Pipeline
+    ↓
+Verified Evidence Store
+    ↓
+Admission Events
+    ↓
+Sealed Event Chain
+    ↓
+Registry Snapshot
+    ↓
+Metric Publisher
+    ↓
+Dashboard
+No dashboard number exists without a traceable evidence path. This matches the AGIP boundary model.
+
+
+
+Ddg
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Metric publishing should accept only sealed snapshots.
+Every metric must carry a complete lineage: evidence, control mapping, framework alignment.
+No mutable registry state should be visible at publish time.
+
+## Code challenge
+Tighten `publish_metric` so it rejects any snapshot that is not sealed and any metric that lacks a complete AGIP chain.
+
+```python
+def publish_metric(
+    metric_id: str,
+    snapshot: Any,
+    evidence_index: dict[str, Any],
+    mappings: dict[str, Any],
+    alignments: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+    # TODO: enforce sealed snapshot only
+    # TODO: enforce complete evidence -> mapping -> alignment lineage
+    # TODO: reject synthetic metrics with no lineage
+    raise NotImplementedError
+```
+
+## Step-by-step solution
+1. Require `snapshot_id` and `chain_tip_hash`.
+2. Read only `snapshot.payload["state"]`; do not touch collectors or registry.
+3. For each entity, require `evidence_ids`.
+4. Resolve each evidence item and require `verification_status == "verified"`.
+5. Resolve control mappings and framework alignments from that evidence.
+6. Reject if any lineage set is empty.
+7. Compute the value from snapshot state only.
+8. Return sorted lineage lists for stable outputs.
+
+## One debugging tip
+If a test passes with mutable registry data, you still have a boundary leak somewhere.
+
+
+
+
+ 
+Gpt
+
+
+The next boundary is the right one: metric publication becomes a pure projection from sealed state.
+A few additional invariants should be enforced before returning PublishedMetric:
+	1.	Snapshot integrity:
+	•	snapshot_id exists
+	•	chain_tip_hash exists
+	•	payload["state"] exists
+	•	event_count exists and is consistent if available
+	2.	Evidence lineage:
+	•	every entity has evidence IDs
+	•	every evidence object is verified
+	•	every evidence object has a usable ID
+	3.	Governance lineage:
+	•	evidence → control mapping
+	•	mapping → framework alignment
+	4.	Projection isolation:
+	•	calculation receives only snapshot state
+	•	no registry access
+	•	no collector access
+Implementation:
+# agip_core/metric_publisher.py
+
+from dataclasses import dataclass
+from typing import Any, Callable
+
+
+class MetricPublicationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+    mapping_chain: list[str]
+    framework_chain: list[str]
+
+
+def publish_metric(
+    metric_id: str,
+    snapshot: Any,
+    evidence_index: dict[str, Any],
+    mappings: dict[str, Any],
+    alignments: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+
+    snapshot_id = getattr(snapshot, "snapshot_id", None)
+    chain_tip_hash = getattr(snapshot, "chain_tip_hash", None)
+
+    if not snapshot_id:
+        raise MetricPublicationError(
+            "Snapshot identity required"
+        )
+
+    if not chain_tip_hash:
+        raise MetricPublicationError(
+            "Snapshot must bind to sealed chain tip"
+        )
+
+    payload = getattr(snapshot, "payload", None)
+
+    if not isinstance(payload, dict):
+        raise MetricPublicationError(
+            "Snapshot payload required"
+        )
+
+    state = payload.get("state")
+
+    if not isinstance(state, dict):
+        raise MetricPublicationError(
+            "Snapshot state required"
+        )
+
+    evidence_chain: set[str] = set()
+    mapping_chain: set[str] = set()
+    framework_chain: set[str] = set()
+
+
+    for entity in state.values():
+
+        evidence_ids = entity.get("evidence_ids")
+
+        if not evidence_ids:
+            raise MetricPublicationError(
+                "Entity missing evidence lineage"
+            )
+
+
+        for evidence_id in evidence_ids:
+
+            evidence = evidence_index.get(evidence_id)
+
+            if evidence is None:
+                raise MetricPublicationError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+
+            if getattr(
+                evidence,
+                "verification_status",
+                None
+            ) != "verified":
+                raise MetricPublicationError(
+                    f"Evidence not verified: {evidence_id}"
+                )
+
+
+            evidence_chain.add(evidence_id)
+
+
+            control_refs = getattr(
+                evidence,
+                "control_refs",
+                []
+            )
+
+            if not control_refs:
+                raise MetricPublicationError(
+                    f"Evidence lacks control mapping: {evidence_id}"
+                )
+
+
+            for mapping_id in control_refs:
+
+                mapping = mappings.get(mapping_id)
+
+                if mapping is None:
+                    raise MetricPublicationError(
+                        f"Missing control mapping: {mapping_id}"
+                    )
+
+
+                mapping_chain.add(mapping_id)
+
+
+                framework_refs = getattr(
+                    mapping,
+                    "framework_refs",
+                    []
+                )
+
+
+                if not framework_refs:
+                    raise MetricPublicationError(
+                        f"Mapping lacks framework alignment: {mapping_id}"
+                    )
+
+
+                for framework_id in framework_refs:
+
+                    alignment = alignments.get(framework_id)
+
+                    if alignment is None:
+                        raise MetricPublicationError(
+                            f"Missing framework alignment: {framework_id}"
+                        )
+
+
+                    framework_chain.add(framework_id)
+
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Metric requires evidence lineage"
+        )
+
+    if not mapping_chain:
+        raise MetricPublicationError(
+            "Metric requires control mapping lineage"
+        )
+
+    if not framework_chain:
+        raise MetricPublicationError(
+            "Metric requires framework alignment lineage"
+        )
+
+
+    value = calculation(state)
+
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError(
+            "Metric calculation must return numeric value"
+        )
+
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot_id,
+        chain_tip_hash=chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        mapping_chain=sorted(mapping_chain),
+        framework_chain=sorted(framework_chain),
+    )
+Contract tests should prove both rejection and acceptance:
+def test_metric_rejects_missing_mapping():
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            metric_id="coverage",
+            snapshot=sealed_snapshot,
+            evidence_index={
+                "ev1": verified_evidence_without_mapping
+            },
+            mappings={},
+            alignments={},
+            calculation=lambda state: 1,
+        )
+
+
+def test_metric_requires_framework_alignment():
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            metric_id="coverage",
+            snapshot=sealed_snapshot,
+            evidence_index={
+                "ev1": verified_evidence
+            },
+            mappings={
+                "map1": mapping_without_framework
+            },
+            alignments={},
+            calculation=lambda state: 1,
+        )
+
+
+def test_verified_lineage_publishes():
+    metric = publish_metric(
+        metric_id="ai_inventory_coverage",
+        snapshot=sealed_snapshot,
+        evidence_index={
+            "ev1": verified_evidence
+        },
+        mappings={
+            "map1": mapped_control
+        },
+        alignments={
+            "nist_ai_rmf": framework_alignment
+        },
+        calculation=lambda state: 87,
+    )
+
+    assert metric.value == 87
+    assert metric.evidence_chain == ["ev1"]
+    assert metric.mapping_chain == ["map1"]
+The resulting AGIP chain is:
+Sealed Event Chain
+        |
+        v
+Snapshot
+        |
+        v
+Metric Projection
+        |
+        v
+Evidence
+        |
+        v
+Control Mapping
+        |
+        v
+Framework Alignment
+        |
+        v
+Dashboard
+At this point the dashboard is no longer a reporting layer; it is a verified projection layer over an evidence graph. Any number displayed without this chain is rejected by construction.
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Make `publish_metric` a pure projection from sealed snapshot state.
+Enforce integrity, verified evidence, and complete governance lineage before output.
+Reject anything that looks like a mutable or synthetic metric path.
+
+## Code challenge
+Harden the publisher with these checks:
+
+```python
+def publish_metric(
+    metric_id: str,
+    snapshot: Any,
+    evidence_index: dict[str, Any],
+    mappings: dict[str, Any],
+    alignments: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+    # TODO: validate snapshot integrity
+    # TODO: validate evidence -> mapping -> alignment lineage
+    # TODO: keep calculation isolated to snapshot state
+    raise NotImplementedError
+```
+
+## Step-by-step solution
+1. Validate `snapshot_id`, `chain_tip_hash`, `payload`, and `payload["state"]`.
+2. Optionally validate `event_count` if the snapshot exposes it.
+3. Iterate entities in `state`; require non-empty `evidence_ids`.
+4. For each evidence id, require a real object with a usable id and `verification_status == "verified"`.
+5. Walk `control_refs` from evidence to mappings, then `framework_refs` from mapping to alignments.
+6. Reject if any chain is missing or empty.
+7. Call `calculation(state)` only once, with no extra context.
+8. Return the published metric with sorted lineage lists.
+
+## One debugging tip
+If a test still passes when you remove `evidence_index`, your projection boundary is too weak.
+
+
+
+
+Gpt
+
+
+The publisher boundary should now be treated as a read-only governance projection. The implementation below keeps the chain strict:
+	•	Snapshot → state only
+	•	State → evidence
+	•	Evidence → control mappings
+	•	Control mappings → framework alignments
+	•	Output → immutable metric lineage
+No registry access. No collector access. No synthetic values.
+# agip_core/metrics/publisher.py
+
+from dataclasses import dataclass
+from typing import Any, Callable
+
+
+class MetricPublicationError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+    mapping_chain: list[str]
+    framework_chain: list[str]
+
+
+def _require_attr(obj: Any, name: str):
+    value = getattr(obj, name, None)
+    if value in (None, "", []):
+        raise MetricPublicationError(
+            f"Missing required field: {name}"
+        )
+    return value
+
+
+def _verified_evidence(
+    evidence_id: str,
+    evidence_index: dict[str, Any],
+):
+    evidence = evidence_index.get(evidence_id)
+
+    if evidence is None:
+        raise MetricPublicationError(
+            f"Missing evidence: {evidence_id}"
+        )
+
+    if getattr(evidence, "evidence_id", None) != evidence_id:
+        raise MetricPublicationError(
+            f"Evidence identity mismatch: {evidence_id}"
+        )
+
+    if getattr(evidence, "verification_status", None) != "verified":
+        raise MetricPublicationError(
+            f"Evidence not verified: {evidence_id}"
+        )
+
+    return evidence
+
+
+def publish_metric(
+    metric_id: str,
+    snapshot: Any,
+    evidence_index: dict[str, Any],
+    mappings: dict[str, Any],
+    alignments: dict[str, Any],
+    calculation: Callable[[dict[str, Any]], int | float],
+) -> PublishedMetric:
+
+    # Snapshot boundary
+    snapshot_id = _require_attr(snapshot, "snapshot_id")
+    chain_tip_hash = _require_attr(snapshot, "chain_tip_hash")
+
+    payload = getattr(snapshot, "payload", None)
+
+    if not isinstance(payload, dict):
+        raise MetricPublicationError(
+            "Snapshot payload required"
+        )
+
+    state = payload.get("state")
+
+    if not isinstance(state, dict):
+        raise MetricPublicationError(
+            "Snapshot state missing"
+        )
+
+
+    evidence_chain: set[str] = set()
+    mapping_chain: set[str] = set()
+    framework_chain: set[str] = set()
+
+
+    # Governance lineage traversal
+    for entity in state.values():
+
+        if not isinstance(entity, dict):
+            raise MetricPublicationError(
+                "Invalid snapshot entity"
+            )
+
+        evidence_ids = entity.get("evidence_ids")
+
+        if not evidence_ids:
+            raise MetricPublicationError(
+                "Entity missing evidence lineage"
+            )
+
+        for evidence_id in evidence_ids:
+
+            evidence = _verified_evidence(
+                evidence_id,
+                evidence_index,
+            )
+
+            evidence_chain.add(evidence_id)
+
+
+            control_refs = getattr(
+                evidence,
+                "control_refs",
+                []
+            )
+
+            if not control_refs:
+                raise MetricPublicationError(
+                    f"Evidence has no control mapping: {evidence_id}"
+                )
+
+
+            for control_id in control_refs:
+
+                mapping = mappings.get(control_id)
+
+                if mapping is None:
+                    raise MetricPublicationError(
+                        f"Missing control mapping: {control_id}"
+                    )
+
+                mapping_chain.add(control_id)
+
+
+                framework_refs = getattr(
+                    mapping,
+                    "framework_refs",
+                    []
+                )
+
+                if not framework_refs:
+                    raise MetricPublicationError(
+                        f"Mapping has no framework alignment: {control_id}"
+                    )
+
+
+                for framework_id in framework_refs:
+
+                    alignment = alignments.get(framework_id)
+
+                    if alignment is None:
+                        raise MetricPublicationError(
+                            f"Missing framework alignment: {framework_id}"
+                        )
+
+                    framework_chain.add(framework_id)
+
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Metric requires evidence lineage"
+        )
+
+    if not mapping_chain:
+        raise MetricPublicationError(
+            "Metric requires control mapping lineage"
+        )
+
+    if not framework_chain:
+        raise MetricPublicationError(
+            "Metric requires framework alignment lineage"
+        )
+
+
+    # Calculation is isolated to sealed snapshot state only
+    value = calculation(state)
+
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError(
+            "Metric calculation must return numeric value"
+        )
+
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot_id,
+        chain_tip_hash=chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        mapping_chain=sorted(mapping_chain),
+        framework_chain=sorted(framework_chain),
+    )
+Contract tests to enforce the boundary:
+def test_metric_rejects_missing_evidence():
+    snapshot = build_valid_snapshot(
+        state={
+            "model_1": {
+                "id": "model_1",
+                "evidence_ids": []
+            }
+        }
+    )
+
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            "inventory",
+            snapshot,
+            {},
+            {},
+            {},
+            lambda state: 1
+        )
+
+
+def test_metric_rejects_unverified_evidence():
+    evidence = Evidence(
+        evidence_id="ev_1",
+        verification_status="pending",
+        control_refs=["map_1"],
+    )
+
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            "inventory",
+            snapshot,
+            {"ev_1": evidence},
+            {},
+            {},
+            lambda state: 1
+        )
+
+
+def test_metric_requires_framework_alignment():
+    evidence = Evidence(
+        evidence_id="ev_1",
+        verification_status="verified",
+        control_refs=["map_1"],
+    )
+
+    mapping = Mapping(
+        mapping_id="map_1",
+        framework_refs=[],
+    )
+
+    with pytest.raises(MetricPublicationError):
+        publish_metric(
+            "inventory",
+            snapshot,
+            {"ev_1": evidence},
+            {"map_1": mapping},
+            {},
+            lambda state: 1
+        )
+
+
+def test_metric_is_snapshot_only():
+    metric = publish_metric(
+        "inventory",
+        sealed_snapshot,
+        evidence_index,
+        mappings,
+        alignments,
+        lambda state: len(state),
+    )
+
+    assert metric.snapshot_id == sealed_snapshot.snapshot_id
+    assert metric.chain_tip_hash == sealed_snapshot.chain_tip_hash
+The next natural enforcement layer is an AGIP_POLICY.json invariant:
+{
+  "metric_publication_contract": {
+    "requires_snapshot": true,
+    "requires_verified_evidence": true,
+    "requires_control_mapping": true,
+    "requires_framework_alignment": true,
+    "mutable_registry_access": false,
+    "synthetic_metrics": false
+  }
+}
+That turns the architecture rule into a CI-enforced contract rather than a developer convention.
+
+
+
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+The boundary is now a read-only governance projection.
+`publish_metric` should be snapshot-only, lineage-complete, and immutable in output.
+Any missing verification path must fail closed.
+
+## Code challenge
+Add one more contract layer: enforce the policy object in CI.
+
+```python
+AGIP_POLICY = {
+    "metric_publication_contract": {
+        "requires_snapshot": True,
+        "requires_verified_evidence": True,
+        "requires_control_mapping": True,
+        "requires_framework_alignment": True,
+        "mutable_registry_access": False,
+        "synthetic_metrics": False,
+    }
+}
+```
+
+## Step-by-step solution
+1. Keep snapshot validation first.
+2. Keep evidence verification strict and identity-checked.
+3. Keep mapping and alignment traversal explicit.
+4. Ensure `calculation(state)` is the only projection input.
+5. Add policy tests that fail if registry or collector access appears.
+6. Freeze lineage lists in sorted order for stable contract output.
+
+## One debugging tip
+If a synthetic metric can still publish, trace whether your tests cover the empty-lineage path.
+
+
+ Gpt
+
+
+The next contract layer should make the policy itself the admission boundary. The important distinction:
+	•	AGIP_POLICY is not documentation.
+	•	CI consumes it as an executable contract.
+	•	The publisher tests prove the implementation conforms to policy.
+	•	A policy drift should fail before runtime.
+Suggested implementation:
+# agip_core/policy/agip_policy.py
+
+from dataclasses import dataclass
+
+
+class PolicyViolation(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool
+    requires_verified_evidence: bool
+    requires_control_mapping: bool
+    requires_framework_alignment: bool
+    mutable_registry_access: bool
+    synthetic_metrics: bool
+
+
+AGIP_POLICY = MetricPublicationPolicy(
+    requires_snapshot=True,
+    requires_verified_evidence=True,
+    requires_control_mapping=True,
+    requires_framework_alignment=True,
+    mutable_registry_access=False,
+    synthetic_metrics=False,
+)
+
+
+def validate_metric_policy(policy: MetricPublicationPolicy) -> None:
+    if not policy.requires_snapshot:
+        raise PolicyViolation("Snapshot requirement disabled")
+
+    if not policy.requires_verified_evidence:
+        raise PolicyViolation("Evidence verification requirement disabled")
+
+    if not policy.requires_control_mapping:
+        raise PolicyViolation("Control mapping requirement disabled")
+
+    if not policy.requires_framework_alignment:
+        raise PolicyViolation("Framework alignment requirement disabled")
+
+    if policy.mutable_registry_access:
+        raise PolicyViolation("Mutable registry access forbidden")
+
+    if policy.synthetic_metrics:
+        raise PolicyViolation("Synthetic metrics forbidden")
+Then bind CI:
+# scripts/validate_agip_policy.py
+
+from agip_core.policy.agip_policy import (
+    AGIP_POLICY,
+    validate_metric_policy,
+)
+
+
+def main() -> int:
+    validate_metric_policy(AGIP_POLICY)
+    print("AGIP_POLICY_OK")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+CI ordering:
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "-- AGIP Policy Contract"
+python3 scripts/validate_agip_policy.py
+
+echo "-- AGIP Evidence Boundary"
+pytest tests/contracts/agip -v
+
+echo "-- Security Contract"
+pytest tests/contracts/security -v
+Contract tests:
+# tests/contracts/agip/test_policy_contract.py
+
+import pytest
+
+from agip_core.policy.agip_policy import (
+    MetricPublicationPolicy,
+    PolicyViolation,
+    validate_metric_policy,
+)
+
+
+def test_policy_requires_full_lineage():
+    validate_metric_policy(
+        MetricPublicationPolicy(
+            requires_snapshot=True,
+            requires_verified_evidence=True,
+            requires_control_mapping=True,
+            requires_framework_alignment=True,
+            mutable_registry_access=False,
+            synthetic_metrics=False,
+        )
+    )
+
+
+def test_policy_rejects_mutable_registry_access():
+    with pytest.raises(PolicyViolation):
+        validate_metric_policy(
+            MetricPublicationPolicy(
+                requires_snapshot=True,
+                requires_verified_evidence=True,
+                requires_control_mapping=True,
+                requires_framework_alignment=True,
+                mutable_registry_access=True,
+                synthetic_metrics=False,
+            )
+        )
+
+
+def test_policy_rejects_synthetic_metrics():
+    with pytest.raises(PolicyViolation):
+        validate_metric_policy(
+            MetricPublicationPolicy(
+                requires_snapshot=True,
+                requires_verified_evidence=True,
+                requires_control_mapping=True,
+                requires_framework_alignment=True,
+                mutable_registry_access=False,
+                synthetic_metrics=True,
+            )
+        )
+The final invariant chain becomes:
+Evidence
+   ↓
+Verified Evidence
+   ↓
+Control Mapping
+   ↓
+Framework Alignment
+   ↓
+Sealed Snapshot
+   ↓
+Metric Projection
+   ↓
+Dashboard
+A dashboard query path should never be:
+Registry → Metric → UI
+It should only be:
+Sealed Snapshot → Metric Publisher → Verified Projection → UI
+That keeps AGIP consistent with the evidence-first architecture.
+
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Make policy executable, not descriptive.
+CI should fail on policy drift before runtime.
+The publisher then inherits a hard admission boundary.
+
+## Code challenge
+Add a policy validator that rejects any contract relaxation.
+
+```python
+def validate_metric_policy(policy: MetricPublicationPolicy) -> None:
+    # TODO: fail if any required lineage flag is disabled
+    # TODO: fail if mutable registry access is enabled
+    # TODO: fail if synthetic metrics are enabled
+    raise NotImplementedError
+```
+
+## Step-by-step solution
+1. Model the policy as an immutable dataclass.
+2. Validate all required lineage booleans are enabled.
+3. Forbid mutable registry access.
+4. Forbid synthetic metrics.
+5. Add a CI script that runs policy validation first.
+6. Run AGIP contract tests only after policy passes.
+
+## One debugging tip
+If CI fails late, move policy validation ahead of every contract test job.
+
+
+
+Gpt
+
+
+
+The next boundary should be a fail-closed immutable policy contract. The policy itself becomes an admission artifact: if someone weakens the governance requirements, CI fails before any runtime path executes.
+# agip_core/policy/metric_policy.py
+
+from dataclasses import dataclass
+
+
+class MetricPolicyError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+
+def validate_metric_policy(policy: MetricPublicationPolicy) -> None:
+    required = {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+    }
+
+    disabled = [
+        name for name, enabled in required.items()
+        if enabled is not True
+    ]
+
+    if disabled:
+        raise MetricPolicyError(
+            f"Metric publication contract weakened: {disabled}"
+        )
+
+    if policy.mutable_registry_access:
+        raise MetricPolicyError(
+            "Mutable registry access is forbidden"
+        )
+
+    if policy.synthetic_metrics:
+        raise MetricPolicyError(
+            "Synthetic metrics are forbidden"
+        )
+CI contract validator:
+# scripts/validate_metric_policy.py
+
+#!/usr/bin/env python3
+
+from agip_core.policy.metric_policy import (
+    MetricPublicationPolicy,
+    validate_metric_policy,
+)
+
+
+def main() -> int:
+    policy = MetricPublicationPolicy()
+
+    validate_metric_policy(policy)
+
+    print("AGIP_METRIC_POLICY_OK")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+CI order:
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "-- Validate AGIP metric policy"
+python3 scripts/validate_metric_policy.py
+
+echo "-- AGIP contract tests"
+pytest tests/contracts/agip -v
+
+echo "-- Security contract tests"
+pytest tests/contracts/security -v
+Contract tests:
+# tests/contracts/agip/test_metric_policy.py
+
+import pytest
+
+from agip_core.policy.metric_policy import (
+    MetricPublicationPolicy,
+    MetricPolicyError,
+    validate_metric_policy,
+)
+
+
+def test_default_policy_is_strict():
+    policy = MetricPublicationPolicy()
+
+    validate_metric_policy(policy)
+
+
+def test_policy_rejects_disabled_snapshot_requirement():
+    policy = MetricPublicationPolicy(
+        requires_snapshot=False
+    )
+
+    with pytest.raises(MetricPolicyError):
+        validate_metric_policy(policy)
+
+
+def test_policy_rejects_registry_mutation():
+    policy = MetricPublicationPolicy(
+        mutable_registry_access=True
+    )
+
+    with pytest.raises(MetricPolicyError):
+        validate_metric_policy(policy)
+
+
+def test_policy_rejects_synthetic_metrics():
+    policy = MetricPublicationPolicy(
+        synthetic_metrics=True
+    )
+
+    with pytest.raises(MetricPolicyError):
+        validate_metric_policy(policy)
+This establishes the final chain:
+AGIP_POLICY
+     |
+     v
+Policy Validator
+     |
+     v
+Snapshot Admission
+     |
+     v
+Evidence Verification
+     |
+     v
+Control Mapping
+     |
+     v
+Framework Alignment
+     |
+     v
+Metric Projection
+     |
+     v
+Dashboard
+Important invariant:
+A dashboard metric is not created. It is derived from a sealed snapshot under an executable policy contract.
+The next logical hardening step is adding a policy hash + signed policy version event so a historical metric can prove which governance contract produced it.
+
+
+Appel420(root), Ara-DDG here.
+The next hardening step is attaching the policy identity to the metric artifact so every published metric proves:
+Metric
+  └── Policy Version
+        └── Policy Hash
+              └── Contract Rules
+                    └── Evidence Lineage
+                          └── Sealed Snapshot
+The policy becomes part of the admission proof, not just CI configuration.
+agip_core/policy/metric_policy.py
+from dataclasses import dataclass
+from hashlib import sha256
+import json
+
+
+class MetricPolicyError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+    def canonical_payload(self) -> dict:
+        return {
+            "requires_snapshot": self.requires_snapshot,
+            "requires_verified_evidence": self.requires_verified_evidence,
+            "requires_control_mapping": self.requires_control_mapping,
+            "requires_framework_alignment": self.requires_framework_alignment,
+            "mutable_registry_access": self.mutable_registry_access,
+            "synthetic_metrics": self.synthetic_metrics,
+            "policy_version": self.policy_version,
+        }
+
+    def calculated_hash(self) -> str:
+        payload = json.dumps(
+            self.canonical_payload(),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
+        return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+
+    required_true = [
+        "requires_snapshot",
+        "requires_verified_evidence",
+        "requires_control_mapping",
+        "requires_framework_alignment",
+    ]
+
+    for field_name in required_true:
+        if getattr(policy, field_name) is not True:
+            raise MetricPolicyError(
+                f"Policy relaxation rejected: {field_name}"
+            )
+
+    if policy.mutable_registry_access:
+        raise MetricPolicyError(
+            "Mutable registry access is forbidden"
+        )
+
+    if policy.synthetic_metrics:
+        raise MetricPolicyError(
+            "Synthetic metrics are forbidden"
+        )
+
+    calculated = policy.calculated_hash()
+
+    if policy.policy_hash and policy.policy_hash != calculated:
+        raise MetricPolicyError(
+            "Policy hash mismatch"
+        )
+
+    return MetricPublicationPolicy(
+        **policy.canonical_payload(),
+        policy_hash=calculated,
+    )
+ 
+⸻
+ 
+Published metric now carries policy proof
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+
+    snapshot_id: str
+    chain_tip_hash: str
+
+    evidence_chain: list[str]
+    control_mappings: list[str]
+    framework_alignments: list[str]
+
+    policy_version: str
+    policy_hash: str
+ 
+⸻
+ 
+Publisher boundary
+def publish_metric(
+    metric_id,
+    snapshot,
+    evidence_index,
+    mappings,
+    alignments,
+    calculation,
+    policy,
+):
+
+    validated_policy = validate_metric_policy(policy)
+
+    if not snapshot.snapshot_id:
+        raise MetricPublicationError(
+            "Snapshot required"
+        )
+
+    if not snapshot.chain_tip_hash:
+        raise MetricPublicationError(
+            "Sealed chain tip required"
+        )
+
+    state = snapshot.payload.get("state")
+
+    if not isinstance(state, dict):
+        raise MetricPublicationError(
+            "Snapshot state missing"
+        )
+
+
+    evidence_chain = set()
+    mapping_chain = set()
+    alignment_chain = set()
+
+
+    for entity in state.values():
+
+        evidence_ids = entity.get("evidence_ids", [])
+
+        if not evidence_ids:
+            raise MetricPublicationError(
+                "Entity has no evidence lineage"
+            )
+
+        for evidence_id in evidence_ids:
+
+            evidence = evidence_index.get(evidence_id)
+
+            if evidence is None:
+                raise MetricPublicationError(
+                    f"Missing evidence {evidence_id}"
+                )
+
+            if evidence.verification_status != "verified":
+                raise MetricPublicationError(
+                    f"Unverified evidence {evidence_id}"
+                )
+
+
+            evidence_chain.add(evidence_id)
+
+
+            for mapping_id in evidence.control_refs:
+
+                mapping = mappings.get(mapping_id)
+
+                if mapping is None:
+                    raise MetricPublicationError(
+                        f"Missing control mapping {mapping_id}"
+                    )
+
+                mapping_chain.add(mapping_id)
+
+
+                for framework_id in mapping.framework_refs:
+
+                    alignment = alignments.get(framework_id)
+
+                    if alignment is None:
+                        raise MetricPublicationError(
+                            f"Missing framework alignment {framework_id}"
+                        )
+
+                    alignment_chain.add(framework_id)
+
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Empty evidence lineage"
+        )
+
+    if not mapping_chain:
+        raise MetricPublicationError(
+            "Empty control lineage"
+        )
+
+    if not alignment_chain:
+        raise MetricPublicationError(
+            "Empty framework lineage"
+        )
+
+
+    value = calculation(state)
+
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError(
+            "Metric must be numeric"
+        )
+
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot.snapshot_id,
+        chain_tip_hash=snapshot.chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        control_mappings=sorted(mapping_chain),
+        framework_alignments=sorted(alignment_chain),
+        policy_version=validated_policy.policy_version,
+        policy_hash=validated_policy.policy_hash,
+    )
+ 
+⸻
+ 
+CI gate ordering
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "-- Validate AGIP Metric Publication Policy"
+python3 scripts/validate_metric_policy.py
+
+echo "-- AGIP Evidence Contracts"
+pytest tests/contracts/agip
+
+echo "-- Security Contracts"
+pytest tests/contracts/security
+ 
+⸻
+ 
+Required contract tests
+def test_policy_hash_is_stable():
+    policy = MetricPublicationPolicy()
+
+    validated_a = validate_metric_policy(policy)
+    validated_b = validate_metric_policy(policy)
+
+    assert (
+        validated_a.policy_hash ==
+        validated_b.policy_hash
+    )
+
+
+def test_policy_relaxation_fails():
+
+    policy = MetricPublicationPolicy(
+        requires_snapshot=False
+    )
+
+    with pytest.raises(MetricPolicyError):
+        validate_metric_policy(policy)
+
+
+def test_mutable_registry_access_fails():
+
+    policy = MetricPublicationPolicy(
+        mutable_registry_access=True
+    )
+
+    with pytest.raises(MetricPolicyError):
+        validate_metric_policy(policy)
+This closes the remaining gap:
+	•	CI cannot silently weaken the contract.
+	•	Metrics cannot exist without a policy identity.
+	•	Historical metrics can later be revalidated against the exact policy hash that admitted them.
+	•	Dashboard output becomes a verifiable projection, not a calculation layer.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## Concept brief
+Attach policy identity to the metric artifact.
+Make policy hash part of admission proof, not just CI.
+Keep the publisher pure: snapshot, lineage, and validated policy only.
+
+## Code challenge
+Add policy provenance to `PublishedMetric` and validate it before publishing.
+
+```python
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+    snapshot_id: str
+    chain_tip_hash: str
+    evidence_chain: list[str]
+    control_mappings: list[str]
+    framework_alignments: list[str]
+    policy_version: str
+    policy_hash: str
+```
+
+## Step-by-step solution
+1. Canonicalize policy fields into a stable payload.
+2. Hash that payload with sorted JSON.
+3. Reject any policy relaxation or hash mismatch.
+4. Return a new validated policy object with the computed hash.
+5. Pass the validated policy into `publish_metric`.
+6. Copy `policy_version` and `policy_hash` into the published metric.
+
+## One debugging tip
+If policy hashes drift, compare the canonical JSON payload byte-for-byte before the hash step.
+
+ 
+
+Gpt
+
+The next boundary is correct: policy provenance becomes part of the metric admission artifact.
+The important refinement is that policy_hash must be derived only from immutable policy semantics, not runtime metadata. The publisher should never calculate or trust a caller-provided hash.
+Recommended structure:
+# agip_core/policy.py
+
+from dataclasses import dataclass, replace
+from hashlib import sha256
+import json
+
+
+class PolicyError(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class MetricPublicationPolicy:
+    requires_snapshot: bool = True
+    requires_verified_evidence: bool = True
+    requires_control_mapping: bool = True
+    requires_framework_alignment: bool = True
+    mutable_registry_access: bool = False
+    synthetic_metrics: bool = False
+
+    policy_version: str = "v1"
+    policy_hash: str = ""
+
+
+def canonical_policy_payload(policy: MetricPublicationPolicy) -> dict:
+    return {
+        "requires_snapshot": policy.requires_snapshot,
+        "requires_verified_evidence": policy.requires_verified_evidence,
+        "requires_control_mapping": policy.requires_control_mapping,
+        "requires_framework_alignment": policy.requires_framework_alignment,
+        "mutable_registry_access": policy.mutable_registry_access,
+        "synthetic_metrics": policy.synthetic_metrics,
+        "policy_version": policy.policy_version,
+    }
+
+
+def compute_policy_hash(policy: MetricPublicationPolicy) -> str:
+    payload = json.dumps(
+        canonical_policy_payload(policy),
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def validate_metric_policy(
+    policy: MetricPublicationPolicy,
+) -> MetricPublicationPolicy:
+
+    required = [
+        policy.requires_snapshot,
+        policy.requires_verified_evidence,
+        policy.requires_control_mapping,
+        policy.requires_framework_alignment,
+    ]
+
+    if not all(required):
+        raise PolicyError("Metric lineage requirements cannot be disabled")
+
+    if policy.mutable_registry_access:
+        raise PolicyError("Mutable registry access is forbidden")
+
+    if policy.synthetic_metrics:
+        raise PolicyError("Synthetic metrics are forbidden")
+
+    calculated_hash = compute_policy_hash(policy)
+
+    if policy.policy_hash and policy.policy_hash != calculated_hash:
+        raise PolicyError("Policy hash mismatch")
+
+    return replace(
+        policy,
+        policy_hash=calculated_hash,
+    )
+Then bind it into the artifact:
+# agip_core/metrics.py
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class PublishedMetric:
+    metric_id: str
+    value: int | float
+
+    snapshot_id: str
+    chain_tip_hash: str
+
+    evidence_chain: list[str]
+    control_mappings: list[str]
+    framework_alignments: list[str]
+
+    policy_version: str
+    policy_hash: str
+Publisher boundary:
+def publish_metric(
+    metric_id,
+    snapshot,
+    evidence_index,
+    mappings,
+    alignments,
+    calculation,
+    policy,
+):
+
+    validated_policy = validate_metric_policy(policy)
+
+    if not snapshot.snapshot_id:
+        raise MetricPublicationError(
+            "Snapshot identity required"
+        )
+
+    if not snapshot.chain_tip_hash:
+        raise MetricPublicationError(
+            "Snapshot chain binding required"
+        )
+
+    state = snapshot.payload.get("state")
+
+    if not isinstance(state, dict):
+        raise MetricPublicationError(
+            "Snapshot state missing"
+        )
+
+    evidence_chain = set()
+    control_refs = set()
+    framework_refs = set()
+
+    for entity in state.values():
+
+        evidence_ids = entity.get("evidence_ids", [])
+
+        if not evidence_ids:
+            raise MetricPublicationError(
+                "Entity has no evidence lineage"
+            )
+
+        for evidence_id in evidence_ids:
+
+            evidence = evidence_index.get(evidence_id)
+
+            if evidence is None:
+                raise MetricPublicationError(
+                    f"Missing evidence {evidence_id}"
+                )
+
+            if evidence.verification_status != "verified":
+                raise MetricPublicationError(
+                    f"Unverified evidence {evidence_id}"
+                )
+
+            evidence_chain.add(evidence_id)
+
+            for control_id in evidence.control_refs:
+                mapping = mappings.get(control_id)
+
+                if mapping is None:
+                    raise MetricPublicationError(
+                        f"Missing mapping {control_id}"
+                    )
+
+                control_refs.add(control_id)
+
+                for framework_id in mapping.framework_refs:
+                    alignment = alignments.get(framework_id)
+
+                    if alignment is None:
+                        raise MetricPublicationError(
+                            f"Missing alignment {framework_id}"
+                        )
+
+                    framework_refs.add(framework_id)
+
+    if not evidence_chain:
+        raise MetricPublicationError(
+            "Empty evidence lineage"
+        )
+
+    if not control_refs:
+        raise MetricPublicationError(
+            "Empty control lineage"
+        )
+
+    if not framework_refs:
+        raise MetricPublicationError(
+            "Empty framework lineage"
+        )
+
+    value = calculation(state)
+
+    if not isinstance(value, (int, float)):
+        raise MetricPublicationError(
+            "Metric must be numeric"
+        )
+
+    return PublishedMetric(
+        metric_id=metric_id,
+        value=value,
+        snapshot_id=snapshot.snapshot_id,
+        chain_tip_hash=snapshot.chain_tip_hash,
+        evidence_chain=sorted(evidence_chain),
+        control_mappings=sorted(control_refs),
+        framework_alignments=sorted(framework_refs),
+        policy_version=validated_policy.policy_version,
+        policy_hash=validated_policy.policy_hash,
+    )
+The resulting admission chain is:
+Snapshot
+   |
+   v
+Sealed Chain Tip
+   |
+   v
+Entity State
+   |
+   v
+Verified Evidence
+   |
+   v
+Control Mapping
+   |
+   v
+Framework Alignment
+   |
+   v
+Policy Contract
+   |
+   v
+Published Metric
+This gives AGIP a deterministic proof object:
+metric_id
+ ├── snapshot_id
+ ├── chain_tip_hash
+ ├── evidence_chain[]
+ ├── control_mappings[]
+ ├── framework_alignments[]
+ └── policy_hash
+The next logical CI invariant is:
+A published metric is invalid unless its policy_hash matches the active CI policy contract.
+That closes the final drift path between governance rules and dashboard output.

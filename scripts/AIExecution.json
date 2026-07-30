@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "compute_mode": {
+      "type": "string",
+      "enum": ["localonly", "remoteapproved"],
+      "description": "localonly = no network calls permitted. remoteapproved = requires network_fallback.userpromptrequired=true at the root level."
+    },
+    "confirm_coherence": { "type": "boolean" },
+    "tool_usage": { "type": "boolean" },
+    "model_registry": {
+      "type": "object",
+      "description": "Full visible list of providers, including blocked ones. Blocked entries stay in this list with allowed=false so nothing is hidden from the user.",
+      "properties": {
+        "sanctioned": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["claude", "gpt", "grok", "github-copilot"] }
+        },
+        "blocked": {
+          "type": "array",
+          "description": "Visible in every selection UI, permanently allowed=false. Never removed from display, never selectable.",
+          "items": { "type": "string", "enum": ["gemini", "llama"] },
+          "default": ["gemini", "llama"]
+        }
+      },
+      "required": ["sanctioned", "blocked"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["compute_mode", "confirm_coherence", "model_registry"],
+  "if": {
+    "properties": { "compute_mode": { "const": "remoteapproved" } }
+  },
+  "then": {
+    "description": "remoteapproved mode requires explicit root-level network_fallback consent gate — enforced via cross-schema reference at validation time, not silently.",
+    "properties": { "compute_mode": { "const": "remoteapproved" } }
+  },
+  "additionalProperties": false
+}
