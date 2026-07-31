@@ -1,15 +1,11 @@
 name: Python CI
 
-# Lightweight path for ara-hardened / dev.
-# Full PQC (oqs/liboqs) belongs on device or a separate owner-approved workflow — not here.
-# OAuth generator is workflow_dispatch-only (see oauth-api-generator.yml).
-
+# PR runs PAUSED — file kept. Use push to ara-hardened/dev or workflow_dispatch.
 on:
   workflow_dispatch:
   push:
     branches: [ dev, ara-hardened ]
-  pull_request:
-    branches: [ dev, ara-hardened ]
+  # pull_request: paused
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -33,8 +29,6 @@ jobs:
       - name: Install lightweight test/lint tools only
         run: |
           python -m pip install --upgrade pip
-          # Do not install oqs / liboqs / full PQC native stack in CI.
-          # Do not run oauth_local_generator or safety network checks.
           pip install ruff pytest || true
           pip install -e ".[test,lint]" 2>/dev/null || true
 
@@ -73,6 +67,7 @@ jobs:
               'signing_backend': 'hmac-sha256-ci-local',
               'pqc_full_build': False,
               'oauth_generator': False,
+              'pr_trigger': 'paused',
               'note': 'Real ML-DSA-87 is device/offline; CI does not download oqs/liboqs',
           }
 
@@ -87,7 +82,7 @@ jobs:
           with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(manifest, fh, indent=2)
 
-          print('Python CI local manifest created (no oqs, no oauth generator)')
+          print('Python CI local manifest created (PR paused)')
           PY
 
       - name: Upload Test Manifest
