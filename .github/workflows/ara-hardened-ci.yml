@@ -1,14 +1,13 @@
 name: Ara Hardened CI (light)
 
-# Focused checks for ara-hardened only.
-# Does NOT: install liboqs/oqs, run oauth-api-generator, docker push, safety.net, cosign.
+# Light checks only. PR auto-run PAUSED (workflow kept).
+# No OAuth generator, no full PQC/oqs.
 
 on:
   push:
     branches: [ ara-hardened ]
-  pull_request:
-    branches: [ ara-hardened ]
   workflow_dispatch:
+  # pull_request: paused
 
 concurrency:
   group: ara-hardened-ci-${{ github.ref }}
@@ -40,7 +39,6 @@ jobs:
       - name: Install minimal test tools (no PQC extras)
         run: |
           python -m pip install --upgrade pip
-          # Intentionally NOT: oqs, liboqs, .[pqc], safety, full crypto native build
           pip install pytest
 
       - name: Coordination unit import check
@@ -78,6 +76,7 @@ jobs:
               "ref": "${{ github.ref }}",
               "pqc_full_build": False,
               "oauth_generator": False,
+              "pr_trigger": "paused",
               "network_mode": "offline",
               "timestamp": int(time.time()),
           }
