@@ -1,7 +1,8 @@
 """Authoritative agent branch registry.
 
 The registry describes ownership and permitted scopes; it does not grant root
-authority. Integration into ``main`` always remains an owner-approved action.
+authority. Integration into ``main`` and ``collaboration`` remains
+owner-controlled (merge, cherry-pick, or owner-authorized daemon).
 Agents never create branches through this module.
 """
 from __future__ import annotations
@@ -10,8 +11,17 @@ from dataclasses import dataclass
 from typing import Iterable
 
 
-# Agent-writable lanes only. ``main`` is never registered as writable.
-PROTECTED_BRANCHES: frozenset[str] = frozenset({"main", "master"})
+# Not agent-writable. Owner-controlled promotion only.
+PROTECTED_BRANCHES: frozenset[str] = frozenset({"main", "master", "collaboration"})
+
+# Owner-controlled integration/production operations (not agent autonomous writes).
+OWNER_CONTROLLED_OPERATIONS: frozenset[str] = frozenset(
+    {
+        "owner-approved merge",
+        "owner-approved cherry-pick",
+        "owner-authorized integration daemon",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,6 +99,12 @@ class BranchRegistry:
 
     def is_writable(self, branch: str) -> bool:
         return branch not in PROTECTED_BRANCHES and branch in self._entries
+
+    def is_owner_controlled(self, branch: str) -> bool:
+        return branch in PROTECTED_BRANCHES
+
+    def accepted_owner_operations(self) -> frozenset[str]:
+        return OWNER_CONTROLLED_OPERATIONS
 
     def branches(self) -> tuple[str, ...]:
         return tuple(sorted(self._entries))
