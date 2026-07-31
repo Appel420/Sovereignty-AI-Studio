@@ -1,0 +1,12 @@
+{
+  "owner_authority": "human-entity-owner",
+  "cloud_allowed": false,
+  "cloud_first": false,
+  "pull_request_hosted_dependencies": false,
+  "required_runner": ["self-hosted Linux arm64"],
+  "fail_closed": true,
+  "delete_nothing": true,
+  "network_mode": "offline",
+  "local_only": true,
+  "external_feeds": "disabled"
+}
