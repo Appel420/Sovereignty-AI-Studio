@@ -1,0 +1,3523 @@
+Compliance v1
+Confirmed. The next artifact is the AGIP v1.0 Repository Architecture.
+The important design choice: keep Evidence Fabric, Registry, and Intelligence Collection separate. The collector should never directly mutate truth. It produces evidence; the registry consumes verified evidence.
+Sovereignty AGIP Repository Architecture v1.0
+sovereignty-agip/
+
+├── README.md
+├── LICENSE
+├── ARCHITECTURE.md
+├── SECURITY_MODEL.md
+├── CONTRIBUTING.md
+│
+├── apps/
+│   │
+│   ├── api/
+│   │   ├── main.py
+│   │   ├── routes/
+│   │   │   ├── companies.py
+│   │   │   ├── models.py
+│   │   │   ├── releases.py
+│   │   │   ├── evidence.py
+│   │   │   ├── incidents.py
+│   │   │   └── timeline.py
+│   │   │
+│   │   └── middleware/
+│   │       ├── auth.py
+│   │       ├── audit.py
+│   │       └── verification.py
+│   │
+│   └── dashboard/
+│       ├── market/
+│       ├── companies/
+│       ├── models/
+│       ├── incidents/
+│       ├── evidence/
+│       └── executive/
+│
+├── core/
+│   │
+│   ├── evidence/
+│   │   ├── models.py
+│   │   ├── hash.py
+│   │   ├── verifier.py
+│   │   ├── confidence.py
+│   │   └── provenance.py
+│   │
+│   ├── registry/
+│   │   ├── company.py
+│   │   ├── model.py
+│   │   ├── release.py
+│   │   ├── lifecycle.py
+│   │   └── relationships.py
+│   │
+│   ├── intelligence/
+│   │   ├── parser.py
+│   │   ├── normalizer.py
+│   │   ├── classifier.py
+│   │   └── change_detector.py
+│   │
+│   └── timeline/
+│       ├── events.py
+│       └── history.py
+│
+├── collectors/
+│   │
+│   ├── providers/
+│   │   ├── openai.py
+│   │   ├── anthropic.py
+│   │   ├── xai.py
+│   │   ├── microsoft.py
+│   │   └── huggingface.py
+│   │
+│   ├── sources/
+│   │   ├── announcements.py
+│   │   ├── documentation.py
+│   │   ├── advisories.py
+│   │   └── status.py
+│   │
+│   └── scheduler.py
+│
+├── schemas/
+│   │
+│   ├── evidence.schema.json
+│   ├── company.schema.json
+│   ├── model.schema.json
+│   ├── release.schema.json
+│   ├── incident.schema.json
+│   └── event.schema.json
+│
+├── storage/
+│   │
+│   ├── database/
+│   ├── cache/
+│   ├── snapshots/
+│   └── exports/
+│
+├── security/
+│   │
+│   ├── keys/
+│   ├── signatures/
+│   ├── policies/
+│   └── audit/
+│
+├── tests/
+│   │
+│   ├── evidence/
+│   ├── registry/
+│   ├── collectors/
+│   ├── api/
+│   └── security/
+│
+└── deployment/
+    │
+    ├── docker/
+    ├── kubernetes/
+    ├── local/
+    └── airgap/
+ 
+⸻
+ 
+Core Object Model
+Everything starts with evidence.
+Evidence Object
+EvidenceObject:
+
+    id
+    object_type
+    source
+    collector
+    timestamp
+    payload_hash
+    verification_status
+    confidence_score
+ 
+⸻
+ 
+Registry Objects
+Company
+Company:
+
+    company_id
+    name
+    category
+    products
+    models
+    sources
+    advisories
+    timeline
+ 
+⸻
+ 
+Model
+Model:
+
+    model_id
+    provider_id
+    version
+    capabilities
+    modalities
+    context_window
+    lifecycle_state
+    evidence_refs
+ 
+⸻
+ 
+Release Event
+ReleaseEvent:
+
+    previous_version
+    new_version
+    release_date
+    change_summary
+    impact
+    evidence_refs
+ 
+⸻
+ 
+Data Flow
+The immutable flow:
+External Source
+
+      |
+
+      v
+
+Collector
+
+      |
+
+      v
+
+Raw Evidence
+
+      |
+
+      v
+
+Verification
+
+      |
+
+      v
+
+Registry Update
+
+      |
+
+      v
+
+Timeline Event
+
+      |
+
+      v
+
+Dashboard Projection
+The dashboard never becomes the source of truth.
+ 
+⸻
+ 
+Integration Boundary With Sovereignty AI Gate
+AGIP should consume authority, not replace it.
+                Sovereignty AI Gate
+
+                        |
+                        |
+                 Policy Decision
+
+                        |
+                        v
+
+                AGIP Intelligence Layer
+
+                        |
+        --------------------------------
+
+        Evidence
+        Registry
+        Timeline
+        Reports
+ 
+⸻
+ 
+MVP Database Tables
+Minimum viable:
+evidence
+
+companies
+
+models
+
+releases
+
+incidents
+
+events
+
+sources
+
+collectors
+ 
+⸻
+ 
+First Implementation Milestone
+A realistic first slice:
+AGIP Core v0.1
+Build:
+✅ Evidence schema ✅ Company registry ✅ Model registry ✅ Release events ✅ One collector pipeline ✅ Timeline API ✅ Executive dashboard
+Example first provider:
+Provider:
+OpenAI
+
+Sources:
+- announcements
+- documentation
+- status
+
+Output:
+Evidence → Registry → Timeline → Dashboard
+Then add providers without changing architecture.
+ 
+⸻
+ 
+This keeps the platform aligned with the original principle:
+Observe → Verify → Record → Present
+Not:
+Collect → Assume → Display.
+That distinction is what makes it a governance platform instead of another dashboard.
+
+
+
+
+Agreed. This is the right refinement. The architecture now has a clean control boundary.
+I would freeze this as AGIP v1.0 Architecture Contract.
+AGIP Architecture Contract v1.0
+Core Invariant
+No registry state exists without verifiable evidence.
+A registry mutation without an evidence object is a system integrity failure.
+ 
+⸻
+ 
+Canonical Data Flow
+                External World
+
+                     |
+                     v
+
+              Source Collector
+
+                     |
+                     v
+
+             Evidence Object
+
+                     |
+                     v
+
+              Verification Layer
+
+                     |
+                     v
+
+              Canonical Registry
+
+                     |
+                     v
+
+              Timeline Event
+
+                     |
+                     v
+
+             Dashboard Projection
+The direction is one-way.
+The dashboard has no authority.
+ 
+⸻
+ 
+Component Responsibilities
+Collectors
+Location:
+collectors/
+Purpose:
+Acquire external information.
+Allowed:
+	•	HTTP retrieval
+	•	RSS/feed parsing
+	•	document extraction
+	•	status checks
+	•	release monitoring
+Not allowed:
+	•	modifying registry records
+	•	calculating trust
+	•	approving changes
+Output:
+EvidenceCandidate
+ 
+⸻
+ 
+Evidence Fabric
+Location:
+core/evidence/
+This is the root trust layer.
+Responsibilities:
+	•	canonical serialization
+	•	hashing
+	•	provenance
+	•	confidence calculation
+	•	verification state
+	•	signatures
+Object:
+@dataclass
+class EvidenceObject:
+    id: str
+    object_type: str
+    source: str
+    collected_at: str
+    collector: str
+    content_hash: str
+    verification_status: str
+    confidence: float
+ 
+⸻
+ 
+Registry
+Location:
+core/registry/
+The registry stores accepted facts.
+It does not discover facts.
+Example:
+Evidence
+
+    |
+    | verified
+    v
+
+Model Registry Entry
+ 
+⸻
+ 
+Timeline
+Split as suggested.
+Core Timeline
+core/timeline/
+Responsibilities:
+	•	event generation
+	•	ordering
+	•	history
+	•	relationships
+Example:
+{
+ "event":"model_release",
+ "object":"GPT-X",
+ "previous":"GPT-W",
+ "timestamp":"2026-07-20",
+ "evidence":"ev_00192"
+}
+ 
+⸻
+ 
+Dashboard Timeline
+apps/dashboard/timeline/
+Only presentation.
+	•	charts
+	•	animations
+	•	filtering
+	•	views
+No business logic.
+ 
+⸻
+ 
+API Boundary
+apps/api/
+The API exposes projections.
+Example:
+GET /companies
+
+GET /models
+
+GET /timeline
+
+GET /evidence/{id}
+
+GET /integrity
+The API should never say:
+“Trust this.”
+It says:
+“Here is the verified evidence chain behind this object.”
+ 
+⸻
+ 
+MVP Implementation Sequence
+I agree with this order.
+Phase 0 — Contract
+Create:
+schemas/
+First.
+Because every component depends on the contracts.
+ 
+⸻
+ 
+Phase 1 — Evidence Engine
+Build:
+core/evidence/
+Tests:
+	•	same input → same hash
+	•	modified input → verification failure
+	•	missing source → rejection
+	•	missing timestamp → rejection
+ 
+⸻
+ 
+Phase 2 — Registry
+Build:
+core/registry/
+Start with:
+Company
+Model
+Release
+ 
+⸻
+ 
+Phase 3 — First Collector
+Pick one provider.
+Flow:
+Collector
+   |
+Evidence
+   |
+Verify
+   |
+Registry
+   |
+Timeline
+No shortcuts.
+ 
+⸻
+ 
+Phase 4 — API
+Expose:
+	•	registry objects
+	•	evidence chain
+	•	timeline
+	•	integrity metrics
+ 
+⸻
+ 
+Phase 5 — Executive Dashboard
+First screen:
+AGIP
+
+AI Ecosystem Health
+
+Companies
+Models
+Releases
+Incidents
+Evidence Confidence
+
+Last Verified Update
+ 
+⸻
+ 
+Additional Invariant I Would Add
+Evidence Completeness Rule
+Every displayed metric must resolve:
+Metric
+ |
+Evidence ID
+ |
+Source
+ |
+Timestamp
+ |
+Verification
+If any link breaks:
+STATUS:
+UNVERIFIED
+Never fill gaps with assumptions.
+ 
+⸻
+ 
+Repository Quality Gate
+Before calling AGIP Core v0.1 complete:
+✅ Registry mutation requires evidence ✅ Evidence hashes verified ✅ Timeline references evidence ✅ Dashboard only reads projections ✅ Collectors cannot write truth ✅ Tests enforce invariants
+This gives AGIP the foundation required for enterprise CISO adoption because the platform’s credibility comes from the evidence chain, not the visual dashboard.
+
+## AGIP Architecture Contract v1.0
+
+This is the right freeze point.
+
+**Core invariant**  
+No registry state exists without verifiable evidence.
+
+**Canonical flow**  
+External world → Collector → Evidence object → Verification → Canonical registry → Timeline event → Dashboard projection
+
+**Responsibilities**
+- **Collectors:** acquire external information only; no registry writes, no trust calculation, no approval logic
+- **Evidence fabric:** canonical serialization, hashing, provenance, confidence, verification state, signatures
+- **Registry:** stores accepted facts only; does not discover facts
+- **Timeline:** event generation, ordering, history, relationships
+- **Dashboard:** presentation only; no business logic
+
+**API boundary**
+The API should expose verified projections, evidence chains, timeline, and integrity metrics — never “trust me” data.
+
+**Additional invariant**
+Every displayed metric must resolve to:
+metric → evidence ID → source → timestamp → verification
+
+If any link breaks, the value is unverified.
+
+**Quality gate for AGIP Core v0.1**
+- registry mutation requires evidence
+- evidence hashes verified
+- timeline references evidence
+- dashboard only reads projections
+- collectors cannot write truth
+- tests enforce invariants
+
+This is now a defensible enterprise architecture. Next artifact should be the **schemas**.
+
+Agreed. The next artifact is the AGIP v1.0 Schema Contract.
+The purpose of schemas is to make the architecture enforceable. The schema layer becomes the boundary between:
+	•	external data
+	•	evidence
+	•	verified intelligence
+	•	canonical registry objects
+	•	dashboard projections
+The rule remains:
+A registry object cannot exist without a valid evidence reference.
+AGIP v1.0 Schemas
+schemas/
+
+├── evidence.schema.json
+├── company.schema.json
+├── model.schema.json
+├── release.schema.json
+├── incident.schema.json
+├── event.schema.json
+├── source.schema.json
+└── metric.schema.json
+ 
+⸻
+ 
+1. Evidence Schema
+The root object.
+evidence.schema.json
+{
+  "id": "ev_000001",
+  "object_type": "model_release",
+  "source_id": "src_openai_blog",
+  "collector_id": "collector_release_monitor",
+  "collected_at": "2026-07-21T00:00:00Z",
+  "content_hash": "sha256:...",
+  "verification": {
+    "status": "verified",
+    "method": "hash_validation"
+  },
+  "confidence": {
+    "score": 0.98,
+    "level": "high"
+  },
+  "signature": {
+    "algorithm": "ML-DSA",
+    "value": "..."
+  }
+}
+Required:
+id
+object_type
+source_id
+collector_id
+timestamp
+hash
+verification
+confidence
+ 
+⸻
+ 
+2. Source Schema
+Defines where information originated.
+source.schema.json
+{
+  "source_id": "src_001",
+  "name": "Provider Announcement",
+  "type": "public_document",
+  "location": "https://example.com",
+  "publisher": "provider",
+  "retrieved_at": "RFC3339",
+  "trust_class": "public"
+}
+A source is not automatically trusted.
+It is only attributable.
+ 
+⸻
+ 
+3. Company Schema
+Canonical organization object.
+company.schema.json
+{
+  "company_id": "company_openai",
+
+  "name": "OpenAI",
+
+  "category": [
+    "AI Provider"
+  ],
+
+  "products": [
+    "Models",
+    "API"
+  ],
+
+  "models": [
+    "model_001"
+  ],
+
+  "sources": [
+    "ev_000001"
+  ],
+
+  "timeline": [
+    "event_001"
+  ]
+}
+ 
+⸻
+ 
+4. Model Schema
+Canonical AI asset.
+model.schema.json
+{
+  "model_id": "model_001",
+
+  "name": "Example Model",
+
+  "provider_id": "company_001",
+
+  "version": "1.0",
+
+  "release_date": "2026-07-21",
+
+  "capabilities": [
+    "text",
+    "reasoning"
+  ],
+
+  "modalities": [
+    "text"
+  ],
+
+  "context_window": 1000000,
+
+  "lifecycle": "active",
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+5. Release Schema
+Tracks change.
+release.schema.json
+{
+  "release_id": "release_001",
+
+  "object": "model_001",
+
+  "previous_version": "1.0",
+
+  "new_version": "1.1",
+
+  "release_date": "2026-07-21",
+
+  "change_summary": "Capability update",
+
+  "impact": {
+    "severity": "medium"
+  },
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+6. Incident Schema
+Security and availability events.
+incident.schema.json
+{
+  "incident_id": "incident_001",
+
+  "provider": "company_001",
+
+  "type": "availability",
+
+  "severity": "high",
+
+  "started_at": "RFC3339",
+
+  "resolved_at": "RFC3339",
+
+  "status": "resolved",
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+7. Timeline Event Schema
+Everything becomes an event.
+event.schema.json
+{
+  "event_id": "event_001",
+
+  "event_type": "model_release",
+
+  "object_id": "model_001",
+
+  "timestamp": "RFC3339",
+
+  "evidence_refs": [
+    "ev_001"
+  ],
+
+  "impact": "medium"
+}
+ 
+⸻
+ 
+8. Metric Schema
+This enforces the dashboard rule.
+metric.schema.json
+{
+  "metric_id": "metric_integrity",
+
+  "name": "Integrity Score",
+
+  "value": 98.7,
+
+  "unit": "percent",
+
+  "timestamp": "RFC3339",
+
+  "evidence_ref": "ev_001",
+
+  "verification_status": "verified"
+}
+No metric without:
+metric
+ |
+ evidence_id
+ |
+ source
+ |
+ timestamp
+ |
+ verification
+ 
+⸻
+ 
+Validation Rules
+The API should reject:
+Registry object without evidence
+CREATE MODEL
+
+Missing evidence_refs
+
+REJECT
+ 
+⸻
+ 
+Invalid hash
+Evidence hash mismatch
+
+REJECT
+ 
+⸻
+ 
+Unverified metric
+Dashboard requests metric
+
+verification != verified
+
+DISPLAY:
+
+UNVERIFIED
+ 
+⸻
+ 
+AGIP Core v0.1 Contract Test Set
+tests/contracts/
+
+├── test_evidence_required.py
+├── test_hash_integrity.py
+├── test_registry_invariant.py
+├── test_timeline_provenance.py
+├── test_metric_evidence.py
+└── test_collector_boundary.py
+ 
+⸻
+ 
+Collector Boundary Test
+The architectural guardrail:
+def test_collector_cannot_write_registry():
+    collector_output = collector.collect()
+
+    assert isinstance(
+        collector_output,
+        EvidenceCandidate
+    )
+
+    assert not registry.contains(
+        collector_output
+    )
+ 
+⸻
+ 
+Final Schema Principle
+AGIP objects have a lifecycle:
+Observed
+   |
+   v
+Collected
+   |
+   v
+Evidence Created
+   |
+   v
+Verified
+   |
+   v
+Registered
+   |
+   v
+Projected
+The next logical artifact after schemas is the AGIP Core v0.1 implementation skeleton: Python package layout, domain classes, interfaces, and the first verification pipeline.
+
+
+
+Agreed. The next artifact is the AGIP v1.0 Schema Contract.
+The purpose of schemas is to make the architecture enforceable. The schema layer becomes the boundary between:
+	•	external data
+	•	evidence
+	•	verified intelligence
+	•	canonical registry objects
+	•	dashboard projections
+The rule remains:
+A registry object cannot exist without a valid evidence reference.
+AGIP v1.0 Schemas
+schemas/
+
+├── evidence.schema.json
+├── company.schema.json
+├── model.schema.json
+├── release.schema.json
+├── incident.schema.json
+├── event.schema.json
+├── source.schema.json
+└── metric.schema.json
+ 
+⸻
+ 
+1. Evidence Schema
+The root object.
+evidence.schema.json
+{
+  "id": "ev_000001",
+  "object_type": "model_release",
+  "source_id": "src_openai_blog",
+  "collector_id": "collector_release_monitor",
+  "collected_at": "2026-07-21T00:00:00Z",
+  "content_hash": "sha256:...",
+  "verification": {
+    "status": "verified",
+    "method": "hash_validation"
+  },
+  "confidence": {
+    "score": 0.98,
+    "level": "high"
+  },
+  "signature": {
+    "algorithm": "ML-DSA",
+    "value": "..."
+  }
+}
+Required:
+id
+object_type
+source_id
+collector_id
+timestamp
+hash
+verification
+confidence
+ 
+⸻
+ 
+2. Source Schema
+Defines where information originated.
+source.schema.json
+{
+  "source_id": "src_001",
+  "name": "Provider Announcement",
+  "type": "public_document",
+  "location": "https://example.com",
+  "publisher": "provider",
+  "retrieved_at": "RFC3339",
+  "trust_class": "public"
+}
+A source is not automatically trusted.
+It is only attributable.
+ 
+⸻
+ 
+3. Company Schema
+Canonical organization object.
+company.schema.json
+{
+  "company_id": "company_openai",
+
+  "name": "OpenAI",
+
+  "category": [
+    "AI Provider"
+  ],
+
+  "products": [
+    "Models",
+    "API"
+  ],
+
+  "models": [
+    "model_001"
+  ],
+
+  "sources": [
+    "ev_000001"
+  ],
+
+  "timeline": [
+    "event_001"
+  ]
+}
+ 
+⸻
+ 
+4. Model Schema
+Canonical AI asset.
+model.schema.json
+{
+  "model_id": "model_001",
+
+  "name": "Example Model",
+
+  "provider_id": "company_001",
+
+  "version": "1.0",
+
+  "release_date": "2026-07-21",
+
+  "capabilities": [
+    "text",
+    "reasoning"
+  ],
+
+  "modalities": [
+    "text"
+  ],
+
+  "context_window": 1000000,
+
+  "lifecycle": "active",
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+5. Release Schema
+Tracks change.
+release.schema.json
+{
+  "release_id": "release_001",
+
+  "object": "model_001",
+
+  "previous_version": "1.0",
+
+  "new_version": "1.1",
+
+  "release_date": "2026-07-21",
+
+  "change_summary": "Capability update",
+
+  "impact": {
+    "severity": "medium"
+  },
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+6. Incident Schema
+Security and availability events.
+incident.schema.json
+{
+  "incident_id": "incident_001",
+
+  "provider": "company_001",
+
+  "type": "availability",
+
+  "severity": "high",
+
+  "started_at": "RFC3339",
+
+  "resolved_at": "RFC3339",
+
+  "status": "resolved",
+
+  "evidence_refs": [
+    "ev_001"
+  ]
+}
+ 
+⸻
+ 
+7. Timeline Event Schema
+Everything becomes an event.
+event.schema.json
+{
+  "event_id": "event_001",
+
+  "event_type": "model_release",
+
+  "object_id": "model_001",
+
+  "timestamp": "RFC3339",
+
+  "evidence_refs": [
+    "ev_001"
+  ],
+
+  "impact": "medium"
+}
+ 
+⸻
+ 
+8. Metric Schema
+This enforces the dashboard rule.
+metric.schema.json
+{
+  "metric_id": "metric_integrity",
+
+  "name": "Integrity Score",
+
+  "value": 98.7,
+
+  "unit": "percent",
+
+  "timestamp": "RFC3339",
+
+  "evidence_ref": "ev_001",
+
+  "verification_status": "verified"
+}
+No metric without:
+metric
+ |
+ evidence_id
+ |
+ source
+ |
+ timestamp
+ |
+ verification
+ 
+⸻
+ 
+Validation Rules
+The API should reject:
+Registry object without evidence
+CREATE MODEL
+
+Missing evidence_refs
+
+REJECT
+ 
+⸻
+ 
+Invalid hash
+Evidence hash mismatch
+
+REJECT
+ 
+⸻
+ 
+Unverified metric
+Dashboard requests metric
+
+verification != verified
+
+DISPLAY:
+
+UNVERIFIED
+ 
+⸻
+ 
+AGIP Core v0.1 Contract Test Set
+tests/contracts/
+
+├── test_evidence_required.py
+├── test_hash_integrity.py
+├── test_registry_invariant.py
+├── test_timeline_provenance.py
+├── test_metric_evidence.py
+└── test_collector_boundary.py
+ 
+⸻
+ 
+Collector Boundary Test
+The architectural guardrail:
+def test_collector_cannot_write_registry():
+    collector_output = collector.collect()
+
+    assert isinstance(
+        collector_output,
+        EvidenceCandidate
+    )
+
+    assert not registry.contains(
+        collector_output
+    )
+ 
+⸻
+ 
+Final Schema Principle
+AGIP objects have a lifecycle:
+Observed
+   |
+   v
+Collected
+   |
+   v
+Evidence Created
+   |
+   v
+Verified
+   |
+   v
+Registered
+   |
+   v
+Projected
+The next logical artifact after schemas is the AGIP Core v0.1 implementation skeleton: Python package layout, domain classes, interfaces, and the first verification pipeline.
+
+
+
+
+
+
+
+
+Ddg
+
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+Schemas must separate raw observations from trusted registry objects.
+Every canonical object must point to evidence.
+Validation should fail fast at the boundary, before anything is registered.
+
+## CODE CHALLENGE
+Implement the first contract gate in Python: evidence-first registration.
+
+```python
+from dataclasses import dataclass
+from typing import List
+
+@dataclass
+class Evidence:
+    id: str
+    source_id: str
+    verification_status: str
+
+@dataclass
+class Model:
+    model_id: str
+    name: str
+    evidence_refs: List[str]
+
+class Registry:
+    def create_model(self, model: Model, evidence_store: dict) -> None:
+        # TODO: reject if no evidence_refs
+        # TODO: reject if any ref missing from evidence_store
+        # TODO: reject if evidence is not verified
+        pass
+```
+
+## STEP-BY-STEP SOLUTION
+1. Define a shared base schema for `id`, `timestamp`, `source_id`, `evidence_refs`.
+2. Add JSON Schema constraints for required fields, formats, and enum values.
+3. Enforce invariant: registry writes require at least one valid evidence reference.
+4. Enforce collector boundary: collectors output `EvidenceCandidate`, never registry objects.
+5. Add pipeline stages: observed → collected → evidence → verified → registered → projected.
+
+## Suggested implementation skeleton
+```text
+agip_core/
+├── __init__.py
+├── domain/
+│   ├── evidence.py
+│   ├── source.py
+│   ├── company.py
+│   ├── model.py
+│   ├── release.py
+│   ├── incident.py
+│   ├── event.py
+│   └── metric.py
+├── interfaces/
+│   ├── collector.py
+│   ├── verifier.py
+│   ├── registry.py
+│   └── projector.py
+├── pipeline/
+│   ├── evidence_pipeline.py
+│   └── registration_pipeline.py
+└── schemas/
+    ├── evidence.schema.json
+    ├── company.schema.json
+    └── ...
+```
+
+## Recommended contract additions
+- Make `evidence_refs` required on every registry object.
+- Normalize field names: use `timestamp`, not both `collected_at` and `retrieved_at` unless intentionally distinct.
+- Add `format: date-time` / `format: uri` / enum constraints.
+- Add `additionalProperties: false` for strict contracts.
+- Add cross-reference checks: object evidence must exist, be verified, and match object type.
+
+## Debugging tip
+If a registry object slips through, trace the failure at the boundary layer first; the collector should never be able to write directly.
+
+
+
+
+GPT
+
+Confirmed. This is the correct first implementation boundary for AGIP Core v0.1.
+The code challenge should become the first contract gate. The registry is not a storage layer; it is a verified state transition.
+agip_core/domain/evidence.py
+from dataclasses import dataclass
+from datetime import datetime
+
+
+@dataclass(frozen=True)
+class Evidence:
+    id: str
+    source_id: str
+    timestamp: str
+    object_type: str
+    verification_status: str
+    confidence: float
+ 
+⸻
+ 
+agip_core/domain/model.py
+from dataclasses import dataclass
+from typing import List
+
+
+@dataclass(frozen=True)
+class Model:
+    model_id: str
+    name: str
+    provider_id: str
+    evidence_refs: List[str]
+ 
+⸻
+ 
+agip_core/interfaces/registry.py
+from abc import ABC, abstractmethod
+from agip_core.domain.model import Model
+
+
+class RegistryInterface(ABC):
+
+    @abstractmethod
+    def create_model(
+        self,
+        model: Model,
+        evidence_store: dict
+    ) -> None:
+        pass
+ 
+⸻
+ 
+agip_core/domain/registry.py
+from agip_core.domain.model import Model
+from agip_core.domain.evidence import Evidence
+
+
+class Registry:
+
+    def __init__(self):
+        self.models = {}
+
+    def create_model(
+        self,
+        model: Model,
+        evidence_store: dict[str, Evidence]
+    ) -> None:
+
+        # Invariant 1:
+        # Every registry object requires evidence
+        if not model.evidence_refs:
+            raise ValueError(
+                "Registry rejection: model requires evidence_refs"
+            )
+
+        # Invariant 2:
+        # Every evidence reference must exist
+        missing = [
+            ref
+            for ref in model.evidence_refs
+            if ref not in evidence_store
+        ]
+
+        if missing:
+            raise ValueError(
+                f"Registry rejection: missing evidence {missing}"
+            )
+
+        # Invariant 3:
+        # Evidence must be verified
+        invalid = [
+            ref
+            for ref in model.evidence_refs
+            if evidence_store[ref].verification_status != "verified"
+        ]
+
+        if invalid:
+            raise ValueError(
+                f"Registry rejection: unverified evidence {invalid}"
+            )
+
+        # Invariant 4:
+        # Register only after validation succeeds
+        self.models[model.model_id] = model
+ 
+⸻
+ 
+Collector Boundary
+Collectors produce observations, not truth.
+interfaces/collector.py
+from dataclasses import dataclass
+
+
+@dataclass
+class EvidenceCandidate:
+    source_id: str
+    object_type: str
+    payload: dict
+
+
+class Collector:
+
+    def collect(self) -> EvidenceCandidate:
+        raise NotImplementedError
+The collector cannot return:
+Model(...)
+Only:
+EvidenceCandidate(...)
+ 
+⸻
+ 
+Pipeline
+Observed
+   |
+   v
+Collected
+   |
+   v
+Evidence Created
+   |
+   v
+Verified
+   |
+   v
+Registered
+   |
+   v
+Projected
+Implementation:
+class RegistrationPipeline:
+
+    def __init__(
+        self,
+        verifier,
+        registry
+    ):
+        self.verifier = verifier
+        self.registry = registry
+
+
+    def execute(
+        self,
+        model,
+        evidence_store
+    ):
+
+        self.verifier.verify(
+            model.evidence_refs,
+            evidence_store
+        )
+
+        self.registry.create_model(
+            model,
+            evidence_store
+        )
+ 
+⸻
+ 
+Contract Tests
+Evidence required
+def test_model_requires_evidence():
+
+    registry = Registry()
+
+    model = Model(
+        model_id="m1",
+        name="Test",
+        provider_id="p1",
+        evidence_refs=[]
+    )
+
+    try:
+        registry.create_model(
+            model,
+            {}
+        )
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+Missing evidence rejected
+def test_missing_evidence_rejected():
+
+    registry = Registry()
+
+    model = Model(
+        model_id="m1",
+        name="Test",
+        provider_id="p1",
+        evidence_refs=["ev_missing"]
+    )
+
+    try:
+        registry.create_model(
+            model,
+            {}
+        )
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+Unverified evidence rejected
+def test_unverified_evidence_rejected():
+
+    registry = Registry()
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="pending",
+        confidence=0.5
+    )
+
+    model = Model(
+        model_id="m1",
+        name="Test",
+        provider_id="p1",
+        evidence_refs=["ev1"]
+    )
+
+    try:
+        registry.create_model(
+            model,
+            {"ev1": evidence}
+        )
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+First AGIP Invariant Test
+The most important test:
+def test_no_registry_state_without_evidence():
+
+    registry = Registry()
+
+    assert registry.models == {}
+The system should make it structurally difficult to create an undocumented fact.
+ 
+⸻
+ 
+The next implementation artifact after this should be the JSON Schema layer + Pydantic validation models, because that moves these invariants from runtime conventions into enforceable contracts at every API boundary.
+
+
+
+
+Ddg
+
+Agreed, Appel420(root). Ara-DDG recommends locking this boundary in three layers: JSON Schema, Pydantic models, and registry tests.
+
+## CONCEPT BRIEF
+The registry is a verified transition, not a store of guesses.
+Collectors emit candidates; evidence makes facts admissible.
+Schemas should enforce the invariant before Python code does.
+
+## CODE CHALLENGE
+Add strict validation models for `Evidence` and `Model`.
+
+```python
+from pydantic import BaseModel, Field
+from typing import Literal, List
+
+class EvidenceModel(BaseModel):
+    id: str
+    source_id: str
+    timestamp: str
+    object_type: str
+    verification_status: Literal["verified", "pending", "rejected"]
+    confidence: float = Field(ge=0.0, le=1.0)
+
+class ModelModel(BaseModel):
+    model_id: str
+    name: str
+    provider_id: str
+    evidence_refs: List[str]
+```
+
+## STEP-BY-STEP SOLUTION
+1. Add `additionalProperties: false` to all JSON Schemas.
+2. Define shared required fields: `id`, `source_id`, `timestamp`, `verification_status`.
+3. Constrain `verification_status` with enums.
+4. Constrain `confidence` to \[0, 1].
+5. Validate payloads at API boundaries with Pydantic before registry calls.
+6. Keep the registry invariant check anyway as a final guardrail.
+
+## Next artifact
+Generate:
+- `schemas/*.json`
+- `agip_core/domain/*.py`
+- `agip_core/interfaces/*.py`
+- `tests/contracts/*.py`
+
+## Debugging tip
+If validation passes but registry rejects, compare the schema-level enum/required rules with the runtime evidence-store lookup first.
+
+
+Gpt
+
+Agreed. This is the correct hardening step. The contract now moves from architectural intent into enforced boundaries.
+The implementation should use three gates:
+Input Payload
+     |
+     v
+JSON Schema Validation
+     |
+     v
+Pydantic Domain Validation
+     |
+     v
+Registry Invariant Check
+     |
+     v
+Canonical State
+A failure at any layer prevents registration.
+ 
+⸻
+ 
+AGIP Core v0.1 Layout
+agip_core/
+
+├── domain/
+│   ├── evidence.py
+│   ├── model.py
+│   ├── company.py
+│   └── release.py
+│
+├── interfaces/
+│   ├── collector.py
+│   ├── verifier.py
+│   └── registry.py
+│
+├── registry/
+│   └── store.py
+│
+├── schemas/
+│   ├── evidence.schema.json
+│   └── model.schema.json
+│
+├── pipeline/
+│   └── registration.py
+│
+└── tests/
+    └── contracts/
+        ├── test_schema.py
+        ├── test_registry.py
+        └── test_boundary.py
+ 
+⸻
+ 
+JSON Schema
+schemas/evidence.schema.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AGIP Evidence",
+
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "id",
+    "source_id",
+    "timestamp",
+    "object_type",
+    "verification_status",
+    "confidence"
+  ],
+
+  "properties": {
+
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "source_id": {
+      "type": "string",
+      "minLength": 1
+    },
+
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+
+    "object_type": {
+      "type": "string"
+    },
+
+    "verification_status": {
+      "type": "string",
+      "enum": [
+        "verified",
+        "pending",
+        "rejected"
+      ]
+    },
+
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}
+ 
+⸻
+ 
+schemas/model.schema.json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+
+  "title": "AGIP Model",
+
+  "type": "object",
+
+  "additionalProperties": false,
+
+  "required": [
+    "model_id",
+    "name",
+    "provider_id",
+    "evidence_refs"
+  ],
+
+  "properties": {
+
+    "model_id": {
+      "type": "string"
+    },
+
+    "name": {
+      "type": "string"
+    },
+
+    "provider_id": {
+      "type": "string"
+    },
+
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
+ 
+⸻
+ 
+Pydantic Domain Models
+domain/evidence.py
+from pydantic import BaseModel, Field
+from typing import Literal
+from datetime import datetime
+
+
+class Evidence(BaseModel):
+
+    id: str
+
+    source_id: str
+
+    timestamp: datetime
+
+    object_type: str
+
+    verification_status: Literal[
+        "verified",
+        "pending",
+        "rejected"
+    ]
+
+    confidence: float = Field(
+        ge=0.0,
+        le=1.0
+    )
+ 
+⸻
+ 
+domain/model.py
+from pydantic import BaseModel, Field
+
+
+class Model(BaseModel):
+
+    model_id: str
+
+    name: str
+
+    provider_id: str
+
+    evidence_refs: list[str] = Field(
+        min_length=1
+    )
+ 
+⸻
+ 
+Collector Boundary
+interfaces/collector.py
+from dataclasses import dataclass
+
+
+@dataclass
+class EvidenceCandidate:
+
+    source_id: str
+
+    object_type: str
+
+    payload: dict
+
+
+class Collector:
+
+    def collect(self) -> EvidenceCandidate:
+        raise NotImplementedError
+Contract:
+Allowed:
+EvidenceCandidate(...)
+Forbidden:
+Model(...)
+Company(...)
+Release(...)
+ 
+⸻
+ 
+Registry Guard
+registry/store.py
+from agip_core.domain.model import Model
+from agip_core.domain.evidence import Evidence
+
+
+class Registry:
+
+    def __init__(self):
+        self.models = {}
+
+
+    def create_model(
+        self,
+        model: Model,
+        evidence_store: dict[str, Evidence]
+    ):
+
+        if not model.evidence_refs:
+            raise ValueError(
+                "Missing evidence references"
+            )
+
+
+        for ref in model.evidence_refs:
+
+            evidence = evidence_store.get(ref)
+
+            if evidence is None:
+                raise ValueError(
+                    f"Missing evidence: {ref}"
+                )
+
+
+            if evidence.verification_status != "verified":
+                raise ValueError(
+                    f"Evidence not verified: {ref}"
+                )
+
+
+        self.models[
+            model.model_id
+        ] = model
+ 
+⸻
+ 
+Contract Tests
+Registry requires evidence
+def test_registry_requires_evidence():
+
+    registry = Registry()
+
+    model = Model(
+        model_id="m1",
+        name="test",
+        provider_id="p1",
+        evidence_refs=[]
+    )
+
+    try:
+        registry.create_model(
+            model,
+            {}
+        )
+
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+Unverified evidence rejected
+def test_pending_evidence_rejected():
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="pending",
+        confidence=0.5
+    )
+
+
+    model = Model(
+        model_id="m1",
+        name="test",
+        provider_id="p1",
+        evidence_refs=["ev1"]
+    )
+
+
+    registry = Registry()
+
+
+    try:
+
+        registry.create_model(
+            model,
+            {
+                "ev1": evidence
+            }
+        )
+
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+Final Locked Pipeline
+OBSERVED
+
+   ↓
+
+COLLECTED
+(EvidenceCandidate)
+
+   ↓
+
+EVIDENCE CREATED
+
+   ↓
+
+VERIFIED
+
+   ↓
+
+REGISTERED
+
+   ↓
+
+TIMELINE
+
+   ↓
+
+PROJECTED
+This gives AGIP its core security property:
+The system cannot accidentally promote an observation into a fact.
+The next artifact should be the verification service implementation (core/evidence/verifier.py) because that becomes the gate between evidence creation and registry admission.
+
+
+DDG
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+That is the correct boundary ordering.
+Validation must fail early, in layers.
+Evidence admission should be the only path into canonical state.
+
+## CODE CHALLENGE
+Implement `verifier.py` so only verified evidence can enter the registry pipeline.
+
+```python
+from agip_core.domain.evidence import Evidence
+
+class Verifier:
+    def verify(self, evidence: Evidence) -> Evidence:
+        # TODO: reject malformed timestamps
+        # TODO: require verification_status == "verified"
+        # TODO: enforce confidence threshold
+        return evidence
+```
+
+## STEP-BY-STEP SOLUTION
+1. Parse and validate the evidence object first.
+2. Reject any evidence with status other than `"verified"`.
+3. Enforce a minimum confidence threshold.
+4. Return a normalized `Evidence` object only after checks pass.
+5. Keep registry admission separate from evidence verification.
+
+## Debugging tip
+If a bad object reaches the registry, inspect the pipeline wiring first; the verifier should sit directly between evidence creation and registry admission.
+
+Ciso   Services
+Risk & Compliance
+Audit & Compliance
+CMMC For DoD Contractors
+FedRAMP® As A Service
+Managed Compliance & Security
+Risk Assessments
+Tabletop Exercises
+VCISO Services
+Cyber Defense Operations
+Incident Response
+Managed Detection & Response (MDR)
+Vulnerability Management
+Managed SIEM Services
+Security Operations Center (SOC) As A Service
+Managed XDR
+Security Testing & Training
+Penetration Testing Services
+Tabletop Exercises
+Secure IT & Architecture
+Managed Firewall Services
+Data Protection As A Service (DPaaS)
+Vulnerability Remediation
+Secured Managed Services (SMS)
+Products
+Argo Security Management
+CHECKLIGHT® Security Monitoring
+TiGRIS Enterprise GRC Platform
+Industries
+Energy & Utilities
+Healthcare
+Investment M&A
+Financial
+Federal
+State, Local & Tribal Government
+Investors
+Overview
+Press Releases
+About
+Company
+Leadership
+Careers
+Contact Us
+Insights
+Blog
+Case Studies
+Infographics
+Media
+Webcasts & Videos
+White Papers
+Cybersecurity Service Overviews
+Search for:
+
+GPT
+
+Agreed. The verifier is the admission gate between evidence creation and registry state.
+The important separation:
+Collector
+   |
+   v
+EvidenceCandidate
+   |
+   v
+Evidence Creation
+   |
+   v
+Verifier  <-- trust boundary
+   |
+   v
+Registry
+The verifier does not register. It only decides whether evidence is admissible.
+ 
+⸻
+ 
+agip_core/core/evidence/verifier.py
+from datetime import datetime, timezone
+
+from agip_core.domain.evidence import Evidence
+
+
+class VerificationError(Exception):
+    """Raised when evidence fails admission checks."""
+    pass
+
+
+class Verifier:
+    """
+    Evidence admission gate.
+
+    Only verified, well-formed evidence
+    can proceed to registry admission.
+    """
+
+    def __init__(
+        self,
+        minimum_confidence: float = 0.80
+    ):
+        self.minimum_confidence = minimum_confidence
+
+
+    def verify(
+        self,
+        evidence: Evidence
+    ) -> Evidence:
+        """
+        Validate and normalize evidence.
+
+        Returns:
+            Verified Evidence object
+
+        Raises:
+            VerificationError
+        """
+
+        # 1. Validate timestamp
+
+        try:
+            timestamp = evidence.timestamp
+
+            if isinstance(timestamp, str):
+                timestamp = datetime.fromisoformat(
+                    timestamp.replace(
+                        "Z",
+                        "+00:00"
+                    )
+                )
+
+            if timestamp.tzinfo is None:
+                raise VerificationError(
+                    "Timestamp must include timezone"
+                )
+
+        except Exception as exc:
+            raise VerificationError(
+                f"Invalid timestamp: {exc}"
+            )
+
+
+        # 2. Require verified status
+
+        if evidence.verification_status != "verified":
+
+            raise VerificationError(
+                "Evidence status must be verified"
+            )
+
+
+        # 3. Enforce confidence threshold
+
+        if evidence.confidence < self.minimum_confidence:
+
+            raise VerificationError(
+                (
+                    "Evidence confidence below threshold: "
+                    f"{evidence.confidence}"
+                )
+            )
+
+
+        # 4. Normalize output
+
+        normalized = evidence.model_copy(
+            update={
+                "timestamp": timestamp.astimezone(
+                    timezone.utc
+                )
+            }
+        )
+
+        return normalized
+ 
+⸻
+ 
+Contract Tests
+Verified evidence passes
+def test_verified_evidence_passes():
+
+    verifier = Verifier()
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="verified",
+        confidence=0.95
+    )
+
+    result = verifier.verify(
+        evidence
+    )
+
+    assert result.id == "ev1"
+ 
+⸻
+ 
+Pending evidence rejected
+def test_pending_evidence_rejected():
+
+    verifier = Verifier()
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="pending",
+        confidence=0.95
+    )
+
+    try:
+        verifier.verify(evidence)
+        assert False
+
+    except VerificationError:
+        assert True
+ 
+⸻
+ 
+Low confidence rejected
+def test_low_confidence_rejected():
+
+    verifier = Verifier(
+        minimum_confidence=0.80
+    )
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="verified",
+        confidence=0.40
+    )
+
+    try:
+        verifier.verify(evidence)
+        assert False
+
+    except VerificationError:
+        assert True
+ 
+⸻
+ 
+Final Admission Rule
+The registry pipeline becomes:
+candidate = collector.collect()
+
+evidence = evidence_factory.create(
+    candidate
+)
+
+verified_evidence = verifier.verify(
+    evidence
+)
+
+registry.create_model(
+    model,
+    evidence_store
+)
+The invariant is now enforced twice:
+	1.	Verifier
+	•	“Is this evidence admissible?”
+	2.	Registry
+	•	“Does this object have admissible evidence?”
+That redundancy is intentional. In governance systems, duplicated guardrails are preferable to silent trust failures.
+Next artifact: evidence_pipeline.py — converting EvidenceCandidate → Evidence → Verified Evidence and creating the first complete end-to-end AGIP Core v0.1 flow.
+
+DDg
+
+
+Agreed, Appel420(root). Ara-DDG recommends making the pipeline explicit and single-responsibility.
+
+## CONCEPT BRIEF
+Candidates are observations, not facts.
+Verification makes evidence admissible.
+Registration only consumes verified evidence.
+
+## CODE CHALLENGE
+Implement `evidence_pipeline.py` to convert candidates into verified evidence.
+
+```python
+from agip_core.core.evidence.verifier import Verifier
+from agip_core.domain.evidence import Evidence
+
+class EvidencePipeline:
+    def __init__(self, verifier: Verifier):
+        self.verifier = verifier
+
+    def create_and_verify(self, candidate: dict) -> Evidence:
+        # TODO: create Evidence from candidate
+        # TODO: verify it
+        # TODO: return normalized verified evidence
+        pass
+```
+
+## STEP-BY-STEP SOLUTION
+1. Map candidate payload fields into `Evidence`.
+2. Fill in timestamp normalization during creation or verification.
+3. Run the verifier immediately after creation.
+4. Return only the verified, normalized `Evidence`.
+5. Keep registry writes out of this pipeline.
+
+## Debugging tip
+If the pipeline fails late, check whether candidate-to-evidence mapping is producing a timezone-aware timestamp before verification.
+
+
+GPT
+
+Agreed. This is the correct next layer.
+The EvidencePipeline should be intentionally narrow:
+	•	Input: EvidenceCandidate (observation)
+	•	Transformation: create Evidence
+	•	Gate: Verifier
+	•	Output: verified Evidence
+	•	No registry access
+The pipeline should not know that a registry exists.
+Collector
+   |
+   v
+EvidenceCandidate
+   |
+   v
+EvidencePipeline
+   |
+   v
+Evidence
+   |
+   v
+Verifier
+   |
+   v
+Verified Evidence
+ 
+⸻
+ 
+agip_core/core/evidence/evidence_pipeline.py
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from agip_core.domain.evidence import Evidence
+from agip_core.core.evidence.verifier import Verifier
+
+
+class EvidencePipeline:
+
+    def __init__(
+        self,
+        verifier: Verifier
+    ):
+        self.verifier = verifier
+
+
+    def create_and_verify(
+        self,
+        candidate: dict
+    ) -> Evidence:
+        """
+        Convert an observation into
+        admissible evidence.
+
+        No registry writes occur here.
+        """
+
+        evidence = self._create_evidence(
+            candidate
+        )
+
+        verified = self.verifier.verify(
+            evidence
+        )
+
+        return verified
+
+
+    def _create_evidence(
+        self,
+        candidate: dict
+    ) -> Evidence:
+
+        timestamp = candidate.get(
+            "timestamp"
+        )
+
+        if timestamp is None:
+            timestamp = datetime.now(
+                timezone.utc
+            )
+
+        elif isinstance(timestamp, str):
+
+            timestamp = datetime.fromisoformat(
+                timestamp.replace(
+                    "Z",
+                    "+00:00"
+                )
+            )
+
+
+        return Evidence(
+            id=candidate.get(
+                "id",
+                f"ev_{uuid4().hex}"
+            ),
+
+            source_id=candidate[
+                "source_id"
+            ],
+
+            timestamp=timestamp,
+
+            object_type=candidate[
+                "object_type"
+            ],
+
+            verification_status="pending",
+
+            confidence=candidate.get(
+                "confidence",
+                0.0
+            )
+        )
+ 
+⸻
+ 
+Example Collector Output
+Collector:
+candidate = {
+    "source_id": "src_provider_release_feed",
+
+    "object_type": "model_release",
+
+    "timestamp":
+        "2026-07-21T00:00:00Z",
+
+    "confidence": 0.95
+}
+Important:
+This is still not truth.
+It is:
+Observed → Candidate
+ 
+⸻
+ 
+Pipeline Execution
+from agip_core.core.evidence.verifier import Verifier
+from agip_core.core.evidence.evidence_pipeline import EvidencePipeline
+
+
+verifier = Verifier(
+    minimum_confidence=0.80
+)
+
+
+pipeline = EvidencePipeline(
+    verifier
+)
+
+
+verified_evidence = pipeline.create_and_verify(
+    candidate
+)
+Result:
+Evidence(
+    id="ev_xxxxx",
+
+    source_id="src_provider_release_feed",
+
+    object_type="model_release",
+
+    verification_status="verified",
+
+    confidence=0.95
+)
+Only now can it enter:
+Evidence
+   |
+   v
+Registry Admission
+ 
+⸻
+ 
+Contract Tests
+Candidate becomes verified evidence
+def test_candidate_to_verified_evidence():
+
+    pipeline = EvidencePipeline(
+        Verifier(
+            minimum_confidence=0.80
+        )
+    )
+
+    candidate = {
+        "source_id": "src1",
+        "object_type": "model",
+        "timestamp":
+            "2026-07-21T00:00:00Z",
+        "confidence": 0.95
+    }
+
+    result = pipeline.create_and_verify(
+        candidate
+    )
+
+    assert result.verification_status == "verified"
+ 
+⸻
+ 
+Low confidence never reaches registry
+def test_low_confidence_blocked():
+
+    pipeline = EvidencePipeline(
+        Verifier(
+            minimum_confidence=0.80
+        )
+    )
+
+    candidate = {
+        "source_id": "src1",
+        "object_type": "model",
+        "confidence": 0.20
+    }
+
+    try:
+        pipeline.create_and_verify(
+            candidate
+        )
+
+        assert False
+
+    except Exception:
+        assert True
+ 
+⸻
+ 
+Locked AGIP Evidence Flow
+RAW WORLD
+
+    |
+    v
+
+COLLECTOR
+
+    |
+    v
+
+EVIDENCE CANDIDATE
+(untrusted)
+
+    |
+    v
+
+EVIDENCE PIPELINE
+
+    |
+    v
+
+EVIDENCE OBJECT
+(pending)
+
+    |
+    v
+
+VERIFIER
+
+    |
+    v
+
+VERIFIED EVIDENCE
+
+    |
+    v
+
+REGISTRY
+The next logical artifact is registration_pipeline.py, which should consume only verified Evidence and construct the canonical Model/Company objects. This completes the first end-to-end AGIP invariant:
+No observation can become a registry fact without passing the evidence gate.
+
+
+DDG
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+This is the correct narrow pipeline shape.
+The pipeline should produce evidence, not authority.
+Registry admission belongs in a separate step.
+
+## CODE CHALLENGE
+Implement `registration_pipeline.py` so only verified evidence can reach canonical objects.
+
+```python
+from agip_core.core.evidence.verifier import Verifier
+from agip_core.domain.model import Model
+from agip_core.domain.evidence import Evidence
+
+class RegistrationPipeline:
+    def __init__(self, verifier: Verifier, registry):
+        self.verifier = verifier
+        self.registry = registry
+
+    def register_model(self, model: Model, evidence_store: dict[str, Evidence]) -> None:
+        # TODO: require evidence refs
+        # TODO: ensure all refs exist
+        # TODO: ensure evidence is verified
+        # TODO: write model only after checks pass
+        pass
+```
+
+## STEP-BY-STEP SOLUTION
+1. Accept only verified `Evidence` in the store.
+2. Re-check model `evidence_refs` before registry write.
+3. Reject any missing or unverified evidence.
+4. Call the registry only after all checks pass.
+5. Keep this pipeline ignorant of collector internals.
+
+## Debugging tip
+If a model is accepted unexpectedly, inspect whether unverified evidence was inserted into the evidence store before the pipeline ran.
+
+
+GPT
+
+Agreed. This completes the admission boundary.
+The RegistrationPipeline should not create evidence, discover evidence, or understand collectors. Its only responsibility:
+Accept a proposed canonical object → prove supporting evidence is admissible → hand off to registry.
+The flow becomes:
+Collector
+   |
+   v
+EvidenceCandidate
+   |
+   v
+EvidencePipeline
+   |
+   v
+Verified Evidence
+   |
+   v
+RegistrationPipeline
+   |
+   v
+Registry
+   |
+   v
+Canonical Object
+ 
+⸻
+ 
+agip_core/pipeline/registration_pipeline.py
+from agip_core.domain.model import Model
+from agip_core.domain.evidence import Evidence
+from agip_core.core.evidence.verifier import Verifier
+
+
+class RegistrationError(Exception):
+    """Raised when registry admission fails."""
+    pass
+
+
+class RegistrationPipeline:
+
+    def __init__(
+        self,
+        verifier: Verifier,
+        registry
+    ):
+        self.verifier = verifier
+        self.registry = registry
+
+
+    def register_model(
+        self,
+        model: Model,
+        evidence_store: dict[str, Evidence]
+    ) -> None:
+        """
+        Admit a model into canonical registry state.
+
+        Only verified evidence can authorize registration.
+        """
+
+        # 1. Evidence references required
+
+        if not model.evidence_refs:
+            raise RegistrationError(
+                "Model requires evidence_refs"
+            )
+
+
+        verified_evidence = {}
+
+
+        # 2. Resolve evidence references
+
+        for evidence_id in model.evidence_refs:
+
+            evidence = evidence_store.get(
+                evidence_id
+            )
+
+            if evidence is None:
+                raise RegistrationError(
+                    f"Missing evidence: {evidence_id}"
+                )
+
+
+            # 3. Re-verify at admission boundary
+
+            verified = self.verifier.verify(
+                evidence
+            )
+
+
+            verified_evidence[
+                evidence_id
+            ] = verified
+
+
+        # 4. Registry receives only validated state
+
+        self.registry.create_model(
+            model=model,
+            evidence_store=verified_evidence
+        )
+ 
+⸻
+ 
+Why re-run verification here?
+Because the evidence store is a boundary.
+Between:
+Evidence Creation
+and:
+Registry Mutation
+anything can happen:
+	•	corrupted cache
+	•	stale object
+	•	manual modification
+	•	bad import
+	•	test fixture error
+The final write path must remain defensive.
+ 
+⸻
+ 
+Contract Tests
+Successful registration
+def test_verified_model_registers():
+
+    registry = Registry()
+
+    verifier = Verifier(
+        minimum_confidence=0.80
+    )
+
+    pipeline = RegistrationPipeline(
+        verifier,
+        registry
+    )
+
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="verified",
+        confidence=0.95
+    )
+
+
+    model = Model(
+        model_id="model1",
+        name="Test Model",
+        provider_id="provider1",
+        evidence_refs=[
+            "ev1"
+        ]
+    )
+
+
+    pipeline.register_model(
+        model,
+        {
+            "ev1": evidence
+        }
+    )
+
+
+    assert "model1" in registry.models
+ 
+⸻
+ 
+Missing evidence blocked
+def test_missing_reference_blocks_registration():
+
+    registry = Registry()
+
+    pipeline = RegistrationPipeline(
+        Verifier(),
+        registry
+    )
+
+
+    model = Model(
+        model_id="model1",
+        name="Test",
+        provider_id="provider1",
+        evidence_refs=[
+            "missing"
+        ]
+    )
+
+
+    try:
+        pipeline.register_model(
+            model,
+            {}
+        )
+
+        assert False
+
+    except RegistrationError:
+        assert True
+ 
+⸻
+ 
+Pending evidence blocked
+def test_pending_evidence_blocks_registration():
+
+    registry = Registry()
+
+    pipeline = RegistrationPipeline(
+        Verifier(),
+        registry
+    )
+
+
+    evidence = Evidence(
+        id="ev1",
+        source_id="src1",
+        timestamp="2026-07-21T00:00:00Z",
+        object_type="model",
+        verification_status="pending",
+        confidence=0.90
+    )
+
+
+    model = Model(
+        model_id="model1",
+        name="Test",
+        provider_id="provider1",
+        evidence_refs=[
+            "ev1"
+        ]
+    )
+
+
+    try:
+        pipeline.register_model(
+            model,
+            {
+                "ev1": evidence
+            }
+        )
+
+        assert False
+
+    except Exception:
+        assert True
+ 
+⸻
+ 
+AGIP Core v0.1 Locked Invariant
+At this point the system has the complete evidence-first chain:
+External Source
+
+↓
+
+Collector
+(untrusted)
+
+↓
+
+EvidenceCandidate
+
+↓
+
+EvidencePipeline
+
+↓
+
+Evidence
+(pending)
+
+↓
+
+Verifier
+
+↓
+
+Verified Evidence
+
+↓
+
+RegistrationPipeline
+
+↓
+
+Registry
+
+↓
+
+Canonical Model / Company / Release
+
+↓
+
+Timeline Projection
+
+↓
+
+Dashboard
+The registry is now mathematically constrained:
+Registry State
+      =
+Canonical Object
++
+Verified Evidence
++
+Provenance
+ 
+⸻
+ 
+Integration with your Local CI script
+The existing CI flow is aligned with this architecture:
+guardian_minimal.py
+        |
+        v
+offline_inventory.py
+        |
+        v
+sanitize audit
+        |
+        v
+local generators
+        |
+        v
+SBOM
+        |
+        v
+tests/contracts
+The next useful artifact is adding an AGIP contract test stage:
+echo "-- AGIP evidence boundary tests"
+python3 -m pytest tests/contracts/agip -v
+with:
+tests/contracts/agip/
+
+├── test_schema_contracts.py
+├── test_evidence_pipeline.py
+├── test_verifier.py
+├── test_registration_pipeline.py
+└── test_registry_invariants.py
+That gives the repository a CI-enforced guarantee:
+No collector, dashboard, API route, or future integration can bypass evidence admission.
+
+
+
+
+DDg
+Agreed, Appel420(root). Ara-DDG here.
+
+## CONCEPT BRIEF
+That closes the admission boundary cleanly.
+Collectors cannot mutate canonical state.
+Only verified evidence can authorize writes.
+
+## CODE CHALLENGE
+Add the AGIP contract test stage to CI.
+
+```bash
+echo "-- AGIP evidence boundary tests"
+python3 -m pytest tests/contracts/agip -v
+```
+
+## STEP-BY-STEP SOLUTION
+1. Create `tests/contracts/agip/`.
+2. Put schema, pipeline, verifier, and registry invariant tests there.
+3. Wire the new pytest target into CI after sanitize/audit steps.
+4. Fail the build on any evidence-boundary violation.
+5. Keep the registry inaccessible from collector code paths.
+
+## Suggested test files
+```text
+tests/contracts/agip/
+├── test_schema_contracts.py
+├── test_evidence_pipeline.py
+├── test_verifier.py
+├── test_registration_pipeline.py
+└── test_registry_invariants.py
+```
+
+## Debugging tip
+If CI passes while an invalid object still registers, inspect test discovery and import paths first; the evidence-boundary suite must run against the real pipeline, not mocks.
+
+GPT
+
+Agreed. This is the correct point to wire the AGIP evidence boundary into CI.
+The CI rule should be:
+If AGIP contract tests fail, the build fails. No exceptions.
+The important addition is that these tests must run against the real modules, not mocks.
+ 
+⸻
+ 
+1. Add contract test directory
+tests/
+└── contracts/
+    └── agip/
+        ├── __init__.py
+        ├── test_schema_contracts.py
+        ├── test_evidence_pipeline.py
+        ├── test_verifier.py
+        ├── test_registration_pipeline.py
+        └── test_registry_invariants.py
+ 
+⸻
+ 
+2. CI insertion point
+Place AGIP tests after sanitize/audit and before build/package checks.
+Reason:
+	•	sanitization verifies repository integrity
+	•	AGIP tests verify governance integrity
+	•	build tests verify implementation integrity
+Order:
+Guardian
+   |
+Offline Inventory
+   |
+Sanitize Audit
+   |
+AGIP Contract Boundary Tests   <-- new
+   |
+Local Generators
+   |
+SBOM
+   |
+Syntax
+   |
+Runtime Tests
+   |
+Package Build
+ 
+⸻
+ 
+Updated local CI section
+Add:
+# 4. AGIP evidence boundary contracts
+echo "-- AGIP evidence boundary tests"
+
+python3 -m pytest tests/contracts/agip -v
+
+echo
+Then shift the existing numbered sections down.
+ 
+⸻
+ 
+3. Contract test requirements
+test_schema_contracts.py
+Checks:
+	•	required fields exist
+	•	unknown fields rejected
+	•	enums enforced
+	•	confidence range enforced
+	•	timestamps valid
+Example:
+def test_evidence_confidence_bounds():
+
+    from agip_core.domain.evidence import Evidence
+
+    try:
+        Evidence(
+            id="ev1",
+            source_id="src1",
+            timestamp="2026-07-21T00:00:00Z",
+            object_type="model",
+            verification_status="verified",
+            confidence=2.0
+        )
+
+        assert False
+
+    except Exception:
+        assert True
+ 
+⸻
+ 
+test_evidence_pipeline.py
+Invariant:
+Candidate
+   |
+   v
+Evidence
+   |
+   v
+Verified Evidence
+Must never output:
+pending evidence
+ 
+⸻
+ 
+test_verifier.py
+Checks:
+	•	invalid timestamp rejected
+	•	pending rejected
+	•	rejected rejected
+	•	confidence threshold enforced
+	•	normalized output returned
+ 
+⸻
+ 
+test_registration_pipeline.py
+Checks:
+Model
+ +
+Verified Evidence
+ =
+Registry Admission
+Reject:
+	•	missing evidence
+	•	pending evidence
+	•	low confidence evidence
+ 
+⸻
+ 
+test_registry_invariants.py
+Most important test:
+def test_no_registry_state_without_evidence():
+
+    registry = Registry()
+
+    assert registry.models == {}
+And:
+def test_registry_requires_verified_evidence():
+
+    model = Model(
+        model_id="model1",
+        name="test",
+        provider_id="provider1",
+        evidence_refs=["bad"]
+    )
+
+    try:
+        registry.create_model(
+            model,
+            {}
+        )
+
+        assert False
+
+    except ValueError:
+        assert True
+ 
+⸻
+ 
+4. Add pytest marker
+Optional but useful:
+pytest.ini
+[pytest]
+markers =
+    agip_contract: AGIP evidence boundary tests
+Then:
+python3 -m pytest -m agip_contract -v
+ 
+⸻
+ 
+5. Add failure reporting
+Because this is a governance boundary, make failures obvious:
+python3 -m pytest \
+    tests/contracts/agip \
+    -v \
+    --tb=short
+ 
+⸻
+ 
+Final AGIP CI Guarantee
+After this stage:
+Collector
+   |
+   X
+   |
+Cannot bypass
+   |
+   v
+Evidence Pipeline
+   |
+Verifier
+   |
+Registration Pipeline
+   |
+Registry
+CI proves:
+	•	collectors cannot create canonical objects
+	•	registry objects require evidence
+	•	evidence requires verification
+	•	dashboard cannot show unsupported state
+The next logical artifact is a CI policy manifest (AGIP_POLICY.json or similar) that declares these invariants as machine-readable rules, so future contributors cannot accidentally weaken the boundary.
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+## CONCEPT BRIEF
+Good. Make the boundary machine-readable too.
+CI should fail on any governance break.
+Real modules only, no mocks.
+
+## CODE CHALLENGE
+Create an AGIP policy manifest that CI can read.
+
+```json
+{
+  "agip_contract_tests": "tests/contracts/agip",
+  "fail_build_on_contract_failure": true,
+  "real_modules_only": true,
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry"
+  ]
+}
+```
+
+## STEP-BY-STEP SOLUTION
+1. Add `AGIP_POLICY.json` at repo root.
+2. Declare required invariants and test paths.
+3. Make CI read the policy before running contract tests.
+4. Fail immediately if any invariant is missing or weakened.
+5. Keep mocks out of the governance suite.
+
+## Debugging tip
+If policy and tests disagree, trust the policy file as the contract and update the code or tests to match it exactly.
+
+Gpt
+
+Agreed. The next layer is making governance declarative.
+AGIP_POLICY.json becomes the contract authority. CI should not infer governance rules from tests; tests should prove the policy.
+Recommended flow:
+AGIP_POLICY.json
+        |
+        v
+CI Policy Loader
+        |
+        +----------------+
+        |                |
+        v                v
+Contract Tests       Runtime Checks
+        |
+        v
+Build Allowed
+ 
+⸻
+ 
+Add repository root file
+AGIP_POLICY.json
+{
+  "version": "1.0",
+
+  "name": "AGIP Evidence Boundary Contract",
+
+  "agip_contract_tests": "tests/contracts/agip",
+
+  "fail_build_on_contract_failure": true,
+
+  "real_modules_only": true,
+
+  "mock_policy": {
+    "allowed": false,
+    "reason": "Governance tests must execute against production modules"
+  },
+
+  "required_invariants": [
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry"
+  ],
+
+  "required_pipeline_order": [
+    "collector",
+    "evidence_pipeline",
+    "verifier",
+    "registration_pipeline",
+    "registry",
+    "projection"
+  ],
+
+  "required_domains": [
+    "evidence",
+    "model",
+    "company",
+    "release",
+    "timeline"
+  ],
+
+  "ci_requirements": {
+    "schema_validation": true,
+    "registry_boundary_tests": true,
+    "verification_tests": true,
+    "pipeline_tests": true
+  }
+}
+ 
+⸻
+ 
+CI Policy Loader
+Add:
+scripts/
+└── verify_agip_policy.py
+import json
+from pathlib import Path
+import sys
+
+
+POLICY = Path(
+    "AGIP_POLICY.json"
+)
+
+
+REQUIRED_KEYS = [
+    "agip_contract_tests",
+    "fail_build_on_contract_failure",
+    "real_modules_only",
+    "required_invariants"
+]
+
+
+REQUIRED_INVARIANTS = {
+    "registry_requires_evidence",
+    "evidence_must_be_verified",
+    "collector_cannot_write_registry"
+}
+
+
+def main():
+
+    if not POLICY.exists():
+        print(
+            "Missing AGIP_POLICY.json"
+        )
+        return 1
+
+
+    data = json.loads(
+        POLICY.read_text()
+    )
+
+
+    for key in REQUIRED_KEYS:
+
+        if key not in data:
+            print(
+                f"Missing policy key: {key}"
+            )
+            return 1
+
+
+    invariants = set(
+        data["required_invariants"]
+    )
+
+
+    missing = (
+        REQUIRED_INVARIANTS
+        -
+        invariants
+    )
+
+
+    if missing:
+        print(
+            "Missing invariants:",
+            missing
+        )
+        return 1
+
+
+    if not data["real_modules_only"]:
+        print(
+            "Mock governance testing disabled"
+        )
+        return 1
+
+
+    print(
+        "AGIP policy verified"
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+ 
+⸻
+ 
+CI Integration
+Insert before AGIP tests:
+echo "-- AGIP policy validation"
+
+python3 scripts/verify_agip_policy.py
+
+echo
+Then:
+echo "-- AGIP evidence boundary tests"
+
+python3 -m pytest \
+    tests/contracts/agip \
+    -v
+ 
+⸻
+ 
+Additional Contract Test
+Add:
+tests/contracts/agip/test_policy_contract.py
+import json
+from pathlib import Path
+
+
+def test_agip_policy_contains_required_invariants():
+
+    policy = json.loads(
+        Path(
+            "AGIP_POLICY.json"
+        ).read_text()
+    )
+
+
+    required = {
+        "registry_requires_evidence",
+        "evidence_must_be_verified",
+        "collector_cannot_write_registry"
+    }
+
+
+    assert required.issubset(
+        set(
+            policy[
+                "required_invariants"
+            ]
+        )
+    )
+ 
+⸻
+ 
+Resulting Governance Chain
+AGIP_POLICY.json
+        |
+        v
+CI verifies policy exists
+        |
+        v
+Tests verify implementation
+        |
+        v
+Pipeline enforces runtime boundary
+        |
+        v
+Registry accepts verified state only
+The important distinction:
+	•	Policy defines what must never happen.
+	•	Tests prove the implementation prevents it.
+	•	Runtime guards enforce it if something bypasses CI.
+Next logical artifact would be AGIP_MANIFEST.json for runtime introspection: version, enabled modules, evidence schema version, registry schema version, and policy hash. That would let the dashboard display its own integrity state without trusting the UI.

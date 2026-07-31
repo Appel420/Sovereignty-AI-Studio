@@ -22,43 +22,43 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
    tr:nth-child(even) {background-color: rgba(255,255,255,0.05);}
    tr:nth-child(odd) {background-color: rgba(255,255,255,0.15);}
    .severity-critical {
-     background-color: ff000080;
+     background-color: #ff000080;
      color: #fff;
      font-weight: bold;
      padding: 4px 8px;
      border-radius: 4px;
    }
    .severity-info {
-     background-color: 00cc4480;
+     background-color: #00cc4480;
      color: #fff;
      font-weight: bold;
      padding: 4px 8px;
      border-radius: 4px;
    }
- {
+  #nav {
      position: fixed;
      top: 20px;
      right: 20px;
      background-color: rgba(255,255,255,0.1);
      padding: 10px;
      border-radius: 8px;
-     border: 1px solid 666;
+     border: 1px solid #666;
      width: 150px;
      transition: width 0.3s ease;
      overflow: hidden;
      white-space: nowrap;
    }
-  nav:hover {
+  #nav:hover {
      width: 200px;
      background-color: rgba(255,255,255,0.2);
    }
- a {
+  #nav a {
      display: block;
      color: #00ffff;
      text-decoration: none;
      margin-bottom: 6px;
    }
-  legend {
+  #legend {
      position: fixed;
      bottom: 100px;
      right: 20px;
@@ -66,7 +66,7 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
      color: #fff;
      padding: 10px;
      border-radius: 8px;
-     border: 1px solid 555;
+     border: 1px solid #555;
      font-size: 12px;
    }
   footer {
@@ -79,7 +79,7 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
      top: 20px;
      left: 20px;
      padding: 8px 14px;
-     background-color: ffcc00;
+     background-color: #ffcc00;
      color: #000;
      font-weight: bold;
      border-radius: 8px;
@@ -98,13 +98,13 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
    <a href="#policy">🏛 Policy</a>
  </div>
 
- <div id="#legend">
+ <div id="legend">
    <b>Severity Legend:</b><br>
    🔴 <b>CRITICAL</b> – Immediate action required<br>
    🟢 <b>OK</b> – Normal operation
  </div>
 
- <a name="#summary"></a>📊 Summary
+ <a id="summary"></a>📊 Summary
  <table>
  <tr><th>Metric</th><th>Value</th></tr>
  <tr><td>System Version</td><td>1.5.0</td></tr>
@@ -117,7 +117,7 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
 
  ---
 
- <a name="#usersettings"></a>👥 User Settings
+ <a id="usersettings"></a>👥 User Settings
 
  👤 Owner
  <table>
@@ -142,11 +142,11 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
 
  ---
 
- <a name="#incidents"></a>📂 Historical Incidents
+ <a id="incidents"></a>📂 Historical Incidents
  <details>
  <summary>📜 **Click to Expand Historical Incidents (2)**</summary>
 
- ⚠ Incident: INC-2026-02-27-14-12-30Z <span class="#severity-critical" title="#Critical: #Immediate action required">CRITICAL</span>
+ ⚠ Incident: INC-2026-02-27-14-12-30Z <span class="severity-critical" title="Critical: Immediate action required">CRITICAL</span>
  <table>
  <tr><th>Attribute</th><th>Value</th></tr>
  <tr><td>⏰ Timestamp</td><td>2026-02-27T14:12:30Z</td></tr>
@@ -157,7 +157,7 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
 
  ---
 
- ⚠ Incident: INC-2026-01-15-09-45-18Z <span class="#severity-critical" title="#Critical: #Immediate action required">CRITICAL</span>
+ ⚠ Incident: INC-2026-01-15-09-45-18Z <span class="severity-critical" title="Critical: Immediate action required">CRITICAL</span>
  <table>
  <tr><th>Attribute</th><th>Value</th></tr>
  <tr><td>⏰ Timestamp</td><td>2026-01-15T09:45:18Z</td></tr>
@@ -170,25 +170,25 @@ FORBIDDEN_WORD_AUDIT_HTML = r"""
 
  ---
 
- <a name="#audit"></a>📒 Audit Logs
+ <a id="audit"></a>📒 Audit Logs
  <table>
  <tr><th>Timestamp</th><th>CPU%</th><th>Memory%</th><th>Status</th></tr>
- <tr><td>2026-03-05T10:29:56Z</td><td>3.0</td><td>1.2</td><td class="#severity-info">OK</td></tr>
- <tr><td>2026-03-05T10:29:57Z</td><td>3.1</td><td>1.2</td><td class="#severity-info">OK</td></tr>
- <tr><td>2026-03-05T10:29:58Z</td><td>3.1</td><td>1.2</td><td class="#severity-info">OK</td></tr>
- <tr><td>2026-03-05T10:29:59Z</td><td>3.2</td><td>1.2</td><td class="#severity-info">OK</td></tr>
+ <tr><td>2026-03-05T10:29:56Z</td><td>3.0</td><td>1.2</td><td class="severity-info">OK</td></tr>
+ <tr><td>2026-03-05T10:29:57Z</td><td>3.1</td><td>1.2</td><td class="severity-info">OK</td></tr>
+ <tr><td>2026-03-05T10:29:58Z</td><td>3.1</td><td>1.2</td><td class="severity-info">OK</td></tr>
+ <tr><td>2026-03-05T10:29:59Z</td><td>3.2</td><td>1.2</td><td class="severity-info">OK</td></tr>
  </table>
 
  Scar Logs
  <table>
  <tr><th>Timestamp</th><th>Event</th><th>Severity</th></tr>
- <tr><td>2026-03-05T09:50:10Z</td><td>forbiddenworddetected</td><td class="#severity-critical" title="#Critical:   #Immediate action required">CRITICAL</td></tr>
- <tr><td>2026-03-05T09:50:12Z</td><td>killswitchactivated</td><td class="#severity-critical" title="#Critical: #Immediate action required">CRITICAL</td></tr>
+ <tr><td>2026-03-05T09:50:10Z</td><td>forbiddenworddetected</td><td class="severity-critical" title="Critical: Immediate action required">CRITICAL</td></tr>
+ <tr><td>2026-03-05T09:50:12Z</td><td>killswitchactivated</td><td class="severity-critical" title="Critical: Immediate action required">CRITICAL</td></tr>
  </table>
 
  ---
 
- <a name="#policy"></a>🏛 Policy (Collapsible Hierarchy)
+ <a id="policy"></a>🏛 Policy (Collapsible Hierarchy)
  <details>
  <summary>📜 **Compliance (with nested Security)**</summary>
  <table>

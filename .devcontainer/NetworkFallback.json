@@ -1,0 +1,3 @@
+{"$schema":"http://json-schema.org/draft-07/schema#","type":"object",
+"properties":{"allowonlinefallback":{"type":"boolean"},"userpromptrequired":{"type":"boolean"}},
+"required":["allowonlinefallback","userpromptrequired"],"additionalProperties":false}
