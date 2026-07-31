@@ -13,7 +13,8 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +27,10 @@ jobs:
       - name: Install lightweight test/lint tools only
         run: |
           python -m pip install --upgrade pip
-         ara-hardened
           # Do not install oqs / liboqs / full PQC native stack in CI.
           pip install ruff mypy pytest || true
           pip install -e ".[test,lint]" 2>/dev/null || true
 
-
-          python -m pip install -e ".[test,lint,pqc]"
-         main
       - name: Lint
         run: ruff check . || true
 
@@ -45,16 +42,7 @@ jobs:
 
       - name: Create local-only CI manifest (no PQC download)
         run: |
-        copilot/task-201665841-1123938722-648717a8-5ad9-4b10-a6a5-8e22a82d95b4
-         python3 - <<'PY'
-         import hashlib
-         import hmac
-         import json
-         import secrets
-         import time
-
           python3 <<'PY'
-          ara-hardened
           import hashlib
           import hmac
           import json
@@ -72,60 +60,6 @@ jobs:
               def verify(self, message: bytes, signature: bytes) -> bool:
                   return hmac.compare_digest(self.sign(message), signature)
 
-          import json
-          import time
-          import sys
-          sys.path.insert(0, '.')
-         main
-          copilot/fix-github-actions-job
-         main
-
-         try:
-             from sovereign.pqc_signatures import MLDSASigner, PQCUnavailableError
-         except ImportError:
-             MLDSASigner = None
-
-             class PQCUnavailableError(RuntimeError):
-                 pass
-
-         class LocalFallbackSigner:
-             def __init__(self, algorithm: str = 'ML-DSA-87') -> None:
-                 self.algorithm = algorithm
-                 self._secret_key = b''
-                 self._public_key = b''
-
-             def load_or_create_keypair(self) -> tuple[bytes, bytes]:
-                 if not self._secret_key:
-                     self._secret_key = secrets.token_bytes(32)
-                     self._public_key = hashlib.sha256(self._secret_key).digest()
-                 return self._public_key, self._secret_key
-
-             def sign(self, message: bytes) -> bytes:
-                 _, secret_key = self.load_or_create_keypair()
-                 return hmac.new(secret_key, message, hashlib.sha256).digest()
-
-             def verify(self, message: bytes, signature: bytes) -> bool:
-                 return hmac.compare_digest(self.sign(message), signature)
-
-         manifest = {
-             'workflow': 'Python CI',
-             'run_id': '${{ github.run_id }}',
-             'run_number': '${{ github.run_number }}',
-             'sha': '${{ github.sha }}',
-             'ref': '${{ github.ref }}',
-             'actor': '${{ github.actor }}',
-             'event': '${{ github.event_name }}',
-             'timestamp': int(time.time()),
-         }
-
-         copilot/task-201665841-1123938722-648717a8-5ad9-4b10-a6a5-8e22a82d95b4
-         signer = LocalFallbackSigner()
-         manifest['signing_backend'] = 'hmac-sha256-fallback'
-
-          from sovereign.pqc_signatures import MLDSASigner
-         copilot/fix-python-ci-job-655
-         main
-
           manifest = {
               'workflow': 'Python CI',
               'run_id': '${{ github.run_id }}',
@@ -138,7 +72,7 @@ jobs:
               'signing_backend': 'hmac-sha256-ci-local',
               'note': 'Real ML-DSA-87 is device/offline; CI does not download oqs/liboqs',
           }
-          mail ara-hardened
+
           signer = LocalCISigner()
           message = json.dumps(manifest, sort_keys=True).encode()
           signature = signer.sign(message)
@@ -153,33 +87,6 @@ jobs:
           print('Python CI local manifest created (no oqs install)')
           PY
 
-=======
-         if MLDSASigner is not None:
-             try:
-                 signer = MLDSASigner(algorithm='ML-DSA-87')
-                 signer.load_or_create_keypair()
-                 manifest['signing_backend'] = 'ml-dsa-87'
-             except PQCUnavailableError as error:
-                 print(
-                     'liboqs unavailable; using local fallback signer for '
-                     f'Python CI manifest only: {error}'
-                 )
-                 signer = LocalFallbackSigner()
-
-         public_key, _ = signer.load_or_create_keypair()
-         message = json.dumps(manifest, sort_keys=True).encode()
-         signature = signer.sign(message)
-
-         manifest['ml_dsa_87_signature'] = signature.hex()
-         manifest['public_key'] = public_key.hex()
-
-         with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
-             json.dump(manifest, fh, indent=2)
-
-         assert signer.verify(message, signature), 'PQC verification failed'
-         print(f"Python CI manifest created ({manifest['signing_backend']})")
-         PY
-        main
       - name: Upload Test Manifest
         if: always()
         uses: actions/upload-artifact@v4
