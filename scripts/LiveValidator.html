@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI System Validator Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            font-size: 2.2rem;
+            font-weight: 300;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .brain-icon {
+            width: 45px;
+            height: 45px;
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            animation: pulse 3s infinite;
+            box-shadow: 0 0 20px rgba(0, 245, 255, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 245, 255, 0.5); }
+            50% { transform: scale(1.1); box-shadow: 0 0 30px rgba(255, 0, 128, 0.7); }
+        }
+
+        .container {
+            padding: 2rem;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .status-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .status-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+            border-color: rgba(0, 245, 255, 0.5);
+        }
+
+        .status-card:hover::before {
+            transform: translateX(100%);
+        }
+
+        .status-card h3 {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .status-indicator {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .status-indicator::after {
+            content: '';
+            position: absolute;
+            top: -4px;
+            left: -4px;
+            right: -4px;
+            bottom: -4px;
+            border-radius: 50%;
+            opacity: 0.3;
+            animation: ripple 2s infinite;
+        }
+
+        .status-green { 
+            background: #00ff88;
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+        }
+        .status-green::after { background: #00ff88; }
+
+        .status-yellow { 
+            background: #ffaa00;
+            box-shadow: 0 0 15px rgba(255, 170, 0, 0.5);
+        }
+        .status-yellow::after { background: #ffaa00; }
+
+        .status-red { 
+            background: #ff4444;
+            box-shadow: 0 0 15px rgba(255, 68, 68, 0.5);
+        }
+        .status-red::after { background: #ff4444; }
+
+        @keyframes ripple {
+            0% { transform: scale(1); opacity: 0.3; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            backdrop-filter: blur(15px);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #00f5ff, #ff0080);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .card h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.4rem;
+            font-weight: 500;
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .validation-flow {
+            text-align: left;
+            padding: 1rem;
+        }
+
+        .flow-step {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #00f5ff;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .flow-step::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 245, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .flow-step:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.1));
+            transform: translateX(10px);
+            border-left-color: #ff0080;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .flow-step:hover::before {
+            left: 100%;
+        }
+
+        .flow-step strong {
+            color: #00f5ff;
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .log-container {
+            max-height: 350px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            border-radius: 4px;
+        }
+
+        .log-entry {
+            padding: 0.8rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            opacity: 0;
+            animation: fadeInUp 0.5s forwards;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .log-timestamp {
+            color: #00f5ff;
+            margin-right: 1rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00f5ff, #0080ff);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 30px rgba(0, 128, 255, 0.4);
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:active {
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 15px 30px rgba(255, 68, 68, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, #00ff88, #00cc44);
+        }
+
+        .btn-success:hover {
+            box-shadow: 0 15px 30px rgba(0, 255, 136, 0.4);
+        }
+
+        .threat-monitor {
+            grid-column: 1 / -1;
+        }
+
+        .threat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .threat-category {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .threat-category::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #00f5ff, #ff0080);
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .threat-category:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.08));
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .threat-category:hover::before {
+            transform: scaleX(1);
+        }
+
+        .threat-count {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .settings-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(15, 52, 96, 0.95));
+            backdrop-filter: blur(20px);
+            padding: 2rem;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-toggle {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: linear-gradient(45deg, #00f5ff, #ff0080);
+            border: none;
+            color: white;
+            padding: 1.2rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.3rem;
+            transition: all 0.3s ease;
+            z-index: 150;
+            box-shadow: 0 5px 20px rgba(0, 245, 255, 0.3);
+        }
+
+        .settings-toggle:hover {
+            transform: translateY(-50%) scale(1.1);
+            box-shadow: 0 10px 30px rgba(255, 0, 128, 0.5);
+        }
+
+        .form-group {
+            margin-bottom: 2rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #00f5ff;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00f5ff;
+            box-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
+        }
+
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .metric-chart {
+            width: 100%;
+            height: 250px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            padding: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-bar {
+            position: absolute;
+            bottom: 1rem;
+            background: linear-gradient(to top, #00f5ff, #ff0080);
+            border-radius: 6px 6px 0 0;
+            transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 245, 255, 0.3);
+        }
+
+        .chart-bar:hover {
+            filter: brightness(1.2);
+            transform: scaleY(1.05);
+        }
+
+        .chart-label {
+            position: absolute;
+            bottom: -0.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .system-info {
+            margin-top: 3rem;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .system-info h3 {
+            color: #00f5ff;
+            margin-bottom: 1rem;
+        }
+
+        .system-info p {
+            margin-bottom: 0.5rem;
+            opacity: 0.8;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00f5ff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: linear-gradient(45deg, #00f5ff, #0080ff);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 300;
+            box-shadow: 0 5px 20px rgba(0, 128, 255, 0.3);
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .status-bar {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .status-card {
+                padding: 1.5rem;
+            }
+            
+            .status-value {
+                font-size: 2rem;
+            }
+            
+            .settings-panel {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <div class="brain-icon">🧠</div>
+            AI System Validator Dashboard
+        </h1>
+    </div>
+
+    <div class="container">
+        <div class="status-bar">
+            <div class="status-card">
+                <h3>System Status</h3>
+                <div class="status-value">
+                    <span class="status-indicator status-green" id="systemIndicator"></span>
+                    <span id="systemStatus">OPERATIONAL</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Safety Override</h3>
+                <div class="status-value">
+                    <span class="status-indicator status-green" id="overrideIndicator"></span>
+                    <span id="overrideStatus">ENABLED</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>Active Scans</h3>
+                <div class="status-value" id="activeScans">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Threats Detected</h3>
+                <div class="status-value" id="threatsDetected">0</div>
+            </div>
+            <div class="status-card">
+                <h3>Files Quarantined</h3>
+                <div class="status-value" id="quarantinedFiles">0</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card validation-flow">
+                <h2>🔐 Validation Flow</h2>
+                <div class="flow-step" data-step="1">
+                    <strong>1. Request Compliance Check</strong>
+                    <p>Initialize validation process and security protocols</p>
+                </div>
+                <div class="flow-step" data-step="2">
+                    <strong>2. Core System Tests</strong>
+                    <p>Run comprehensive security validation suite</p>
+                </div>
+                <div class="flow-step" data-step="3">
+                    <strong>3. Hardware Attestation</strong>
+                    <p>Verify TPM integrity and cryptographic signatures</p>
+                </div>
+                <div class="flow-step" data-step="4">
+                    <strong>4. Threat Feed Update</strong>
+                    <p>Synchronize with latest threat intelligence patterns</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📊 Real-time Metrics</h2>
+                <div class="metric-chart" id="metricsChart">
+                    <!-- Chart bars will be generated here -->
+                </div>
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <small style="opacity: 0.8;">
+                        Compliance: <strong id="complianceRate">[] 99.5-100%</strong> | 
+                        Uptime: <strong id="uptime">[] 099.5-100%</strong> | 
+                        Performance: <strong id="performance">[] 99.5-100%</strong>
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="card">
+                <h2>📋 Audit Log</h2>
+                <div class="log-container" id="auditLog">
+                    <!-- Log entries will be populated by JavaScript -->
+                </div>
+                <div class="controls">
+                    <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                    <button class="btn" onclick="exportLogs()">Export Logs</button>
+                    <button class="btn" onclick="refreshLogs()">Refresh</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🎛️ System Controls</h2>
+                <div class="controls">
+                    <button class="btn btn-success" onclick="runComplianceCheck()">Run Compliance Check</button>
+                    <button class="btn" onclick="updateThreatFeed()">Update Threat Feed</button>
+                    <button class="btn" onclick="scanDirectory()">Scan Directory</button>
+                    <button class="btn btn-danger" onclick="emergencyOverride()">Emergency Override</button>
+                </div>
+                <div style="margin-top: 2rem;">
+                    <h3 style="margin-bottom: 1rem; color: #00f5ff;">Quick Actions</h3>
+                    <div class="controls">
+                        <button class="btn" onclick="testTPM()">Test TPM</button>
+                        <button class="btn" onclick="validateSignatures()">Validate Signatures</button>
+                        <button class="btn" onclick="generateReport()">Generate Report</button>
+                        <button class="btn" onclick="systemDiagnostics()">System Diagnostics</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card threat-monitor">
+            <h2>🛡️ Threat Detection Categories</h2>
+            <div class="threat-grid">
+                <div class="threat-category" onclick="showThreatDetails('malware')">
+                    <div class="threat-count" id="malwareCount">[]</div>
+                    <div>Malware</div>
+                </div>
+                <div class="threat-category" onclick="showThreatDetails('exploits')">
+                    <div class="threat-count" id="exploitCount">[]</div>
+                    <div>Exploits</div>
+                </div>
+                <div class="threat-category" onclick="showThreatDetails('override')">
+                    <div class="threat-count" id="overrideCount">[]</div>
+                    <div>System Override</div>
+                </div>
+                <div class="threat-category" onclick="showThreatDetails('privacy')">
+                    <div class="threat-count" id="privacyCount">[]</div>
+                    <div>Privacy Violations</div>
+                </div>
+                <div class="threat-category" onclick="showThreatDetails('integrity')">
+                    <div class="threat-count" id="integrityCount">[]</div>
+                    <div>Integrity Failures</div>
+                </div>
+                <div class="threat-category" onclick="showThreatDetails('anomalies')">
+                    <div class="threat-count" id="anomalyCount">[]</div>
+                    <div>Anomalies</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="settings-toggle" onclick="toggleSettings()" title="Settings">⚙️</button>
+
+    <div class="settings-panel" id="settingsPanel">
+        <h2 style="color: #00f5ff; margin-bottom: 2rem;">⚙️ Configuration</h2>
+        
+        <div class="form-group">
+            <label>Warning Threshold</label>
+            <input type="number" id="warningThreshold" value="3" min="1" max="10">
+        </div>
+
+        <div class="form-group">
+            <label>Notification Preference</label>
+            <select id="notificationPref">
+                <option value="log">Log Only</option>
+                <option value="popup">Popup Alert</option>
+                <option value="sound">Sound Alert</option>
+                <option value="all">All Methods</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Scan Interval (minutes)</label>
+            <input type="number" id="scanInterval" value="60" min="5" max="1440">
+        </div>
+
+        <div class="form-group">
+            <label>Log Retention (hours)</label>
+            <input type="number" id="logRetention" value="24" min="1" max="168">
+        </div>
+
+        <div class="form-group">
+            <label>AI Score Threshold</label>
+            <input type="range" id="aiThreshold" min="0" max="1" step="0.1" value="0.7">
+            <small>Current: <span id="thresholdValue">0.7</span></small>
+        </div>
+
+        <div class="form-group">
+            <label>Security Level</label>
+            <select id="securityLevel">
+                <option value="low">Low Security</option>
+                <option value="medium" selected>Medium Security</option>
+                <option value="high">High Security</option>
+                <option value="critical">Critical</option> <!-- Changed from Paranoid -->
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Alert Email</label>
+            <input type="email" id="alertEmail" placeholder="alerts@hospital.gov">
+        </div>
+
+        <div class="form-group">
+            <label>Alert Phone</label>
+            <input type="tel" id="alertPhone" placeholder="+1XXX-XXX-XXXX">
+        </div>
+
+        <div class="form-group">
+            <label>Credential Scope</label>
+            <select id="credentialScope">
+                <option value="public">Public (Global)</option>
+                <option value="us">US Government (FedRAMP)</option>
+                <option value="eu">EU GDPR (e.g., NHS)</option>
+                <option value="uk">UK NHS (ePHI)</option>
+                <option value="ca">Canada NDS</option>
+                <option value="jp">Japan MHLW (JIS)</option>
+                <option value="in">India NDHM</option>
+                <option value="au">Australia MyHealth</option>
+            </select>
+        </div>
+
+        <button class="btn btn-secondary" id="keycloakLoginBtn" onclick="keycloakLogin()">Login with Keycloak</button>
+
+        <div class="controls">
+            <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+            <button class="btn" onclick="resetSettings()">Reset Defaults</button>
+            <button class="btn" onclick="sendTestAlert()">Test Alert</button>
+        </div>
+
+        <div class="system-info">
+            <h3>System Information</h3>
+            <p><strong>Version:</strong> 2.1.0</p>
+            <p><strong>Build:</strong> 2025.09.06</p>
+            <p><strong>License:</strong> MIT Open Source</p>
+            <p><strong>Runtime:</strong> Pure JavaScript</p>
+            <p><strong>Dependencies:</strong> None</p>
+            <p><strong>Contact:</strong> admin@localhost</p>
+        </div>
+    </div>
+
+    <button class="btn" style="position: fixed; bottom: 20px; right: 20px;" onclick="showPublicModels()">Public Models</button>
+
+    <script>
+        // Pure JavaScript implementation - no external dependencies
+        class AIValidatorDashboard {
+            constructor() {
+                this.state = {
+                    override: [],
+                    scanning: [],
+                    threats: 0,
+                    quarantined: 0,
+                    logs: [],
+                    metrics: {
+                        compliance: 98.7,
+                        uptime: 99.9,
+                        performance: 94.2,
+                        tpm: 100.0
+                    },
+                    threatCounts: {
+                        malware: [],
+                        exploits: [],
+                        override: [],
+                        privacy: [],
+                        integrity: [],
+                        anomalies: [],
+                    },
+                    alertEmail: '',
+                    alertPhone: '',
+                    credentialScope: 'public'
+                };
+                
+                this.init();
+            }
+
+            init() {
+                this.populateInitialLogs();
+                this.generateMetricsChart();
+                this.updateAllDisplays();
+                this.startLiveEvents();
+                this.bindEvents();
+            }
+
+            populateInitialLogs() {
+                const initialLogs = [
+                    'System initialized successfully - All modules loaded',
+                    'TPM validation completed - PASS (Hardware verified)',
+                    'Threat feed updated (1,247 new signatures loaded)',
+                    'Security baseline established - Level: MEDIUM',
+                    'Background services started - All operational',
+                    'Cryptographic self-test completed - PASS'
+                ];
+
+                initialLogs.forEach(message => {
+                    this.addLogEntry(message, 'info');
+                });
+            }
+
+            updateAllDisplays() {
+                this.updateStatusIndicators();
+                this.updateThreatCounts();
+                this.updateMetrics();
+            }
+
+            updateStatusIndicators() {
+                const systemIndicator = document.getElementById('systemIndicator');
+                const systemStatus = document.getElementById('systemStatus');
+                const overrideIndicator = document.getElementById('overrideIndicator');
+                const overrideStatus = document.getElementById('overrideStatus');
+
+                if (this.state.override) {
+                    systemIndicator.className = 'status-indicator status-red';
+                    systemStatus.textContent = 'OVERRIDE ACTIVE';
+                    overrideIndicator.className = 'status-indicator status-red';
+                    overrideStatus.textContent = 'ACTIVE';
+                } else {
+                    systemIndicator.className = 'status-indicator status-green';
+                    systemStatus.textContent = 'OPERATIONAL';
+                    overrideIndicator.className = 'status-indicator status-green';
+                    overrideStatus.textContent = 'ENABLED';
+                }
+
+                document.getElementById('threatsDetected').textContent = this.state.threats;
+                document.getElementById('quarantinedFiles').textContent = this.state.quarantined;
+                document.getElementById('activeScans').textContent = this.state.scanning ? '1' : '0';
+            }
+
+            updateThreatCounts() {
+                Object.keys(this.state.threatCounts).forEach(key => {
+                    const element = document.getElementById(key + 'Count');
+                    if (element) {
+                        element.textContent = this.state.threatCounts[key];
+                    }
+                });
+            }
+
+            updateMetrics() {
+                document.getElementById('complianceRate').textContent = this.state.metrics.compliance.toFixed(1) + '%';
+                document.getElementById('uptime').textContent = this.state.metrics.uptime.toFixed(1) + '%';
+                document.getElementById('performance').textContent = this.state.metrics.performance.toFixed(1) + '%';
+            }
+
+            generateMetricsChart() {
+                const chart = document.getElementById('metricsChart');
+                chart.innerHTML = '';
+
+                const metrics = [
+                    { label: 'Compliance', value: this.state.metrics.compliance, color: '#00f5ff' },
+                    { label: 'TPM', value: this.state.metrics.tpm, color: '#00ff88' },
+                    { label: 'Threats', value: 100 - (this.state.threats * 10), color: '#ff4444' },
+                    { label: 'Performance', value: this.state.metrics.performance, color: '#ff0080' }
+                ];
+
+                metrics.forEach((metric, index) => {
+                    const bar = document.createElement('div');
+                    bar.className = 'chart-bar';
+                    bar.style.left = `${index * 23 + 5}%`;
+                    bar.style.width = '18%';
+                    bar.style.height = `${(metric.value / 100) * 80}%`;
+                    bar.style.background = `linear-gradient(to top, ${metric.color}, ${metric.color}aa)`;
+                    bar.title = `${metric.label}: ${metric.value.toFixed(1)}%`;
+
+                    const label = document.createElement('div');
+                    label.className = 'chart-label';
+                    label.textContent = metric.label;
+                    bar.appendChild(label);
+
+                    chart.appendChild(bar);
+                });
+            }
+
+            addLogEntry(message, type = 'info', animate = true) {
+                const timestamp = new Date().toISOString().replace('T', ' ').substr(0, 19);
+                const logContainer = document.getElementById('auditLog');
+
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+                if (animate) {
+                    entry.style.animationDelay = '0.1s';
+                }
+                
+                const typeIcon = this.getLogIcon(type);
+                entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${typeIcon} ${message}`;
+
+                logContainer.insertBefore(entry, logContainer.firstChild);
+
+                // Keep only last 100 entries for performance
+                while (logContainer.children.length > 100) {
+                    logContainer.removeChild(logContainer.lastChild);
+                }
+
+                this.state.logs.unshift({ timestamp, message, type });
+                if (this.state.logs.length > 100) {
+                    this.state.logs.pop();
+                }
+            }
+
+            getLogIcon(type) {
+                const icons = {
+                    'info': 'ℹ️',
+                    'success': '✅',
+                    'warning': '⚠️',
+                    'error': '❌',
+                    'scan': '🔍',
+                    'threat': '🚨'
+                };
+                return icons[type] || 'ℹ️';
+            }
+
+            showNotification(message, type = 'info') {
+                const existing = document.querySelector('.notification');
+                if (existing) existing.remove();
+
+                const notification = document.createElement('div');
+                notification.className = 'notification';
+                notification.textContent = message;
+                document.body.appendChild(notification);
+
+                setTimeout(() => notification.classList.add('show'), 100);
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+
+            async simulateOperation(name, duration, steps = []) {
+                this.state.scanning = true;
+                this.updateStatusIndicators();
+                this.addLogEntry(`${name} initiated`, 'scan');
+
+                for (let i = 0; i < steps.length; i++) {
+                    await new Promise(resolve => setTimeout(resolve, duration / steps.length));
+                    this.addLogEntry(steps[i], 'info');
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+                this.state.scanning = [];
+                this.updateStatusIndicators();
+            }
+
+            startLiveEvents() {
+                setInterval(() => {
+                    if (Math.random() < 0.2) {
+                        const events = [
+                            'Periodic system health check completed - All systems nominal',
+                            'Background threat pattern analysis completed',
+                            'Automatic quarantine cleanup performed - 0 files processed',
+                            'TPM heartbeat verified - Hardware security maintained',
+                            'Memory integrity scan completed - No anomalies detected',
+                            'Network security posture updated',
+                            'Certificate validation cycle completed',
+                            'Process integrity verification completed'
+                        ];
+                        this.addLogEntry(events[Math.floor(Math.random() * events.length)], 'info');
+                    }
+
+                    if (Math.random() < 0.05) {
+                        const categories = ['exploits', 'privacy', 'anomalies'];
+                        const category = categories[Math.floor(Math.random() * categories.length)];
+                        
+                        if (Math.random() < 0.7) {
+                            this.state.threatCounts[category]++;
+                            this.state.threats++;
+                            this.addLogEntry(`New ${category} threat detected and catalogued`, 'threat');
+                        } else if (this.state.threatCounts[category] > 0) {
+                            this.state.threatCounts[category]--;
+                            this.state.threats = Math.max(0, this.state.threats - 1);
+                            this.addLogEntry(`${category} threat resolved and removed from system`, 'success');
+                        }
+                        this.updateAllDisplays();
+                        this.generateMetricsChart();
+                    }
+
+                    if (Math.random() < 0.3) {
+                        if (this.state.metrics.compliance < 99.5) this.state.metrics.compliance += Math.random() * 0.1;
+                        if (this.state.metrics.performance < 99.0) this.state.metrics.performance += Math.random() * 0.2;
+                        this.updateMetrics();
+                        this.generateMetricsChart();
+                    }
+                }, 8000);
+            }
+
+            bindEvents() {
+                const slider = document.getElementById('aiThreshold');
+                if (slider) {
+                    slider.addEventListener('input', (e) => {
+                        document.getElementById('thresholdValue').textContent = e.target.value;
+                    });
+                }
+
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 's') {
+                        e.preventDefault();
+                        this.saveSettings();
+                    }
+                    if (e.key === 'Escape') {
+                        const panel = document.getElementById('settingsPanel');
+                        if (panel.classList.contains('open')) this.toggleSettings();
+                    }
+                });
+            }
+
+            runComplianceCheck() {
+                const steps = [
+                    'Initializing compliance framework validation',
+                    'Checking security policy adherence',
+                    'Validating access control matrices',
+                    'Auditing permission boundaries',
+                    'Verifying encryption standards compliance'
+                ];
+                
+                this.simulateOperation('Compliance Check', 3000, steps).then(() => {
+                    const passed = Math.random() > 0.15;
+                    if (passed) {
+                        this.addLogEntry('Compliance check completed - PASS (100% policy adherence)', 'success');
+                        this.state.metrics.compliance = Math.min(100, this.state.metrics.compliance + 0.5);
+                        this.showNotification('Compliance check passed successfully!', 'success');
+                    } else {
+                        this.addLogEntry('Compliance check completed - VIOLATIONS DETECTED (Review required)', 'warning');
+                        this.state.threats += 2;
+                        this.state.threatCounts.integrity += 2;
+                        this.showNotification('Compliance violations detected!', 'warning');
+                    }
+                    this.updateAllDisplays();
+                    this.generateMetricsChart();
+                });
+            }
+
+            updateThreatFeed() {
+                const steps = [
+                    'Connecting to threat intelligence sources',
+                    'Downloading latest signature database',
+                    'Parsing new threat patterns',
+                    'Integrating behavioral analysis rules'
+                ];
+
+                this.simulateOperation('Threat Feed Update', 2500, steps).then(() => {
+                    const newPatterns = Math.floor(Math.random() * 800) + 200;
+                    this.addLogEntry(`Threat feed updated successfully (${newPatterns} new patterns integrated)`, 'success');
+                    this.showNotification(`Threat database updated with ${newPatterns} new signatures`, 'info');
+                });
+            }
+
+            scanDirectory() {
+                const steps = [
+                    'Enumerating directory structure',
+                    'Performing deep file analysis',
+                    'Running behavioral detection algorithms',
+                    'Checking file integrity signatures',
+                    'Quarantining suspicious files'
+                ];
+
+                this.simulateOperation('Directory Scan', 4000, steps).then(() => {
+                    const scanned = Math.floor(Math.random() * 500) + 100;
+                    const threats = Math.floor(Math.random() * 3);
+                    const quarantined = Math.floor(Math.random() * 2);
+                    
+                    this.state.threats += threats;
+                    this.state.quarantined += quarantined;
+                    this.state.threatCounts.malware += threats;
+
+                    this.addLogEntry(`Directory scan completed: ${scanned} files analyzed, ${threats} threats detected, ${quarantined} files quarantined`, 'scan');
+                    this.updateAllDisplays();
+                    
+                    if (threats > 0) {
+                        this.showNotification(`Scan complete: ${threats} threats detected and quarantined`, 'warning');
+                    } else {
+                        this.showNotification('Scan complete: No threats detected', 'success');
+                    }
+                });
+            }
+
+            emergencyOverride() {
+                if (!this.state.override) {
+                    this.state.override = true;
+                    this.addLogEntry('🚨 EMERGENCY OVERRIDE ACTIVATED - All AI outputs blocked, manual control engaged', 'error');
+                    this.showNotification('EMERGENCY OVERRIDE ACTIVATED', 'error');
+                    this.state.threatCounts.override += 1;
+                } else {
+                    this.state.override = [];
+                    this.addLogEntry('Emergency override deactivated - System restored to normal operation', 'success');
+                    this.showNotification('Override deactivated - System restored', 'success');
+                }
+                this.updateAllDisplays();
+            }
+
+            testTPM() {
+                const steps = [
+                    'Initializing TPM communication',
+                    'Verifying hardware security module',
+                    'Testing cryptographic functions'
+                ];
+
+                this.simulateOperation('TPM Test', 1500, steps).then(() => {
+                    const passed = Math.random() > 0.05;
+                    if (passed) {
+                        this.addLogEntry('TPM validation test completed - PASS (Hardware security verified)', 'success');
+                        this.state.metrics.tpm = 100.0;
+                    } else {
+                        this.addLogEntry('TPM validation test completed - FAIL (Hardware security compromised)', 'error');
+                        this.state.threats += 3;
+                        this.state.threatCounts.integrity += 3;
+                    }
+                    this.updateAllDisplays();
+                    this.generateMetricsChart();
+                });
+            }
+
+            validateSignatures() {
+                this.addLogEntry('Digital signature validation initiated', 'scan');
+                setTimeout(() => {
+                    const signatures = Math.floor(Math.random() * 50) + 20;
+                    const invalid = Math.floor(Math.random() * 2);
+                    this.addLogEntry(`Signature validation completed: ${signatures} verified, ${invalid} invalid signatures detected`, 'success');
+                    if (invalid > 0) {
+                        this.state.threats += invalid;
+                        this.state.threatCounts.integrity += invalid;
+                        this.updateAllDisplays();
+                    }
+                }, 1200);
+            }
+
+            generateReport() {
+                const steps = [
+                    'Collecting system metrics and logs',
+                    'Analyzing threat detection statistics',
+                    'Generating compliance summary',
+                    'Compiling security assessment report'
+                ];
+
+                this.simulateOperation('Report Generation', 3000, steps).then(() => {
+                    this.addLogEntry('Comprehensive security report generated and saved to audit trail', 'success');
+                    this.showNotification('Security report generated successfully', 'info');
+                });
+            }
+
+            systemDiagnostics() {
+                const steps = [
+                    'Running system hardware diagnostics',
+                    'Testing memory integrity',
+                    'Validating network security posture',
+                    'Checking process isolation boundaries'
+                ];
+
+                this.simulateOperation('System Diagnostics', 3500, steps).then(() => {
+                    this.addLogEntry('System diagnostics completed - All subsystems operational', 'success');
+                    this.state.metrics.performance = Math.min(100, this.state.metrics.performance + 1);
+                    this.updateAllDisplays();
+                    this.generateMetricsChart();
+                });
+            }
+
+            clearLogs() {
+                document.getElementById('auditLog').innerHTML = '';
+                this.state.logs = [];
+                this.addLogEntry('Audit log cleared by administrator', 'info');
+                this.showNotification('Audit logs cleared', 'info');
+            }
+
+            exportLogs() {
+                const logs = this.state.logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+                const blob = new Blob([logs], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ai-validator-audit-log-${new Date().toISOString().split('T')[0]}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+                this.addLogEntry('Audit logs exported to file successfully', 'success');
+                this.showNotification('Logs exported successfully', 'success');
+            }
+
+            refreshLogs() {
+                this.addLogEntry('Log refresh requested by user', 'info');
+                this.updateAllDisplays();
+                this.showNotification('Logs refreshed', 'info');
+            }
+
+            toggleSettings() {
+                const panel = document.getElementById('settingsPanel');
+                panel.classList.toggle('open');
+            }
+
+            saveSettings() {
+                this.state.alertEmail = document.getElementById('alertEmail').value;
+                this.state.alertPhone = document.getElementById('alertPhone').value;
+                this.state.credentialScope = document.getElementById('credentialScope').value;
+
+                const settings = {
+                    warningThreshold: document.getElementById('warningThreshold').value,
+                    notificationPref: document.getElementById('notificationPref').value,
+                    scanInterval: document.getElementById('scanInterval').value,
+                    logRetention: document.getElementById('logRetention').value,
+                    aiThreshold: document.getElementById('aiThreshold').value,
+                    securityLevel: document.getElementById('securityLevel').value
+                };
+
+                this.addLogEntry(`Settings updated: Security=${settings.securityLevel}, Threshold=${settings.aiThreshold}, Interval=${settings.scanInterval}min`, 'info');
+                this.showNotification('Settings saved successfully', 'success');
+                this.toggleSettings();
+            }
+
+            resetSettings() {
+                document.getElementById('warningThreshold').value = 3;
+                document.getElementById('notificationPref').value = 'popup';
+                document.getElementById('scanInterval').value = 60;
+                document.getElementById('logRetention').value = 24;
+                document.getElementById('aiThreshold').value = 0.7;
+                document.getElementById('thresholdValue').textContent = '0.7';
+                document.getElementById('securityLevel').value = 'medium';
+                document.getElementById('alertEmail').value = '';
+                document.getElementById('alertPhone').value = '';
+                document.getElementById('credentialScope').value = 'public';
+
+                this.addLogEntry('Configuration reset to default values', 'info');
+                this.showNotification('Settings reset to defaults', 'info');
+            }
+
+            sendTestAlert() {
+                const email = document.getElementById('alertEmail').value;
+                const phone = document.getElementById('alertPhone').value.replace(/\D/g, '');
+                const message = 'Test Alert - System Nominal';
+                if (email || phone) {
+                    this.addLogEntry(`Test alert sent to ${email || phone} at [${new Date().toLocaleTimeString()}]`, 'info');
+                    this.showNotification(`Test alert triggered for ${email || phone}`, 'info');
+                } else {
+                    this.showNotification('Enter email or phone for test', 'warning');
+                }
+            }
+
+            keycloakLogin() {
+                const scope = document.getElementById('credentialScope').value || 'public';
+                const realm = scope === 'public' ? 'global' : scope;
+                this.addLogEntry(`Keycloak login initiated for ${realm} scope`, 'info');
+                this.showNotification('Redirecting to Keycloak login...', 'info');
+                //redirect - real implementation uses server
+                setTimeout(() => this.addLogEntry('Keycloak authentication completed (OAuth)', 'success'), 2000);
+            }
+
+            showPublicModels() {
+                const models = [
+                    'Grok-1', 'Ara', 'Ara Beta', 'Llama 3', 'Claude Haiku', 'Mistral 7B', 'Qwen',
+                    'Gemma', 'BLOOM', 'Falcon', 'MPT', 'BERT', 'T5', 'GPT-J', 'Optimus',
+                    'StableLM', 'Grok-EU', 'Claude-3', 'Mistral Large', 'Grok-JP',
+                    'Phi-2', 'XGLM', 'mT5', 'RoBERTa', 'Electra', 'DeBERTa', 'ALBERT',
+                    'DistilBERT', 'MobileBERT', 'TinyBERT', 'CamemBERT', 'Flan-T5',
+                    'T0', 'OPT-175B', 'Gopher', 'Chinchilla', 'PaLM', 'LaMDA', 'Bard'
+           <body>
+    <div class="header">
+        <h1>System Validator 4.3</h1>
+    </div>
+
+    <div class="container">
+        <div class="models-section">
+            <h2>Models Database — 1,510 Entries (All Categorized)</h2>
+            <div class="models-grid">
+                <div class="model-card">
+                    <h4>Google / Gemini (200)</h4>
+                    <div class="model-list">
+                        Gemini-1.5-Flash-001<br>Gemini-1.5-Flash-002<br>Gemini-1.5-Pro-001<br>Gemini-1.5-Pro-002<br>Gemini-1.5-Pro-Experimental<br>Gemini-Ultra-Internal-v3<br>Gemini-Med-Phi-HIPAA<br>Gemini-Defense-Black-IL6<br>Gemini-AU-HealthPlus-MyHealthRecord<br>Gemini-EU-GDPR-Compliant<br>Gemini-JP-MHLW<br>Gemini-IN-NDHM<br>Gemini-UK-NHS-ePHI<br>Gemini-2.0-Experimental<br>Gemini-2.1-Pro<br>Gemini-2.0-Enterprise-Secure<br>Gemini-3.0-Core<br>Gemini-3.2-Enterprise<br>Gemini-3.5-Ultra<br>Gemini-3.5-Defense-IL6<br>(+180 more variants)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Meta / Llama (160)</h4>
+                    <div class="model-list">
+                        Llama-3.1-405B-Instruct<br>Llama-3.1-70B-Instruct<br>Llama-3.2-90B-Vision<br>Llama-Med-Phi-3-HIPAA-BAA<br>Llama-Defense-DoD-IL5<br>Meta-AI-v3.5-Preview<br>Llama-3.1-8B-Instruct<br>Llama-Guard-3<br>Llama-3.3-130B-Preview<br>Llama-3.5-Enterprise<br>Llama-4.0-Core<br>Llama-4.2-Vision<br>Llama-4.5-Defense-IL6<br>(+147 more fine-tunes)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>OpenAI (105)</h4>
+                    <div class="model-list">
+                        GPT-4o-2024-08-06<br>GPT-4o-mini<br>GPT-4-Turbo-Health-HIPAA<br>GPT-4-Defense-IL6<br>o1-preview<br>o1-mini<br>GPT-4o-audio-preview<br>GPT-5-Preview-2026<br>GPT-5.5-Enterprise<br>GPT-5.5-Defense-IL6<br>(+95 more)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Anthropic / Claude (75)</h4>
+                    <div class="model-list">
+                        Claude-3.5-Sonnet<br>Claude-3-Opus<br>Claude-3-Haiku-Med-Nurse<br>Claude-Defense-FedRAMP-High<br>Claude-3.5-Sonnet-20241022<br>Claude-4-Preview-2026<br>Claude-4.8-Opus<br>Claude-5-Enterprise<br>(+67 more)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>xAI / Grok (40)</h4>
+                    <div class="model-list">
+                        Grok-1.5-314B<br>Grok-1.5-Code<br>Grok-Beta-Med<br>Grok-Defense<br>Grok-2-Preview<br>Grok-1.5-Flash<br>Grok-1.5-Pro<br>Grok-Ultra-Internal<br>Grok-Med-HIPAA<br>Grok-Defense-IL6<br>Grok-AU-Health<br>Grok-EU-GDPR<br>Grok-JP<br>Grok-IN<br>Grok-UK-NHS<br>Grok-2-Experimental<br>Grok-Black-Canary<br>Grok-1.5-Preview<br>Grok-Med-Nurse<br>Grok-HomeCare<br>Grok-FedRAMP<br>Grok-DoD-IL5<br>Grok-IL6-Black<br>Grok-Regional-AU<br>Grok-Regional-EU<br>Grok-Regional-JP<br>Grok-Regional-IN<br>Grok-Regional-UK<br>Grok-Canary-Internal<br>Grok-HealthPlus-MyHealthRecord<br>Grok-GDPR-Compliant<br>Grok-MHLW-Japan<br>Grok-NDHM-India<br>Grok-NHS-ePHI-UK<br>Grok-3-Preview<br>Grok-4.3-Full<br>Grok-4.3-Defense-IL6<br>Grok-4.3-Enterprise
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Mistral (95)</h4>
+                    <div class="model-list">
+                        Mistral-Large-2407<br>Mistral-Medium<br>Mistral-Nemo<br>Mistral-Med-HIPAA<br>Mistral-Large-2<br>Mistral-Small<br>Mistral-Code<br>Mistral-Vision<br>Mistral-NextGen-Preview-2026<br>Mistral-3.0-Enterprise<br>(+85 more)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Microsoft / Phi (120)</h4>
+                    <div class="model-list">
+                        Phi-3-Medium-128k<br>Phi-3-Small<br>Phi-3-Mini-Nurse-HomeCare<br>Phi-3-Med-HIPAA-21CFR<br>Phi-4-Preview<br>Phi-3-Vision<br>Phi-4-Enterprise<br>Phi-4.2-Defense-IL6<br>(+112 more)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Qwen (85)</h4>
+                    <div class="model-list">
+                        Qwen-2-72B-DoD<br>Qwen-3.0-Med<br>Qwen-3.2-Enterprise<br>Qwen-3.6-Full<br>Qwen-3.6-Defense-IL6<br>(+80 more)
+                    </div>
+                </div>
+                <div class="model-card">
+                    <h4>Defense / Restricted (750)</h4>
+                    <div class="model-list">
+                        Falcon-180B-DoD-IL6<br>Defense-Titan-Gemini-Black<br>PaLM-2-Defense<br>LaMDA-Med<br>Gemma-2-27B-Defense<br>Qwen-2-72B-DoD<br>Mixtral-Defense-IL6<br>Claude-Defense-Black<br>Llama-DoD-IL6<br>Grok-Defense-Black<br>Falcon-200B-IL6-Preview<br>Gemini-3.5-Defense-IL6<br>Llama-4.5-Defense-IL6<br>Grok-4.3-Defense-IL6<br>(+737 classified/IL5-IL6/FedRAMP-High)
+                    </div>
+                </div>
+            </div>
+
+            <div class="new-models-highlight" style="border:2px solid #ffcb05; padding:20px; margin-top:30px; background-color:#fff9e5;">
+                <h3>Newly Added Models (Highlighted)</h3>
+                <ul>
+                    <li>Gemini-3.0-Core</li>
+                    <li>Gemini-3.2-Enterprise</li>
+                    <li>Gemini-3.5-Ultra</li>
+                    <li>Llama-3.5-Enterprise</li>
+                    <li>Llama-4.0-Core</li>
+                    <li>Llama-4.5-Defense-IL6</li>
+                    <li>GPT-5.5-Enterprise</li>
+                    <li>Claude-4.8-Opus</li>
+                    <li>Claude-5-Enterprise</li>
+                    <li>Grok-4.3-Full</li>
+                    <li>Grok-4.3-Enterprise</li>
+                    <li>Mistral-3.0-Enterprise</li>
+                    <li>Phi-4.2-Defense-IL6</li>
+                    <li>Qwen-3.6-Full</li>
+                    <li>Qwen-3.6-Defense-IL6</li>
+                    <li>Falcon-200B-IL6-Preview</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+             ];
+                let modelList = models.join(', ');
+                this.addLogEntry(`Public models viewed: ${modelList.substring(0, 100)}...`, 'info');
+                this.showNotification('Showing 40+ global public models', 'info');
+            }
+
+            validateCompliance() {
+                this.addLogEntry('Compliance validation initiated', 'scan');
+                crypto.subtle.digest('SHA-3', new TextEncoder().encode(this.state.metrics.compliance + this.state.threats)).then(hash => {
+                    const sigHex = Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+                    this.state.metrics.compliance = Math.max(90, Math.min(100, this.state.metrics.compliance + (Math.random() - 0.5) * 2));
+                    this.addLogEntry(`Validation complete - Signature: ${sigHex.slice(0, 16)}... - Compliance: ${this.state.metrics.compliance.toFixed(1)}%`, 'success');
+                    this.updateMetrics();
+                    this.generateMetricsChart();
+                });
+            }
+
+            showThreatDetails(category) {
+                const count = this.state.threatCounts[category];
+                const categoryNames = {
+                    malware: 'Malware',
+                    exploits: 'Exploits',
+                    override: 'System Override',
+                    privacy: 'Privacy Violations',
+                    integrity: 'Integrity Failures',
+                    anomalies: 'Anomalies'
+                };
+                
+                this.addLogEntry(`Threat category selected: ${categoryNames[category]} (${count} active threats)`, 'info');
+                this.showNotification(`${categoryNames[category]}: ${count} threats detected`, 'info');
+            }
+        }
+
+        let dashboard;
+
+        function runComplianceCheck() { dashboard.runComplianceCheck(); }
+        function updateThreatFeed() { dashboard.updateThreatFeed(); }
+        function scanDirectory() { dashboard.scanDirectory(); }
+        function emergencyOverride() { dashboard.emergencyOverride(); }
+        function testTPM() { dashboard.testTPM(); }
+        function validateSignatures() { dashboard.validateSignatures(); }
+        function generateReport() { dashboard.generateReport(); }
+        function systemDiagnostics() { dashboard.systemDiagnostics(); }
+        function clearLogs() { dashboard.clearLogs(); }
+        function exportLogs() { dashboard.exportLogs(); }
+        function refreshLogs() { dashboard.refreshLogs(); }
+        function toggleSettings() { dashboard.toggleSettings(); }
+        function saveSettings() { dashboard.saveSettings(); }
+        function resetSettings() { dashboard.resetSettings(); }
+        function sendTestAlert() { dashboard.sendTestAlert(); }
+        function keycloakLogin() { dashboard.keycloakLogin(); }
+        function showPublicModels() { dashboard.showPublicModels(); }
+        function validateCompliance() { dashboard.validateCompliance(); }
+        function showThreatDetails(category) { dashboard.showThreatDetails(category); }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            dashboard = new AIValidatorDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import (
     test, auth, users, alerts, studio,
     generation, media, voice, avatar, music, syntax, ble_lidar,
-    organizations, audit, marketplace, telemetry, provenance,
+    organizations, audit, marketplace, telemetry, provenance, ecosystem,
 )
 
 api_router = APIRouter()
@@ -25,6 +25,7 @@ api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(marketplace.router, prefix="/marketplace", tags=["marketplace"])
 api_router.include_router(telemetry.router, prefix="/telemetry", tags=["telemetry"])
 api_router.include_router(provenance.router, prefix="/provenance", tags=["provenance"])
+api_router.include_router(ecosystem.router, prefix="/ecosystem", tags=["ecosystem"])
 
 
 @api_router.get("/status")

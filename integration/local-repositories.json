@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "workspace_env": "SOVEREIGNTY_WORKSPACE",
+  "default_workspace": "~/Sovereignty",
+  "repositories": [
+    {
+      "id": "devassist420",
+      "name": "DevAssist420",
+      "remote": "https://github.com/Appel420/DevAssist420.git",
+      "relative_path": "DevAssist420",
+      "role": "device-client",
+      "required": false
+    },
+    {
+      "id": "studio",
+      "name": "Sovereignty-AI-Studio",
+      "remote": "https://github.com/Appel420/Sovereignty-AI-Studio.git",
+      "relative_path": "Sovereignty-AI-Studio",
+      "role": "integration-host",
+      "required": true
+    },
+    {
+      "id": "gate",
+      "name": "Sovereignty-AI-Gate",
+      "remote": "https://github.com/Appel420/Sovereignty-AI-Gate.git",
+      "relative_path": "Sovereignty-AI-Gate",
+      "role": "authority-policy-evidence",
+      "required": true
+    },
+    {
+      "id": "risk-engine",
+      "name": "Sovereignty-Risk-Engine-Runtime-Assurance",
+      "remote": "https://github.com/Appel420/Sovereignty-Risk-Engine-Runtime-Assurance.git",
+      "relative_path": "Sovereignty-Risk-Engine-Runtime-Assurance",
+      "role": "runtime-assurance",
+      "required": true
+    },
+    {
+      "id": "skeleton",
+      "name": "SuperGrok-Heavy-4-2-Skeleton",
+      "remote": "https://github.com/Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton.git",
+      "relative_path": "SuperGrok-Heavy-4-2-Skeleton",
+      "role": "reference-skeleton",
+      "required": false
+    }
+  ]
+}

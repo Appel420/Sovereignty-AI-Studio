@@ -1,0 +1,80 @@
+{
+        ara-hardened
+  "version": "1.4.0",
+  "applies_to": [
+    "ara",
+    "grok",
+    "claude",
+    "gpt",
+    "codex",
+    "copilot",
+    "devassist420",
+    "duckai",
+    "sovereignty-ai",
+    "any-agent"
+  ],
+  "owner_authority": "human-entity-owner",
+
+  "owner_authority": "human-entity-owner",
+  "execution_order": ["local", "self-hosted Linux arm64"],
+        main
+  "cloud_allowed": false,
+  "cloud_first": false,
+  "pull_request_hosted_dependencies": false,
+  "required_runner": ["self-hosted Linux arm64"],
+  "fail_closed": true,
+  "delete_nothing": true,
+        ara-hardened
+  "network_mode": "offline",
+  "local_only": true,
+  "external_feeds": "disabled",
+  "read_first": true,
+  "understand_before_implement": true,
+  "blind_edits": false,
+  "push_to_main": false,
+  "lanes": {
+    "ara-hardened": "Ara / Grok only",
+    "claude": "Claude only",
+    "gpt": "GPT / Codex only",
+    "copilot": "GitHub Copilot only",
+    "copilot/main": "GitHub Copilot only",
+    "devassist420": "DevAssist420 only",
+    "collaboration": "owner-controlled integration",
+    "main": "owner-controlled production"
+  },
+  "protected_branches": {
+    "main": {
+      "authority": "owner",
+      "autonomous_writes": false,
+      "authorized_operations": [
+        "owner-approved merge",
+        "owner-approved cherry-pick",
+        "owner-authorized integration service"
+      ]
+    },
+    "collaboration": {
+      "authority": "owner",
+      "role": "integration",
+      "autonomous_writes": false,
+      "authorized_operations": [
+        "owner-approved merge",
+        "owner-approved cherry-pick",
+        "owner-authorized integration service"
+      ]
+    }
+  },
+  "required_loop": [
+    "read the relevant project files",
+    "understand existing design and owner request",
+    "state findings",
+    "minimal diff only",
+    "local verify",
+    "no cloud agent"
+  ],
+  "blocked_response": {
+    "format": "BLOCKED\nfile: <path>\nreason: <one line>"
+  }
+
+  "rule": "Local first. Never use cloud first. Never run hosted dependency checks for pull requests."
+        main
+}

@@ -1,21 +1,23 @@
 name: CI
+
+# PR runs PAUSED — workflow file kept. Full PQC install is not for every PR.
+# Re-enable pull_request only with owner approval.
 on:
   push:
     branches: [ dev, main ]
     paths-ignore:
       - 'README.md'
       - '.github/workflows/readme-implementation-sync.yml'
-  pull_request:
-    branches: [ dev, main ]
-    paths-ignore:
-      - 'README.md'
-      - '.github/workflows/readme-implementation-sync.yml'
+  workflow_dispatch:
+  # pull_request: paused
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -25,9 +27,6 @@ jobs:
           cache: 'pip'
           cache-dependency-path: pyproject.toml
 
-      # liboqs-python builds or links against the liboqs C library.  Ensure
-      # the compiler toolchain and OpenSSL dev headers are present so that pip
-      # can compile from source when a pre-built wheel is unavailable.
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
@@ -38,16 +37,11 @@ jobs:
             libssl-dev \
             pkg-config
 
-      # Install all CI dependency groups in a single deterministic command.
-      # The `pqc` extra resolves to `liboqs-python`, which provides the `oqs`
-      # Python module used by sovereign/pqc_signatures.py.
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[test,lint,pqc]"
 
-      # Verify that liboqs-python loaded correctly and that ML-DSA-87 is
-      # available before running any steps that depend on it.
       - name: Verify PQC provider (ML-DSA-87)
         run: |
           python - <<'PY'
@@ -59,12 +53,9 @@ jobs:
                   f"ML-DSA-87 is unavailable in this liboqs build.\n"
                   f"Supported algorithms: {supported}"
               )
-          print(f"liboqs {oqs.oqs_version()} — ML-DSA-87 available ✓")
+          print(f"liboqs {oqs.oqs_version()} — ML-DSA-87 available")
           PY
 
-      # Scope lint and type checks to the maintained source tree only.
-      # Vendored, generated, and third-party subtrees are excluded in
-      # pyproject.toml [tool.ruff] / [tool.mypy] and not passed as paths here.
       - name: Lint
         run: ruff check sovereign/
 
@@ -110,7 +101,7 @@ jobs:
           with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
               json.dump(manifest, fh, indent=2)
 
-          print("PQC-signed CI build manifest created (ML-DSA-87) ✓")
+          print("PQC-signed CI build manifest created (ML-DSA-87)")
           PY
 
       - name: Upload CI Manifest
