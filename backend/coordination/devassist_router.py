@@ -6,29 +6,32 @@ from collections.abc import Iterable
 from .branch_registry import BranchRegistry
 from .conflict_manager import ConflictManager
 from .council_result import CouncilResult
+from .lease import LeaseError, LeaseIssuer
 from .task_envelope import TaskEnvelope
 
 
 class DevAssistRouter:
-    """Classify once, route once, and preserve parallel work safely."""
+    """Classify once, route once, issue lease, preserve parallel work safely."""
 
     _SCOPE_BRANCHES = (
-        (("security", "attestation", "hardening"), "ara-hardened"),
+        (("security", "attestation", "hardening", "pqc"), "ara-hardened"),
         (("policy", "governance", "evidence"), "sovereignty-ai"),
         (("routing", "coordination"), "devassist420"),
         (("family", "usability", "sanitization"), "family"),
         (("implementation", "refactor"), "claude"),
         (("architecture", "integration", "verification"), "gpt"),
-        (("code-assistance", "fixes"), "copilot"),
+        (("code-assistance", "fixes", "focused-fix"), "copilot"),
     )
 
     def __init__(
         self,
         registry: BranchRegistry | None = None,
         conflicts: ConflictManager | None = None,
+        leases: LeaseIssuer | None = None,
     ) -> None:
         self.registry = registry or BranchRegistry()
         self.conflicts = conflicts or ConflictManager()
+        self.leases = leases or LeaseIssuer()
 
     def classify(
         self,
@@ -66,6 +69,10 @@ class DevAssistRouter:
     def route(self, envelope: TaskEnvelope) -> CouncilResult:
         if envelope.branch is None:
             return CouncilResult.denied("No branch was selected")
+        if not self.registry.is_writable(envelope.branch):
+            return CouncilResult.denied(
+                f"Protected or unknown branch is not agent-writable: {envelope.branch}"
+            )
         branch_owner = self.registry.require(envelope.branch)
         conflict = self.conflicts.register(envelope)
         if conflict is not None:
@@ -74,9 +81,19 @@ class DevAssistRouter:
                 conflicts=(conflict,),
                 notes=("Overlapping work is held for council review; no files were changed.",),
             )
-        return CouncilResult.route_for(branch_owner, envelope.scope)
+        try:
+            token = self.leases.issue(envelope, agent_id=branch_owner.owner)
+        except LeaseError as exc:
+            self.conflicts.release(envelope.task_id)
+            return CouncilResult.denied(f"lease issuance failed: {exc}")
+        return CouncilResult.route_for(branch_owner, envelope.scope, lease=token)
+
+    def require_write(self, lease_token, paths: Iterable[str]):
+        """I9 gate — call before any repository mutation."""
+        return self.leases.require_for_write(lease_token, paths)
 
     def release(self, task_id: str) -> None:
+        self.leases.release_task(task_id)
         self.conflicts.release(task_id)
 
     @staticmethod
