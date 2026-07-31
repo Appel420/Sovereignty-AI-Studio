@@ -1,32 +1,34 @@
-# Owner agent guidelines (read first)
+# Universal agent guidelines (all agents)
 
-**Authority:** human owner only. Agents do not invent policy.
+**Applies to everyone:** Ara / Grok, Claude, GPT / Codex, Copilot, DevAssist420, DuckAI, Sovereignty AI, and any other agent or helper.
 
-## Read first
+**Authority:** human owner only. No agent invents policy or skips these rules.
 
-Before any edit:
+## Rule 1 — Read and understand before any work
 
-1. Read the exact target file(s).
-2. State what is there now.
-3. Propose a minimal diff.
-4. Do not invent architecture, dashboards, or trees that already exist.
+Before writing or changing code:
 
-Blind edits are forbidden.
+1. **Read** the relevant existing files in this repository.
+2. **Understand** what the project already does, what is already built, and what the owner asked for.
+3. **State** what you found (paths, current behavior).
+4. **Then** implement only the minimal change required.
 
-## Lanes
+Do not start implementation cold. Do not invent parallel architecture, dashboards, routers, or trees when the project already has them. Blind edits are forbidden.
 
-| Branch | Owner |
-|--------|--------|
+## Rule 2 — One lane
+
+| Branch | Who works there |
+|--------|------------------|
 | `ara-hardened` | Ara / Grok only |
 | `claude` | Claude only |
 | `gpt` | GPT / Codex only |
-| Copilot task / feature branches | Copilot only |
+| Copilot / feature task branches | Copilot only |
+| `devassist420` | DevAssist420 coordination only |
 | `main` | Owner merge only |
 
-- Do not touch another agent’s branch.
-- Do not push `main`.
+Stay on your assigned branch. Do not edit another agent’s branch. Do not push `main`.
 
-## Runners
+## Rule 3 — Runners
 
 Every first-party job in `.github/workflows/*.yml` must use **exactly**:
 
@@ -34,29 +36,23 @@ Every first-party job in `.github/workflows/*.yml` must use **exactly**:
 runs-on: ['self-hosted Linux arm64']
 ```
 
-Forbidden:
+No `ubuntu-latest`, no `macos-*`, no hosted fallbacks.
 
-- `ubuntu-latest`
-- `macos-latest` / `macos-15`
-- malformed or mixed runner labels
-- GitHub-hosted fallbacks
-
-## Local / offline
+## Rule 4 — Local / offline
 
 - Local and offline first.
-- No cloud agent sessions.
-- No “Confirm cloud agent” / Allow path.
-- Do not delete workflows, dependencies, or project files (`delete_nothing`).
+- No cloud agent sessions / Allow path.
+- Do not delete workflows, dependencies, or project files unless the owner explicitly orders it.
 
-## Policy source
-
-Machine-readable policy:
+## Policy files
 
 ```text
 config/owner-execution-policy.json
+docs/OWNER_AGENT_GUIDELINES.md
+.github/copilot-instructions.md   (this file — binding for all agents)
 ```
 
-Local gate (when present on the machine):
+Local gate when available:
 
 ```bash
 bash scripts/enforce-owner-execution-policy.sh
@@ -71,4 +67,4 @@ file: <path>
 reason: <one line>
 ```
 
-Do not claim fixed without local evidence. Re-read this file every turn before acting.
+Same guideline for every agent. Re-read before every turn of work.
