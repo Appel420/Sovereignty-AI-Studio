@@ -37,15 +37,15 @@ Skipping step 1–3 is non-compliance.
 
 ### Owner-controlled operations (`main`, `collaboration`)
 
-Authorization stays with the owner. Physical actor may be:
+Authorization stays with the owner. Physical actor may be one of the **authorized_operations**:
 
 - owner-approved merge
 - owner-approved cherry-pick
-- **owner-authorized integration daemon**
+- **owner-authorized integration service**
 
-Agents do not commit to `collaboration` or `main`. A daemon may promote only when the owner has explicitly authorized that service; the daemon does not become an agent workspace.
+Agents do not commit to `collaboration` or `main`. An integration service may promote only under explicit owner authority; it is not an agent workspace.
 
-Required evidence for accepted integration inputs:
+Required evidence for integration inputs:
 
 - SCAR evidence reference
 - lease reference (when leases are in use)
@@ -58,7 +58,7 @@ Required evidence for accepted integration inputs:
 | File | Role |
 |------|------|
 | `config/owner-execution-policy.json` | Machine policy |
-| `config/branch-registry-policy.json` | Branch roles + accepted operations |
+| `config/branch-registry-policy.json` | Branch roles + authorized_operations |
 | `.github/copilot-instructions.md` | Binding agent instructions (all agents) |
 | `docs/OWNER_AGENT_GUIDELINES.md` | This document |
 
