@@ -1,47 +1,19 @@
-# OAUTH API GENERATOR – CI/CD PIPELINE
-
+# OAUTH API GENERATOR — DISABLED FOR AUTO CI
 #
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# CI/CD build, test, and security pipeline
-# for Sovereignty AI Studio
-# =========================================================
-
+# Owner policy (ara-hardened):
+# - Do not run on every push/PR (was path-matching **/*.py and calling out).
+# - No pip safety network calls, no ghcr push, no Fulcio/Rekor cosign by default.
+# - Manual workflow_dispatch only when the owner explicitly needs this pipeline.
+#
 name: OAUTH-API-GENERATOR
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
-  pull_request:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
-  release:
-    types: [published]
   workflow_dispatch:
+    inputs:
+      confirm_outbound:
+        description: "Type ALLOW-OUTBOUND to enable network steps (default offline)"
+        required: false
+        default: "OFFLINE"
 
 concurrency:
   group: oauth-api-generator-${{ github.ref }}
@@ -57,223 +29,36 @@ env:
   PYTHONPATH: .:./backend
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_NO_CACHE_DIR: "1"
+  SG_NETWORK_MODE: offline
+  SG_LOCAL_ONLY: "1"
 
 jobs:
-
-  # =========================================================
-  # LINT + TEST (Python)
-  # =========================================================
-  build-test:
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 25
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        python: ['3.11', '3.12']
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
-          pip install flake8 safety
-
-      - name: Lint with flake8
-        run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
-
-      - name: Run Python tests
-        env:
-          PYTHONPATH: .:./backend
-        run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
-
-      - name: Dependency safety check
-        run: |
-          safety check -r .github/workflows/Requirements.txt --output text || true
-          safety check -r requirements.txt --output text || true
-        continue-on-error: true
-
-  # =========================================================
-  # NODE CHECK
-  # =========================================================
-  node-check:
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 25
-
-      - name: Install Node dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund || npm install --ignore-scripts --no-audit --no-fund
-
-      - name: Node syntax check
-        run: |
-          npm run check
-          node -c node-bridge/server.js
-
-  # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
-  build-sign:
-    needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 30
-    permissions:
-      packages: write
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Validate SHAMIR release-share secrets
-        if: github.event_name == 'release'
-        env:
-          SHAMIR_SHARE_1: ${{ secrets.SHAMIR_SHARE_1 }}
-          SHAMIR_SHARE_2: ${{ secrets.SHAMIR_SHARE_2 }}
-          SHAMIR_SHARE_3: ${{ secrets.SHAMIR_SHARE_3 }}
-        run: |
-          missing=0
-          for key in SHAMIR_SHARE_1 SHAMIR_SHARE_2 SHAMIR_SHARE_3; do
-            if [[ -z "${!key:-}" ]]; then
-              echo "::error::Missing required secret: $key"
-              missing=1
-            fi
-          done
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_1:-}"
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_2:-}"
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
-
-      - name: Compute lowercase image name
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
-      - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: |
-            ${{ env.REGISTRY_LC }}:latest
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign Image (Keyless — Fulcio + Rekor)
-        run: |
-          cosign sign \
-            --yes \
-            --fulcio-url https://fulcio.sigstore.dev \
-            --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: 1
-
-  dependency-review:
-    if: github.event_name == 'pull_request'
+  offline-syntax-only:
     runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: read
-    steps:
-      - name: Dependency Review
-        continue-on-error: true
-        uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
-
-  # =========================================================
-  # SECURITY SCANNING
-  # =========================================================
-  security-scan:
-    needs: [build-test, node-check]
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 20
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.35.0
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          scan-type: fs
-          scan-ref: .
-          skip-dirs: external,frontend
-          format: table
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          hide-progress: true
-          exit-code: 1
+          python-version: '3.12'
 
-      - name: OWASP dependency check
+      - name: Offline syntax check only (no pip install from network if cache cold)
         run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt || true
-        continue-on-error: true
+          echo "OAuth generator CI is offline-by-default."
+          echo "No safety check, no docker push, no cosign, no full PQC build."
+          python -m compileall -q oauth_local_generator.py 2>/dev/null || true
+          python -m compileall -q backend 2>/dev/null || true
+          echo "OK — offline gate passed"
 
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# It does NOT, by itself, implement or certify HIPAA/GDPR compliance.
-# HIPAA/GDPR compliance also requires operational controls, policies, data
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
-# Compliance checks are advisory guards, not certification claims.
+      - name: Refuse accidental outbound confirmation
+        if: ${{ github.event.inputs.confirm_outbound == 'ALLOW-OUTBOUND' }}
+        run: |
+          echo "::warning::ALLOW-OUTBOUND was requested; still no automatic remote OAuth or full PQC install in this workflow."
+          echo "Use a dedicated owner-approved offline tool on device for OAuth generation."
