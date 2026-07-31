@@ -1,0 +1,33 @@
+class ModelRegistry:
+    def __init__(self):
+        self.models = {}
+
+    def register_model(self, model_name, provider, policy):
+        """Register a new model in the registry."""
+        if model_name in self.models:
+            print(f"Model '{model_name}' already exists.")
+        else:
+            self.models[model_name] = {
+                'provider': provider,
+                'policy': policy
+            }
+            print(f"Model '{model_name}' registered successfully.")
+
+    def get_model(self, model_name):
+        """Retrieve details of a registered model."""
+        if model_name in self.models:
+            model = self.models[model_name]
+            print(f"Model '{model_name}' details:")
+            print(f"  Provider: {model['provider']}")
+            print(f"  Policy: {model['policy']}")
+        else:
+            print(f"Model '{model_name}' not found.")
+
+# Example usage
+registry = ModelRegistry()
+registry.register_model("Grok-4.5 fallback -->4.3", "xai", "default")
+registry.register_model("gpt-5.6-Luna fallback --> Codex-5.5", "openai", "strict")
+registry.register_model("Claude-sonnet-5 fallback--> 4.7", "anthropic", "review")
+
+registry.get_model("Grok-4.5 fallback -->4.3")
+registry.get_model("nonexistent_model")

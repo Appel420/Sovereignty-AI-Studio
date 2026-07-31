@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "tool_name": {
+      "type": "string",
+      "enum": ["echo", "cat", "ls", "grep", "local_inference", "local_signature_verify"],
+      "description": "Allowlisted local-only tool names. Network-capable tools (curl, wget, ssh, nc, etc.) are intentionally excluded and MUST be rejected."
+    },
+    "command_args": {
+      "type": "array",
+      "items": { "type": "string", "not": { "pattern": "(https?://|ftp://|\\.onion|@)" } },
+      "description": "Arguments must not contain URLs or network-addressable targets."
+    },
+    "expectedoutputformat": { "type": "string", "enum": ["json", "text", "binary"] }
+  },
+  "required": ["tool_name", "command_args"],
+  "additionalProperties": false
+}

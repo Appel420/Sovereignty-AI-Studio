@@ -1,0 +1,14 @@
+{
+  "default_mode": "offline",
+  "loopback_only": true,
+  "allow_lan_bind": false,
+  "allow_global_ipv6_bind": false,
+  "allowed_loopback_hosts": ["127.0.0.1", "::1"],
+  "deny_unsolicited_inbound_ipv6": true,
+  "require_policy_for_external_network": true,
+  "service_bindings": {
+    "python_bridge": { "host": "127.0.0.1", "port": 9897 },
+    "dashboard": { "host": "127.0.0.1", "port": 9898 },
+    "node_bridge": { "host": "127.0.0.1", "port": 9899 }
+  }
+}

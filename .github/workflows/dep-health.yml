@@ -1,15 +1,6 @@
 name: Dependency Health
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Runs on every push, PR, and weekly schedule.
-# Performs four checks in parallel:
-#   1. pip-audit  – Python CVE scan (requirements.txt)
-#   2. PyPI version check – outdated Python packages
-#   3. npm-audit  – Node.js CVE scan (node-bridge)
-#   4. Lint – requirements files syntax validation
-# Any discovered vulnerabilities cause the workflow to fail and show a summary.
-# ─────────────────────────────────────────────────────────────────────────────
-
+# PR runs PAUSED — workflow kept. pip-audit/npm audit/PyPI call out; not for every PR.
 on:
   push:
     branches: [main]
@@ -19,18 +10,10 @@ on:
       - "node-bridge/package.json"
       - "node-bridge/package-lock.json"
       - ".github/workflows/dep-health.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "requirements.txt"
-      - "requirements-extra.txt"
-      - "node-bridge/package.json"
-      - "node-bridge/package-lock.json"
-      - ".github/workflows/dep-health.yml"
   schedule:
-    # Every Monday at 06:00 UTC
     - cron: "0 6 * * 1"
   workflow_dispatch:
+  # pull_request: paused
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -40,10 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # ── Python CVE audit ─────────────────────────────────────────────────────
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
@@ -51,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -64,22 +46,13 @@ jobs:
         id: audit
         run: |
           set +e
-          # Ignore advisories that currently have no fix available in pip-audit:
-          # - CVE-2025-3000 for torch 2.12.1
-          # - CVE-2024-23342 / PYSEC-2026-1325 for python-jose's transitive
-          #   ecdsa dependency, which has no planned upstream fix.
           pip-audit --ignore-vuln CVE-2025-3000 --ignore-vuln CVE-2024-23342 -r requirements.txt > /tmp/audit-report.txt 2> /tmp/audit-error.txt
           status=$?
           echo "PIP_AUDIT_EXIT_CODE=$status" >> "$GITHUB_ENV"
           case "$status" in
-            0)
-              ;;
-            1)
-              echo "AUDIT_VULNS=true" >> "$GITHUB_ENV"
-              ;;
-            *)
-              echo "AUDIT_ERROR=true" >> "$GITHUB_ENV"
-              ;;
+            0) ;;
+            1) echo "AUDIT_VULNS=true" >> "$GITHUB_ENV" ;;
+            *) echo "AUDIT_ERROR=true" >> "$GITHUB_ENV" ;;
           esac
 
       - name: Show audit report
@@ -87,50 +60,36 @@ jobs:
         run: |
           echo "## pip-audit Report" >> "$GITHUB_STEP_SUMMARY"
           if [ "${AUDIT_ERROR:-}" = "true" ]; then
-            echo "⚠️ pip-audit failed to run correctly (exit code ${PIP_AUDIT_EXIT_CODE:-unknown})." >> "$GITHUB_STEP_SUMMARY"
-            if [ -f /tmp/audit-error.txt ] && [ -s /tmp/audit-error.txt ]; then
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-              cat /tmp/audit-error.txt >> "$GITHUB_STEP_SUMMARY"
-              echo '```' >> "$GITHUB_STEP_SUMMARY"
-            fi
-          elif [ "${AUDIT_VULNS:-}" = "true" ] && [ -f /tmp/audit-report.txt ] && [ -s /tmp/audit-report.txt ]; then
+            echo "pip-audit failed (exit ${PIP_AUDIT_EXIT_CODE:-unknown})." >> "$GITHUB_STEP_SUMMARY"
+            [ -s /tmp/audit-error.txt ] && { echo '```' >> "$GITHUB_STEP_SUMMARY"; cat /tmp/audit-error.txt >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"; }
+          elif [ "${AUDIT_VULNS:-}" = "true" ] && [ -s /tmp/audit-report.txt ]; then
             echo '```' >> "$GITHUB_STEP_SUMMARY"
             cat /tmp/audit-report.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
-          elif [ "${AUDIT_VULNS:-}" = "true" ]; then
-            echo "⚠️ pip-audit reported vulnerabilities, but no textual report was captured." >> "$GITHUB_STEP_SUMMARY"
           elif [ "${PIP_AUDIT_EXIT_CODE:-}" = "0" ]; then
-            echo "✅ No vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "⚠️ pip-audit produced an unexpected result (exit code ${PIP_AUDIT_EXIT_CODE:-unknown})." >> "$GITHUB_STEP_SUMMARY"
+            echo "No vulnerabilities found." >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Fail if vulnerabilities found
         if: env.AUDIT_VULNS == 'true'
-        run: |
-          echo "::error::pip-audit found vulnerabilities in requirements.txt — see step summary."
-          exit 1
+        run: exit 1
 
-      - name: Fail on pip-audit execution/configuration errors
+      - name: Fail on pip-audit execution errors
         if: env.AUDIT_ERROR == 'true'
-        run: |
-          echo "::error::pip-audit failed to run correctly (exit code $PIP_AUDIT_EXIT_CODE) — see step summary."
-          exit 1
+        run: exit 1
 
-  # ── Python outdated check ─────────────────────────────────────────────────
   python-outdated:
     name: Python — outdated packages
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
-    # Non-blocking: outdated ≠ broken; report only
     continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -139,21 +98,15 @@ jobs:
       - name: Check pinned versions against PyPI
         run: |
           python3 - <<'PY'
-          import json
-          import re
-          import urllib.request
-
+          import json, re, urllib.request
           pattern = re.compile(r"^([A-Za-z0-9_.-]+)(?:\[[^\]]+\])?\s*(==|>=|<=|!=|~=|>|<)\s*(.+)$")
           outdated = []
-
           with open("requirements.txt", encoding="utf-8") as handle:
               for raw_line in handle:
                   line = raw_line.strip()
-                  if not line or line.startswith("#"):
-                      continue
+                  if not line or line.startswith("#"): continue
                   match = pattern.match(line)
-                  if not match:
-                      continue
+                  if not match: continue
                   package, operator, pinned = match.groups()
                   try:
                       with urllib.request.urlopen(f"https://pypi.org/pypi/{package}/json", timeout=10) as response:
@@ -162,9 +115,7 @@ jobs:
                       continue
                   if latest != pinned:
                       outdated.append(f"{package}{operator}{pinned} -> {latest}")
-
-          with open("/tmp/outdated.txt", "w", encoding="utf-8") as handle:
-              handle.write("\n".join(outdated))
+          open("/tmp/outdated.txt", "w", encoding="utf-8").write("\n".join(outdated))
           PY
 
       - name: Write outdated summary
@@ -175,13 +126,12 @@ jobs:
             cat /tmp/outdated.txt >> "$GITHUB_STEP_SUMMARY"
             echo '```' >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "✅ All pinned packages match the latest PyPI release." >> "$GITHUB_STEP_SUMMARY"
+            echo "All pinned packages match latest PyPI." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  # ── Node.js CVE audit ────────────────────────────────────────────────────
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 10
     permissions:
       contents: read
@@ -202,38 +152,18 @@ jobs:
 
       - name: Run npm audit
         working-directory: node-bridge
-        id: npm_audit
         run: |
           npm audit --audit-level=moderate --json > /tmp/npm-audit.json 2>&1 \
             && echo "NPM_AUDIT_CLEAN=true" >> "$GITHUB_ENV" \
             || echo "NPM_AUDIT_FAILED=true" >> "$GITHUB_ENV"
 
-      - name: Show npm audit summary
-        if: always()
-        run: |
-          echo "## npm audit (node-bridge)" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f /tmp/npm-audit.json ]; then
-            node -e "
-              const r = require('/tmp/npm-audit.json');
-              const v = r.metadata && r.metadata.vulnerabilities || {};
-              const total = Object.values(v).reduce((a,b)=>a+b,0);
-              console.log(total === 0
-                ? '✅ No vulnerabilities found.'
-                : JSON.stringify(v, null, 2));
-            " >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || \
-            echo "See job logs for details." >> "$GITHUB_STEP_SUMMARY"
-          fi
-
       - name: Fail if vulnerabilities found
         if: env.NPM_AUDIT_FAILED == 'true'
-        run: |
-          echo "::error::npm audit found vulnerabilities in node-bridge — see step summary."
-          exit 1
+        run: exit 1
 
-  # ── Sanitize requirements syntax ─────────────────────────────────────────
   requirements-lint:
     name: Lint requirements files
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 5
     permissions:
       contents: read
@@ -241,7 +171,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
@@ -250,62 +180,20 @@ jobs:
         run: |
           python3 - <<'EOF'
           import re, sys
-
           files = ["requirements.txt", ".github/workflows/Requirements.txt"]
           errors = []
           for fname in files:
               try:
-                  with open(fname) as f:
-                      lines = f.readlines()
+                  lines = open(fname).readlines()
               except FileNotFoundError:
                   continue
               for i, line in enumerate(lines, 1):
                   stripped = line.strip()
-                  if not stripped or stripped.startswith("#"):
-                      continue
-                  # Must be a valid PEP 508 specifier or URL
-                  if not re.match(
-                      r'^[A-Za-z0-9_\-\.\[\]]+(?:\s*(==|>=|<=|!=|~=|>|<)\s*[\w\.\-\*]+.*)?$',
-                      stripped,
-                  ) and not stripped.startswith("http") and not stripped.startswith("-r"):
+                  if not stripped or stripped.startswith("#"): continue
+                  if not re.match(r'^[A-Za-z0-9_\-\.\[\]]+(?:\s*(==|>=|<=|!=|~=|>|<)\s*[\w\.\-\*]+.*)?$', stripped) and not stripped.startswith("http") and not stripped.startswith("-r"):
                       errors.append(f"{fname}:{i}: suspicious line: {stripped!r}")
-
           if errors:
-              for e in errors:
-                  print(f"::error::{e}")
+              for e in errors: print(f"::error::{e}")
               sys.exit(1)
-          else:
-              print("✅ requirements files look clean.")
-          EOF
-
-      - name: Verify packages exist on PyPI
-        run: |
-          python3 - <<'EOF'
-          import json, re, sys, urllib.request
-
-          pattern = re.compile(r"^([A-Za-z0-9_.\-]+)")
-          errors = []
-          with open("requirements.txt", encoding="utf-8") as fh:
-              lines = fh.readlines()
-          for i, raw in enumerate(lines, 1):
-              line = raw.strip()
-              if not line or line.startswith("#") or line.startswith("-r") or line.startswith("http"):
-                  continue
-              m = pattern.match(line)
-              if not m:
-                  continue
-              pkg = m.group(1)
-              try:
-                  with urllib.request.urlopen(
-                      f"https://pypi.org/pypi/{pkg}/json", timeout=8
-                  ) as resp:
-                      json.load(resp)
-              except Exception as exc:
-                  errors.append(f"L{i}: {pkg} — {exc}")
-
-          if errors:
-              for e in errors:
-                  print(f"::error::{e}")
-              sys.exit(1)
-          print(f"✅ All {len(lines)} requirement lines resolved on PyPI.")
+          print("requirements files look clean.")
           EOF

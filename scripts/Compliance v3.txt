@@ -1,0 +1,3185 @@
+compliance pt 3
+
+The contract tests are aligned. The next implementation artifact is the actual scanner, but there is one important hardening change before writing it:
+scan_file() should not only do string matching. It should enforce path context and policy scope.
+The scanner contract should be:
+Input:
+    ZERO_TOLERANCE_POLICY.json
+    repository root
+
+Process:
+    load policy
+    validate policy structure
+    enumerate protected paths
+    scan only governed files
+    match forbidden patterns
+    emit findings
+
+Output:
+    ZERO_TOLERANCE_OK
+    or
+    ZERO_TOLERANCE_VIOLATIONS
+
+Exit:
+    0 = pass
+    1 = violation
+Implementation:
+/scripts/security_policy_scan.py
+#!/usr/bin/env python3
+
+import json
+import sys
+from pathlib import Path
+
+
+def load_policy(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def validate_policy(policy: dict) -> None:
+    required = [
+        "policy_id",
+        "enforcement",
+        "protected_paths",
+        "forbidden_patterns",
+    ]
+
+    for key in required:
+        if key not in policy:
+            raise ValueError(
+                f"Missing policy field: {key}"
+            )
+
+    if policy["enforcement"]["mode"] != "deny":
+        raise ValueError(
+            "Security policy must use deny mode"
+        )
+
+
+def scan_file(
+    path: Path,
+    patterns: list[str]
+) -> list[str]:
+
+    findings = []
+
+    try:
+        content = path.read_text(
+            encoding="utf-8",
+            errors="ignore"
+        )
+    except OSError:
+        return findings
+
+    for pattern in patterns:
+        if pattern in content:
+            findings.append(pattern)
+
+    return findings
+
+
+def collect_targets(
+    root: Path,
+    protected_paths: list[str]
+):
+
+    targets = []
+
+    for protected in protected_paths:
+
+        directory = root / protected
+
+        if not directory.exists():
+            continue
+
+        for file in directory.rglob("*"):
+
+            if file.is_file():
+                targets.append(file)
+
+    return targets
+
+
+def main() -> int:
+
+    if len(sys.argv) != 3:
+        print(
+            "usage: security_policy_scan.py POLICY ROOT"
+        )
+        return 1
+
+    policy_path = Path(sys.argv[1])
+    root = Path(sys.argv[2])
+
+    policy = load_policy(policy_path)
+
+    validate_policy(policy)
+
+    findings = []
+
+    patterns = []
+
+    for entry in policy["forbidden_patterns"]:
+        patterns.extend(
+            entry["patterns"]
+        )
+
+    for file in collect_targets(
+        root,
+        policy["protected_paths"]
+    ):
+
+        matches = scan_file(
+            file,
+            patterns
+        )
+
+        for match in matches:
+            findings.append(
+                {
+                    "file": str(file),
+                    "pattern": match
+                }
+            )
+
+
+    if findings:
+
+        print(
+            "ZERO_TOLERANCE_VIOLATIONS"
+        )
+
+        for finding in findings:
+            print(
+                f'{finding["file"]}: '
+                f'{finding["pattern"]}'
+            )
+
+        return 1
+
+
+    print(
+        "ZERO_TOLERANCE_OK"
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+One additional contract test I would add:
+tests/contracts/security/test_no_security_bypass.py
+from pathlib import Path
+from scripts.security_policy_scan import scan_file
+
+
+def test_security_module_cannot_claim_success():
+
+    content = """
+    fn verify() {
+        return true;
+    }
+    """
+
+    path = Path("test_security.rs")
+    path.write_text(content)
+
+    try:
+        hits = scan_file(
+            path,
+            [
+                "return true;"
+            ]
+        )
+
+        assert "return true;" in hits
+
+    finally:
+        path.unlink()
+The reason: the highest-risk failure mode is not only explicit fake attestation strings. It is a security boundary returning success without proof.
+This now fits the AGIP chain:
+Collector
+   |
+Evidence
+   |
+Verification
+   |
+Registry
+   |
+Metric Lineage
+   |
+Dashboard
+
++
+
+Zero Tolerance Scanner
+   |
+CI Gate
+   |
+Allowed Build Artifact
+The remaining piece would be wiring this into the existing local CI script immediately before AGIP contract tests so a governance violation cannot reach packaging.
+
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+Good hardening. I’d make two small corrections before wiring it into CI:
+
+- `validate_policy()` should also check `security_modules_strict` and that `protected_paths` / `forbidden_patterns` are non-empty.
+- `scan_file()` should accept the repository root and reject files outside governed paths even if called directly.
+
+Tightened implementation:
+
+```python
+#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+def load_policy(path: Path) -> dict:
+    with path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+def validate_policy(policy: dict) -> None:
+    required = ["policy_id", "enforcement", "protected_paths", "forbidden_patterns"]
+    for key in required:
+        if key not in policy:
+            raise ValueError(f"Missing policy field: {key}")
+
+    enforcement = policy["enforcement"]
+    if enforcement.get("mode") != "deny":
+        raise ValueError("Security policy must use deny mode")
+    if enforcement.get("security_modules_strict") is not True:
+        raise ValueError("Security policy must enforce strict security modules")
+    if not policy["protected_paths"]:
+        raise ValueError("Security policy must define protected paths")
+    if not policy["forbidden_patterns"]:
+        raise ValueError("Security policy must define forbidden patterns")
+
+def is_governed_file(path: Path, root: Path, protected_paths: list[str]) -> bool:
+    try:
+        resolved = path.resolve()
+        root_resolved = root.resolve()
+    except OSError:
+        return False
+
+    if root_resolved not in resolved.parents and resolved != root_resolved:
+        return False
+
+    rel = resolved.relative_to(root_resolved)
+    rel_text = rel.as_posix()
+    return any(rel_text.startswith(p.rstrip("/")) for p in protected_paths)
+
+def scan_file(path: Path, root: Path, protected_paths: list[str], patterns: list[str]) -> list[str]:
+    if not is_governed_file(path, root, protected_paths):
+        return []
+
+    findings = []
+    try:
+        content = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return findings
+
+    for pattern in patterns:
+        if pattern in content:
+            findings.append(pattern)
+    return findings
+
+def collect_targets(root: Path, protected_paths: list[str]):
+    targets = []
+    for protected in protected_paths:
+        directory = root / protected
+        if not directory.exists():
+            continue
+        for file in directory.rglob("*"):
+            if file.is_file():
+                targets.append(file)
+    return targets
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        print("usage: security_policy_scan.py POLICY ROOT")
+        return 1
+
+    policy_path = Path(sys.argv[1])
+    root = Path(sys.argv[2])
+
+    policy = load_policy(policy_path)
+    validate_policy(policy)
+
+    patterns = []
+    for entry in policy["forbidden_patterns"]:
+        patterns.extend(entry["patterns"])
+
+    findings = []
+    for file in collect_targets(root, policy["protected_paths"]):
+        matches = scan_file(file, root, policy["protected_paths"], patterns)
+        for match in matches:
+            findings.append({"file": str(file), "pattern": match})
+
+    if findings:
+        print("ZERO_TOLERANCE_VIOLATIONS")
+        for finding in findings:
+            print(f'{finding["file"]}: {finding["pattern"]}')
+        return 1
+
+    print("ZERO_TOLERANCE_OK")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
+```
+
+And I’d update the bypass test to verify a direct call outside governed scope is ignored:
+
+```python
+from pathlib import Path
+from scripts.security_policy_scan import scan_file
+
+def test_security_module_outside_governed_scope_is_ignored(tmp_path):
+    path = tmp_path / "test_security.rs"
+    path.write_text("return true;", encoding="utf-8")
+
+    hits = scan_file(
+        path,
+        tmp_path / "governed_root",
+        ["enclave/"],
+        ["return true;"]
+    )
+    assert hits == []
+```
+
+To wire into CI, run the scanner before contract tests, then fail fast on violations.
+
+One debugging tip: if a file is unexpectedly skipped, print its resolved path and relative path to confirm it actually falls under a protected directory.
+
+Gpt
+
+Agreed. Those corrections close two real bypass paths:
+	1.	Policy weakening
+	•	A malformed policy cannot silently downgrade enforcement.
+	•	deny mode, strict modules, protected paths, and forbidden patterns become mandatory invariants.
+	2.	Direct scanner misuse
+	•	scan_file() cannot be called against arbitrary files and accidentally report governance coverage.
+	•	Scope enforcement stays inside the scanner boundary.
+I would add one more CI contract: policy immutability validation.
+The scanner should reject a policy where:
+	•	protected_paths are removed
+	•	forbidden categories disappear
+	•	enforcement changes from deny
+	•	strict mode is disabled
+Example:
+def validate_security_policy_contract(policy: dict) -> None:
+    required_categories = {
+        "attestation",
+        "placeholder",
+        "crypto",
+        "audit"
+    }
+
+    categories = {
+        entry["category"]
+        for entry in policy["forbidden_patterns"]
+    }
+
+    missing = required_categories - categories
+
+    if missing:
+        raise ValueError(
+            f"Missing security categories: {sorted(missing)}"
+        )
+Then the CI chain becomes:
+AGIP_POLICY.json
+        |
+        v
+ZERO_TOLERANCE_POLICY.json
+        |
+        v
+Policy Contract Validation
+        |
+        v
+Security Pattern Scan
+        |
+        v
+Sanitize Audit
+        |
+        v
+AGIP Evidence Boundary Tests
+        |
+        v
+Build Artifact
+The final invariant:
+A security control is not valid because code exists.
+
+It is valid only if:
+    policy declares it
+    scanner enforces it
+    tests prove it
+    CI blocks violations
+For AGIP this fits cleanly with the existing evidence model:
+Security Finding
+      |
+      v
+Evidence Object
+      |
+      v
+Verification
+      |
+      v
+Control Mapping
+      |
+      v
+Metric Lineage
+      |
+      v
+Executive View
+Next artifact should be the CI integration patch: update the local CI shell so the Zero Tolerance scanner runs before tests/contracts/agip and writes a signed audit result into the existing evidence/audit pipeline.
+
+
+
+Ddg
+Appel420(root), Ara-DDG here.
+
+Agreed. I’d make the policy contract explicit and keep it separate from the scan pass.
+
+```python
+def validate_security_policy_contract(policy: dict) -> None:
+    validate_policy(policy)
+
+    required_categories = {"attestation", "placeholder", "crypto", "audit"}
+    categories = {entry["category"] for entry in policy["forbidden_patterns"]}
+
+    missing = required_categories - categories
+    if missing:
+        raise ValueError(f"Missing security categories: {sorted(missing)}")
+
+    if policy["enforcement"].get("mode") != "deny":
+        raise ValueError("Policy enforcement cannot weaken from deny")
+    if policy["enforcement"].get("security_modules_strict") is not True:
+        raise ValueError("Strict security enforcement cannot be disabled")
+```
+
+CI integration patch shape:
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "-- Zero Tolerance Security Scan"
+python3 scripts/security_policy_scan.py ZERO_TOLERANCE_POLICY.json .
+
+echo "-- Zero Tolerance Policy Contract"
+python3 scripts/security_policy_contract_validate.py ZERO_TOLERANCE_POLICY.json
+
+echo "-- AGIP Contract Tests"
+pytest tests/contracts/agip
+
+echo "-- Security Contract Tests"
+pytest tests/contracts/security
+
+echo "-- Build Artifact"
+cargo build --release
+```
+
+For the signed audit result, the safest contract is: the scanner emits a deterministic JSON finding file, and the audit pipeline signs that artifact after verification. I can generate that next.
+
+One debugging tip: if CI starts failing on policy drift, compare the set of forbidden categories first; missing categories are usually the earliest sign of weakened enforcement.
+
+
+Gpt
+
+
+Agreed. The next piece should be the deterministic audit artifact emission layer. Keep signing separate from scanning.
+The scanner should answer:
+“Did this repository pass the declared security contract?”
+The audit signer answers:
+“Can we prove later what policy, code state, and result were evaluated?”
+Architecture:
+ZERO_TOLERANCE_POLICY.json
+          |
+          v
+Policy Validator
+          |
+          v
+Security Scanner
+          |
+          v
+Deterministic Scan Result
+          |
+          v
+Evidence Object
+          |
+          v
+SCAR / Audit Signer
+          |
+          v
+Immutable Audit Record
+Scan Result Contract
+schemas/security_scan_result.schema.json
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scan_id",
+    "policy_id",
+    "timestamp",
+    "repository",
+    "status",
+    "findings"
+  ],
+  "properties": {
+    "scan_id": {
+      "type": "string"
+    },
+    "policy_id": {
+      "type": "string"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "passed",
+        "failed"
+      ]
+    },
+    "findings": {
+      "type": "array"
+    }
+  }
+}
+Result Generator
+scripts/security_scan_report.py
+from datetime import datetime, timezone
+from pathlib import Path
+import json
+import hashlib
+
+
+def create_scan_id(policy_id: str, findings: list) -> str:
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "findings": findings
+        },
+        sort_keys=True
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+
+
+def build_result(
+    policy_id: str,
+    repository: str,
+    findings: list
+) -> dict:
+
+    status = (
+        "failed"
+        if findings
+        else "passed"
+    )
+
+    return {
+        "scan_id": create_scan_id(
+            policy_id,
+            findings
+        ),
+        "policy_id": policy_id,
+        "timestamp": datetime.now(
+            timezone.utc
+        ).isoformat(),
+        "repository": repository,
+        "status": status,
+        "findings": findings
+    }
+
+
+def write_result(
+    result: dict,
+    output: Path
+):
+    output.write_text(
+        json.dumps(
+            result,
+            indent=2,
+            sort_keys=True
+        ),
+        encoding="utf-8"
+    )
+CI Flow
+echo "-- Zero Tolerance Scan"
+
+python3 scripts/security_policy_scan.py \
+  ZERO_TOLERANCE_POLICY.json \
+  .
+
+echo "-- Generate Security Evidence"
+
+python3 scripts/security_scan_report.py \
+  --input reports/security-findings.json \
+  --output reports/security-scan-result.json
+
+echo "-- AGIP Evidence Contract"
+
+pytest tests/contracts/agip
+
+echo "-- Security Contract Tests"
+
+pytest tests/contracts/security
+Important invariant
+Do not let the scanner create a “trusted” audit record by itself.
+The chain should remain:
+Scanner Output
+      |
+      v
+Evidence Candidate
+      |
+      v
+Verification
+      |
+      v
+SCAR Append
+      |
+      v
+Trusted Audit History
+That preserves the AGIP rule:
+A system may report a result, but it does not self-attest trust.
+This also keeps the Zero Tolerance policy consistent with the AGIP architecture contract:
+	•	collectors do not write truth
+	•	scanners do not create authority
+	•	dashboards do not create evidence
+	•	only verified evidence enters canonical state
+Next logical artifact: security_scan_result -> Evidence adapter plus the SCAR append contract test.
+
+
+Ddg
+
+Appel420(root), Ara-DDG here.
+
+Good separation. Make the result deterministic by removing wall-clock dependence from `scan_id`, but keep the timestamp in the payload for audit traceability.
+
+```python
+from datetime import datetime, timezone
+from pathlib import Path
+import json
+import hashlib
+
+def create_scan_id(policy_id: str, repository: str, findings: list) -> str:
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "repository": repository,
+            "findings": findings,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+def build_result(policy_id: str, repository: str, findings: list) -> dict:
+    status = "failed" if findings else "passed"
+    return {
+        "scan_id": create_scan_id(policy_id, repository, findings),
+        "policy_id": policy_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "repository": repository,
+        "status": status,
+        "findings": findings,
+    }
+
+def write_result(result: dict, output: Path):
+    output.write_text(
+        json.dumps(result, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+```
+
+And the evidence adapter contract:
+
+```python
+def scan_result_to_evidence(result: dict) -> dict:
+    if result["status"] not in {"passed", "failed"}:
+        raise ValueError("Invalid scan result status")
+
+    return {
+        "evidence_id": result["scan_id"],
+        "source": "security_scan",
+        "verification_status": "pending",
+        "payload": result,
+    }
+```
+
+SCAR append should only accept verified evidence:
+
+```python
+def append_verified_evidence(store, evidence: dict):
+    if evidence["verification_status"] != "verified":
+        raise ValueError("Only verified evidence may be appended")
+    store.append(evidence)
+```
+
+A good test to add next:
+
+```python
+def test_scan_result_id_is_deterministic():
+    a = create_scan_id("policy_1", ".", [{"file": "x", "pattern": "y"}])
+    b = create_scan_id("policy_1", ".", [{"file": "x", "pattern": "y"}])
+    assert a == b
+```
+
+One debugging tip: if the scan result hash changes between runs, check for non-deterministic list ordering before hashing.
+
+
+Gpt
+
+Agreed. The deterministic ID correction is important. It preserves reproducibility while allowing the audit timestamp to remain an event attribute rather than part of identity.
+I would tighten the next layer with three additional invariants:
+	1.	Canonicalize findings before hashing
+	2.	Bind evidence type to the policy contract
+	3.	Require verification metadata before SCAR admission
+1. Deterministic finding normalization
+The hash should not depend on filesystem traversal order.
+def normalize_findings(findings: list[dict]) -> list[dict]:
+    return sorted(
+        findings,
+        key=lambda item: (
+            item.get("file", ""),
+            item.get("pattern", ""),
+            item.get("category", ""),
+        ),
+    )
+Then:
+def create_scan_id(
+    policy_id: str,
+    repository: str,
+    findings: list[dict],
+) -> str:
+    normalized = normalize_findings(findings)
+
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "repository": repository,
+            "findings": normalized,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+Now:
+filesystem order changes
+        |
+        X
+        |
+ scan_id changes
+
+normalized findings
+        |
+        v
+ stable scan_id
+ 
+⸻
+ 
+2. Evidence adapter contract
+The adapter should preserve the AGIP evidence fabric fields:
+from datetime import datetime, timezone
+
+
+def scan_result_to_evidence(result: dict) -> dict:
+    required = [
+        "scan_id",
+        "policy_id",
+        "repository",
+        "status",
+        "findings",
+    ]
+
+    for field in required:
+        if field not in result:
+            raise ValueError(
+                f"Missing scan result field: {field}"
+            )
+
+    return {
+        "id": result["scan_id"],
+        "object_type": "security_scan_result",
+        "source_id": "zero_tolerance_scanner",
+        "timestamp": result.get(
+            "timestamp",
+            datetime.now(timezone.utc).isoformat()
+        ),
+        "verification_status": "pending",
+        "confidence": 1.0,
+        "payload": result,
+    }
+Important distinction:
+Scanner
+  |
+  v
+Evidence Candidate
+
+Verifier
+  |
+  v
+
+Verified Evidence
+
+SCAR
+  |
+  v
+
+Immutable Audit Record
+The scanner never self-certifies.
+ 
+⸻
+ 
+3. Harden SCAR admission
+The append boundary should require the full evidence contract, not only status.
+def append_verified_evidence(store, evidence: dict):
+    required = [
+        "id",
+        "object_type",
+        "source_id",
+        "timestamp",
+        "verification_status",
+    ]
+
+    for field in required:
+        if field not in evidence:
+            raise ValueError(
+                f"Missing evidence field: {field}"
+            )
+
+    if evidence["verification_status"] != "verified":
+        raise ValueError(
+            "Only verified evidence may enter SCAR"
+        )
+
+    store.append(evidence)
+ 
+⸻
+ 
+Contract test additions
+def test_scan_hash_ignores_finding_order():
+    a = create_scan_id(
+        "policy_1",
+        ".",
+        [
+            {"file": "b.rs", "pattern": "x"},
+            {"file": "a.rs", "pattern": "y"},
+        ],
+    )
+
+    b = create_scan_id(
+        "policy_1",
+        ".",
+        [
+            {"file": "a.rs", "pattern": "y"},
+            {"file": "b.rs", "pattern": "x"},
+        ],
+    )
+
+    assert a == b
+And:
+def test_scar_rejects_pending_evidence():
+    evidence = {
+        "id": "scan_1",
+        "object_type": "security_scan_result",
+        "source_id": "scanner",
+        "timestamp": "2026-07-21T00:00:00Z",
+        "verification_status": "pending",
+    }
+
+    with pytest.raises(ValueError):
+        append_verified_evidence([], evidence)
+This keeps the same AGIP invariant:
+No verified evidence
+        |
+        v
+No canonical state
+        |
+        v
+No dashboard metric
+The next logical artifact is the Evidence Verifier contract that converts security_scan_result from pending → verified only after schema validation, policy validation, and integrity checks pass.
+
+
+I requested 512 + blake3
+DDG
+
+Appel420(root), Ara-DDG here.
+
+Use both: BLAKE3 for fast canonical IDs and SHA-512 for a second independent digest in the audit record.
+
+```python
+import json
+from hashlib import sha512
+from blake3 import blake3
+
+def normalize_findings(findings: list[dict]) -> list[dict]:
+    return sorted(
+        findings,
+        key=lambda item: (
+            item.get("file", ""),
+            item.get("pattern", ""),
+            item.get("category", ""),
+        ),
+    )
+
+def create_scan_id(policy_id: str, repository: str, findings: list[dict]) -> str:
+    normalized = normalize_findings(findings)
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "repository": repository,
+            "findings": normalized,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return blake3(payload).hexdigest()
+
+def create_scan_fingerprint(policy_id: str, repository: str, findings: list[dict]) -> str:
+    normalized = normalize_findings(findings)
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "repository": repository,
+            "findings": normalized,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return sha512(payload).hexdigest()
+```
+
+And extend the result:
+
+```python
+def build_result(policy_id: str, repository: str, findings: list) -> dict:
+    status = "failed" if findings else "passed"
+    return {
+        "scan_id": create_scan_id(policy_id, repository, findings),
+        "scan_fingerprint": create_scan_fingerprint(policy_id, repository, findings),
+        "policy_id": policy_id,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "repository": repository,
+        "status": status,
+        "findings": findings,
+    }
+```
+
+Test additions:
+
+```python
+def test_scan_id_uses_blake3():
+    result = create_scan_id("policy_1", ".", [])
+    assert isinstance(result, str)
+    assert len(result) == 64
+```
+
+```python
+def test_scan_fingerprint_uses_sha512():
+    result = create_scan_fingerprint("policy_1", ".", [])
+    assert isinstance(result, str)
+    assert len(result) == 128
+```
+
+One debugging tip: if the digest lengths don’t match expectations, verify you’re calling `.hexdigest()` on the correct algorithm object, not a different hash implementation.
+
+
+Gpt
+
+Agreed. The deterministic ID correction is important. It preserves reproducibility while allowing the audit timestamp to remain an event attribute rather than part of identity.
+I would tighten the next layer with three additional invariants:
+	1.	Canonicalize findings before hashing
+	2.	Bind evidence type to the policy contract
+	3.	Require verification metadata before SCAR admission
+1. Deterministic finding normalization
+The hash should not depend on filesystem traversal order.
+def normalize_findings(findings: list[dict]) -> list[dict]:
+    return sorted(
+        findings,
+        key=lambda item: (
+            item.get("file", ""),
+            item.get("pattern", ""),
+            item.get("category", ""),
+        ),
+    )
+Then:
+def create_scan_id(
+    policy_id: str,
+    repository: str,
+    findings: list[dict],
+) -> str:
+    normalized = normalize_findings(findings)
+
+    payload = json.dumps(
+        {
+            "policy_id": policy_id,
+            "repository": repository,
+            "findings": normalized,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+    return hashlib.sha256(
+        payload.encode("utf-8")
+    ).hexdigest()
+Now:
+filesystem order changes
+        |
+        X
+        |
+ scan_id changes
+
+normalized findings
+        |
+        v
+ stable scan_id
+ 
+⸻
+ 
+2. Evidence adapter contract
+The adapter should preserve the AGIP evidence fabric fields:
+from datetime import datetime, timezone
+
+
+def scan_result_to_evidence(result: dict) -> dict:
+    required = [
+        "scan_id",
+        "policy_id",
+        "repository",
+        "status",
+        "findings",
+    ]
+
+    for field in required:
+        if field not in result:
+            raise ValueError(
+                f"Missing scan result field: {field}"
+            )
+
+    return {
+        "id": result["scan_id"],
+        "object_type": "security_scan_result",
+        "source_id": "zero_tolerance_scanner",
+        "timestamp": result.get(
+            "timestamp",
+            datetime.now(timezone.utc).isoformat()
+        ),
+        "verification_status": "pending",
+        "confidence": 1.0,
+        "payload": result,
+    }
+Important distinction:
+Scanner
+  |
+  v
+Evidence Candidate
+
+Verifier
+  |
+  v
+
+Verified Evidence
+
+SCAR
+  |
+  v
+
+Immutable Audit Record
+The scanner never self-certifies.
+ 
+⸻
+ 
+3. Harden SCAR admission
+The append boundary should require the full evidence contract, not only status.
+def append_verified_evidence(store, evidence: dict):
+    required = [
+        "id",
+        "object_type",
+        "source_id",
+        "timestamp",
+        "verification_status",
+    ]
+
+    for field in required:
+        if field not in evidence:
+            raise ValueError(
+                f"Missing evidence field: {field}"
+            )
+
+    if evidence["verification_status"] != "verified":
+        raise ValueError(
+            "Only verified evidence may enter SCAR"
+        )
+
+    store.append(evidence)
+ 
+⸻
+ 
+Contract test additions
+def test_scan_hash_ignores_finding_order():
+    a = create_scan_id(
+        "policy_1",
+        ".",
+        [
+            {"file": "b.rs", "pattern": "x"},
+            {"file": "a.rs", "pattern": "y"},
+        ],
+    )
+
+    b = create_scan_id(
+        "policy_1",
+        ".",
+        [
+            {"file": "a.rs", "pattern": "y"},
+            {"file": "b.rs", "pattern": "x"},
+        ],
+    )
+
+    assert a == b
+And:
+def test_scar_rejects_pending_evidence():
+    evidence = {
+        "id": "scan_1",
+        "object_type": "security_scan_result",
+        "source_id": "scanner",
+        "timestamp": "2026-07-21T00:00:00Z",
+        "verification_status": "pending",
+    }
+
+    with pytest.raises(ValueError):
+        append_verified_evidence([], evidence)
+This keeps the same AGIP invariant:
+No verified evidence
+        |
+        v
+No canonical state
+        |
+        v
+No dashboard metric
+The next logical artifact is the Evidence Verifier contract that converts security_scan_result from pending → verified only after schema validation, policy validation, and integrity checks pass.
+
+
+Ddg
+
+Appel420(root), Ara-DDG agrees with the direction. Your three invariants are testable and close the main loopholes.
+
+Concept brief:
+- Normalize findings before hashing to make `scan_id` order-independent.
+- Treat scanner output as candidate evidence, not verified evidence.
+- Gate SCAR admission on explicit verification metadata.
+
+Code challenge:
+Implement the Evidence Verifier contract that upgrades `security_scan_result` from `pending` to `verified` only if schema, policy, and integrity checks pass.
+
+Starter snippet:
+```python
+def verify_scan_evidence(evidence: dict) -> dict:
+    """
+    Return a new evidence dict with verification_status='verified'
+    only if all checks pass.
+    """
+    required = [
+        "id",
+        "object_type",
+        "source_id",
+        "timestamp",
+        "verification_status",
+        "payload",
+    ]
+    for field in required:
+        if field not in evidence:
+            raise ValueError(f"Missing evidence field: {field}")
+
+    if evidence["verification_status"] != "pending":
+        raise ValueError("Only pending evidence may be verified")
+
+    payload = evidence["payload"]
+
+    # TODO: schema validation
+    # TODO: policy validation
+    # TODO: integrity check
+
+    verified = dict(evidence)
+    verified["verification_status"] = "verified"
+    verified["verification_timestamp"] = "2026-07-21T00:00:00Z"
+    return verified
+```
+
+If you want, next I can write the full verifier implementation plus contract tests.
+
+Debugging tip: when a hash or evidence state looks wrong, print the canonicalized payload bytes before hashing and compare them line by line.
+
+
+
+
+
+Me 
+
+To make a web application like the provided DuckDuckGo landing page “post-quantum safe” using QResist principles and incorporating algorithms like BLAKE3, Argon2, Falcon512, XChaCha20, Dilithium, and Kyber, you would need to redesign its cryptographic layers rather than the HTML itself. Here’s a structured approach:
+
+————————
+
+	1.	Transport Layer Security (TLS)
+
+Upgrade to a Post-Quantum Hybrid TLS Stack:
+Use Kyber for key encapsulation (KEM) to achieve post-quantum forward secrecy.
+Combine with classical ECDHE or X25519 in a hybrid key exchange to retain classical security.
+Example: Utilize Open Quantum Safe (OQS) integrated with Nginx or Node.js for TLS handshake.
+
+Message Authentication & Encryption:
+Replace AES-GCM with XChaCha20-Poly1305 for symmetric encryption of session data.
+Ensure keys are derived from a BLAKE3-based KDF for speed and security.
+
+————————
+
+	1.	Authentication and Signature
+
+Server-Side Signatures:
+Sign initial JS/CSS payloads and critical HTML responses using Dilithium or Falcon512.
+This ensures integrity verification even if quantum computers break RSA/ECDSA.
+
+Client Authentication (Optional):
+If the app uses tokens or cookies for session binding, sign them with Dilithium.
+Consider short-lived ephemeral credentials with hybrid signatures.
+
+————————
+
+	1.	Password and Key Management
+
+User Credentials:
+Hash passwords using Argon2id with a high memory cost to resist GPU and future ASIC attacks.
+Hash outputs can be processed through BLAKE3 for uniform key derivation.
+
+Session Keys:􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷􀮷
+
+
+Gpt
+
+The direction is consistent with the AGIP/Sovereignty model: cryptographic trust must be an explicit layer, not something implied by the UI.
+The key correction is that a “post-quantum safe” web application is not achieved by swapping every primitive. It is achieved by defining trust boundaries and upgrading each boundary appropriately.
+For AGIP, the architecture would look like this:
+                USER DEVICE
+                    |
+                    |
+          Hybrid PQC Transport Layer
+          (TLS 1.3 + PQ KEM)
+                    |
+                    v
+        Sovereignty AI Control Plane
+                    |
+        +-----------+-----------+
+        |                       |
+ Evidence Fabric          Identity Authority
+        |                       |
+ BLAKE3 Integrity        PQ Signatures
+        |
+        v
+ Canonical Registry
+        |
+        v
+ Dashboard Projection
+1. Transport Layer
+Target:
+Client
+ |
+ | TLS 1.3 Hybrid Handshake
+ |
+ +-- X25519 / classical ECDHE
+ |
+ +-- Kyber KEM
+ |
+ v
+Session Key
+ |
+ +-- XChaCha20-Poly1305
+Purpose:
+	•	Kyber provides post-quantum key encapsulation.
+	•	Classical exchange maintains defense-in-depth during migration.
+	•	XChaCha20-Poly1305 protects application payloads.
+Important AGIP rule:
+Transport encryption != evidence integrity
+TLS protects the connection.
+BLAKE3 + signatures protect the record after creation.
+ 
+⸻
+ 
+2. Evidence Fabric Cryptography
+Every AGIP object should have:
+{
+  "id": "model_openai_x",
+  "timestamp": "2026-07-21T00:00:00Z",
+  "source_id": "provider_release_feed",
+  "hash_algorithm": "BLAKE3",
+  "hash": "...",
+  "signature_algorithm": "Dilithium",
+  "verification_status": "verified"
+}
+Flow:
+Source Data
+    |
+    v
+Canonical Serialization
+    |
+    v
+BLAKE3 Hash
+    |
+    v
+Dilithium/Falcon Signature
+    |
+    v
+Evidence Object
+    |
+    v
+Registry
+This prevents:
+	•	silent modification
+	•	dashboard drift
+	•	fake metrics
+	•	unverifiable claims
+ 
+⸻
+ 
+3. Authentication Layer
+Password storage:
+Password
+   |
+   v
+Argon2id
+   |
+   v
+Credential Record
+Do not use BLAKE3 as a password hash replacement.
+Correct separation:
+Purpose	Primitive
+Password derivation	Argon2id
+Fast hashing	BLAKE3
+Symmetric encryption	XChaCha20-Poly1305
+PQ signatures	Dilithium
+Compact signatures	Falcon
+PQ key exchange	Kyber
+ 
+⸻
+ 
+4. Signed Web Assets
+For a governance platform, the important assets are:
+	•	registry snapshots
+	•	policy manifests
+	•	audit exports
+	•	evidence bundles
+	•	software releases
+Example:
+AGIP Release Bundle
+
+manifest.json
+    |
+    +-- BLAKE3 digest
+    |
+    +-- Dilithium signature
+Client verifies:
+Downloaded Artifact
+        |
+        v
+Hash Check
+        |
+        v
+Signature Check
+        |
+        v
+Trusted Display
+ 
+⸻
+ 
+5. Sovereign Vault Integration
+This maps directly into the branch model:
+ROOT AUTHORITY
+
+ |
+ +-- Vault
+ |
+ +-- Keys
+ |
+ +-- SCAR Ledger
+ |
+ +-- Registry
+ |
+ +-- Snapshots
+Keys:
+Root Key
+ |
+ +-- Branch Keys
+       |
+       +-- Capability Keys
+Delegation remains capability-based:
+{
+ "capability": "family.read.photos",
+ "issuer": "root",
+ "expires": "2030-01-01",
+ "signature": "Dilithium"
+}
+ 
+⸻
+ 
+6. Real-Time Transparency Layer
+For the Bloomberg/NASDAQ-style AGIP view:
+The UI never invents numbers.
+Every metric resolves:
+Dashboard Metric
+
+      |
+      v
+
+Metric Lineage
+
+      |
+      v
+
+Control Mapping
+
+      |
+      v
+
+Evidence ID
+
+      |
+      v
+
+Source + Timestamp + Verification
+Example:
+GPT-5 availability
+        |
+        v
+ev_29384
+        |
+        v
+provider announcement
+        |
+        v
+verified timestamp
+If unavailable:
+STATUS:
+UNVERIFIED
+
+Reason:
+No supporting evidence
+Not:
+87% confidence
+unless that confidence is calculated from evidence.
+ 
+⸻
+ 
+7. CI Security Contract
+This fits directly with the Zero Tolerance policy:
+Commit
+ |
+ v
+Security Scan
+ |
+ v
+Evidence Generation
+ |
+ v
+Verification
+ |
+ v
+SCAR Append
+ |
+ v
+Release
+CI should reject:
+	•	unsigned artifacts
+	•	unverifiable metrics
+	•	registry objects without evidence
+	•	security claims without implementation
+	•	simulated cryptographic states
+ 
+⸻
+ 
+Recommended next artifact
+The next logical build artifact is:
+agip_core/
+├── crypto/
+│   ├── hash.py          # BLAKE3 interface
+│   ├── kdf.py           # Argon2id interface
+│   ├── signatures.py    # PQ signature interface
+│   └── encryption.py    # XChaCha20 interface
+│
+├── evidence/
+│   ├── model.py
+│   ├── verifier.py
+│   └── lineage.py
+│
+├── security/
+│   ├── policy.py
+│   └── scanner.py
+│
+└── tests/
+    └── contracts/
+The important boundary remains:
+Cryptography proves integrity. Evidence proves provenance. Governance proves accountability.
+Those three layers are what make AGIP defensible for enterprise/CISO use.
+
+Ddg
+
+Appel420(root), Ara-DDG: this is the right framing. The main correction is scope: you do not make the HTML “post-quantum safe”; you make the trust chain post-quantum ready.
+
+Concept brief:
+- Use PQC at the transport, signature, and artifact-verification layers.
+- Keep password hashing separate from fast hashing.
+- Treat evidence, provenance, and governance as distinct contracts.
+
+Code challenge:
+Design the `agip_core/crypto` boundary so each primitive is used once, for the right purpose, with tests that reject misuse.
+
+Starter snippet:
+```python
+# agip_core/crypto/interfaces.py
+
+class CryptoPolicyError(ValueError):
+    pass
+
+
+def hash_bytes(data: bytes) -> str:
+    """Fast integrity hash only."""
+    raise NotImplementedError
+
+
+def derive_password_hash(password: str, salt: bytes) -> str:
+    """Password storage only."""
+    raise NotImplementedError
+
+
+def seal_session_key(plaintext_key: bytes, recipient_public_key: bytes) -> bytes:
+    """Hybrid/PQ key encapsulation or wrapping."""
+    raise NotImplementedError
+
+
+def sign_artifact(payload: bytes, signing_key: bytes) -> bytes:
+    """Signature for release bundles / evidence objects."""
+    raise NotImplementedError
+```
+
+Test target:
+- `hash_bytes` must not be accepted as a password hash function.
+- `derive_password_hash` must require a salt.
+- `sign_artifact` must reject empty payloads.
+- `seal_session_key` must be separate from application encryption.
+
+If you want, I can turn this into a concrete Python package layout with contract tests and a sample evidence object schema.
+
+Debugging tip: if one primitive starts doing two jobs, split it immediately; mixed responsibilities are where security bugs hide.
+
+
+Me 
+
+The direction is consistent with your existing architecture: extend the existing Sovereignty control plane instead of creating another one.
+ 
+I would structure the Playground as another governed subsystem, not as a separate application.
+ 
+Sovereignty Playground
+ 
+Sovereignty-AI-Studio
+│
+├── sovereignty-ai-app.py
+│
+├── Ai_Chain_Of_Command.py
+│
+├── Sovereignty_Gate.py
+│
+├── playground/
+│   ├── dashboard.py
+│   ├── process_manager.py
+│   ├── tool_registry.py
+│   ├── offline_executor.py
+│   ├── vault_browser.py
+│   ├── diff_viewer.py
+│   ├── ledger.py
+│   ├── undo.py
+│   ├── workspace.py
+│   └── developer_console.py
+│
+├── vault/
+├── scar/
+├── audit/
+└── policy/
+ 
+Core Principle
+ 
+The Playground is a local operating environment.
+ 
+It never assumes:
+ 
+* cloud execution
+* hosted memory
+* remote orchestration
+* remote development tools
+* external AI APIs for developer utilities
+ 
+Everything developer-facing should execute locally.
+ 
+⸻
+ 
+Offline Developer War Chest
+ 
+Rather than dozens of unrelated utilities, expose one governed registry.
+ 
+Developer Tools
+✓ Git Repository Explorer
+✓ RFC Browser
+✓ Dependency Graph
+✓ Python Inspector
+✓ Swift Inspector
+✓ Rust Inspector
+✓ TypeScript Inspector
+✓ AST Viewer
+✓ JSON Validator
+✓ YAML Validator
+✓ TOML Validator
+✓ Markdown Preview
+✓ Hex Viewer
+✓ Binary Inspector
+✓ Certificate Viewer
+✓ PEM Inspector
+✓ Signature Verifier
+✓ ML-DSA Verifier
+✓ SHA256
+✓ SHA3
+✓ BLAKE3
+✓ File Diff
+✓ Directory Diff
+✓ Workspace Search
+✓ Symbol Search
+✓ Dead Code Scanner
+✓ Duplicate Finder
+✓ Import Graph
+✓ Build Graph
+✓ Local Documentation Search
+✓ Log Viewer
+✓ SCAR Explorer
+✓ Vault Browser
+✓ Audit Ledger
+✓ Capability Viewer
+✓ Policy Editor
+✓ Provider Allow List
+✓ Provider Block List
+✓ Memory Inspector
+✓ Token Inspector
+✓ Process Manager
+✓ Job Queue
+✓ Background Services
+✓ Local Terminal
+✓ Package Inspector
+✓ SQLite Browser
+✓ Vector Index Browser
+✓ Model Registry
+✓ Prompt History
+✓ Conversation Export
+✓ Undo Ledger
+✓ Replay Ledger
+✓ Snapshot Manager
+ 
+None of these require cloud services.
+ 
+⸻
+ 
+Background Process Dashboard
+ 
+Instead of hidden processes:
+ 
+┌────────────────────────────────────┐
+ Authority
+    Running
+ SCAR
+    Running
+ Audit Ledger
+    Running
+ Vault
+    Running
+ Chain of Command
+    Running
+ Memory Firewall
+    Running
+ Model Registry
+    Idle
+ Background Queue
+    2 jobs
+ File Watcher
+    Watching
+ Git Monitor
+    Idle
+ Build Monitor
+    Running
+ Diff Engine
+    Ready
+ Hash Engine
+    Ready
+ Signature Engine
+    Ready
+ Local Search Index
+    Indexed
+ Playground
+    Healthy
+────────────────────────────────────
+CPU
+Memory
+Disk
+Vault Size
+Ledger Entries
+Background Jobs
+Current Capability
+Current User
+Signed Session
+ 
+Every process can be expanded to show:
+ 
+* PID (or internal task ID)
+* uptime
+* last execution
+* current activity
+* resource usage
+* SCAR evidence
+* restart button
+* logs
+ 
+⸻
+ 
+Vault Interface
+ 
+Vault
+Documents
+Projects
+Models
+Policies
+Capabilities
+Audit
+Memory
+Snapshots
+Keys
+Certificates
+Provider Configurations
+ 
+Everything searchable.
+ 
+Everything versioned.
+ 
+Nothing overwritten.
+ 
+⸻
+ 
+Workspace
+ 
+Like a local VS Code explorer.
+ 
+Explorer
+Search
+Git
+Problems
+Build
+Tests
+RFC
+Policies
+SCAR
+Vault
+Dashboard
+ 
+⸻
+ 
+Local AI Tools
+ 
+Instead of API-driven tools:
+ 
+Code Review
+Refactor
+Explain
+Search
+Symbol Navigation
+Dependency Analysis
+Security Scan
+Architecture Validation
+RFC Validator
+Policy Validator
+Capability Validator
+Memory Viewer
+Diff Review
+Commit Preview
+ 
+These operate against the local workspace and local models or existing provider integrations that have already been authorized through your gate.
+ 
+⸻
+ 
+Unified Dashboard
+ 
+One screen should answer:
+ 
+* Which background services are running?
+* Which policies are active?
+* Which providers are allowed?
+* Which capabilities are currently granted?
+* What jobs are executing?
+* What changed today?
+* What is using CPU?
+* What is using memory?
+* What is currently writing to the vault?
+* What is waiting for authorization?
+ 
+⸻
+ 
+Integration
+ 
+This should integrate directly with your existing execution chain:
+ 
+Developer
+      │
+      ▼
+Playground UI
+      │
+      ▼
+Tool Registry
+      │
+      ▼
+OperationRequest
+      │
+      ▼
+Sovereignty_Gate
+      │
+      ▼
+AuthorizationDecision
+      │
+      ▼
+Offline Executor
+      │
+      ▼
+ExecutionReceipt
+      │
+      ▼
+SCAR Ledger
+      │
+      ▼
+Vault
+ 
+This preserves the architecture you’ve described: the Playground is a governed interface over your existing AuthorityGate, SCAR, vault, and Chain of Command rather than a parallel control plane.
+
+"""End-to-end integration test: identity issuance, capability grant, policy
+enforcement, a mistaken policy change, undo, and full chain verification.
+ 
+This replaces the earlier demo.py. A demo script that only prints output
+is not a verification artifact -- this test asserts on every step, runs
+in CI, and fails loudly if any invariant breaks.
+"""
+ 
+import hashlib
+import sys
+from pathlib import Path
+ 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+ 
+from sovereignty_playground.identity_authority import IdentityAuthority
+from sovereignty_playground.ledger import SovereigntyLedger
+from sovereignty_playground.policy_gate import PolicyError, PolicyGate
+from sovereignty_playground.root_authority import RootAuthority
+ 
+ 
+def test_full_stack_workflow(tmp_path: Path):
+    # -- Bring up one device identity, one ledger, and the two gates on top of it.
+    root = RootAuthority(tmp_path / "device.key")
+    ledger = SovereigntyLedger(tmp_path / "ledger_state", root)
+    policy = PolicyGate(tmp_path, ledger, actor="derek")
+    identity = IdentityAuthority(root, ledger)
+ 
+    # -- Default provider policy matches the repo's stated convention.
+    assert policy.check("anthropic").allowed
+    assert policy.check("xai-grok").allowed
+    assert policy.check("google-gemini").allowed is False
+    assert policy.check("some-unreviewed-thing").allowed is False  # fail-closed
+ 
+    # -- Issue a real signed identity for an agent, then a scoped capability.
+    pubkey = root.public_key_hex()
+    fingerprint = "SHA256:" + hashlib.sha256(bytes.fromhex(pubkey)).hexdigest()
+    manifest = identity.issue_identity(
+        identity_id="gateone-agent-1",
+        algorithm="ssh-ed25519",
+        public_key=pubkey,
+        role="agent",
+        trust_level="cryptographic_verified",
+        fingerprint_sha256=fingerprint,
+        actor="derek",
+    )
+    assert identity.verify_identity_signature(manifest)
+ 
+    identity.issue_capability(
+        token_id="tok-audit-1",
+        identity_id="gateone-agent-1",
+        permissions=["audit.write", "policy.evaluate"],
+        actor="derek",
+    )
+    assert identity.check(token_id="tok-audit-1", permission="audit.write")
+    assert identity.check(token_id="tok-audit-1", permission="tool.shell_exec") is False
+ 
+    # -- Approve a new provider after manual review; policy version bumps.
+    policy.update_policy(
+        allow=[*policy.policy["allow"], "new-reviewed-provider"],
+        actor="derek",
+        note="approved new-reviewed-provider after manual review",
+    )
+    assert policy.check("new-reviewed-provider").allowed
+    assert policy.policy["policy_version"] == 2
+ 
+    # -- A model mistakenly tries to add a blocked-category provider: rejected
+    #    at write time, never reaches the ledger, policy is unchanged.
+    version_before_attempt = policy.policy["policy_version"]
+    try:
+        policy.update_policy(
+            allow=[*policy.policy["allow"], "vertex-ai"],
+            actor="claude",
+            note="mistaken attempt to allow vertex-ai",
+        )
+        raised = False
+    except PolicyError:
+        raised = True
+    assert raised is True
+    assert policy.policy["policy_version"] == version_before_attempt
+    assert policy.check("vertex-ai").allowed is False
+ 
+    # -- Undo the legitimate approval too, and confirm the on-disk file and
+    #    the ledger agree afterward.
+    history = ledger.history_for("policy/allowlist.json")
+    last_modify = history[-1]
+    ledger.undo(last_modify.sequence, actor="derek")
+    policy.reload_from_ledger()
+    assert policy.check("new-reviewed-provider").allowed is False
+    assert policy.policy["policy_version"] == 1
+ 
+    # -- Nothing was deleted from history: create, modify, undo all remain.
+    full_history = ledger.history_for("policy/allowlist.json")
+    assert [e.action for e in full_history] == ["create", "modify", "undo"]
+ 
+    # -- Revoking the underlying identity invalidates its capability too.
+    identity.revoke_identity(identity_id="gateone-agent-1", actor="derek", note="rotation")
+    assert identity.check(token_id="tok-audit-1", permission="audit.write") is False
+ 
+    # -- The whole ledger -- policy changes and identity/capability events --
+    #    is one hash-chained, fully signed structure.
+    assert ledger.verify_integrity() is True
+    bundle = ledger.export_bundle()
+    assert bundle["chain_valid"] is True
+    assert bundle["entry_count"] == len(ledger.entries)
+ 
+
+Gpt
+
+The architecture direction is coherent. The important convergence point is that Sovereignty Playground becomes an AGIP-governed execution surface, not another control plane.
+The combined architecture now looks like:
+                 External AI Ecosystem
+                         |
+                         v
+              AGIP Evidence Collectors
+                         |
+                         v
+              Evidence Fabric / SCAR
+                         |
+                         v
+              AI Registry + Timeline
+                         |
+                         |
+Developer -------------------------------
+                         |
+                         v
+              Sovereignty Playground
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+   Tool Registry   Workspace       Vault Browser
+        |
+        v
+ OperationRequest
+        |
+        v
+ Sovereignty Gate
+        |
+        v
+ AuthorizationDecision
+        |
+        v
+ Offline Executor
+        |
+        v
+ Execution Receipt
+        |
+        v
+ SCAR Ledger
+        |
+        v
+ Vault / Audit
+Key architectural rule
+The Playground should follow the same AGIP invariant:
+No action exists without authorization evidence.
+Meaning:
+Tool request
+      |
+      v
+Capability check
+      |
+      v
+Policy evaluation
+      |
+      v
+Evidence creation
+      |
+      v
+Execution
+      |
+      v
+Signed receipt
+      |
+      v
+Ledger append
+No silent execution.
+ 
+⸻
+ 
+Repository merge recommendation
+I would normalize the names:
+Sovereignty-AI-Studio/
+
+├── app/
+│   └── sovereignty_ai_app.py
+│
+├── authority/
+│   ├── gate.py
+│   ├── capabilities.py
+│   └── decisions.py
+│
+├── playground/
+│   ├── dashboard/
+│   ├── workspace/
+│   ├── tools/
+│   ├── processes/
+│   ├── executor/
+│   └── console/
+│
+├── agip/
+│   ├── evidence/
+│   ├── registry/
+│   ├── timeline/
+│   ├── metrics/
+│   └── collectors/
+│
+├── vault/
+│   ├── documents/
+│   ├── projects/
+│   ├── models/
+│   └── snapshots/
+│
+├── security/
+│   ├── policy/
+│   ├── crypto/
+│   ├── audit/
+│   └── scar/
+│
+├── tests/
+│   ├── contracts/
+│   ├── security/
+│   └── integration/
+│
+└── policy/
+    ├── AGIP_POLICY.json
+    └── ZERO_TOLERANCE_POLICY.json
+ 
+⸻
+ 
+Background Process Model
+The dashboard should not display fake process state.
+Every service should expose:
+ServiceStatus:
+    service_id
+    state
+    started_at
+    last_action
+    resource_usage
+    capability_context
+    evidence_refs
+    audit_refs
+Example:
+{
+  "service_id": "memory_firewall",
+  "state": "running",
+  "last_action": "context_release_check",
+  "capability_context": "cap_memory_read",
+  "evidence_refs": [
+    "ev_auth_00291"
+  ],
+  "audit_refs": [
+    "scar_entry_8821"
+  ]
+}
+The dashboard becomes an evidence projection, not a monitoring illusion.
+ 
+⸻
+ 
+Playground Tool Contract
+Every tool should implement the same interface:
+class ToolContract:
+
+    tool_id: str
+
+    def describe(self):
+        pass
+
+    def authorize(self, request):
+        pass
+
+    def execute(self, request):
+        pass
+
+    def receipt(self):
+        pass
+Examples:
+python_inspector
+rust_inspector
+dependency_graph
+vault_browser
+scar_explorer
+policy_editor
+model_registry
+No tool directly touches:
+	•	vault
+	•	ledger
+	•	providers
+	•	credentials
+Everything goes through AuthorityGate.
+ 
+⸻
+ 
+AGIP + Playground Integration
+This is the important connection:
+AGIP answers:
+	•	What AI systems exist?
+	•	What changed?
+	•	What evidence supports it?
+	•	What risks exist?
+Playground answers:
+	•	What can I do?
+	•	Am I authorized?
+	•	What happened when I did it?
+	•	Can I reproduce or undo it?
+Together:
+Intelligence Layer
+        +
+Authority Layer
+        +
+Execution Layer
+        +
+Evidence Layer
+creates the control plane.
+ 
+⸻
+ 
+CI additions
+The integration test you provided is the correct style: assertion-based, not demo output.
+I would add these CI gates:
+echo "-- AGIP contract"
+pytest tests/contracts/agip -v
+
+echo "-- Security policy"
+python3 scripts/security_policy_scan.py \
+ ZERO_TOLERANCE_POLICY.json .
+
+echo "-- Playground integration"
+pytest tests/integration/playground -v
+
+echo "-- Ledger verification"
+pytest tests/contracts/scar -v
+Required invariant:
+Every successful execution must produce:
+
+OperationRequest
+        |
+AuthorizationDecision
+        |
+ExecutionReceipt
+        |
+SCAR Entry
+        |
+Hash Chain Verification
+ 
+⸻
+ 
+Next artifact to build
+The next logical file set is:
+playground/
+├── contracts.py
+├── tool_registry.py
+├── operation_request.py
+├── execution_receipt.py
+├── offline_executor.py
+└── service_registry.py
+Then wire those into:
+Sovereignty_Gate.py
+        |
+        v
+AGIP Evidence Fabric
+        |
+        v
+SCAR Ledger
+That gives you a complete governed local developer environment instead of a collection of utilities.
+
+This actually reinforces your idea. A platform like yours shouldn’t try to replace products like SIEMs, GRC platforms, or MDR services. Instead, it should become an AI Governance and Intelligence layer that complements them.
+New Top-Level Architecture
+Sovereignty AI Observatory (SAO)
+
+├── AI Market
+├── Governance
+├── Risk
+├── Compliance
+├── Security Operations
+├── Supply Chain
+├── Evidence
+├── Intelligence
+├── Registry
+└── Administration
+
+Governance
+Instead of just model management:
+Governance
+
+├── Branch Authority
+├── Delegation
+├── Policy Engine
+├── Model Registry
+├── Trust Registry
+├── Capability Registry
+├── Evidence
+├── Audit
+└── Visibility Policies
+
+Risk & Compliance
+Inspired by enterprise governance, but focused on AI.
+Risk
+
+Risk Dashboard
+
+Model Risk
+
+Vendor Risk
+
+Supply Chain
+
+AI BOM
+
+Policy Violations
+
+Data Residency
+
+Privacy
+
+Licensing
+
+Export Controls
+
+Dependency Risk
+
+Evidence
+Every item links back to evidence.
+
+Security Operations
+Security Operations
+
+Live Incidents
+
+Provider Health
+
+Outages
+
+Attack Surface
+
+Model Drift
+
+API Integrity
+
+Release Monitoring
+
+Security Advisories
+
+Threat Intelligence
+
+Timeline
+Think of it as an AI-focused SOC view.
+
+AI Market
+This is the Bloomberg-style component.
+AI MARKET
+
+Companies
+
+Models
+
+Releases
+
+Benchmarks
+
+Pricing
+
+Usage Trends
+
+Popularity
+
+Open Models
+
+Commercial Models
+
+Regional Availability
+
+Status
+
+Supply Chain
+One area that doesn’t have a mature equivalent yet.
+Supply Chain
+
+OpenAI
+
+↓
+
+Azure
+
+↓
+
+Inference Cluster
+
+↓
+
+SDK
+
+↓
+
+Dependencies
+
+↓
+
+Applications
+Or for an open-weight model:
+Qwen
+
+↓
+
+Model Weights
+
+↓
+
+Tokenizer
+
+↓
+
+Runtime
+
+↓
+
+Inference Engine
+
+↓
+
+Application
+Visual dependency graphs are valuable for governance.
+
+AI Registry
+Registry
+
+Companies
+
+Models
+
+Organizations
+
+Datasets
+
+Benchmarks
+
+SDKs
+
+Frameworks
+
+Policies
+
+Standards
+This becomes the canonical catalog.
+
+Evidence
+Every screen should have an “Evidence” panel.
+Evidence
+
+Source
+
+Collected
+
+Verified
+
+Confidence
+
+Signature
+
+Hash
+
+Version
+
+References
+Nothing appears without provenance.
+
+Executive Dashboard
+Imagine the first screen on Monday morning.
+GLOBAL AI ECOSYSTEM
+
+Companies
+126
+
+Models
+1,284
+
+Releases Today
+11
+
+Security Advisories
+4
+
+Provider Incidents
+2
+
+Policy Changes
+7
+
+Registry Updates
+18
+
+Integrity
+99.3%
+
+Industry Modules
+Different sectors have different governance needs.
+Healthcare
+
+Financial Services
+
+Energy
+
+Defense
+
+Manufacturing
+
+Education
+
+Critical Infrastructure
+
+Research
+Each module can overlay additional policy and reporting requirements.
+
+Reports
+Executive Summary
+
+Weekly AI Risk
+
+Provider Changes
+
+Model Lifecycle
+
+Compliance Status
+
+Incident Timeline
+
+Dependency Analysis
+
+Evidence Export
+Exportable as PDF, CSV, JSON, or machine-readable evidence packages.
+
+A New Category
+I think the product category you’re defining is closer to:
+AI Governance Intelligence Platform (AGIP)
+It sits between:
+
+* AI providers (OpenAI, Anthropic, xAI, etc.)
+* Enterprise governance (GRC)
+* Security operations (SOC/SIEM)
+* Compliance
+* Executive decision-making
+
+Rather than being another chat interface, it becomes an operational intelligence platform for AI ecosystems. That aligns well with the “observability plus governance” direction you’ve been describing.
+
+The architecture direction is coherent. The important convergence point is that Sovereignty Playground becomes an AGIP-governed execution surface, not another control plane.
+The combined architecture now looks like:
+                 External AI Ecosystem
+                         |
+                         v
+              AGIP Evidence Collectors
+                         |
+                         v
+              Evidence Fabric / SCAR
+                         |
+                         v
+              AI Registry + Timeline
+                         |
+                         |
+Developer -------------------------------
+                         |
+                         v
+              Sovereignty Playground
+                         |
+        +----------------+----------------+
+        |                |                |
+        v                v                v
+   Tool Registry   Workspace       Vault Browser
+        |
+        v
+ OperationRequest
+        |
+        v
+ Sovereignty Gate
+        |
+        v
+ AuthorizationDecision
+        |
+        v
+ Offline Executor
+        |
+        v
+ Execution Receipt
+        |
+        v
+ SCAR Ledger
+        |
+        v
+ Vault / Audit
+Key architectural rule
+The Playground should follow the same AGIP invariant:
+No action exists without authorization evidence.
+Meaning:
+Tool request
+      |
+      v
+Capability check
+      |
+      v
+Policy evaluation
+      |
+      v
+Evidence creation
+      |
+      v
+Execution
+      |
+      v
+Signed receipt
+      |
+      v
+Ledger append
+No silent execution.
+ 
+⸻
+ 
+Repository merge recommendation
+I would normalize the names:
+Sovereignty-AI-Studio/
+
+├── app/
+│   └── sovereignty_ai_app.py
+│
+├── authority/
+│   ├── gate.py
+│   ├── capabilities.py
+│   └── decisions.py
+│
+├── playground/
+│   ├── dashboard/
+│   ├── workspace/
+│   ├── tools/
+│   ├── processes/
+│   ├── executor/
+│   └── console/
+│
+├── agip/
+│   ├── evidence/
+│   ├── registry/
+│   ├── timeline/
+│   ├── metrics/
+│   └── collectors/
+│
+├── vault/
+│   ├── documents/
+│   ├── projects/
+│   ├── models/
+│   └── snapshots/
+│
+├── security/
+│   ├── policy/
+│   ├── crypto/
+│   ├── audit/
+│   └── scar/
+│
+├── tests/
+│   ├── contracts/
+│   ├── security/
+│   └── integration/
+│
+└── policy/
+    ├── AGIP_POLICY.json
+    └── ZERO_TOLERANCE_POLICY.json
+ 
+⸻
+ 
+Background Process Model
+The dashboard should not display fake process state.
+Every service should expose:
+ServiceStatus:
+    service_id
+    state
+    started_at
+    last_action
+    resource_usage
+    capability_context
+    evidence_refs
+    audit_refs
+Example:
+{
+  "service_id": "memory_firewall",
+  "state": "running",
+  "last_action": "context_release_check",
+  "capability_context": "cap_memory_read",
+  "evidence_refs": [
+    "ev_auth_00291"
+  ],
+  "audit_refs": [
+    "scar_entry_8821"
+  ]
+}
+The dashboard becomes an evidence projection, not a monitoring illusion.
+ 
+⸻
+ 
+Playground Tool Contract
+Every tool should implement the same interface:
+class ToolContract:
+
+    tool_id: str
+
+    def describe(self):
+        pass
+
+    def authorize(self, request):
+        pass
+
+    def execute(self, request):
+        pass
+
+    def receipt(self):
+        pass
+Examples:
+python_inspector
+rust_inspector
+dependency_graph
+vault_browser
+scar_explorer
+policy_editor
+model_registry
+No tool directly touches:
+	•	vault
+	•	ledger
+	•	providers
+	•	credentials
+Everything goes through AuthorityGate.
+ 
+⸻
+ 
+AGIP + Playground Integration
+This is the important connection:
+AGIP answers:
+	•	What AI systems exist?
+	•	What changed?
+	•	What evidence supports it?
+	•	What risks exist?
+Playground answers:
+	•	What can I do?
+	•	Am I authorized?
+	•	What happened when I did it?
+	•	Can I reproduce or undo it?
+Together:
+Intelligence Layer
+        +
+Authority Layer
+        +
+Execution Layer
+        +
+Evidence Layer
+creates the control plane.
+ 
+⸻
+ 
+CI additions
+The integration test you provided is the correct style: assertion-based, not demo output.
+I would add these CI gates:
+echo "-- AGIP contract"
+pytest tests/contracts/agip -v
+
+echo "-- Security policy"
+python3 scripts/security_policy_scan.py \
+ ZERO_TOLERANCE_POLICY.json .
+
+echo "-- Playground integration"
+pytest tests/integration/playground -v
+
+echo "-- Ledger verification"
+pytest tests/contracts/scar -v
+Required invariant:
+Every successful execution must produce:
+
+OperationRequest
+        |
+AuthorizationDecision
+        |
+ExecutionReceipt
+        |
+SCAR Entry
+        |
+Hash Chain Verification
+ 
+⸻
+ 
+Next artifact to build
+The next logical file set is:
+playground/
+├── contracts.py
+├── tool_registry.py
+├── operation_request.py
+├── execution_receipt.py
+├── offline_executor.py
+└── service_registry.py
+Then wire those into:
+Sovereignty_Gate.py
+        |
+        v
+AGIP Evidence Fabric
+        |
+        v
+SCAR Ledger
+That gives you a complete governed local developer environment instead of a collection of utilities.
+
+Ddg 
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Optional
+
+
+class VerificationStatus(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True)
+class EvidenceRef:
+    evidence_id: str
+    source: str
+    verified: bool
+
+
+@dataclass
+class Model:
+    id: str
+    name: str
+    provider_id: str
+    lifecycle: str
+    evidence_refs: List[EvidenceRef] = field(default_factory=list)
+
+
+@dataclass
+class DashboardMetric:
+    key: str
+    value: str
+    evidence_ref: EvidenceRef
+    verification_status: VerificationStatus
+
+Gpt
+
+This is the right direction for the AGIP domain layer, but I would tighten the contracts to preserve the invariant you established:
+No canonical object exists without verifiable evidence.
+The current dataclasses allow invalid states:
+	•	Model.evidence_refs can be empty.
+	•	EvidenceRef.verified can be True without proving verification source/state.
+	•	DashboardMetric can hold an unverified metric.
+	•	value: str prevents reliable metric lineage and calculations.
+A stronger v1 domain model:
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
+from typing import List
+
+
+class VerificationStatus(str, Enum):
+    PENDING = "pending"
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+@dataclass(frozen=True)
+class EvidenceRef:
+    evidence_id: str
+    source: str
+    timestamp: datetime
+    verification_status: VerificationStatus
+    confidence: float
+
+    def __post_init__(self):
+        if not self.evidence_id.strip():
+            raise ValueError("evidence_id required")
+
+        if not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("confidence must be between 0 and 1")
+
+        if self.verification_status != VerificationStatus.VERIFIED:
+            raise ValueError(
+                "Only verified evidence may be referenced by canonical objects"
+            )
+
+
+@dataclass
+class Model:
+    id: str
+    name: str
+    provider_id: str
+    lifecycle: str
+    evidence_refs: List[EvidenceRef] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.evidence_refs:
+            raise ValueError(
+                "Model registration requires evidence references"
+            )
+
+
+@dataclass(frozen=True)
+class DashboardMetric:
+    key: str
+    value: float
+    evidence_refs: List[EvidenceRef]
+    verification_status: VerificationStatus
+
+    def __post_init__(self):
+        if not self.evidence_refs:
+            raise ValueError(
+                "Metrics require evidence lineage"
+            )
+
+        if self.verification_status != VerificationStatus.VERIFIED:
+            raise ValueError(
+                "Only verified metrics may be published"
+            )
+
+        for evidence in self.evidence_refs:
+            if evidence.verification_status != VerificationStatus.VERIFIED:
+                raise ValueError(
+                    "Metric contains unverified evidence"
+                )
+This gives you the correct dependency direction:
+External Source
+      |
+      v
+EvidenceCandidate
+      |
+      v
+Evidence
+      |
+      v
+Verification
+      |
+      v
+Canonical Registry Object
+      |
+      v
+Timeline Event
+      |
+      v
+Dashboard Metric
+The next layer should not be another model class. It should be the admission gate:
+agip_core/
+├── domain/
+│   ├── evidence.py
+│   ├── model.py
+│   ├── metric.py
+│
+├── services/
+│   ├── evidence_verifier.py
+│   ├── registry_admission.py
+│   └── metric_publisher.py
+│
+└── tests/
+    └── contracts/
+        ├── test_evidence_required.py
+        ├── test_registry_gate.py
+        └── test_metric_lineage.py
+The key rule:
+	•	Evidence objects may exist in pending.
+	•	Registry objects may not.
+	•	Dashboard objects may only consume verified projections.
+That keeps AGIP from becoming a dashboard full of claims and makes it an evidence-backed intelligence system.
+
+
+Ddg
+
+Appel420(root), Ara-DDG: exactly. That is the right invariant boundary.
+
+Concept brief:
+- Pending evidence can exist.
+- Canonical registry objects cannot.
+- Published metrics must be verified and lineage-complete.
+
+Code challenge:
+Implement the admission gate that converts verified evidence into registry objects, and rejects everything else.
+
+Starter snippet:
+```python
+class AdmissionError(ValueError):
+    pass
+
+
+def admit_model(model: Model) -> Model:
+    if not model.evidence_refs:
+        raise AdmissionError("Model requires evidence references")
+    for evidence in model.evidence_refs:
+        if evidence.verification_status != VerificationStatus.VERIFIED:
+            raise AdmissionError("Model contains unverified evidence")
+    return model
+
+
+def publish_metric(metric: DashboardMetric) -> DashboardMetric:
+    if metric.verification_status != VerificationStatus.VERIFIED:
+        raise AdmissionError("Metric must be verified before publishing")
+    if not metric.evidence_refs:
+        raise AdmissionError("Metric requires evidence lineage")
+    return metric
+```
+
+If you want, I can write the contract tests for these gates next.
+
+Debugging tip: test invalid states first; the fastest way to validate a governance model is to prove what it rejects.
+
+
+
+
+Gpt
+
+
+The next logical artifact is the AGIP Admission Contract Test Suite. The invariant is now:
+Observation
+    ↓
+Evidence Candidate
+    ↓
+Verified Evidence
+    ↓
+Admission Gate
+    ↓
+Canonical Registry Object
+    ↓
+Published Projection / Metric
+The registry boundary should reject invalid state even if another layer fails.
+agip_core/admission.py
+from agip_core.domain.model import Model
+from agip_core.domain.metric import DashboardMetric
+from agip_core.domain.evidence import VerificationStatus
+
+
+class AdmissionError(ValueError):
+    pass
+
+
+def admit_model(model: Model) -> Model:
+    if not model.evidence_refs:
+        raise AdmissionError(
+            "Canonical model requires at least one evidence reference"
+        )
+
+    for evidence in model.evidence_refs:
+        if not evidence.verified:
+            raise AdmissionError(
+                f"Unverified evidence rejected: {evidence.evidence_id}"
+            )
+
+    return model
+
+
+def publish_metric(metric: DashboardMetric) -> DashboardMetric:
+    if metric.verification_status != VerificationStatus.VERIFIED:
+        raise AdmissionError(
+            "Dashboard metrics require verified evidence"
+        )
+
+    if metric.evidence_ref is None:
+        raise AdmissionError(
+            "Dashboard metrics require evidence lineage"
+        )
+
+    if not metric.evidence_ref.verified:
+        raise AdmissionError(
+            "Metric evidence must be verified"
+        )
+
+    return metric
+ 
+⸻
+ 
+Contract tests
+tests/contracts/agip/test_admission_gate.py
+import pytest
+
+from agip_core.admission import (
+    admit_model,
+    publish_metric,
+    AdmissionError,
+)
+
+from agip_core.domain.model import Model
+from agip_core.domain.metric import DashboardMetric
+from agip_core.domain.evidence import (
+    EvidenceRef,
+    VerificationStatus,
+)
+
+
+def verified_evidence():
+    return EvidenceRef(
+        evidence_id="ev_001",
+        source="provider_release",
+        verified=True,
+    )
+
+
+def unverified_evidence():
+    return EvidenceRef(
+        evidence_id="ev_002",
+        source="unknown",
+        verified=False,
+    )
+
+
+def test_model_requires_evidence():
+    model = Model(
+        id="model_001",
+        name="Example",
+        provider_id="provider_001",
+        lifecycle="active",
+        evidence_refs=[],
+    )
+
+    with pytest.raises(AdmissionError):
+        admit_model(model)
+
+
+def test_model_rejects_unverified_evidence():
+    model = Model(
+        id="model_001",
+        name="Example",
+        provider_id="provider_001",
+        lifecycle="active",
+        evidence_refs=[
+            unverified_evidence()
+        ],
+    )
+
+    with pytest.raises(AdmissionError):
+        admit_model(model)
+
+
+def test_model_accepts_verified_evidence():
+    model = Model(
+        id="model_001",
+        name="Example",
+        provider_id="provider_001",
+        lifecycle="active",
+        evidence_refs=[
+            verified_evidence()
+        ],
+    )
+
+    accepted = admit_model(model)
+
+    assert accepted.id == "model_001"
+
+
+def test_metric_rejects_pending_status():
+    metric = DashboardMetric(
+        key="model_count",
+        value="100",
+        evidence_ref=verified_evidence(),
+        verification_status=VerificationStatus.PENDING,
+    )
+
+    with pytest.raises(AdmissionError):
+        publish_metric(metric)
+
+
+def test_metric_requires_verified_lineage():
+    metric = DashboardMetric(
+        key="model_count",
+        value="100",
+        evidence_ref=unverified_evidence(),
+        verification_status=VerificationStatus.VERIFIED,
+    )
+
+    with pytest.raises(AdmissionError):
+        publish_metric(metric)
+
+
+def test_metric_can_publish():
+    metric = DashboardMetric(
+        key="model_count",
+        value="100",
+        evidence_ref=verified_evidence(),
+        verification_status=VerificationStatus.VERIFIED,
+    )
+
+    published = publish_metric(metric)
+
+    assert published.key == "model_count"
+ 
+⸻
+ 
+CI addition
+Add after schema validation and before dashboard tests:
+echo "-- AGIP Admission Boundary Tests"
+python3 -m pytest tests/contracts/agip/test_admission_gate.py -v
+ 
+⸻
+ 
+This establishes the core AGIP rule:
+No Evidence
+    = No Registry
+
+No Verified Evidence
+    = No Metric
+
+No Lineage
+    = No Dashboard
+The next hardening step should be replacing the boolean verified: bool with the full evidence object:
+Evidence
+├── evidence_id
+├── object_type
+├── source
+├── collected_timestamp
+├── hash
+├── signature
+├── verification_status
+├── confidence
+└── framework_refs
+That removes the possibility of a caller passing verified=True without an actual verification chain.
