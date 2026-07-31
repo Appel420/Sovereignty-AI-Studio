@@ -28,9 +28,19 @@ def local_status() -> dict[str, Any]:
         "network_access": False,
         "external_oauth": policy.get("external_oauth", "disabled"),
         "oauth_policy": _exists("config/local-oauth-policy.json"),
+         feature/canonical-governance-core
         "oauth_generator": _exists("scripts/oauth_local_generator.py"),
         "local_state_validator": _exists("scripts/validate-local-state.sh"),
         "local_ci": _exists("scripts/local-ci.sh"),
+
+        "oauth_generator": _exists("scripts/oauth_local_generator.py")
+        or _exists("oauth_local_generator.py"),
+        "local_state_validator": _exists("scripts/validate-local-state.sh"),
+        "local_ci": _exists("scripts/local-ci.sh") or _exists("scripts/v1_local-ci.sh"),
+        "approvals": _exists("scripts/local_approvals.py") or _exists("local_approvals.py"),
+        "issue_suggestions": _exists("scripts/local_issue_suggestions.py")
+        or _exists("local_issue_suggestions.py"),
+         main
         "m4_neural": {
             "available": m4_doc.is_file(),
             "path": "docs/apple_m4_neural.md",

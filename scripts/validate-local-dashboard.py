@@ -7,15 +7,32 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQUIRED = (
     "docs/apple_m4_neural.md",
+        feature/canonical-governance-core
     "scripts/validate-local-oauth.py",
     "scripts/validate-local-state.sh",
     "scripts/local-ci.sh",
     "config/local-oauth-policy.json",
+
+    "bridge/local_dashboard_status.py",
+    "bridge/serve_dashboard.py",
+)
+OPTIONAL_ANY = (
+    ("scripts/validate-local-state.sh", "validate-local-state.sh"),
+    ("scripts/local-ci.sh", "scripts/v1_local-ci.sh", "v1_local-ci.sh"),
+    ("scripts/oauth_local_generator.py", "oauth_local_generator.py"),
+        main
 )
 
 
 def main() -> int:
     missing = [path for path in REQUIRED if not (ROOT / path).is_file()]
+        feature/canonical-governance-core
+
+    for group in OPTIONAL_ANY:
+        if not any((ROOT / path).is_file() for path in group):
+            missing.append(" OR ".join(group))
+
+         main
     if missing:
         for path in missing:
             print(f"missing local dashboard build input: {path}")

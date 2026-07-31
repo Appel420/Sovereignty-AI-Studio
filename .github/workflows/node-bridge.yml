@@ -19,7 +19,8 @@ permissions:
 
 jobs:
   test:
-    runs-on: linux Arm64 : ubuntu latest
+    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
+    runs-on: ['self-hosted Linux arm64']
     steps:
     - uses: actions/checkout@v4
 
