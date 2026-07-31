@@ -1,0 +1,11 @@
+{
+  "owner_authority": "human-entity-owner",
+  "execution_order": ["local", "self-hosted Linux arm64"],
+  "cloud_allowed": false,
+  "cloud_first": false,
+  "pull_request_hosted_dependencies": false,
+  "required_runner": ["self-hosted Linux arm64"],
+  "fail_closed": true,
+  "delete_nothing": true,
+  "rule": "Local first. Never use cloud first. Never run hosted dependency checks for pull requests."
+}

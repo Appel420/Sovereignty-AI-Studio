@@ -16,6 +16,9 @@ export npm_config_fund="false"
 
 PYTHON="${PYTHON:-python3}"
 
+echo "-- owner execution policy"
+"$PYTHON" scripts/enforce-owner-execution-policy.py
+
 echo "-- local dashboard build inputs"
 "$PYTHON" scripts/validate-local-dashboard.py
 
@@ -24,20 +27,6 @@ echo "-- local OAuth contract"
 
 echo "-- local-state contract"
 bash scripts/validate-local-state.sh
-
-if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
-  echo "-- canonical OAuth tests"
-  if [[ -x .venv/bin/pytest ]]; then
-    .venv/bin/pytest -q tests/test_oauth_local_generator.py tests/test_local_oauth_policy.py
-  elif command -v pytest >/dev/null 2>&1; then
-    pytest -q tests/test_oauth_local_generator.py tests/test_local_oauth_policy.py
-  else
-    echo "pytest unavailable; refusing to install it" >&2
-    exit 1
-  fi
-  echo "focused offline local CI passed"
-  exit 0
-fi
 
 python3 -m compileall -q --exclude external --exclude .venv .
 node --check server_9899.js
@@ -55,4 +44,4 @@ else
   echo "pytest unavailable; Python syntax validation passed" >&2
 fi
 
-echo "local CI passed"
+echo "owner-enforced local CI passed"
