@@ -99,16 +99,6 @@ class LeaseError(Exception):
 class LeaseIssuer:
     """Issue, renew, verify, and gate writes under signed leases."""
 
-    def __init(
-        self,
-        *,
-        issuer_name: str = "devassist420-coordinator",
-        default_ttl_seconds: int = 1800,
-        registry_hash: str = "sha3-512:unspecified",
-        issuer_key: bytes | None = None,
-    ) -> None:
-        pass  # placate type checkers if split; real init below
-
     def __init__(
         self,
         *,
@@ -122,8 +112,8 @@ class LeaseIssuer:
         self.registry_hash = registry_hash
         self._key = issuer_key if issuer_key is not None else _load_issuer_key()
         self._generations: dict[str, int] = {}
-        self._active: dict[str, LeaseToken] = {}  # lease_id -> token
-        self._by_task: dict[str, str] = {}  # task_id -> lease_id
+        self._active: dict[str, LeaseToken] = {}
+        self._by_task: dict[str, str] = {}
 
     def _sign(self, payload: Mapping[str, object]) -> tuple[str, str]:
         body = canonical_payload_bytes(payload)
@@ -153,12 +143,14 @@ class LeaseIssuer:
         ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl_seconds
         expires = now + timedelta(seconds=ttl)
         lease_id = str(uuid.uuid4())
-        provisional = {
+        issued_at = _iso(now)
+        expires_at = _iso(expires)
+        provisional: dict[str, object] = {
             "agent_id": agent_id,
             "branch": envelope.branch,
-            "expires_at": _iso(expires),
+            "expires_at": expires_at,
             "generation": gen,
-            "issued_at": _iso(now),
+            "issued_at": issued_at,
             "issuer": self.issuer_name,
             "lease_id": lease_id,
             "registry_hash": self.registry_hash,
@@ -174,8 +166,8 @@ class LeaseIssuer:
             branch=envelope.branch,
             scope=tuple(envelope.scope),
             generation=gen,
-            issued_at=provisional["issued_at"],  # type: ignore[arg-type]
-            expires_at=provisional["expires_at"],  # type: ignore[arg-type]
+            issued_at=issued_at,
+            expires_at=expires_at,
             renewal_count=0,
             issuer=self.issuer_name,
             registry_hash=self.registry_hash,
@@ -186,19 +178,18 @@ class LeaseIssuer:
         self._by_task[envelope.task_id] = lease_id
         return token
 
-    def renew(self, lease_id: str, *,
-              ttl_seconds: int | None = None) -> LeaseToken:
+    def renew(self, lease_id: str, *, ttl_seconds: int | None = None) -> LeaseToken:
         current = self._active.get(lease_id)
         if current is None:
             raise LeaseError("unknown or released lease")
         self.verify(current)
         now = _utc_now()
         ttl = ttl_seconds if ttl_seconds is not None else self.default_ttl_seconds
-        expires = now + timedelta(seconds=ttl)
-        provisional = {
+        expires_at = _iso(now + timedelta(seconds=ttl))
+        provisional: dict[str, object] = {
             "agent_id": current.agent_id,
             "branch": current.branch,
-            "expires_at": _iso(expires),
+            "expires_at": expires_at,
             "generation": current.generation,
             "issued_at": current.issued_at,
             "issuer": current.issuer,
@@ -217,7 +208,7 @@ class LeaseIssuer:
             scope=current.scope,
             generation=current.generation,
             issued_at=current.issued_at,
-            expires_at=provisional["expires_at"],  # type: ignore[arg-type]
+            expires_at=expires_at,
             renewal_count=current.renewal_count + 1,
             issuer=current.issuer,
             registry_hash=current.registry_hash,
@@ -232,7 +223,6 @@ class LeaseIssuer:
         if token is not None:
             self._by_task.pop(token.task_id, None)
             sk = self._scope_key(token.scope)
-            # Generation stays elevated so stale tokens cannot be reused.
             self._generations[sk] = max(self._generations.get(sk, 0), token.generation)
 
     def release_task(self, task_id: str) -> None:
@@ -246,10 +236,11 @@ class LeaseIssuer:
             raise LeaseError("payload hash mismatch")
         if not hmac.compare_digest(token.mac, expected_mac):
             raise LeaseError("lease MAC invalid")
-        if token.registry_hash != self.registry_hash and self.registry_hash != "sha3-512:unspecified":
-            # Allow unspecified issuer config; enforce when registry_hash is pinned.
-            if token.registry_hash != self.registry_hash:
-                raise LeaseError("registry hash mismatch")
+        if (
+            self.registry_hash != "sha3-512:unspecified"
+            and token.registry_hash != self.registry_hash
+        ):
+            raise LeaseError("registry hash mismatch")
         expires = datetime.fromisoformat(token.expires_at)
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=timezone.utc)
@@ -266,10 +257,13 @@ class LeaseIssuer:
         if not path_list:
             return False
         for path in path_list:
-            if not any(scopes_overlap(path, s) or path == s for s in token.scope):
-                # Tag-only scopes: exact membership required
-                if path not in token.scope:
-                    return False
+            covered = False
+            for scope_item in token.scope:
+                if path == scope_item or scopes_overlap(path, scope_item):
+                    covered = True
+                    break
+            if not covered:
+                return False
         return True
 
     def require_for_write(self, token: LeaseToken | None, paths: Iterable[str]) -> LeaseToken:
