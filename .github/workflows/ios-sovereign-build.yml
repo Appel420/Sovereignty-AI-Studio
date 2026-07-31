@@ -1,16 +1,11 @@
 name: iOS Sovereign Build (local-first)
 
+# PR runs PAUSED — workflow kept. Push ara-hardened + manual only.
 on:
   push:
     branches: [ ara-hardened ]
-  pull_request:
-    branches: [ ara-hardened ]
   workflow_dispatch:
-
-# Do NOT install oqs / liboqs / full post-quantum native stacks in CI.
-# Real ML-DSA-87 belongs on-device or in an explicit local offline job.
-# CI only produces a lightweight, fail-closed local manifest.
-# Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
+  # pull_request: paused
 
 env:
   PYTHONPATH: .:./backend
@@ -36,11 +31,7 @@ jobs:
       - name: Local-only build context manifest (no oqs download)
         run: |
           python3 <<'PY'
-          import hashlib
-          import hmac
-          import json
-          import secrets
-          import time
+          import hashlib, hmac, json, secrets, time
 
           class LocalCISigner:
               def __init__(self):
@@ -60,13 +51,14 @@ jobs:
               'build_ref': '${{ github.sha }}',
               'platform': 'iOS',
               'signing_backend': 'hmac-sha256-ci-local',
-              'note': 'CI local-only; real ML-DSA-87 is device/offline, not downloaded here',
+              'pr_trigger': 'paused',
+              'note': 'CI local-only; real ML-DSA-87 is device/offline',
           }
 
           signer = LocalCISigner()
           message = json.dumps(payload, sort_keys=True).encode()
           signature = signer.sign(message)
-          assert signer.verify(message, signature), 'local CI signature failed'
+          assert signer.verify(message, signature)
 
           token = {
               'payload': payload,
@@ -75,7 +67,6 @@ jobs:
               'algorithm': 'HMAC-SHA256-CI-LOCAL',
           }
           print(json.dumps(token, indent=2))
-          print('Local CI attestation token generated (no oqs / liboqs install)')
           PY
 
   build:
@@ -99,16 +90,11 @@ jobs:
         if: steps.xcodegen.outputs.present == 'true'
         run: |
           echo "XcodeGen/xcodebuild require macOS. This job is on self-hosted Linux arm64 per owner policy."
-          echo "Compile step is skipped on Linux; manifest is still produced."
 
       - name: Create local-only build manifest (no PQC download)
         run: |
           python3 <<'PY'
-          import hashlib
-          import hmac
-          import json
-          import secrets
-          import time
+          import hashlib, hmac, json, secrets, time
 
           class LocalCISigner:
               def __init__(self):
@@ -129,7 +115,7 @@ jobs:
               'platform': 'iOS',
               'runner': 'self-hosted Linux arm64',
               'signing_backend': 'hmac-sha256-ci-local',
-              'note': 'Real ML-DSA-87 is not installed or invoked by this CI job',
+              'pr_trigger': 'paused',
           }
 
           signer = LocalCISigner()
@@ -142,7 +128,6 @@ jobs:
 
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(manifest, fh, indent=2)
-          print('Local CI iOS build manifest written (no oqs install)')
           PY
 
       - name: Upload local manifest

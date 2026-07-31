@@ -1,16 +1,11 @@
 name: Docker
 
+# PR runs PAUSED — workflow kept. Tags + workflow_dispatch only.
 on:
   push:
     tags: [ 'v*.*.*' ]
-  pull_request:
-    branches: [ "main" ]
-    paths:
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "requirements*.txt"
-      - ".github/workflows/docker-publish.yml"
   workflow_dispatch:
+  # pull_request: paused
 
 env:
   REGISTRY: ghcr.io
@@ -27,7 +22,6 @@ concurrency:
 
 jobs:
   build:
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
     runs-on: ['self-hosted Linux arm64']
     steps:
       - name: Checkout repository
