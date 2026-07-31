@@ -1,5 +1,5 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "authority": "human-entity-owner",
   "branches": {
     "main": {
@@ -8,10 +8,10 @@
       "authority": "owner",
       "autonomous_writes": false,
       "writable": false,
-      "accepted_operations": [
+      "authorized_operations": [
         "owner-approved merge",
         "owner-approved cherry-pick",
-        "owner-authorized integration daemon"
+        "owner-authorized integration service"
       ],
       "requires": [
         "scar_evidence",
@@ -25,10 +25,10 @@
       "authority": "owner",
       "autonomous_writes": false,
       "writable": false,
-      "accepted_operations": [
+      "authorized_operations": [
         "owner-approved merge",
         "owner-approved cherry-pick",
-        "owner-authorized integration daemon"
+        "owner-authorized integration service"
       ],
       "requires": [
         "scar_evidence",
@@ -37,7 +37,7 @@
         "verification_results",
         "conflict_record_optional"
       ],
-      "notes": "Owner-controlled integration lane. Not an agent workspace. Daemon may act only under explicit owner authority."
+      "notes": "Owner-controlled integration lane. Not an agent workspace. Integration service may act only under explicit owner authority."
     },
     "ara-hardened": {
       "role": "agent-development",
