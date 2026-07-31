@@ -1,4 +1,5 @@
 {
+  "version": "1.1.0",
   "owner_authority": "human-entity-owner",
   "cloud_allowed": false,
   "cloud_first": false,
@@ -8,5 +9,25 @@
   "delete_nothing": true,
   "network_mode": "offline",
   "local_only": true,
-  "external_feeds": "disabled"
+  "external_feeds": "disabled",
+  "read_first": true,
+  "blind_edits": false,
+  "push_to_main": false,
+  "lanes": {
+    "ara-hardened": "Ara / Grok only",
+    "claude": "Claude only",
+    "gpt": "GPT / Codex only",
+    "copilot": "GitHub Copilot only",
+    "main": "owner merge only"
+  },
+  "required_loop": [
+    "read the target file",
+    "state current value",
+    "minimal diff only",
+    "local verify",
+    "no cloud agent"
+  ],
+  "blocked_response": {
+    "format": "BLOCKED\nfile: <path>\nreason: <one line>"
+  }
 }
