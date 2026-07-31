@@ -16,10 +16,14 @@ export npm_config_fund="false"
 
 PYTHON="${PYTHON:-python3}"
 
-# Canonical local OAuth contract. This is deliberately executed before any
-# broader checks; a failure stops the gate without attempting installation.
+echo "-- local dashboard build inputs"
+"$PYTHON" scripts/validate-local-dashboard.py
+
 echo "-- local OAuth contract"
 "$PYTHON" scripts/validate-local-oauth.py
+
+echo "-- local-state contract"
+bash scripts/validate-local-state.sh
 
 if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
   echo "-- canonical OAuth tests"
