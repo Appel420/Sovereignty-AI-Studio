@@ -1,5 +1,17 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
+  "applies_to": [
+    "ara",
+    "grok",
+    "claude",
+    "gpt",
+    "codex",
+    "copilot",
+    "devassist420",
+    "duckai",
+    "sovereignty-ai",
+    "any-agent"
+  ],
   "owner_authority": "human-entity-owner",
   "cloud_allowed": false,
   "cloud_first": false,
@@ -11,6 +23,7 @@
   "local_only": true,
   "external_feeds": "disabled",
   "read_first": true,
+  "understand_before_implement": true,
   "blind_edits": false,
   "push_to_main": false,
   "lanes": {
@@ -18,11 +31,13 @@
     "claude": "Claude only",
     "gpt": "GPT / Codex only",
     "copilot": "GitHub Copilot only",
+    "devassist420": "DevAssist420 only",
     "main": "owner merge only"
   },
   "required_loop": [
-    "read the target file",
-    "state current value",
+    "read the relevant project files",
+    "understand existing design and owner request",
+    "state findings",
     "minimal diff only",
     "local verify",
     "no cloud agent"
