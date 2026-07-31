@@ -20,6 +20,7 @@ export npm_config_fund="false"
 PYTHON="${PYTHON:-python3}"
 
 echo "-- owner execution policy"
+        ara-hardened
 if [[ -f scripts/enforce-owner-execution-policy.sh ]]; then
   bash scripts/enforce-owner-execution-policy.sh
 elif [[ -f scripts/check-runner-policy.py ]]; then
@@ -33,6 +34,12 @@ if [[ -f scripts/validate-local-dashboard.py ]]; then
   "$PYTHON" scripts/validate-local-dashboard.py || true
 fi
 
+"$PYTHON" scripts/enforce-owner-execution-policy.py
+
+echo "-- local dashboard build inputs"
+"$PYTHON" scripts/validate-local-dashboard.py
+        main
+
 echo "-- local OAuth contract"
 if [[ -f scripts/validate-local-oauth.py ]]; then
   "$PYTHON" scripts/validate-local-oauth.py
@@ -40,10 +47,15 @@ else
   echo "WARN: validate-local-oauth.py missing"
 fi
 
+        ara-hardened
 if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
   echo "-- focused offline local CI passed"
   exit 0
 fi
+
+echo "-- local-state contract"
+bash scripts/validate-local-state.sh
+        main
 
 echo "-- python syntax (compileall, exclude external/.venv)"
 "$PYTHON" -m compileall -q --exclude external --exclude .venv . || true
@@ -69,4 +81,4 @@ else
   echo "pytest unavailable; syntax validation path completed"
 fi
 
-echo "local CI passed"
+echo "owner-enforced local CI passed"

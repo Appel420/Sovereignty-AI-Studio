@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
+       ara-hardened
 # Owner execution policy gate. Fail closed. Delete nothing.
+
+# Owner-approved local gate. Never installs, deletes, publishes, or contacts cloud services.
+        main
 set -Eeuo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+        ara-hardened
 export SG_NETWORK_MODE="${SG_NETWORK_MODE:-offline}"
 export SG_LOCAL_ONLY="${SG_LOCAL_ONLY:-1}"
 export SG_EXTERNAL_FEEDS="${SG_EXTERNAL_FEEDS:-disabled}"
@@ -78,3 +83,13 @@ if [[ "$FAILED" -ne 0 ]]; then
 fi
 
 echo "owner execution policy passed"
+
+export SG_NETWORK_MODE=offline
+export SG_LOCAL_ONLY=1
+export SG_EXTERNAL_FEEDS=disabled
+export PIP_NO_INDEX=1
+export PIP_NO_INPUT=1
+export npm_config_offline=true
+
+python3 scripts/enforce-owner-execution-policy.py
+        main

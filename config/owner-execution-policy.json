@@ -1,4 +1,5 @@
 {
+        ara-hardened
   "version": "1.4.0",
   "applies_to": [
     "ara",
@@ -13,12 +14,17 @@
     "any-agent"
   ],
   "owner_authority": "human-entity-owner",
+
+  "owner_authority": "human-entity-owner",
+  "execution_order": ["local", "self-hosted Linux arm64"],
+        main
   "cloud_allowed": false,
   "cloud_first": false,
   "pull_request_hosted_dependencies": false,
   "required_runner": ["self-hosted Linux arm64"],
   "fail_closed": true,
   "delete_nothing": true,
+        ara-hardened
   "network_mode": "offline",
   "local_only": true,
   "external_feeds": "disabled",
@@ -68,4 +74,7 @@
   "blocked_response": {
     "format": "BLOCKED\nfile: <path>\nreason: <one line>"
   }
+
+  "rule": "Local first. Never use cloud first. Never run hosted dependency checks for pull requests."
+        main
 }
