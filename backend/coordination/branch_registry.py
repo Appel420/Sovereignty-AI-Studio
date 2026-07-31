@@ -2,7 +2,7 @@
 
 The registry describes ownership and permitted scopes; it does not grant root
 authority. Integration into ``main`` and ``collaboration`` remains
-owner-controlled (merge, cherry-pick, or owner-authorized daemon).
+owner-controlled (merge, cherry-pick, or owner-authorized integration service).
 Agents never create branches through this module.
 """
 from __future__ import annotations
@@ -15,11 +15,11 @@ from typing import Iterable
 PROTECTED_BRANCHES: frozenset[str] = frozenset({"main", "master", "collaboration"})
 
 # Owner-controlled integration/production operations (not agent autonomous writes).
-OWNER_CONTROLLED_OPERATIONS: frozenset[str] = frozenset(
+OWNER_AUTHORIZED_OPERATIONS: frozenset[str] = frozenset(
     {
         "owner-approved merge",
         "owner-approved cherry-pick",
-        "owner-authorized integration daemon",
+        "owner-authorized integration service",
     }
 )
 
@@ -32,7 +32,6 @@ class BranchOwner:
 
     def allows(self, requested_scope: Iterable[str]) -> bool:
         requested = {str(item) for item in requested_scope}
-        # Empty scope is allowed only for classification; route still binds a branch.
         return not requested or requested.issubset(self.scope)
 
 
@@ -103,8 +102,8 @@ class BranchRegistry:
     def is_owner_controlled(self, branch: str) -> bool:
         return branch in PROTECTED_BRANCHES
 
-    def accepted_owner_operations(self) -> frozenset[str]:
-        return OWNER_CONTROLLED_OPERATIONS
+    def authorized_owner_operations(self) -> frozenset[str]:
+        return OWNER_AUTHORIZED_OPERATIONS
 
     def branches(self) -> tuple[str, ...]:
         return tuple(sorted(self._entries))
