@@ -9,14 +9,18 @@ from .branch_registry import (
 from .compat import legacy_route_metadata
 from .conflict_manager import ConflictManager, ConflictRecord, ScopeHold, scopes_overlap
 from .council_result import AgentRoute, CouncilResult
+from .devassist_adapter import DevAssistExecutionAdapter
 from .devassist_router import DevAssistRouter
+from .evidence_adapter import EvidenceAdapter
 from .execution_contracts import (
     ExecutionReceipt,
     HumanEscalationEvent,
     RouteDecision,
     make_scar_event,
 )
+from .genesis_adapter import GenesisRouterAdapter
 from .lease import LeaseError, LeaseIssuer, LeaseToken, payload_hash
+from .shortcut_router import ShortcutRouter, ShortcutRoutingResult, classify_prompt
 from .task_envelope import TaskEnvelope
 
 __all__ = [
@@ -30,14 +34,20 @@ __all__ = [
     "ConflictRecord",
     "ScopeHold",
     "CouncilResult",
+    "DevAssistExecutionAdapter",
     "DevAssistRouter",
+    "EvidenceAdapter",
     "ExecutionReceipt",
+    "GenesisRouterAdapter",
     "HumanEscalationEvent",
     "LeaseError",
     "LeaseIssuer",
     "LeaseToken",
     "RouteDecision",
+    "ShortcutRouter",
+    "ShortcutRoutingResult",
     "TaskEnvelope",
+    "classify_prompt",
     "legacy_route_metadata",
     "make_scar_event",
     "payload_hash",
