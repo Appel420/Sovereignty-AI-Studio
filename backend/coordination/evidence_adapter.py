@@ -5,7 +5,7 @@ the existing authority and memory layers.
 """
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from typing import Any
 
 from .execution_contracts import ExecutionReceipt, RouteDecision, make_scar_event
@@ -28,6 +28,8 @@ class EvidenceAdapter:
             raise ValueError("receipt and route task_id do not match")
         if receipt.mode != route.mode:
             raise ValueError("receipt and route modes do not match")
+        if route.decision != "ALLOW":
+            raise PermissionError("evidence requires an ALLOW route decision")
 
         event = make_scar_event(
             task_id=receipt.task_id,
