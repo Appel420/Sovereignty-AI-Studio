@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Deterministic local CI. No GitHub Actions, cloud agents, publishing, or provider calls.
-# Owner policy: self-hosted Linux arm64. Fail closed. Delete nothing.
+# Device-local CI only: no GitHub Actions, package installation, providers, or cloud calls.
+# scripts/run-local-ci.py enforces a Linux network namespace by default.
 set -Eeuo pipefail
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+
+        copilot/wire-three-mode-local-ci
+exec "${PYTHON:-python3}" scripts/run-local-ci.py "$@"
 
 export SG_NETWORK_MODE="offline"
 export SG_LOCAL_ONLY="1"
@@ -96,3 +99,4 @@ else
 fi
 
 echo "owner-enforced local CI passed"
+        main
