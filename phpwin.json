@@ -11,6 +11,12 @@
     "allowed_hosts": ["127.0.0.1", "localhost", "::1"],
     "external_default": false
   },
+  "devassist": {
+    "status_url": "http://127.0.0.1:9899/api/devassist/status",
+    "health_url": "http://127.0.0.1:9899/health",
+    "mode": "local",
+    "external_calls": false
+  },
   "oauth": {
     "issuer": "local",
     "external_oauth": "disabled"
