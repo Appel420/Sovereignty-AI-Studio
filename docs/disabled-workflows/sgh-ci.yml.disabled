@@ -1,0 +1,37 @@
+# DISABLED FOR LOCAL AUTHORITY
+
+This file is retained only as historical documentation of the former
+`sgh-ci.yml` workflow.
+
+It is **not**:
+
+- canonical CI;
+- production validation;
+- local authority execution;
+- evidence generation.
+
+## Canonical validation path
+
+```text
+./scripts/local-ci.sh
+```
+
+Execution chain:
+
+```text
+scripts/local-ci.sh
+  -> scripts/run-local-ci.py
+  -> local validation
+  -> local reports
+  -> local SCAR evidence
+```
+
+No GitHub Actions execution is authorized by this repository's canonical local
+CI policy. No hosted runners, automatic artifact uploads, automatic commits, or
+automatic pushes are authorized by this archival record.
+
+The authoritative local policy is documented in:
+
+```text
+docs/LOCAL_FIRST_REPOSITORY_GOVERNANCE.md
+```
