@@ -1,3 +1,4 @@
+[![CI](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml)
 # Sovereignty AI Studio
 
 @claude @codex @copilot @grok @duckai
