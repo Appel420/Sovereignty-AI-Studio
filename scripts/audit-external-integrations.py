@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Inventory external integrations without making network calls.
 
-This is deliberately local and read-only. It makes hidden integration paths
-visible to the dashboard and CI: GitHub API references, Google/GCP references,
-Terraform files, OAuth endpoints, and workflow files.
+This is deliberately local and read-only. It distinguishes owner-controlled
+runtime dependencies from third-party mail transport, which is outside SCAR
+scope when the domain is not owned or operated by the device owner.
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED = {".git", ".venv", "node_modules", "external", "__pycache__"}
 TEXT_SUFFIXES = {".py", ".js", ".ts", ".html", ".json", ".yaml", ".yml", ".sh", ".md", ".tf"}
 URL_RE = re.compile(r"https?://[^\s\"'<>`)]+", re.IGNORECASE)
+MAIL_TRANSPORT_TERMS = ("mx", "smtp", "mail exchanger", "mail transport", "spf", "dkim", "dmarc")
 
 
 def _files() -> list[Path]:
@@ -27,12 +28,22 @@ def _files() -> list[Path]:
     ]
 
 
+def _mail_transport_scope(text: str, relative: str) -> str | None:
+    lowered = text.lower()
+    if any(term in lowered for term in MAIL_TRANSPORT_TERMS):
+        return "OUT_OF_SCAR_SCOPE"
+    if relative.endswith("SCAR_SCOPE_ADDENDUM_MAIL_TRANSPORT.md"):
+        return "DOCUMENTED_SCOPE_BOUNDARY"
+    return None
+
+
 def inventory() -> dict[str, Any]:
     github: list[dict[str, str]] = []
     google: list[dict[str, str]] = []
     terraform: list[str] = []
     oauth: list[dict[str, str]] = []
     workflows: list[dict[str, Any]] = []
+    mail_transport: list[dict[str, str]] = []
 
     for path in _files():
         relative = str(path.relative_to(ROOT))
@@ -42,6 +53,10 @@ def inventory() -> dict[str, Any]:
             text = path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
+
+        mail_scope = _mail_transport_scope(text, relative)
+        if mail_scope:
+            mail_transport.append({"file": relative, "classification": mail_scope})
 
         for url in URL_RE.findall(text):
             clean = url.rstrip(".,;]")
@@ -71,6 +86,12 @@ def inventory() -> dict[str, Any]:
         "mode": "offline",
         "network_access": False,
         "external_calls_made": False,
+        "scar_scope_addendum": "docs/compliance/SCAR_SCOPE_ADDENDUM_MAIL_TRANSPORT.md",
+        "mail_transport": {
+            "references": mail_transport,
+            "classification": "OUT_OF_SCAR_SCOPE",
+            "owner_control_required": False,
+        },
         "local_oauth": {
             "policy": "config/local-oauth-policy.json",
             "generator": "scripts/oauth_local_generator.py",
