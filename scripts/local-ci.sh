@@ -31,6 +31,7 @@ run_required "$PYTHON" scripts/enforce-owner-execution-policy.py
 run_required "$PYTHON" scripts/validate-local-dashboard.py
 run_required "$PYTHON" scripts/validate-local-oauth.py
 run_required "$PYTHON" scripts/audit-external-integrations.py
+run_required "$PYTHON" scripts/validate-php-ios-environment.py
 
 if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
   echo "focused offline local CI passed"
@@ -46,6 +47,10 @@ run_required "$PYTHON" -m compileall -q --exclude external --exclude .venv .
 if command -v node >/dev/null 2>&1; then
   [[ -f server_9899.js ]] && run_required node --check server_9899.js
   [[ -f node-bridge/server.js ]] && run_required node --check node-bridge/server.js
+fi
+
+if command -v php >/dev/null 2>&1; then
+  run_required php -l scripts/php_local_bootstrap.php
 fi
 
 if [[ -x .venv/bin/pytest ]]; then
