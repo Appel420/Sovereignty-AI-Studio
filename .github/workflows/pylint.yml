@@ -10,7 +10,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    runs-on: "self-hosted Linux"
+    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
+    runs-on: ['self-hosted Linux arm64']
     strategy:
       matrix:
         python-version: ["3.13"]

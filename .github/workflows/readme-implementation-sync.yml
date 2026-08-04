@@ -10,7 +10,8 @@ permissions:
   contents: write
 jobs:
   sync-readme:
-    runs-on: ubuntu-latest
+    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
+    runs-on: ['self-hosted Linux arm64']
     steps:
       - name: Determine target branch
         id: target-branch

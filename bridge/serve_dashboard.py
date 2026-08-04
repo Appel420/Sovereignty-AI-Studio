@@ -1,9 +1,10 @@
 """Local-first loopback dashboard server for Sovereignty AI Studio.
 
 Binds exclusively to 127.0.0.1.  Surfaces repository status, agent status,
-CI/CD workflow availability, and network-request audit to the SGHv119 KODER
-dashboard.  No shell access is exposed through any endpoint; git is queried
-with bounded, hardcoded subprocess arguments and no user-controlled input.
+CI/CD workflow availability, local OAuth/CI/M4 status, and network-request
+audit to the SGHv119 dashboard.  No shell access is exposed through any
+endpoint; git is queried with bounded, hardcoded subprocess arguments and
+no user-controlled input.
 
 SOC 2-aligned controls: loopback-only binding, per-request audit log, explicit
 CORS restriction to loopback origins.  This module does not make a SOC 2
@@ -133,6 +134,10 @@ def _cicd_status() -> dict[str, Any]:
     if wf_dir.is_dir():
         for p in sorted(wf_dir.glob("*.yml")):
             workflows.append({"name": p.stem, "file": p.name})
+    gh_dir = _REPO_ROOT / ".github" / "workflows"
+    if gh_dir.is_dir():
+        for p in sorted(gh_dir.glob("*.yml")):
+            workflows.append({"name": p.stem, "file": f".github/workflows/{p.name}"})
     return {
         "workflows": workflows,
         "count": len(workflows),
@@ -145,6 +150,27 @@ def _network_audit() -> dict[str, Any]:
     with _audit_lock:
         entries = list(_audit_log[-50:])
     return {"entries": entries, "total": len(_audit_log)}
+
+
+def _local_status() -> dict[str, Any]:
+    """Offline OAuth / local-CI / M4 contract status. Fail-closed if module missing."""
+    try:
+        from bridge.local_dashboard_status import local_status  # type: ignore
+
+        return local_status()
+    except Exception:
+        try:
+            from local_dashboard_status import local_status  # type: ignore
+
+            return local_status()
+        except Exception as exc:  # noqa: BLE001
+            return {
+                "mode": "offline",
+                "network_access": False,
+                "error": "local_dashboard_status_unavailable",
+                "detail": str(exc),
+                "m4_neural": {"available": False, "tops": 38, "memory": "unified"},
+            }
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +187,6 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
         "Vary": "Origin",
     }
 
-    # Silence the default BaseHTTPRequestHandler request logging.
     def log_message(self, fmt: str, *args: object) -> None:  # noqa: D102
         _LOG.debug(fmt, *args)
 
@@ -208,6 +233,7 @@ class _DashboardHandler(http.server.BaseHTTPRequestHandler):
             "/api/agent-status": _agent_status,
             "/api/cicd-status": _cicd_status,
             "/api/network-audit": _network_audit,
+            "/api/local-status": _local_status,
             "/health": lambda: {"status": "ok", "service": "dashboard-server"},
             "/api/health": lambda: {"status": "ok", "service": "dashboard-server"},
         }

@@ -1,0 +1,27 @@
+{
+  "service": "sovereignty-ai-studio-phpwin",
+  "mode": {
+    "default": "local",
+    "fallback": "hybrid",
+    "online_requires_owner_approval": true,
+    "values": ["local", "hybrid", "online"]
+  },
+  "network": {
+    "loopback_only": true,
+    "allowed_hosts": ["127.0.0.1", "localhost", "::1"],
+    "external_default": false
+  },
+  "oauth": {
+    "issuer": "local",
+    "external_oauth": "disabled"
+  },
+  "audit": {
+    "directory": "AUDIT",
+    "append_only_intent": true
+  },
+  "diagnostics": {
+    "phpinfo_enabled": false,
+    "requires_loopback": true,
+    "requires_header": "X-Sovereignty-Diagnostics"
+  }
+}

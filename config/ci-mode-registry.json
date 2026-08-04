@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "naming": "<test-domain>-<test-scope>-ci-<mode>",
+  "modes": {
+    "local": {
+      "network": "disabled",
+      "external_calls": "forbidden",
+      "default_when_uncertain": true
+    },
+    "hybrid": {
+      "network": "selective",
+      "external_calls": "policy_and_lease_checked",
+      "requires_owner_approval": true
+    },
+    "online": {
+      "network": "enabled",
+      "external_calls": "fully_audited",
+      "requires_owner_approval": true
+    }
+  },
+  "branches": {
+    "ara-hardened": {
+      "agent": "Ara/Grok",
+      "default_ci": "ara-hardened-unit-ci-local",
+      "allowed_modes": ["local"],
+      "workflows": {
+        "local": ".github/workflows/ara-hardened-ci.yml"
+      }
+    },
+    "copilot": {
+      "agent": "GitHub Copilot",
+      "default_ci": "copilot-unit-ci-local",
+      "allowed_modes": ["local"]
+    },
+    "copilot/main": {
+      "agent": "GitHub Copilot",
+      "default_ci": "copilot-unit-ci-local",
+      "allowed_modes": ["local"]
+    },
+    "claude": {
+      "agent": "Claude",
+      "default_ci": "claude-unit-ci-local",
+      "allowed_modes": ["local"]
+    },
+    "gpt": {
+      "agent": "GPT/Codex",
+      "default_ci": "gpt-unit-ci-local",
+      "allowed_modes": ["local"]
+    },
+    "devassist420": {
+      "agent": "DevAssist420",
+      "default_ci": "devassist-routing-ci-local",
+      "allowed_modes": ["local"]
+    },
+    "collaboration": {
+      "agent": "owner",
+      "default_ci": "collaboration-integration-ci-local",
+      "allowed_modes": ["local", "hybrid"],
+      "note": "Owner-controlled; hybrid only with explicit approval"
+    },
+    "main": {
+      "agent": "owner",
+      "default_ci": "main-release-ci-local",
+      "allowed_modes": ["local", "hybrid", "online"],
+      "note": "Owner only; online requires explicit authorization"
+    }
+  },
+  "accessibility": {
+    "accessibility-control-unit-ci-local": {
+      "mode": "local",
+      "scope": "unit",
+      "path": "prototypes/accessibility"
+    },
+    "accessibility-confirmation-ci-local": {
+      "mode": "local",
+      "scope": "unit",
+      "path": "prototypes/accessibility"
+    },
+    "accessibility-governance-ci-hybrid": {
+      "mode": "hybrid",
+      "scope": "integration",
+      "requires_owner_approval": true
+    },
+    "accessibility-e2e-ci-online": {
+      "mode": "online",
+      "scope": "e2e",
+      "requires_owner_approval": true
+    }
+  },
+  "router_default": "local"
+}
