@@ -5,12 +5,30 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+DEVASSIST_STATUS_URL = "http://127.0.0.1:9899/api/devassist/status"
 
 
 def _exists(relative: str) -> bool:
     return (ROOT / relative).is_file()
+
+
+def _loopback_status(url: str = DEVASSIST_STATUS_URL) -> dict[str, Any]:
+    if not any(url.startswith(prefix) for prefix in ("http://127.0.0.1:", "http://localhost:", "http://[::1]:")):
+        return {"state": "UNAVAILABLE", "reason": "non-loopback endpoint rejected", "url": url}
+    try:
+        request = Request(url, headers={"Cache-Control": "no-store"})
+        with urlopen(request, timeout=1.5) as response:  # noqa: S310 - URL is fixed loopback only
+            payload = json.loads(response.read().decode("utf-8"))
+        if not isinstance(payload, dict):
+            raise ValueError("bridge status is not an object")
+        return payload
+    except (OSError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as exc:
+        return {"state": "UNAVAILABLE", "reason": str(exc), "url": url}
 
 
 def local_status() -> dict[str, Any]:
@@ -33,6 +51,7 @@ def local_status() -> dict[str, Any]:
             "source": "local-read-only-inventory",
         }
 
+    devassist = _loopback_status()
     return {
         "mode": "offline",
         "network_access": False,
@@ -41,5 +60,11 @@ def local_status() -> dict[str, Any]:
         "oauth_generator": _exists("scripts/oauth_local_generator.py"),
         "local_state_validator": _exists("scripts/validate-local-state.sh"),
         "local_ci": _exists("scripts/local-ci.sh"),
+        "phpwin": {"state": "RUNNING", "source": "dashboard-process"},
+        "node_bridge": {
+            "state": "RUNNING" if devassist.get("state") == "RUNNING" else "UNAVAILABLE",
+            "url": DEVASSIST_STATUS_URL,
+        },
+        "devassist": devassist,
         "external_integrations": external,
     }
