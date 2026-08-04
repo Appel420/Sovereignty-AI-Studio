@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Read-only status for the local dashboard build surface."""
 from __future__ import annotations
 
@@ -13,39 +14,32 @@ def _exists(relative: str) -> bool:
 
 
 def local_status() -> dict[str, Any]:
-    """Return local-only contract and Apple M4 documentation availability."""
-    oauth_policy = ROOT / "config" / "local-oauth-policy.json"
+    oauth_policy_path = ROOT / "config" / "local-oauth-policy.json"
     policy: dict[str, Any] = {}
-    if oauth_policy.is_file():
+    if oauth_policy_path.is_file():
         try:
-            policy = json.loads(oauth_policy.read_text(encoding="utf-8"))
+            policy = json.loads(oauth_policy_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             policy = {}
 
-    m4_doc = ROOT / "docs" / "apple_m4_neural.md"
+    try:
+        from scripts.audit_external_integrations import inventory
+        external = inventory()
+    except Exception as exc:  # pragma: no cover - status must remain readable
+        external = {
+            "mode": "offline",
+            "network_access": False,
+            "inventory_error": str(exc),
+            "source": "local-read-only-inventory",
+        }
+
     return {
         "mode": "offline",
         "network_access": False,
         "external_oauth": policy.get("external_oauth", "disabled"),
         "oauth_policy": _exists("config/local-oauth-policy.json"),
-         feature/canonical-governance-core
         "oauth_generator": _exists("scripts/oauth_local_generator.py"),
         "local_state_validator": _exists("scripts/validate-local-state.sh"),
         "local_ci": _exists("scripts/local-ci.sh"),
-
-        "oauth_generator": _exists("scripts/oauth_local_generator.py")
-        or _exists("oauth_local_generator.py"),
-        "local_state_validator": _exists("scripts/validate-local-state.sh"),
-        "local_ci": _exists("scripts/local-ci.sh") or _exists("scripts/v1_local-ci.sh"),
-        "approvals": _exists("scripts/local_approvals.py") or _exists("local_approvals.py"),
-        "issue_suggestions": _exists("scripts/local_issue_suggestions.py")
-        or _exists("local_issue_suggestions.py"),
-         main
-        "m4_neural": {
-            "available": m4_doc.is_file(),
-            "path": "docs/apple_m4_neural.md",
-            "tops": 38,
-            "memory": "unified",
-            "href": "docs/apple_m4_neural.md",
-        },
+        "external_integrations": external,
     }
