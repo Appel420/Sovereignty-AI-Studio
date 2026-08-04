@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Deterministic local CI. No GitHub Actions, cloud agents, publishing, or provider calls.
-# Owner policy: self-hosted Linux arm64. Fail closed. Delete nothing.
+# Authoritative device-local CI. No GitHub Actions, hosted runners, package
+# installation, provider calls, external OAuth, or cloud fallback.
 set -Eeuo pipefail
+
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
@@ -19,66 +20,45 @@ export npm_config_fund="false"
 
 PYTHON="${PYTHON:-python3}"
 
-echo "-- owner execution policy"
-        ara-hardened
-if [[ -f scripts/enforce-owner-execution-policy.sh ]]; then
-  bash scripts/enforce-owner-execution-policy.sh
-elif [[ -f scripts/check-runner-policy.py ]]; then
-  "$PYTHON" scripts/check-runner-policy.py
-else
-  echo "WARN: no owner policy enforcer present; continuing with offline gates"
-fi
+run_required() {
+  echo "-- $*"
+  "$@"
+}
 
-echo "-- local dashboard inputs (if present)"
-if [[ -f scripts/validate-local-dashboard.py ]]; then
-  "$PYTHON" scripts/validate-local-dashboard.py || true
-fi
+run_required "$PYTHON" scripts/verify_ci_policy.py
+run_required "$PYTHON" scripts/check-runner-policy.py
+run_required "$PYTHON" scripts/enforce-owner-execution-policy.py
+run_required "$PYTHON" scripts/validate-local-dashboard.py
+run_required "$PYTHON" scripts/validate-local-oauth.py
+run_required "$PYTHON" scripts/audit-external-integrations.py
+run_required "$PYTHON" scripts/validate-php-ios-environment.py
 
-"$PYTHON" scripts/enforce-owner-execution-policy.py
-
-echo "-- local dashboard build inputs"
-"$PYTHON" scripts/validate-local-dashboard.py
-        main
-
-echo "-- local OAuth contract"
-if [[ -f scripts/validate-local-oauth.py ]]; then
-  "$PYTHON" scripts/validate-local-oauth.py
-else
-  echo "WARN: validate-local-oauth.py missing"
-fi
-
-        ara-hardened
 if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
-  echo "-- focused offline local CI passed"
+  echo "focused offline local CI passed"
   exit 0
 fi
 
-echo "-- local-state contract"
-bash scripts/validate-local-state.sh
-        main
-
-echo "-- python syntax (compileall, exclude external/.venv)"
-"$PYTHON" -m compileall -q --exclude external --exclude .venv . || true
-
-echo "-- node syntax checks (optional files)"
-if [[ -f server_9899.js ]]; then
-  node --check server_9899.js
-fi
-if [[ -f node-bridge/server.js ]]; then
-  node --check node-bridge/server.js
+if [[ -f scripts/validate-local-state.sh ]]; then
+  run_required bash scripts/validate-local-state.sh
 fi
 
-if [[ -f frontend/package.json ]]; then
-  (cd frontend && npm test --offline) || true
+run_required "$PYTHON" -m compileall -q --exclude external --exclude .venv .
+
+if command -v node >/dev/null 2>&1; then
+  [[ -f server_9899.js ]] && run_required node --check server_9899.js
+  [[ -f node-bridge/server.js ]] && run_required node --check node-bridge/server.js
 fi
 
-echo "-- pytest (if available)"
+if command -v php >/dev/null 2>&1; then
+  run_required php -l scripts/php_local_bootstrap.php
+fi
+
 if [[ -x .venv/bin/pytest ]]; then
-  .venv/bin/pytest -q || true
+  run_required .venv/bin/pytest -q
 elif command -v pytest >/dev/null 2>&1; then
-  pytest -q || true
+  run_required pytest -q
 else
-  echo "pytest unavailable; syntax validation path completed"
+  echo "SKIPPED: pytest unavailable"
 fi
 
-echo "owner-enforced local CI passed"
+exec "$PYTHON" scripts/run-local-ci.py --ci-name coordination-unit-ci-local "$@"
