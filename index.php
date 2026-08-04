@@ -9,13 +9,51 @@ $gate = require __DIR__ . '/DevAssist420/Sovereignty-AI/GateOne/bootstrap.php';
 $bus = require __DIR__ . '/SGHv119/bus.php';
 $audit = require __DIR__ . '/AUDIT/bootstrap.php';
 
+function local_bridge_status(array $config): array
+{
+    $url = (string) ($config['devassist']['status_url'] ?? 'http://127.0.0.1:9899/api/devassist/status');
+    $parts = parse_url($url);
+    $host = $parts['host'] ?? '';
+    if (!in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
+        return ['state' => 'UNAVAILABLE', 'reason' => 'non-loopback endpoint rejected'];
+    }
+
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => 1.5,
+            'ignore_errors' => true,
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $context);
+    if ($raw === false) {
+        return ['state' => 'UNAVAILABLE', 'reason' => 'loopback bridge not reachable', 'url' => $url];
+    }
+    $status = json_decode($raw, true);
+    if (!is_array($status)) {
+        return ['state' => 'UNAVAILABLE', 'reason' => 'invalid bridge status response', 'url' => $url];
+    }
+    return [
+        'state' => (string) ($status['state'] ?? 'UNAVAILABLE'),
+        'service' => $status['service'] ?? 'DevAssist420',
+        'mode' => $status['mode'] ?? 'local',
+        'network' => $status['network'] ?? 'loopback-only',
+        'url' => $url,
+    ];
+}
+
 $mode = $_SERVER['HTTP_X_SOVEREIGN_MODE'] ?? $config['mode']['default'];
 $modeResult = $gate['mode']->resolve($mode, $_SERVER['HTTP_X_SOVEREIGN_OWNER_APPROVAL'] ?? null);
 
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 if ($path === '/health') {
     header('Content-Type: application/json');
-    echo json_encode(['status' => 'ok', 'mode' => $modeResult['mode'], 'network' => $modeResult['network']], JSON_THROW_ON_ERROR);
+    echo json_encode([
+        'status' => 'ok',
+        'mode' => $modeResult['mode'],
+        'network' => $modeResult['network'],
+        'devassist' => local_bridge_status($config),
+    ], JSON_THROW_ON_ERROR);
     exit;
 }
 
@@ -26,6 +64,7 @@ if ($path === '/api/status') {
         'mode' => $modeResult,
         'oauth' => $config['oauth'],
         'network' => $config['network'],
+        'devassist' => local_bridge_status($config),
         'audit' => $audit['status'](),
     ], JSON_THROW_ON_ERROR);
     exit;
