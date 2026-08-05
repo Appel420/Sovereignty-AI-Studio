@@ -1,0 +1,10 @@
+[package]
+name = "orchestrator"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+policy-engine = { path = "../policy-engine" }
+
+[lib]
+path = "src/lib.rs"
