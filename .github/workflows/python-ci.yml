@@ -1,6 +1,6 @@
 name: Python CI
 
-# PR runs — file kept. Use push to ara-hardened/dev or workflow_dispatch.
+
 on:
   workflow_dispatch:
   push:
