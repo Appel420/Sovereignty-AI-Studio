@@ -1,11 +1,11 @@
 name: Python CI
 
-# PR runs PAUSED — file kept. Use push to ara-hardened/dev or workflow_dispatch.
+# PR runs — file kept. Use push to ara-hardened/dev or workflow_dispatch.
 on:
   workflow_dispatch:
   push:
     branches: [ dev, ara-hardened ]
-  # pull_request: paused
+  
 
 concurrency:
   group: python-ci-${{ github.ref }}
