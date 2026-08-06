@@ -1,0 +1,50 @@
+{
+  "policy_id": "zero_tolerance_security_contract_v1",
+  "enforcement": {
+    "mode": "deny",
+    "security_modules_strict": true,
+    "fail_ci": true
+  },
+  "protected_paths": [
+    "core/security/",
+    "backend/coordination/",
+    "sovereign/scar/",
+    "enclave/",
+    "crypto/",
+    "audit/",
+    "key_management/",
+    "scar/",
+    "quadratchet/"
+  ],
+  "forbidden_patterns": [
+    {
+      "category": "attestation",
+      "patterns": [
+        "software-attestation",
+        "is_valid: true",
+        "device_attested: true",
+        "hardware_executed: true"
+      ],
+      "rule": "No successful attestation or hardware claim without independently verified evidence"
+    },
+    {
+      "category": "fabricated-success",
+      "patterns": [
+        "signature_verified: true",
+        "scar_committed: true",
+        "merkle_root = \"",
+        "prev_hash = \""
+      ],
+      "rule": "Security and evidence state must derive from actual runtime events"
+    },
+    {
+      "category": "weak-randomness",
+      "patterns": [
+        "Math.random()",
+        "rand::thread_rng",
+        "random.random()"
+      ],
+      "rule": "Do not use weak or ambiguous randomness in security paths"
+    }
+  ]
+}

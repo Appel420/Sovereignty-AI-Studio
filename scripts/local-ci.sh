@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Authoritative device-local CI. No GitHub Actions, hosted runners, package
-# installation, provider calls, external OAuth, or cloud fallback.
+# Authoritative device-local CI. No package installation, provider calls,
+# external OAuth, cloud fallback, or synthetic production evidence.
 set -Eeuo pipefail
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -26,6 +26,7 @@ run_required() {
 }
 
 run_required "$PYTHON" scripts/verify_ci_policy.py
+run_required "$PYTHON" scripts/security_policy_scan.py ZERO_TOLERANCE_POLICY.json .
 run_required "$PYTHON" scripts/check-runner-policy.py
 run_required "$PYTHON" scripts/enforce-owner-execution-policy.py
 run_required "$PYTHON" scripts/validate-local-dashboard.py
@@ -34,7 +35,7 @@ run_required "$PYTHON" scripts/audit-external-integrations.py
 run_required "$PYTHON" scripts/validate-php-ios-environment.py
 
 if [[ "${LOCAL_CI_FOCUSED_ONLY:-0}" == "1" ]]; then
-  echo "focused offline local CI passed"
+  echo "focused offline local CI passed; production attestation not performed"
   exit 0
 fi
 
@@ -58,7 +59,8 @@ if [[ -x .venv/bin/pytest ]]; then
 elif command -v pytest >/dev/null 2>&1; then
   run_required pytest -q
 else
-  echo "SKIPPED: pytest unavailable"
+  echo "BLOCKED: pytest unavailable; no packages will be installed"
+  exit 2
 fi
 
 exec "$PYTHON" scripts/run-local-ci.py --ci-name coordination-unit-ci-local "$@"
