@@ -33,6 +33,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Fail-fast runner and mode diagnostic
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "Selected network mode: ${SG_NETWORK_MODE}"
+          echo "Local-only flag: ${SG_LOCAL_ONLY}"
+          echo "External feeds: ${SG_EXTERNAL_FEEDS}"
+          echo "Runner name: ${RUNNER_NAME:-unknown}"
+          echo "Runner OS: ${RUNNER_OS:-unknown}"
+          echo "Runner architecture: ${RUNNER_ARCH:-unknown}"
+          echo "Runner labels requested: self-hosted Linux arm64"
+          echo "GitHub ref: ${GITHUB_REF}"
+          echo "GitHub SHA: ${GITHUB_SHA}"
+          if [[ "${RUNNER_OS:-}" != "Linux" ]]; then
+            echo "FAIL: expected Linux runner, got ${RUNNER_OS:-unknown}" >&2
+            exit 1
+          fi
+          if [[ "${RUNNER_ARCH:-}" != "ARM64" ]]; then
+            echo "FAIL: expected ARM64 runner, got ${RUNNER_ARCH:-unknown}" >&2
+            exit 1
+          fi
+          if [[ "${SG_NETWORK_MODE}" != "offline" ]]; then
+            echo "FAIL: automatic CI must run in offline/Ghost mode; explicit network validation requires a separately approved workflow" >&2
+            exit 1
+          fi
+          echo "Runner accepted: Linux ARM64; mode accepted: offline/Ghost"
+
       - name: Verify required runtimes
         shell: bash
         run: |
