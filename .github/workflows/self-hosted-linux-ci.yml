@@ -15,10 +15,13 @@ concurrency:
 
 jobs:
   build:
-    name: Build on Self-Hosted Linux
-    runs-on: ['self-hosted Linux arm64']
+    name: Build on self-hosted Linux ARM64
+    # Match the standard self-hosted labels. This job never uses a hosted runner.
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 30
     env:
+      # This lane is deliberately local/Ghost. It must not download packages or
+      # fall back to cloud providers. Dependencies are provisioned on the runner.
       SG_NETWORK_MODE: offline
       SG_LOCAL_ONLY: '1'
       SG_EXTERNAL_FEEDS: disabled
@@ -32,35 +35,37 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
-      - name: Fail-fast runner and mode diagnostic
+      - name: Fail-fast runner and local-only policy diagnostic
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "Selected network mode: ${SG_NETWORK_MODE}"
-          echo "Local-only flag: ${SG_LOCAL_ONLY}"
-          echo "External feeds: ${SG_EXTERNAL_FEEDS}"
-          echo "Runner name: ${RUNNER_NAME:-unknown}"
-          echo "Runner OS: ${RUNNER_OS:-unknown}"
-          echo "Runner architecture: ${RUNNER_ARCH:-unknown}"
-          echo "Runner labels requested: self-hosted Linux arm64"
-          echo "GitHub ref: ${GITHUB_REF}"
-          echo "GitHub SHA: ${GITHUB_SHA}"
+          echo "Network mode: ${SG_NETWORK_MODE}"
+          echo "Local-only: ${SG_LOCAL_ONLY}"
+          echo "Cloud fallback: ${CLOUD_FIRST}"
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: ${RUNNER_OS:-unknown}"
+          echo "Architecture: ${RUNNER_ARCH:-unknown}"
           if [[ "${RUNNER_OS:-}" != "Linux" ]]; then
-            echo "FAIL: expected Linux runner, got ${RUNNER_OS:-unknown}" >&2
+            echo "FAIL: expected Linux self-hosted runner" >&2
             exit 1
           fi
           if [[ "${RUNNER_ARCH:-}" != "ARM64" ]]; then
-            echo "FAIL: expected ARM64 runner, got ${RUNNER_ARCH:-unknown}" >&2
+            echo "FAIL: expected ARM64 self-hosted runner" >&2
             exit 1
           fi
-          if [[ "${SG_NETWORK_MODE}" != "offline" ]]; then
-            echo "FAIL: automatic CI must run in offline/Ghost mode; explicit network validation requires a separately approved workflow" >&2
+          [[ "${SG_NETWORK_MODE}" == "offline" ]] || {
+            echo "FAIL: this CI lane must remain offline/Ghost" >&2
             exit 1
-          fi
-          echo "Runner accepted: Linux ARM64; mode accepted: offline/Ghost"
+          }
+          [[ "${CLOUD_FIRST}" == "false" ]] || {
+            echo "FAIL: cloud fallback is forbidden in this CI lane" >&2
+            exit 1
+          }
 
-      - name: Verify required runtimes
+      - name: Verify pre-provisioned local runtimes
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -70,18 +75,16 @@ jobs:
           python3 - <<'PY'
           import sys
           if sys.version_info < (3, 13):
-              raise SystemExit('Python 3.13 or newer is required by README.md')
+              raise SystemExit('Python 3.13 or newer is required on the self-hosted runner')
           PY
           node -e "if (Number(process.versions.node.split('.')[0]) < 24) process.exit(1)"
+          [[ -d node-bridge/node_modules ]] || {
+            echo "FAIL: node-bridge/node_modules is missing. Provision dependencies on the local runner; CI will not download them." >&2
+            exit 1
+          }
 
       - name: Verify runtime coherence
         run: python3 scripts/validate-runtime-coherence.py
-
-      - name: Install checked-in runtime dependencies offline
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./INSTALL.sh --offline
 
       - name: Run canonical local CI
         shell: bash
@@ -95,6 +98,6 @@ jobs:
       - name: Check Node bridge syntax
         run: node --check node-bridge/server.js
 
-      - name: Test Node bridge
+      - name: Test Node bridge without network installation
         working-directory: node-bridge
         run: npm test -- --test-reporter=spec
