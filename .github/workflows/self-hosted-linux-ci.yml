@@ -1,0 +1,73 @@
+name: Self-Hosted Linux Workflow
+
+on:
+  push:
+    branches: [ main, Collaboration ]
+  pull_request:
+    branches: [ main, Collaboration ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: self-hosted-linux-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build on Self-Hosted Linux
+    runs-on: ['self-hosted Linux arm64']
+    timeout-minutes: 30
+    env:
+      SG_NETWORK_MODE: offline
+      SG_LOCAL_ONLY: '1'
+      SG_EXTERNAL_FEEDS: disabled
+      CLOUD_FIRST: 'false'
+      PIP_NO_INDEX: '1'
+      PIP_NO_INPUT: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      npm_config_offline: 'true'
+      npm_config_audit: 'false'
+      npm_config_fund: 'false'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify required runtimes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 --version
+          node --version
+          npm --version
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 13):
+              raise SystemExit('Python 3.13 or newer is required by README.md')
+          PY
+          node -e "if (Number(process.versions.node.split('.')[0]) < 24) process.exit(1)"
+
+      - name: Verify runtime coherence
+        run: python3 scripts/validate-runtime-coherence.py
+
+      - name: Install checked-in runtime dependencies offline
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ./INSTALL.sh --offline
+
+      - name: Run canonical local CI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOCAL_CI_FOCUSED_ONLY=1 bash scripts/local-ci.sh
+
+      - name: Validate dashboard ownership
+        run: node frontend/scripts/test-sghv119-ownership.js
+
+      - name: Check Node bridge syntax
+        run: node --check node-bridge/server.js
+
+      - name: Test Node bridge
+        working-directory: node-bridge
+        run: npm test -- --test-reporter=spec
