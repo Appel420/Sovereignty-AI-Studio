@@ -1,6 +1,6 @@
 name: Dependency Health
 
-# PR runs PAUSED — workflow kept. pip-audit/npm audit/PyPI call out; not for every PR.
+# PR runs — workflow kept. pip-audit/npm audit/PyPI call out; not for every PR.
 on:
   push:
     branches: [main]
