@@ -1,11 +1,11 @@
 name: Docker
 
-# PR runs PAUSED — workflow kept. Tags + workflow_dispatch only.
+# PR runs  — workflow kept. Tags + workflow_dispatch only.
 on:
   push:
     tags: [ 'v*.*.*' ]
   workflow_dispatch:
-  # pull_request: paused
+  
 
 env:
   REGISTRY: ghcr.io
