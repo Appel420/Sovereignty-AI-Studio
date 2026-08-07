@@ -67,6 +67,9 @@ jobs:
 
       - name: Verify hosted ARM64 runner
         shell: bash
+        env:
+          SG_NETWORK_MODE: offline
+          CLOUD_FIRST: 'false'
         run: |
           set -Eeuo pipefail
           echo "Runner: ${RUNNER_NAME}"
@@ -111,6 +114,9 @@ jobs:
 
       - name: Verify self-hosted runner and pre-provisioned dependencies
         shell: bash
+        env:
+          SG_NETWORK_MODE: offline
+          CLOUD_FIRST: 'false'
         run: |
           set -Eeuo pipefail
           echo "Runner: ${RUNNER_NAME}"
