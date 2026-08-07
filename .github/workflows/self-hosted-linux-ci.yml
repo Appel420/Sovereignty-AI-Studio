@@ -58,6 +58,9 @@ jobs:
 
       - name: Verify hosted ARM64 runner
         shell: bash
+        env:
+          SG_NETWORK_MODE: offline
+          CLOUD_FIRST: 'false'
         run: |
           set -Eeuo pipefail
           echo "Runner: ${RUNNER_NAME}"
@@ -79,6 +82,9 @@ jobs:
       - name: Report dashboard ownership wiring
         if: always()
         shell: bash
+        env:
+          SG_NETWORK_MODE: offline
+          CLOUD_FIRST: 'false'
         run: |
           set +e
           node frontend/scripts/test-sghv119-ownership.js
