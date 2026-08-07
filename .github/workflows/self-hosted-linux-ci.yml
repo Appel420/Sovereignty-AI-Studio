@@ -16,12 +16,10 @@ concurrency:
 jobs:
   build:
     name: Build on self-hosted Linux ARM64
-    # Match the standard self-hosted labels. This job never uses a hosted runner.
-    runs-on: [self-hosted, Linux, ARM64]
+    # Repository policy requires this exact single custom runner label.
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
     env:
-      # This lane is deliberately local/Ghost. It must not download packages or
-      # fall back to cloud providers. Dependencies are provisioned on the runner.
       SG_NETWORK_MODE: offline
       SG_LOCAL_ONLY: '1'
       SG_EXTERNAL_FEEDS: disabled
@@ -56,14 +54,8 @@ jobs:
             echo "FAIL: expected ARM64 self-hosted runner" >&2
             exit 1
           fi
-          [[ "${SG_NETWORK_MODE}" == "offline" ]] || {
-            echo "FAIL: this CI lane must remain offline/Ghost" >&2
-            exit 1
-          }
-          [[ "${CLOUD_FIRST}" == "false" ]] || {
-            echo "FAIL: cloud fallback is forbidden in this CI lane" >&2
-            exit 1
-          }
+          [[ "${SG_NETWORK_MODE}" == "offline" ]] || { echo "FAIL: CI must remain offline/Ghost" >&2; exit 1; }
+          [[ "${CLOUD_FIRST}" == "false" ]] || { echo "FAIL: cloud fallback is forbidden" >&2; exit 1; }
 
       - name: Verify pre-provisioned local runtimes
         shell: bash
@@ -79,7 +71,7 @@ jobs:
           PY
           node -e "if (Number(process.versions.node.split('.')[0]) < 24) process.exit(1)"
           [[ -d node-bridge/node_modules ]] || {
-            echo "FAIL: node-bridge/node_modules is missing. Provision dependencies on the local runner; CI will not download them." >&2
+            echo "FAIL: node-bridge/node_modules is missing. Provision dependencies locally; CI will not download them." >&2
             exit 1
           }
 
