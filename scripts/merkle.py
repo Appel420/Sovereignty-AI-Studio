@@ -110,8 +110,12 @@ class MerkleTree:
                         idx = len(next_layer)
                     next_layer.append(_inner_hash(left, right))
                 else:
-                    next_layer.append(layer[i])
+                    # _recompute_root duplicates an unpaired node, so the
+                    # proof must include the same self-sibling operation.
+                    node = layer[i]
+                    next_layer.append(_inner_hash(node, node))
                     if i == idx:
+                        path.append((node, True))
                         idx = len(next_layer) - 1
             layer = next_layer
         return MerkleProof(self._leaves[index], index, path)
@@ -202,12 +206,15 @@ class RollbackProtectedMerkleTree:
     def latest_leaf_digest(self) -> str | None:
         return self.leaves[-1].digest if self.leaves else None
 
-    def append(self, data: bytes) -> tuple[VersionedLeaf, SignedCheckpoint]:
+    def append(self, data: bytes, *, leaf_digest: bytes | None = None) -> tuple[VersionedLeaf, SignedCheckpoint]:
         self.sequence += 1
         self.generation += 1
-        leaf_digest = _leaf_hash(data).hex()
+        digest = leaf_digest if leaf_digest is not None else _leaf_hash(data)
+        if len(digest) != _DIGEST_LEN:
+            raise ValueError("leaf digest must be 32 bytes")
+        leaf_digest_hex = digest.hex()
         leaf = VersionedLeaf(
-            digest=leaf_digest,
+            digest=leaf_digest_hex,
             sequence=self.sequence,
             generation=self.generation,
             previous_leaf_digest=self.latest_leaf_digest,
@@ -244,8 +251,14 @@ class RollbackProtectedMerkleTree:
             if leaf.previous_leaf_digest != previous:
                 return False
             previous = leaf.digest
+
+        # The persisted counters are part of the state and must agree with the
+        # append-only leaf chain; otherwise tampering can masquerade as rollback.
+        if self.sequence != expected_sequence or self.generation != expected_generation:
+            return False
         if len(self.checkpoints) != len(self.leaves):
             return False
+
         previous_checkpoint: str | None = None
         for leaf, checkpoint in zip(self.leaves, self.checkpoints):
             if not checkpoint.verify(self.verify_key):

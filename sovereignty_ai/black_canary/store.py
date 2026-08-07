@@ -123,7 +123,9 @@ class RepoMerkleTree:
         aad: bytes = b"",
     ) -> tuple[SecureLeaf, VersionedLeaf, SignedCheckpoint]:
         record = SecureLeaf.seal(payload, master_key=master_key, key_id=key_id, aad=aad)
-        leaf, checkpoint = self._tree.append(record.digest())
+        # SecureLeaf.digest() is already the canonical leaf digest. Pass it
+        # through unchanged instead of hashing it a second time in the tree.
+        leaf, checkpoint = self._tree.append(record.canonical(), leaf_digest=record.digest())
         self._records.append(record)
         return record, leaf, checkpoint
 
