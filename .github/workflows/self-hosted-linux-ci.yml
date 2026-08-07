@@ -71,8 +71,8 @@ jobs:
       - name: Verify runtime coherence
         run: python scripts/validate-runtime-coherence.py
 
-      - name: Run Merkle and Black Canary tests
-        run: pytest -q tests/test_merkle_rollback.py tests/test_black_canary.py
+      - name: Run Merkle, Black Canary, and OAuth tests
+        run: pytest -q tests/test_merkle_rollback.py tests/test_black_canary.py tests/test_oauth_local_generator.py tests/test_oauth_local_generator_security.py
 
       - name: Validate dashboard ownership
         run: node frontend/scripts/test-sghv119-ownership.js
