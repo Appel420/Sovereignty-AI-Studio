@@ -1,6 +1,6 @@
 name: Dependency Health
 
-# PR runs PAUSED — workflow kept. pip-audit/npm audit/PyPI call out; not for every PR.
+# PR runs — workflow kept. pip-audit/npm audit/PyPI call out; not for every PR.
 on:
   push:
     branches: [main]
@@ -13,7 +13,7 @@ on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
-  # pull_request: paused
+  
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"

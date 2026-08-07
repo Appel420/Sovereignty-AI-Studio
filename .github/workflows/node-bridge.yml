@@ -1,13 +1,13 @@
 name: Node Bridge CI
 
-# PR runs PAUSED — workflow kept.
+# PR runs — workflow kept.
 on:
   push:
     branches: [ main ]
     paths:
       - 'node-bridge/**'
   workflow_dispatch:
-  # pull_request: paused
+  
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'

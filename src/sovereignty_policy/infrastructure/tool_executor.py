@@ -34,7 +34,7 @@ def _validate_args(tool_name: str, args: Sequence[str]) -> str | None:
     for argument in args:
         if not argument or "\x00" in argument:
             return "empty or NUL-containing arguments are not allowed"
-        if any(token in argument for token in (";", "&&", "||", "|", ">", "<", "`", "$(`)):
+        if any(token in argument for token in (";", "&&", "||", "|", ">", "<", "`", "$(")):
             return "shell metacharacters are not allowed"
         if argument.startswith("-"):
             if tool_name == "grep" and argument in SAFE_GREP_FLAGS:
@@ -64,13 +64,13 @@ def execute_tool_call(
     try:
         args = list(command_args)
         if tool_name in {"cat", "ls"}:
-            args = [(_inside_workspace(root, arg) if not arg.startswith("-") else arg) for arg in args]
+            args = [_inside_workspace(root, arg) for arg in args]
         elif tool_name == "grep":
-            # grep's pattern is not a path; only the final file operands are scoped.
-            non_flags = [index for index, arg in enumerate(args) if not arg.startswith("-")]
-            for index in non_flags[1:]:
+            # grep receives a pattern followed by zero or more file operands.
+            # Only file operands are resolved inside the approved workspace.
+            operands = [index for index, arg in enumerate(args) if not arg.startswith("-")]
+            for index in operands[1:]:
                 args[index] = _inside_workspace(root, args[index])
-
         env = {
             "PATH": os.environ.get("PATH", ""),
             "HOME": str(root),
@@ -95,6 +95,8 @@ def execute_tool_call(
             workspace=str(root),
             network_accessed=False,
         )
+    except ValueError as exc:
+        return _response(status="error", error=str(exc))
     except subprocess.TimeoutExpired:
         return _response(status="error", error="tool execution timed out")
     except OSError as exc:

@@ -1,11 +1,11 @@
 name: iOS Sovereign Build (local-first)
 
-# PR runs PAUSED — workflow kept. Push ara-hardened + manual only.
+# PR runs — workflow kept. Push ara-hardened + manual only.
 on:
   push:
     branches: [ ara-hardened ]
   workflow_dispatch:
-  # pull_request: paused
+  
 
 env:
   PYTHONPATH: .:./backend

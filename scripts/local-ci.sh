@@ -19,11 +19,7 @@ export npm_config_audit="false"
 export npm_config_fund="false"
 
 PYTHON="${PYTHON:-python3}"
-
-run_required() {
-  echo "-- $*"
-  "$@"
-}
+run_required() { echo "-- $*"; "$@"; }
 
 run_required "$PYTHON" scripts/verify_ci_policy.py
 run_required "$PYTHON" scripts/security_policy_scan.py ZERO_TOLERANCE_POLICY.json .
@@ -42,14 +38,15 @@ fi
 if [[ -f scripts/validate-local-state.sh ]]; then
   run_required bash scripts/validate-local-state.sh
 fi
-
 run_required "$PYTHON" -m compileall -q --exclude external --exclude .venv .
 
+if command -v cargo >/dev/null 2>&1 && [[ -f Cargo.toml ]]; then
+  run_required cargo test --workspace --offline
+fi
 if command -v node >/dev/null 2>&1; then
   [[ -f server_9899.js ]] && run_required node --check server_9899.js
   [[ -f node-bridge/server.js ]] && run_required node --check node-bridge/server.js
 fi
-
 if command -v php >/dev/null 2>&1; then
   run_required php -l scripts/php_local_bootstrap.php
 fi
@@ -62,5 +59,4 @@ else
   echo "BLOCKED: pytest unavailable; no packages will be installed"
   exit 2
 fi
-
 exec "$PYTHON" scripts/run-local-ci.py --ci-name coordination-unit-ci-local "$@"
