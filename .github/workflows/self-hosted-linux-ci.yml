@@ -1,34 +1,43 @@
-name: Linux ARM64 Workflow
+name: Hybrid Linux Workflow
 
 on:
   push:
-    branches: [ main, Collaboration ]
+    branches: [main, Collaboration]
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [main, Collaboration]
   workflow_dispatch:
+    inputs:
+      runner_mode:
+        description: "Select the CI lane"
+        required: true
+        default: hosted
+        type: choice
+        options:
+          - hosted
+          - self-hosted
+          - both
 
 permissions:
   contents: read
 
 concurrency:
-  group: linux-arm64-${{ github.workflow }}-${{ github.ref }}
+  group: linux-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SG_NETWORK_MODE: offline
+  SG_LOCAL_ONLY: '1'
+  SG_EXTERNAL_FEEDS: disabled
+  CLOUD_FIRST: 'false'
+  npm_config_audit: 'false'
+  npm_config_fund: 'false'
+
 jobs:
-  build:
-    name: Build on GitHub-hosted Linux ARM64
-    # Public repositories receive standard GitHub-hosted runner usage at no charge.
-    # This avoids waiting forever for an unavailable iOS/self-hosted runner.
+  hosted:
+    name: Hosted Linux ARM64
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.runner_mode != 'self-hosted' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
-    env:
-      SG_NETWORK_MODE: offline
-      SG_LOCAL_ONLY: '1'
-      SG_EXTERNAL_FEEDS: disabled
-      CLOUD_FIRST: 'false'
-      npm_config_audit: 'false'
-      npm_config_fund: 'false'
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,7 +57,7 @@ jobs:
           cache: npm
           cache-dependency-path: node-bridge/package-lock.json
 
-      - name: Install only CI dependencies
+      - name: Install CI dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -71,8 +80,74 @@ jobs:
       - name: Verify runtime coherence
         run: python scripts/validate-runtime-coherence.py
 
-      - name: Run Merkle, Black Canary, and OAuth tests
-        run: pytest -q tests/test_merkle_rollback.py tests/test_black_canary.py tests/test_oauth_local_generator.py tests/test_oauth_local_generator_security.py
+      - name: Run Python tests
+        run: >-
+          pytest -q
+          tests/test_merkle_rollback.py
+          tests/test_black_canary.py
+          tests/test_oauth_local_generator.py
+          tests/test_oauth_local_generator_security.py
+
+      - name: Validate dashboard ownership
+        run: node frontend/scripts/test-sghv119-ownership.js
+
+      - name: Check Node bridge syntax
+        run: node --check node-bridge/server.js
+
+      - name: Test Node bridge
+        working-directory: node-bridge
+        run: npm test -- --test-reporter=spec
+
+  self-hosted:
+    name: Self-hosted Linux ARM64
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.runner_mode != 'hosted' }}
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify self-hosted runner and pre-provisioned dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "Runner: ${RUNNER_NAME}"
+          echo "OS: ${RUNNER_OS}"
+          echo "Architecture: ${RUNNER_ARCH}"
+          [[ "${RUNNER_OS}" == "Linux" ]] || exit 1
+          [[ "${RUNNER_ARCH}" == "ARM64" ]] || exit 1
+          [[ "${SG_NETWORK_MODE}" == "offline" ]] || exit 1
+          [[ "${CLOUD_FIRST}" == "false" ]] || exit 1
+          python3 --version
+          node --version
+          npm --version
+          python3 - <<'PY'
+          import importlib.util
+          import sys
+
+          if sys.version_info < (3, 13):
+              raise SystemExit("Python 3.13 or newer is required")
+          for package in ("pytest", "blake3", "nacl", "cryptography", "argon2"):
+              if importlib.util.find_spec(package) is None:
+                  raise SystemExit(f"{package} is not pre-installed on the self-hosted runner")
+          PY
+          [[ -d node-bridge/node_modules ]] || {
+            echo "node-bridge/node_modules is missing; provision Node dependencies locally" >&2
+            exit 1
+          }
+
+      - name: Verify runtime coherence
+        run: python3 scripts/validate-runtime-coherence.py
+
+      - name: Run Python tests
+        run: >-
+          python3 -m pytest -q
+          tests/test_merkle_rollback.py
+          tests/test_black_canary.py
+          tests/test_oauth_local_generator.py
+          tests/test_oauth_local_generator_security.py
 
       - name: Validate dashboard ownership
         run: node frontend/scripts/test-sghv119-ownership.js
