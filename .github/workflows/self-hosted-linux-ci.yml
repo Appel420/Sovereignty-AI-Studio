@@ -16,8 +16,8 @@ concurrency:
 
 jobs:
   test:
-    name: Core tests on hosted Linux ARM64
-    runs-on: ubuntu-24.04-arm
+    name: Core tests on self-hosted Linux ARM64
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 20
     env:
       SG_NETWORK_MODE: offline
@@ -52,15 +52,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --disable-pip-version-check \
-            blake3 pynacl cryptography argon2-cffi pytest
+          python -m pip install --disable-pip-version-check -r .github/workflows/Requirements.txt
           npm --prefix node-bridge ci --ignore-scripts --prefer-offline
 
-      - name: Verify hosted ARM64 runner
+      - name: Verify self-hosted ARM64 runner
         shell: bash
-        env:
-          SG_NETWORK_MODE: offline
-          CLOUD_FIRST: 'false'
         run: |
           set -Eeuo pipefail
           echo "Runner: ${RUNNER_NAME}"
@@ -69,8 +65,13 @@ jobs:
           [[ "${RUNNER_OS}" == "Linux" ]] || exit 1
           [[ "${RUNNER_ARCH}" == "ARM64" ]] || exit 1
 
+      - name: Verify runner policy
+        run: python3 scripts/check-runner-policy.py
+
       - name: Run Python tests
-        run: pytest -q
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src:${{ github.workspace }}:${{ github.workspace }}/backend
+        run: python -m pytest -q
 
       - name: Check Node bridge syntax
         run: node --check node-bridge/server.js
@@ -79,17 +80,5 @@ jobs:
         working-directory: node-bridge
         run: npm test -- --test-reporter=spec
 
-      - name: Report dashboard ownership wiring
-        if: always()
-        shell: bash
-        env:
-          SG_NETWORK_MODE: offline
-          CLOUD_FIRST: 'false'
-        run: |
-          set +e
-          node frontend/scripts/test-sghv119-ownership.js
-          status=$?
-          if [[ "$status" -ne 0 ]]; then
-            echo "Dashboard ownership wiring remains a separate follow-up; core CI completed above." >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit 0
+      - name: Validate dashboard ownership
+        run: node frontend/scripts/test-sghv119-ownership.js
