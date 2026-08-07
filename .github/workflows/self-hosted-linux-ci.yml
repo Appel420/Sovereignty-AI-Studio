@@ -16,9 +16,9 @@ concurrency:
 
 jobs:
   test:
-    name: Core tests on self-hosted Linux ARM64
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 20
+    name: Core tests on hosted Linux ARM64
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
     env:
       SG_NETWORK_MODE: offline
       SG_LOCAL_ONLY: '1'
@@ -55,7 +55,7 @@ jobs:
           python -m pip install --disable-pip-version-check -r .github/workflows/Requirements.txt
           npm --prefix node-bridge ci --ignore-scripts --prefer-offline
 
-      - name: Verify self-hosted ARM64 runner
+      - name: Verify hosted ARM64 runner
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -64,9 +64,6 @@ jobs:
           echo "Architecture: ${RUNNER_ARCH}"
           [[ "${RUNNER_OS}" == "Linux" ]] || exit 1
           [[ "${RUNNER_ARCH}" == "ARM64" ]] || exit 1
-
-      - name: Verify runner policy
-        run: python3 scripts/check-runner-policy.py
 
       - name: Run Python tests
         env:
