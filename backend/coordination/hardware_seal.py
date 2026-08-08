@@ -1,10 +1,4 @@
-"""Versioned, provenance-aware hardware seal contracts.
-
-This module defines interfaces and verification rules only. It does not claim
-that Secure Enclave, TPM, SGX, TrustZone, PQC, or any other hardware backend is
-available. A provider must supply real evidence before a result can be marked
-hardware-backed or hardware-attested.
-"""
+"""Versioned, provenance-aware hardware seal contracts."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -23,6 +17,11 @@ class SealStrength(str, Enum):
     HARDWARE_ATTESTED = "hardware_attested"
 
 
+class SignatureKind(str, Enum):
+    SIGNATURE = "signature"
+    DIGEST = "digest"
+
+
 class DigestAlgorithm(str, Enum):
     SHA256 = "sha256"
     SHA3_512 = "sha3-512"
@@ -34,6 +33,7 @@ class SealFailure(str, Enum):
     UNKNOWN_KEY = "unknown_key"
     UNSUPPORTED_DIGEST = "unsupported_digest"
     UNSUPPORTED_SIGNATURE = "unsupported_signature"
+    SIGNATURE_KIND_MISMATCH = "signature_kind_mismatch"
     MISSING_ATTESTATION = "missing_attestation"
     INVALID_ATTESTATION = "invalid_attestation"
     CHAIN_LINK_INVALID = "chain_link_invalid"
@@ -48,16 +48,12 @@ class PayloadDigest:
     value: bytes
 
     @classmethod
-    def compute(
-        cls,
-        payload: bytes,
-        algorithm: DigestAlgorithm = DigestAlgorithm.SHA3_512,
-    ) -> "PayloadDigest":
+    def compute(cls, payload: bytes, algorithm: DigestAlgorithm = DigestAlgorithm.SHA3_512) -> "PayloadDigest":
         if algorithm is DigestAlgorithm.SHA256:
             value = hashlib.sha256(payload).digest()
         elif algorithm is DigestAlgorithm.SHA3_512:
             value = hashlib.sha3_512(payload).digest()
-        else:  # pragma: no cover - protected by enum typing
+        else:  # pragma: no cover
             raise ValueError(f"unsupported digest algorithm: {algorithm}")
         return cls(algorithm=algorithm, value=value)
 
@@ -85,12 +81,6 @@ class KeyReference:
 
 @dataclass(frozen=True, slots=True)
 class AttestationEvidence:
-    """Platform evidence returned by a real attestation provider.
-
-    ``verified`` is not self-authorizing. The independent verifier decides
-    whether the evidence is valid for the requested strength.
-    """
-
     provider: str
     evidence: bytes
     verified: bool = False
@@ -115,6 +105,7 @@ class HardwareSealResult:
     device_reference: str
     previous_seal: bytes | None = None
     attestation: AttestationEvidence | None = None
+    signature_kind: SignatureKind = SignatureKind.SIGNATURE
 
     def __post_init__(self) -> None:
         if self.version < 1:
@@ -126,9 +117,11 @@ class HardwareSealResult:
         if not self.device_reference.strip():
             raise ValueError("device_reference is required")
         _parse_timestamp(self.timestamp)
+        if self.signature_kind is SignatureKind.DIGEST and self.strength is not SealStrength.SOFTWARE:
+            raise ValueError("digest seals must be software strength")
 
     def to_dict(self) -> dict[str, object]:
-        attestation: dict[str, object] | None = None
+        attestation = None
         if self.attestation is not None:
             attestation = {
                 "provider": self.attestation.provider,
@@ -139,6 +132,7 @@ class HardwareSealResult:
         return {
             "version": self.version,
             "payload_hash": self.payload_digest.to_dict(),
+            "signature_kind": self.signature_kind.value,
             "signature_algorithm": self.signature_algorithm,
             "signature": self.signature.hex(),
             "key": self.key.to_dict(),
@@ -151,7 +145,6 @@ class HardwareSealResult:
 
     @property
     def record_hash(self) -> bytes:
-        """Stable hash of the serialized record metadata."""
         encoded = repr(sorted(self.to_dict().items())).encode("utf-8")
         return hashlib.sha256(encoded).digest()
 
@@ -165,16 +158,12 @@ class VerificationResult:
 
 
 class SealProvider(Protocol):
-    def sign(self, payload: bytes) -> bytes:
-        ...
-
-    def seal(self, payload: bytes) -> HardwareSealResult:
-        ...
+    def sign(self, payload: bytes) -> bytes: ...
+    def seal(self, payload: bytes) -> HardwareSealResult: ...
 
 
 class AttestationProvider(Protocol):
-    def attest(self) -> AttestationEvidence:
-        ...
+    def attest(self) -> AttestationEvidence: ...
 
 
 class SealVerifier(Protocol):
@@ -184,34 +173,20 @@ class SealVerifier(Protocol):
         record: HardwareSealResult,
         *,
         previous_record: HardwareSealResult | None = None,
-    ) -> VerificationResult:
-        ...
+        require_key_possession: bool = False,
+    ) -> VerificationResult: ...
 
 
 class PublicKeyResolver(Protocol):
-    def resolve(self, key: KeyReference) -> bytes | None:
-        ...
+    def resolve(self, key: KeyReference) -> bytes | None: ...
 
 
 class SignatureVerifier(Protocol):
-    def verify(
-        self,
-        payload: bytes,
-        signature: bytes,
-        public_key: bytes,
-        algorithm: str,
-    ) -> bool:
-        ...
+    def verify(self, payload: bytes, signature: bytes, public_key: bytes, algorithm: str) -> bool: ...
 
 
 class AttestationVerifier(Protocol):
-    def verify(
-        self,
-        payload: bytes,
-        record: HardwareSealResult,
-        evidence: AttestationEvidence,
-    ) -> bool:
-        ...
+    def verify(self, payload: bytes, record: HardwareSealResult, evidence: AttestationEvidence) -> bool: ...
 
 
 class VersionedSealVerifier:
@@ -238,27 +213,26 @@ class VersionedSealVerifier:
         record: HardwareSealResult,
         *,
         previous_record: HardwareSealResult | None = None,
+        require_key_possession: bool = False,
     ) -> VerificationResult:
         if record.version not in self._supported_versions:
             return VerificationResult(False, None, SealFailure.RECORD_VERSION_UNSUPPORTED)
-
         if record.payload_digest.algorithm not in self._supported_digests:
             return VerificationResult(False, None, SealFailure.UNSUPPORTED_DIGEST)
-
         if not record.payload_digest.matches(payload):
             return VerificationResult(False, None, SealFailure.DIGEST_MISMATCH)
 
-        public_key = self._keys.resolve(record.key)
-        if public_key is None:
-            return VerificationResult(False, None, SealFailure.UNKNOWN_KEY)
-
-        if not self._signatures.verify(
-            payload,
-            record.signature,
-            public_key,
-            record.signature_algorithm,
-        ):
-            return VerificationResult(False, None, SealFailure.SIGNATURE_INVALID)
+        if record.signature_kind is SignatureKind.DIGEST:
+            if require_key_possession:
+                return VerificationResult(False, None, SealFailure.SIGNATURE_KIND_MISMATCH)
+            if record.strength is not SealStrength.SOFTWARE:
+                return VerificationResult(False, None, SealFailure.STRENGTH_EVIDENCE_MISMATCH)
+        else:
+            public_key = self._keys.resolve(record.key)
+            if public_key is None:
+                return VerificationResult(False, None, SealFailure.UNKNOWN_KEY)
+            if not self._signatures.verify(payload, record.signature, public_key, record.signature_algorithm):
+                return VerificationResult(False, None, SealFailure.SIGNATURE_INVALID)
 
         if previous_record is not None:
             if record.previous_seal != previous_record.record_hash:
@@ -267,26 +241,18 @@ class VersionedSealVerifier:
             return VerificationResult(False, None, SealFailure.CHAIN_LINK_INVALID)
 
         if record.strength is SealStrength.HARDWARE_ATTESTED:
+            if record.signature_kind is not SignatureKind.SIGNATURE:
+                return VerificationResult(False, None, SealFailure.STRENGTH_EVIDENCE_MISMATCH)
             if record.attestation is None:
                 return VerificationResult(False, None, SealFailure.MISSING_ATTESTATION)
-            if self._attestations is None or not self._attestations.verify(
-                payload, record, record.attestation
-            ):
+            if self._attestations is None or not self._attestations.verify(payload, record, record.attestation):
                 return VerificationResult(False, None, SealFailure.INVALID_ATTESTATION)
-            return VerificationResult(
-                True,
-                SealStrength.HARDWARE_ATTESTED,
-                evidence_source=record.attestation.source,
-            )
+            return VerificationResult(True, SealStrength.HARDWARE_ATTESTED, evidence_source=record.attestation.source)
 
-        if record.strength is SealStrength.HARDWARE_BACKED:
-            if record.attestation is not None:
-                # Optional attestation is not silently promoted. Promotion
-                # requires the record to claim HARDWARE_ATTESTED and pass it.
-                pass
-            return VerificationResult(True, SealStrength.HARDWARE_BACKED, evidence_source=record.key.backend)
+        if record.strength is SealStrength.HARDWARE_BACKED and record.signature_kind is not SignatureKind.SIGNATURE:
+            return VerificationResult(False, None, SealFailure.STRENGTH_EVIDENCE_MISMATCH)
 
-        return VerificationResult(True, SealStrength.SOFTWARE, evidence_source=record.key.backend)
+        return VerificationResult(True, record.strength, evidence_source=record.key.backend)
 
 
 def _parse_timestamp(value: str) -> datetime:
