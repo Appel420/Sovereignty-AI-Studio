@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Run coordination checks on this device with enforced offline isolation.
+"""Run coordination checks on this device without silent execution escalation.
 
 This is not GitHub Actions. It installs nothing, dispatches no hosted runner,
-and runs only repository-local coordination tests. On Linux, local mode re-execs
-inside an unshared network namespace by default; if that isolation is unavailable,
-the run fails before tests execute.
+and runs only repository-local coordination tests. The CI name declares the
+requested governance mode. Hybrid/online names require explicit operation
+metadata and owner mode confirmation, but this runner remains local-only and
+will refuse to execute those modes until an external execution adapter exists.
 
 Usage:
   python3 scripts/run-local-ci.py --ci-name coordination-unit-ci-local
-  python3 scripts/run-local-ci.py --ci-name coordination-unit-ci-local \
-      --offline-enforcement best-effort
+  python3 scripts/run-local-ci.py --ci-name coordination-unit-ci-hybrid \
+      --confirm-mode hybrid --destination example --scope coordination --why validation
 """
 from __future__ import annotations
 
@@ -44,11 +45,29 @@ LOCAL_ENV = {
 
 
 def parse_mode_from_name(ci_name: str) -> str:
-    """Return the explicit mode suffix; names without one fail closed."""
+    """Return the explicit governance mode; names without one fail closed."""
     for mode in ("local", "hybrid", "online"):
         if ci_name.endswith(f"-ci-{mode}") or ci_name.endswith(f"-{mode}"):
             return mode
     raise ValueError("ci-name must end with -ci-local, -ci-hybrid, or -ci-online")
+
+
+def validate_external_metadata(
+    *, mode: str, confirm_mode: str, destination: str, scope: str, why: str
+) -> list[str]:
+    """Return missing explicit authorization metadata for external modes."""
+    if mode == "local":
+        return []
+    missing: list[str] = []
+    if confirm_mode != mode:
+        missing.append(f"--confirm-mode {mode}")
+    if not destination.strip():
+        missing.append("--destination")
+    if not scope.strip():
+        missing.append("--scope")
+    if not why.strip():
+        missing.append("--why")
+    return missing
 
 
 def command_output(command: list[str]) -> str:
@@ -117,7 +136,11 @@ def reexec_in_network_namespace(args: argparse.Namespace) -> int | None:
 def build_stamp(
     *,
     ci_name: str,
+    mode: str,
     why: str,
+    action: str,
+    destination: str,
+    scope: str,
     started: datetime,
     results: list[dict[str, Any]],
     isolation: str,
@@ -126,8 +149,11 @@ def build_stamp(
     completed = datetime.now(timezone.utc)
     return {
         "ci_name": ci_name,
-        "ci_mode": "local",
-        "route": "device-offline",
+        "ci_mode": mode,
+        "route": "device-offline" if mode == "local" else mode,
+        "action": action,
+        "destination": destination,
+        "scope": scope,
         "branch": command_output(["git", "branch", "--show-current"]),
         "commit": command_output(["git", "rev-parse", "HEAD"]),
         "started_at": started.isoformat(),
@@ -135,23 +161,29 @@ def build_stamp(
         "why": why,
         "status": "FAIL" if failed else "PASS",
         "results": results,
+        "external_execution": False,
         "scar": {
             "event_type": "LOCAL_CI_COMPLETED",
             "event_class": "verification",
             "metadata": {
-                "mode": "local",
+                "mode": mode,
                 "network": "isolated" if isolation == "network-namespace" else "not-enforced",
                 "package_install": "disabled",
                 "provider_calls": "disabled",
+                "external_execution": False,
             },
         },
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Device-local, offline coordination CI")
+    parser = argparse.ArgumentParser(description="Device-local, governance-aware coordination CI")
     parser.add_argument("--ci-name", default="coordination-unit-ci-local")
+    parser.add_argument("--confirm-mode", choices=("", "hybrid", "online"), default="")
     parser.add_argument("--why", default="offline coordination validation")
+    parser.add_argument("--action", default="local-validation")
+    parser.add_argument("--destination", default="")
+    parser.add_argument("--scope", default="")
     parser.add_argument(
         "--offline-enforcement",
         choices=("required", "best-effort", "none"),
@@ -164,8 +196,26 @@ def main() -> int:
         mode = parse_mode_from_name(args.ci_name)
     except ValueError as error:
         parser.error(str(error))
+
+    missing = validate_external_metadata(
+        mode=mode,
+        confirm_mode=args.confirm_mode,
+        destination=args.destination,
+        scope=args.scope,
+        why=args.why,
+    )
+    if missing:
+        print(
+            f"BLOCKED: {mode} requires explicit operation metadata: {', '.join(missing)}",
+            file=sys.stderr,
+        )
+        return 2
     if mode != "local":
-        print("BLOCKED: this runner implements device-local mode only", file=sys.stderr)
+        print(
+            f"BLOCKED: {mode} metadata is recorded for governance, but this runner implements "
+            "device-local execution only; no external adapter is authorized here.",
+            file=sys.stderr,
+        )
         return 2
 
     isolated = reexec_in_network_namespace(args)
@@ -194,7 +244,11 @@ def main() -> int:
     results = [{"suite": "coordination", "exit": process.returncode, "tests": len(test_files)}]
     stamp = build_stamp(
         ci_name=args.ci_name,
+        mode=mode,
         why=args.why,
+        action=args.action,
+        destination=args.destination,
+        scope=args.scope,
         started=started,
         results=results,
         isolation="network-namespace",
