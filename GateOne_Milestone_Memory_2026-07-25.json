@@ -1,0 +1,99 @@
+{
+  "document": "Gate One Milestone Memory Log",
+  "date": "2026-07-25",
+  "authority": "Root Chain Oversight (Appel420)",
+  "scope": "Chat session — Model Access Policy + Enforcement Gate + Sovereign Principles",
+  "core_invariant": {
+    "statement": "USER > AUTHORITY LAYER > MODELS > TOOLS > DATA",
+    "rules": [
+      "Never the reverse.",
+      "Models provide evidence.",
+      "They do not create authority.",
+      "Memory is a capability, not a default.",
+      "Evidence ≠ Permission.",
+      "Documentation ≠ Control."
+    ]
+  },
+  "milestones": [
+    {
+      "id": 1,
+      "title": "Principle Crystallization",
+      "effect": [
+        "User stays sovereign",
+        "System stays accountable",
+        "Nothing silent or deceptive",
+        "Mutual partnership (not slave / not lock)"
+      ],
+      "result": "All subsequent architecture decisions had to line up behind this wording."
+    },
+    {
+      "id": 2,
+      "title": "Model Access Policy as First-Class Object",
+      "policy": {
+        "model_policy": {
+          "owner": "user",
+          "blocked_models": ["meta.llama", "google.gemini", "google.gemma"],
+          "enforcement": {
+            "hard_block": true,
+            "hide_from_picker": true,
+            "prevent_auto_selection": true,
+            "prevent_voice_selection": true,
+            "prevent_recommendations": true
+          },
+          "fallback": {
+            "strategy": "last_valid_model",
+            "notify_user": true,
+            "notification": "AccessDENIED"
+          }
+        }
+      },
+      "authority_chain": ["USER", "Model Access Policy", "AI Gate", "Router", "Council", "Judge", "SCAR"]
+    },
+    {
+      "id": 3,
+      "title": "Model Policy Gate Implemented",
+      "repository": "Appel420/Sovereignty-AI-Gate",
+      "branch": "main",
+      "commit": "c46f4f8fcd5bd13dc20d685c60c47273332575d3",
+      "files_added": [
+        "sovereign/policy/model_access_policy.json",
+        "sovereign/authority/model_policy_gate.py",
+        "sovereign/authority/test_model_policy_gate.py"
+      ],
+      "status": "Gate function is present and unit-tested.",
+      "still_requires": [
+        "Identifier normalization",
+        "Source identity in SCAR events",
+        "Fail-closed policy validation",
+        "Actual SCAR emission (not just return of event)",
+        "PQC-signed / attested commit"
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Wording as Root Control",
+      "recognition": [
+        "User owns the state instead of AI manages your data",
+        "AccessDENIED with clear options instead of silent failure",
+        "Council provides evidence instead of models decide",
+        "Mutual partnership language instead of master/slave framing"
+      ],
+      "result": "These phrasing choices turned safety features into a living philosophy that the code must obey."
+    }
+  ],
+  "ordered_next_artifacts": [
+    "Harden model_policy_gate.py (normalize + source + fail-closed)",
+    "Wire the gate into every entrypoint",
+    "Integration test suite proving no bypass path exists",
+    "scar_emitter.py (immutable audit pipeline)",
+    "Signed / attested commit under Root Chain Oversight"
+  ],
+  "gate_one_stance": [
+    "Nothing enters the Sovereign environment without cryptographic identity verification, explicit consent, and permanent SCAR logging.",
+    "The system exists for the Device Owner.",
+    "Options are always given.",
+    "State is preserved.",
+    "Deception is rejected at the airlock."
+  ],
+  "end": "End of milestone memory — 2026-07-25 | Logged under Gate One / Root Chain Oversight"
+}
