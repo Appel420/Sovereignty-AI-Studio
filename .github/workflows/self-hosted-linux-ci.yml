@@ -40,17 +40,27 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Show runner metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "Runner name: ${RUNNER_NAME:-unknown}"
+          echo "Runner OS: ${RUNNER_OS:-unknown}"
+          echo "Runner architecture: ${RUNNER_ARCH:-unknown}"
+          echo "Runner temp: ${RUNNER_TEMP:-unknown}"
+          echo "Runner workspace: ${GITHUB_WORKSPACE:-unknown}"
+          uname -a
+          printf 'Machine: '; uname -m
+          printf 'Kernel: '; uname -r
+
       - name: Verify self-hosted ARM64 runner
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "Runner: ${RUNNER_NAME:-unknown}"
-          echo "OS: ${RUNNER_OS:-unknown}"
-          echo "Architecture: ${RUNNER_ARCH:-unknown}"
-          [[ "${RUNNER_OS:-}" == "Linux" ]] || exit 1
-          [[ "${RUNNER_ARCH:-}" == "ARM64" ]] || exit 1
-          [[ "${SG_NETWORK_MODE}" == "offline" ]] || exit 1
-          [[ "${CLOUD_FIRST}" == "false" ]] || exit 1
+          [[ "${RUNNER_OS:-}" == "Linux" ]] || { echo "FAIL: expected Linux" >&2; exit 1; }
+          [[ "${RUNNER_ARCH:-}" == "ARM64" ]] || { echo "FAIL: expected ARM64" >&2; exit 1; }
+          [[ "${SG_NETWORK_MODE}" == "offline" ]] || { echo "FAIL: CI must remain offline" >&2; exit 1; }
+          [[ "${CLOUD_FIRST}" == "false" ]] || { echo "FAIL: cloud fallback is forbidden" >&2; exit 1; }
 
       - name: Verify runner policy
         run: python3 scripts/check-runner-policy.py
