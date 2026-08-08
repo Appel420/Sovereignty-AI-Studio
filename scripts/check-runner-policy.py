@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(".github/workflows")
-REQUIRED = ("self-hosted", "Linux", "ARM64")
+REQUIRED = ("self-hosted Linux arm64",)
 
 
 def _runs_on_values(text: str) -> list[tuple[str, ...]]:
@@ -51,8 +51,7 @@ def main() -> int:
     checked = 0
     for path in sorted(ROOT.glob("*.y*ml")):
         for labels in _runs_on_values(path.read_text(encoding="utf-8")):
-            # Hosted workflows are independent of the self-hosted policy.
-            if "self-hosted" not in labels:
+            if "self-hosted" not in labels and labels != REQUIRED:
                 continue
             checked += 1
             if labels != REQUIRED:
@@ -64,7 +63,7 @@ def main() -> int:
         print("\n".join(invalid), file=sys.stderr)
         return 1
 
-    print(f"Validated {checked} self-hosted workflow runner declaration(s): self-hosted, Linux, ARM64.")
+    print(f"Validated {checked} self-hosted workflow runner declaration(s): self-hosted Linux arm64.")
     return 0
 
 
