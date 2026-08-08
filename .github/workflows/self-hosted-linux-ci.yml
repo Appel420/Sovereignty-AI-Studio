@@ -1,10 +1,6 @@
-name: Linux ARM64 CI
+name: GitHub Hosted ARM64 CI
 
 on:
-  push:
-    branches: [ main, Collaboration ]
-  pull_request:
-    branches: [ main, Collaboration ]
   workflow_dispatch:
 
 permissions:
