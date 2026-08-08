@@ -17,10 +17,7 @@ concurrency:
 jobs:
   test:
     name: Core tests on self-hosted Linux ARM64
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
     env:
       SG_NETWORK_MODE: offline
