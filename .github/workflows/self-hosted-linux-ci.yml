@@ -1,10 +1,10 @@
 name: Linux ARM64 CI
 
+# Manual diagnostic workflow only.
+# Canonical validation remains local/offline via scripts/local-ci.sh
+# or scripts/offline-runner.sh. Automatic branch events are disabled
+# so local development is not blocked by Actions startup failures.
 on:
-  push:
-    branches: [ main, Collaboration ]
-  pull_request:
-    branches: [ main, Collaboration ]
   workflow_dispatch:
 
 permissions:
