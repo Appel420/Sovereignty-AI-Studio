@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+from datetime import datetime, timezone
 from pathlib import Path
 
 SCRIPT = Path(__file__).parents[1] / "scripts" / "run-local-ci.py"
@@ -27,6 +28,26 @@ def test_mode_parser_rejects_implicit_or_legacy_modes() -> None:
             raise AssertionError(f"mode must fail closed: {name}")
 
 
+def test_external_modes_require_explicit_operation_metadata() -> None:
+    assert MODULE.validate_external_metadata(
+        mode="hybrid", confirm_mode="", destination="", scope="", why=""
+    ) == ["--confirm-mode hybrid", "--destination", "--scope", "--why"]
+
+    assert MODULE.validate_external_metadata(
+        mode="online",
+        confirm_mode="online",
+        destination="approved-destination",
+        scope="coordination-validation",
+        why="owner-approved validation",
+    ) == []
+
+
+def test_local_mode_requires_no_external_metadata() -> None:
+    assert MODULE.validate_external_metadata(
+        mode="local", confirm_mode="", destination="", scope="", why=""
+    ) == []
+
+
 def test_local_environment_disables_external_execution_defaults() -> None:
     env = MODULE.local_env()
     assert env["SG_NETWORK_MODE"] == "offline"
@@ -41,11 +62,13 @@ def test_local_environment_disables_external_execution_defaults() -> None:
 
 
 def test_build_stamp_contains_governance_metadata() -> None:
-    from datetime import datetime, timezone
-
     stamp = MODULE.build_stamp(
         ci_name="coordination-unit-ci-local",
+        mode="local",
         why="focused governance validation",
+        action="local-validation",
+        destination="",
+        scope="coordination",
         started=datetime.now(timezone.utc),
         results=[{"suite": "coordination", "exit": 0, "tests": 3}],
         isolation="network-namespace",
@@ -53,22 +76,29 @@ def test_build_stamp_contains_governance_metadata() -> None:
 
     assert stamp["ci_mode"] == "local"
     assert stamp["route"] == "device-offline"
+    assert stamp["action"] == "local-validation"
+    assert stamp["destination"] == ""
+    assert stamp["scope"] == "coordination"
     assert stamp["why"] == "focused governance validation"
     assert stamp["status"] == "PASS"
+    assert stamp["external_execution"] is False
     assert stamp["scar"]["event_type"] == "LOCAL_CI_COMPLETED"
     assert stamp["scar"]["event_class"] == "verification"
     assert stamp["scar"]["metadata"]["mode"] == "local"
     assert stamp["scar"]["metadata"]["network"] == "isolated"
     assert stamp["scar"]["metadata"]["package_install"] == "disabled"
     assert stamp["scar"]["metadata"]["provider_calls"] == "disabled"
+    assert stamp["scar"]["metadata"]["external_execution"] is False
 
 
 def test_build_stamp_fails_when_any_suite_fails() -> None:
-    from datetime import datetime, timezone
-
     stamp = MODULE.build_stamp(
         ci_name="coordination-unit-ci-local",
+        mode="local",
         why="negative governance test",
+        action="local-validation",
+        destination="",
+        scope="coordination",
         started=datetime.now(timezone.utc),
         results=[{"suite": "coordination", "exit": 1, "tests": 3}],
         isolation="network-namespace",
