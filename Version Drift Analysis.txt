@@ -1,0 +1,113 @@
+# Version Drift Analysis
+
+## Independent Control Planes
+
+Automation policy and runtime mode are separate control planes. A change to one MUST NOT implicitly change the other.
+
+```text
+Automation Policy
+-----------------
+Automatic PR trigger
+Local CI
+GitHub Actions
+PQC validation jobs
+
+          ||
+
+Runtime Mode
+------------
+LOCAL
+OFFLINE
+GHOST
+PQC
+HYBRID
+ONLINE
+```
+
+## CI Policy
+
+CI policy describes how validation is initiated, not how the runtime behaves.
+
+```json
+{
+  "ci": {
+    "automatic_pr_trigger": "DISABLED",
+    "local_runner": "AVAILABLE",
+    "github_actions": "MANUAL",
+    "pqc_validation": "MANUAL"
+  }
+}
+```
+
+## Runtime Policy
+
+Runtime state is derived from active configuration rather than inferred from CI settings.
+
+```json
+{
+  "runtime": {
+    "mode": "GHOST",
+    "transport": "LOOPBACK",
+    "bridge": "AVAILABLE",
+    "online_mode": "AVAILABLE_POLICY_GATED",
+    "pqc_assurance": "AVAILABLE"
+  }
+}
+```
+
+## PQC Reporting
+
+Availability and execution are distinct:
+
+```text
+Capability:
+    PQC assurance available
+
+Provider:
+    Native provider installed?
+        YES → usable
+        NO  → unavailable
+
+Validation:
+    Manual gate
+```
+
+If the native provider is absent, status MUST be reported accurately as `SKIPPED (provider unavailable)`, not passed or silently disabled.
+
+## Dashboard Ownership
+
+```text
+SYSTEM
+
+Runtime Mode:
+  GHOST
+
+Transport:
+  LOOPBACK
+
+Bridge:
+  READY
+
+Online:
+  POLICY GATED
+
+PQC:
+  AVAILABLE
+
+
+CI
+
+Automatic PR:
+  DISABLED
+
+Local Runner:
+  AVAILABLE
+
+GitHub Actions:
+  MANUAL
+
+PQC Validation:
+  MANUAL
+```
+
+The dashboard must distinguish how the application is operating from how validation pipelines are configured.
