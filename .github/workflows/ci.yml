@@ -4,13 +4,13 @@ name: CI
 # owner's self-hosted ARM64 runner. No hosted build execution.
 on:
   push:
-    branches: [ dev, main ]
+    branches: [ dev, main, copilot/main, Collaboration ]
     paths-ignore:
       - 'README.md'
       - '.github/workflows/readme-implementation-sync.yml'
   workflow_dispatch:
   pull_request:
-    branches: [ main ]
+    branches: [ main, copilot/main, Collaboration ]
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -18,8 +18,8 @@ concurrency:
 
 jobs:
   build:
-    # Use standard runner labels so GitHub can match a normal ARM64 self-hosted
-    # runner. The previous single custom label could leave jobs permanently queued.
+    # Standard labels match the normal ARM64 self-hosted runner registration.
+    # Do not require the previous custom combined label.
     runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 30
     steps:
