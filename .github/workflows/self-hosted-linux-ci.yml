@@ -1,6 +1,10 @@
-name: GitHub Hosted ARM64 CI
+name: Linux ARM64 CI
 
 on:
+  push:
+    branches: [ main, Collaboration ]
+  pull_request:
+    branches: [ main, Collaboration ]
   workflow_dispatch:
 
 permissions:
@@ -12,16 +16,21 @@ concurrency:
 
 jobs:
   test:
-    name: Core tests on hosted Linux ARM64
-    runs-on: ubuntu-24.04-arm
+    name: Core tests on self-hosted Linux ARM64
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 30
     env:
       SG_NETWORK_MODE: offline
       SG_LOCAL_ONLY: '1'
       SG_EXTERNAL_FEEDS: disabled
       CLOUD_FIRST: 'false'
+      PIP_NO_INDEX: '1'
       PIP_NO_INPUT: '1'
       PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      npm_config_offline: 'true'
       npm_config_audit: 'false'
       npm_config_fund: 'false'
 
@@ -31,40 +40,55 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '24'
-          cache: npm
-          cache-dependency-path: node-bridge/package-lock.json
-
-      - name: Install test dependencies
+      - name: Verify self-hosted ARM64 runner
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --disable-pip-version-check -r .github/workflows/Requirements.txt
-          npm --prefix node-bridge ci --ignore-scripts --prefer-offline
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: ${RUNNER_OS:-unknown}"
+          echo "Architecture: ${RUNNER_ARCH:-unknown}"
+          [[ "${RUNNER_OS:-}" == "Linux" ]] || exit 1
+          [[ "${RUNNER_ARCH:-}" == "ARM64" ]] || exit 1
+          [[ "${SG_NETWORK_MODE}" == "offline" ]] || exit 1
+          [[ "${CLOUD_FIRST}" == "false" ]] || exit 1
 
-      - name: Verify hosted ARM64 runner
+      - name: Verify runner policy
+        run: python3 scripts/check-runner-policy.py
+
+      - name: Verify pre-provisioned local runtimes
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "Runner: ${RUNNER_NAME}"
-          echo "OS: ${RUNNER_OS}"
-          echo "Architecture: ${RUNNER_ARCH}"
-          [[ "${RUNNER_OS}" == "Linux" ]] || exit 1
-          [[ "${RUNNER_ARCH}" == "ARM64" ]] || exit 1
+          python3 --version
+          node --version
+          npm --version
+          python3 - <<'PY'
+          import sys
+          if sys.version_info < (3, 13):
+              raise SystemExit('Python 3.13 or newer is required on the self-hosted runner')
+          PY
+          node -e "if (Number(process.versions.node.split('.')[0]) < 24) process.exit(1)"
+          [[ -d node-bridge/node_modules ]] || {
+            echo "FAIL: node-bridge/node_modules is missing. Provision dependencies locally; CI will not download them." >&2
+            exit 1
+          }
+
+      - name: Verify runtime coherence
+        run: python3 scripts/validate-runtime-coherence.py
+
+      - name: Run canonical local CI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          LOCAL_CI_FOCUSED_ONLY=1 bash scripts/local-ci.sh
 
       - name: Run Python tests
         env:
           PYTHONPATH: ${{ github.workspace }}/src:${{ github.workspace }}:${{ github.workspace }}/backend
         run: python -m pytest -q
+
+      - name: Validate dashboard ownership
+        run: node frontend/scripts/test-sghv119-ownership.js
 
       - name: Check Node bridge syntax
         run: node --check node-bridge/server.js
@@ -72,6 +96,3 @@ jobs:
       - name: Test Node bridge
         working-directory: node-bridge
         run: npm test -- --test-reporter=spec
-
-      - name: Validate dashboard ownership
-        run: node frontend/scripts/test-sghv119-ownership.js
