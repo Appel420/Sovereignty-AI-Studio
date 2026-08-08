@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Local-first Model Context Protocol server for Sovereignty AI Studio.
-
-The server speaks JSON-RPC 2.0 over stdio. It intentionally exposes no
-credential, shell, or unrestricted network tools. Hybrid and online modes are
-configuration states only; operators must explicitly enable integrations in
-their own bridge deployment.
-"""
-
+"""Local-first, fail-closed MCP server for Sovereignty AI Studio."""
 from __future__ import annotations
 
 import json
@@ -16,36 +9,31 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from backend.mcp.mcp_governance import MCPAuthorityAdapter, OperationRequest
+
 PROTOCOL_VERSION = "2025-03-26"
 MAX_FILE_BYTES = 1_000_000
 MAX_LIST_RESULTS = 200
-VALID_MODES = frozenset({"offline", "hybrid", "online"})
+VALID_MODES = frozenset({"offline", "hybrid", "online", "ghost"})
 REPOSITORY_ROOT = Path(__file__).resolve().parent
+POLICY_PATH = REPOSITORY_ROOT / "mcp_policy.json"
 SENSITIVE_FILE_NAMES = frozenset({".env", ".sg_token_key", ".sg_token_store"})
 SENSITIVE_FILE_SUFFIXES = frozenset({".key", ".pem", ".p12", ".pfx"})
 
 
 class WorkspaceAnalysisHelper:
-    """Run bounded, read-only syntax and hygiene checks for one workspace file."""
-
     def analyze(self, file_path: Path, relative_path: str) -> dict[str, Any]:
         source = file_path.read_text("utf-8")
         diagnostics = self._syntax_diagnostics(source, file_path.suffix, relative_path)
         diagnostics.extend(self._cleanup_diagnostics(source, file_path.suffix, relative_path))
-        return {
-            "path": relative_path,
-            "language": self._language_name(file_path.suffix),
-            "diagnostics": diagnostics,
-            "writeAccess": "disabled; review and apply fixes explicitly in the agent branch",
-        }
+        return {"path": relative_path, "language": self._language_name(file_path.suffix), "diagnostics": diagnostics,
+                "writeAccess": "disabled; review and apply fixes explicitly in the agent branch"}
 
     @staticmethod
     def _language_name(suffix: str) -> str:
         return {".py": "python", ".json": "json"}.get(suffix.lower(), "text")
 
-    def _syntax_diagnostics(
-        self, source: str, suffix: str, relative_path: str
-    ) -> list[dict[str, Any]]:
+    def _syntax_diagnostics(self, source: str, suffix: str, relative_path: str) -> list[dict[str, Any]]:
         try:
             if suffix.lower() == ".py":
                 compile(source, relative_path, "exec")
@@ -54,84 +42,59 @@ class WorkspaceAnalysisHelper:
             else:
                 return []
         except (SyntaxError, json.JSONDecodeError) as error:
-            return [
-                {
-                    "file": relative_path,
-                    "line": error.lineno or 1,
-                    "column": error.offset or 1,
-                    "severity": "error",
-                    "rule": "syntax-error",
-                    "message": error.msg,
-                    "suggestedAction": "Correct the reported syntax before applying any other cleanup.",
-                }
-            ]
+            return [{"file": relative_path, "line": error.lineno or 1, "column": error.offset or 1,
+                     "severity": "error", "rule": "syntax-error", "message": error.msg,
+                     "suggestedAction": "Correct the reported syntax before applying any other cleanup."}]
         return []
 
     @staticmethod
-    def _cleanup_diagnostics(
-        source: str, suffix: str, relative_path: str
-    ) -> list[dict[str, Any]]:
+    def _cleanup_diagnostics(source: str, suffix: str, relative_path: str) -> list[dict[str, Any]]:
         diagnostics: list[dict[str, Any]] = []
         for line_number, line in enumerate(source.splitlines(), start=1):
             if line.rstrip(" \t") != line:
-                diagnostics.append(
-                    {
-                        "file": relative_path,
-                        "line": line_number,
-                        "column": len(line.rstrip(" \t")) + 1,
-                        "severity": "warning",
-                        "rule": "trailing-whitespace",
-                        "message": "Line contains trailing whitespace.",
-                        "suggestedAction": "Remove trailing spaces or tabs.",
-                    }
-                )
+                diagnostics.append({"file": relative_path, "line": line_number,
+                                    "column": len(line.rstrip(" \t")) + 1, "severity": "warning",
+                                    "rule": "trailing-whitespace", "message": "Line contains trailing whitespace.",
+                                    "suggestedAction": "Remove trailing spaces or tabs."})
             if suffix.lower() == ".py" and line.startswith("\t"):
-                diagnostics.append(
-                    {
-                        "file": relative_path,
-                        "line": line_number,
-                        "column": 1,
-                        "severity": "warning",
-                        "rule": "tab-indentation",
-                        "message": "Python indentation starts with a tab.",
-                        "suggestedAction": "Use spaces consistently for Python indentation.",
-                    }
-                )
+                diagnostics.append({"file": relative_path, "line": line_number, "column": 1,
+                                    "severity": "warning", "rule": "tab-indentation",
+                                    "message": "Python indentation starts with a tab.",
+                                    "suggestedAction": "Use spaces consistently for Python indentation."})
         return diagnostics
 
 
 class SovereignMCPServer:
-    """A bounded, credential-free MCP tool provider."""
+    """Bounded read-only MCP provider with an explicit authority boundary."""
 
-    def __init__(self, workspace: Path | None = None, mode: str | None = None) -> None:
-        requested_workspace = workspace or Path(
-            os.environ.get("SG_MCP_WORKSPACE", REPOSITORY_ROOT)
-        )
+    def __init__(self, workspace: Path | None = None, mode: str | None = None,
+                 identity_id: str | None = None, policy: dict[str, Any] | None = None) -> None:
+        requested_workspace = workspace or Path(os.environ.get("SG_MCP_WORKSPACE", REPOSITORY_ROOT))
         self.workspace = requested_workspace.resolve()
         requested_mode = mode or os.environ.get("SG_MCP_MODE", "offline")
         self.mode = requested_mode if requested_mode in VALID_MODES else "offline"
+        self.identity_id = identity_id or os.environ.get("SG_MCP_IDENTITY", "")
+        self.policy = policy if policy is not None else self._load_policy()
+        self.authority = MCPAuthorityAdapter(self.policy)
+
+    @staticmethod
+    def _load_policy() -> dict[str, Any]:
+        try:
+            return json.loads(POLICY_PATH.read_text("utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {"version": "missing", "capabilities": {}}
 
     def handle(self, request: dict[str, Any]) -> dict[str, Any] | None:
-        """Handle one JSON-RPC request, returning None for notifications."""
         method = request.get("method")
         request_id = request.get("id")
-
-        if not isinstance(method, str):
+        if not isinstance(method, str) or request.get("jsonrpc") != "2.0":
             return self._error(request_id, -32600, "Invalid Request")
-        if request.get("jsonrpc") != "2.0":
-            return self._error(request_id, -32600, "JSON-RPC version must be 2.0")
-
         if method == "notifications/initialized":
             return None
         if method == "initialize":
-            return self._result(
-                request_id,
-                {
-                    "protocolVersion": PROTOCOL_VERSION,
-                    "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "sovereignty-ai-studio", "version": "1.0.0"},
-                },
-            )
+            return self._result(request_id, {"protocolVersion": PROTOCOL_VERSION,
+                                             "capabilities": {"tools": {"listChanged": False}},
+                                             "serverInfo": {"name": "sovereignty-ai-studio", "version": "1.1.0"}})
         if method == "tools/list":
             return self._result(request_id, {"tools": self._tools()})
         if method == "tools/call":
@@ -143,68 +106,16 @@ class SovereignMCPServer:
 
     def _tools(self) -> list[dict[str, Any]]:
         return [
-            {
-                "name": "sovereignty_status",
-                "description": "Report the local MCP server mode and its security boundaries.",
-                "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
-            },
-            {
-                "name": "workspace_list",
-                "description": "List non-hidden files below the configured local workspace.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Optional relative directory within the workspace.",
-                        }
-                    },
-                    "additionalProperties": False,
-                },
-            },
-            {
-                "name": "workspace_read",
-                "description": "Read a UTF-8 text file below the configured local workspace.",
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Required relative file path within the workspace.",
-                        }
-                    },
-                    "required": ["path"],
-                    "additionalProperties": False,
-                },
-            },
-            {
-                "name": "workspace_analyze",
-                "description": (
-                    "Read-only local syntax and cleanup analysis for one Python or JSON file. "
-                    "It never modifies files or invokes a shell."
-                ),
-                "inputSchema": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Required relative Python or JSON file path within the workspace.",
-                        }
-                    },
-                    "required": ["path"],
-                    "additionalProperties": False,
-                },
-            },
-            {
-                "name": "workspace_repo_status",
-                "description": (
-                    "Return the current Git branch, last commit hash, and working-tree change "
-                    "counts (staged, unstaged, untracked) for the configured local workspace. "
-                    "Read-only — no shell access is exposed; git is invoked with fixed arguments "
-                    "and no user-controlled input."
-                ),
-                "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
-            },
+            {"name": "sovereignty_status", "description": "Report local MCP security boundaries.",
+             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
+            {"name": "workspace_list", "description": "List non-hidden files below the configured local workspace.",
+             "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "additionalProperties": False}},
+            {"name": "workspace_read", "description": "Read a UTF-8 text file below the configured local workspace.",
+             "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": False}},
+            {"name": "workspace_analyze", "description": "Read-only local syntax and cleanup analysis.",
+             "inputSchema": {"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"], "additionalProperties": False}},
+            {"name": "workspace_repo_status", "description": "Return read-only Git status metadata.",
+             "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False}},
         ]
 
     def _call_tool(self, request_id: Any, params: dict[str, Any]) -> dict[str, Any]:
@@ -213,16 +124,29 @@ class SovereignMCPServer:
         if not isinstance(name, str) or not isinstance(arguments, dict):
             return self._error(request_id, -32602, "Tool name must be a string and arguments an object")
 
+        operation = name
+        op_request = OperationRequest(
+            request_id=str(request_id) if request_id is not None else "",
+            identity_id=self.identity_id,
+            capability_id=name,
+            operation=operation,
+            mode=self.mode,
+            workspace=str(self.workspace),
+        )
+        decision = self.authority.authorize(op_request)
+        if decision.decision != "ALLOW":
+            return self._result(request_id, {"content": [{"type": "text", "text": json.dumps({
+                "error": "authorization_denied", "decision": decision.decision,
+                "request_id": decision.request_id, "reason": decision.reason,
+                "policy_version": decision.policy_version}, sort_keys=True)}], "isError": True})
+
         try:
             if name == "sovereignty_status":
                 self._validate_arguments(arguments, set())
-                payload = {
-                    "mode": self.mode,
-                    "workspace": str(self.workspace),
-                    "network": "disabled by this MCP server",
-                    "credentials": "not accepted, stored, or transmitted",
-                    "writes": "disabled; this server only proposes diagnostics",
-                }
+                payload = {"mode": self.mode, "workspace": str(self.workspace),
+                           "network": "disabled by this MCP server",
+                           "credentials": "not accepted, stored, or transmitted",
+                           "writes": "disabled; this server only proposes diagnostics"}
             elif name == "workspace_list":
                 self._validate_arguments(arguments, {"path"})
                 payload = self._list_workspace(arguments.get("path", ""))
@@ -238,20 +162,11 @@ class SovereignMCPServer:
             else:
                 return self._error(request_id, -32602, f"Unknown tool: {name}")
         except (OSError, ValueError) as error:
-            return self._result(
-                request_id,
-                {"content": [{"type": "text", "text": str(error)}], "isError": True},
-            )
-
-        return self._result(
-            request_id,
-            {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]},
-        )
+            return self._result(request_id, {"content": [{"type": "text", "text": str(error)}], "isError": True})
+        return self._result(request_id, {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]})
 
     @staticmethod
-    def _validate_arguments(
-        arguments: dict[str, Any], allowed: set[str], required: set[str] | None = None
-    ) -> None:
+    def _validate_arguments(arguments: dict[str, Any], allowed: set[str], required: set[str] | None = None) -> None:
         unexpected = set(arguments).difference(allowed)
         if unexpected:
             raise ValueError(f"Unsupported tool arguments: {', '.join(sorted(unexpected))}")
@@ -274,16 +189,12 @@ class SovereignMCPServer:
 
     @staticmethod
     def _is_restricted_path(relative_path: Path) -> bool:
-        return any(part.startswith(".") for part in relative_path.parts) or (
-            relative_path.name.lower() in SENSITIVE_FILE_NAMES
-            or relative_path.suffix.lower() in SENSITIVE_FILE_SUFFIXES
-        )
+        return any(part.startswith(".") for part in relative_path.parts) or relative_path.name.lower() in SENSITIVE_FILE_NAMES or relative_path.suffix.lower() in SENSITIVE_FILE_SUFFIXES
 
     def _list_workspace(self, relative_path: Any) -> dict[str, Any]:
         directory = self.workspace if relative_path == "" else self._resolve_workspace_path(relative_path)
         if not directory.is_dir():
             raise ValueError("Path is not a directory")
-
         files: list[str] = []
         for item in directory.rglob("*"):
             if len(files) >= MAX_LIST_RESULTS:
@@ -309,61 +220,25 @@ class SovereignMCPServer:
             raise ValueError("Path is not a file")
         if file_path.stat().st_size > MAX_FILE_BYTES:
             raise ValueError(f"File exceeds {MAX_FILE_BYTES} byte analysis limit")
-        return WorkspaceAnalysisHelper().analyze(
-            file_path, str(file_path.relative_to(self.workspace))
-        )
+        return WorkspaceAnalysisHelper().analyze(file_path, str(file_path.relative_to(self.workspace)))
 
     def _repo_status(self) -> dict[str, Any]:
-        """Return Git branch, commit, and working-tree status for the workspace.
-
-        Each git invocation uses a fixed argv list — no user-controlled data is
-        interpolated into the command or passed through a shell.  ``shell=False``
-        is the subprocess default and is preserved here.
-        """
-
         def _run(*args: str) -> str:
             try:
-                result = subprocess.run(
-                    ["git", "-C", str(self.workspace), *args],
-                    capture_output=True,
-                    text=True,
-                    timeout=5,
-                    check=False,
-                )
+                result = subprocess.run(["git", "-C", str(self.workspace), *args], capture_output=True, text=True, timeout=5, check=False)
                 return result.stdout.strip()
             except (OSError, subprocess.TimeoutExpired):
                 return ""
-
         branch = _run("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
         commit_full = _run("log", "--format=%H", "-1")
-        commit = commit_full[:16] if commit_full else "unknown"
         porcelain = _run("status", "--porcelain")
-
-        staged: list[str] = []
-        unstaged: list[str] = []
-        untracked: list[str] = []
-        for line in porcelain.splitlines():
-            if len(line) < 2:
-                continue
-            xy = line[:2]
-            path = line[3:]
-            if xy[0] not in (" ", "?", "!"):
-                staged.append(path)
-            if xy[1] not in (" ", "?", "!"):
-                unstaged.append(path)
-            if xy == "??":
-                untracked.append(path)
-
-        return {
-            "branch": branch,
-            "commit": commit,
-            "staged_count": len(staged),
-            "unstaged_count": len(unstaged),
-            "untracked_count": len(untracked),
-            "clean": not (staged or unstaged or untracked),
-            "workspace": str(self.workspace),
-            "shell_access": "disabled; git is invoked with fixed read-only arguments only",
-        }
+        staged = [line for line in porcelain.splitlines() if len(line) >= 2 and line[0] not in (" ", "?", "!")]
+        unstaged = [line for line in porcelain.splitlines() if len(line) >= 2 and line[1] not in (" ", "?", "!")]
+        untracked = [line for line in porcelain.splitlines() if line.startswith("??")]
+        return {"branch": branch, "commit": commit_full[:16] if commit_full else "unknown",
+                "staged_count": len(staged), "unstaged_count": len(unstaged), "untracked_count": len(untracked),
+                "clean": not (staged or unstaged or untracked), "workspace": str(self.workspace),
+                "shell_access": "disabled; git is invoked with fixed read-only arguments only"}
 
     @staticmethod
     def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
@@ -375,7 +250,6 @@ class SovereignMCPServer:
 
 
 def main() -> None:
-    """Run the newline-delimited stdio MCP transport."""
     server = SovereignMCPServer()
     for line in sys.stdin:
         try:
