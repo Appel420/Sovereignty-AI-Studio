@@ -1,5 +1,5 @@
 {
-  "version": "1.4.0",
+  "version": "1.4.1",
   "applies_to": [
     "ara",
     "grok",
@@ -19,6 +19,8 @@
   "pull_request_hosted_dependencies": false,
   "required_runner": ["self-hosted Linux arm64"],
   "fail_closed": true,
+  "fail_closed_scope": "unauthorized_external_or_cloud_execution_only",
+  "local_execution_must_remain_available": true,
   "delete_nothing": true,
   "network_mode": "offline",
   "local_only": true,
@@ -67,7 +69,10 @@
     "no cloud agent"
   ],
   "blocked_response": {
-    "format": "BLOCKED\nfile: <path>\nreason: <one line>"
+    "format": "BLOCKED\\nfile: <path>\\nreason: <one line>",
+    "must_not_prevent_local_execution": true,
+    "must_not_disable_dashboard": true,
+    "must_not_disable_local_ci": true
   },
-  "rule": "Local first. Never use cloud first. Never run hosted dependency checks for pull requests."
+  "rule": "Local first. Never use cloud first. Never run hosted dependency checks for pull requests. Block only unauthorized external or cloud execution; never block the canonical local dashboard or local CI."
 }
