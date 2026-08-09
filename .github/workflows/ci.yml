@@ -1,9 +1,11 @@
 name: CI
 
-# Hybrid CI: self-hosted ARM64 is the primary path. A GitHub-hosted fallback
-# runs only when the self-hosted job starts and fails. GitHub Actions cannot
-# automatically replace a job that is still queued because no self-hosted
-# runner is available.
+# Hybrid CI policy:
+# - Primary execution stays on the owner's self-hosted Linux ARM64 runner.
+# - The runner label is expressed as three labels, not one combined label.
+# - This workflow is non-blocking so an unavailable local runner cannot block PRs.
+# - A completely offline self-hosted runner remains queued; GitHub Actions cannot
+#   fail over a queued job inside the same workflow without a hosted controller.
 on:
   push:
   pull_request:
@@ -18,10 +20,10 @@ permissions:
 
 jobs:
   self-hosted:
-    name: Primary self-hosted ARM64 CI
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 30
+    name: Primary self-hosted Linux ARM64 CI
+    runs-on: [self-hosted, Linux, arm64]
     continue-on-error: true
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -29,6 +31,15 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Verify runner identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          test "$(uname -m)" = "aarch64"
+          echo "Verified self-hosted Linux ARM64 runner: ${RUNNER_NAME}"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -39,57 +50,50 @@ jobs:
 
       - name: Install test and lint dependencies
         run: |
-          python -m pip install --upgrade pip || true
-          python -m pip install -e ".[test,lint]" || true
-          python -m pip install pytest ruff mypy || true
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[test,lint]"
 
       - name: Lint
-        run: ruff check sovereign/ || true
+        run: ruff check sovereign/
 
       - name: Type check
-        run: mypy sovereign/ || true
+        run: mypy sovereign/
 
       - name: Test
-        run: pytest -q || true
+        run: pytest -q
 
-      - name: Self-hosted execution summary
+      - name: Create CI manifest
         if: always()
         run: |
-          echo "Primary execution used the self-hosted Linux ARM64 runner."
-          echo "CI checks are informational and non-blocking."
+          python3 - <<'PY'
+          import json, time
+          manifest = {
+              "workflow": "CI",
+              "run_id": "${{ github.run_id }}",
+              "run_number": "${{ github.run_number }}",
+              "sha": "${{ github.sha }}",
+              "ref": "${{ github.ref }}",
+              "event": "${{ github.event_name }}",
+              "execution": "self-hosted-linux-arm64",
+              "non_blocking": True,
+              "timestamp": int(time.time()),
+          }
+          with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
+              json.dump(manifest, fh, indent=2)
+          PY
 
-  github-hosted-fallback:
-    name: GitHub-hosted fallback after primary failure
-    needs: self-hosted
-    if: needs.self-hosted.result == 'failure'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    continue-on-error: true
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Upload CI manifest
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          fetch-depth: 1
-          persist-credentials: false
+          name: ci-build-manifest-${{ github.run_id }}
+          path: ci-build-manifest.json
+          retention-days: 30
+          if-no-files-found: ignore
+        continue-on-error: true
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Run hosted fallback checks
-        run: |
-          python -m pip install --upgrade pip || true
-          python -m pip install -e ".[test,lint]" || true
-          python -m pip install pytest ruff mypy || true
-          ruff check sovereign/ || true
-          mypy sovereign/ || true
-          pytest -q || true
-
-      - name: Fallback execution summary
+      - name: Execution summary
         if: always()
         run: |
-          echo "GitHub-hosted fallback completed."
-          echo "The self-hosted primary runner had started but failed."
-          echo "CI checks are informational and non-blocking."
+          echo "Primary CI path: self-hosted Linux ARM64."
+          echo "The job is non-blocking by policy."
