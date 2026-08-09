@@ -9,11 +9,12 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   greet:
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
-    runs-on: ['self-hosted Linux arm64']
-
+    runs-on: ubuntu-latest
     steps:
-    - name: Send greeting
-      run: echo "Hello ${{ inputs.name }}"
+      - name: Send greeting
+        run: echo "Hello ${{ inputs.name }}"
