@@ -1,0 +1,69 @@
+name: Linux arm64 CI
+
+# Optional local/device lane. The canonical repository CI is .github/workflows/ci.yml.
+# This lane is explicitly local and may remain unavailable when the device is offline.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Local self-hosted Linux arm64 validation
+    runs-on: [self-hosted, Linux, arm64]
+    timeout-minutes: 30
+    env:
+      SG_NETWORK_MODE: offline
+      SG_LOCAL_ONLY: '1'
+      SG_EXTERNAL_FEEDS: disabled
+      CLOUD_FIRST: 'false'
+      PIP_NO_INDEX: '1'
+      PIP_NO_INPUT: '1'
+      PIP_DISABLE_PIP_VERSION_CHECK: '1'
+      npm_config_offline: 'true'
+      npm_config_audit: 'false'
+      npm_config_fund: 'false'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Show runner metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "Runner: ${RUNNER_NAME:-unknown}"
+          echo "OS: ${RUNNER_OS:-unknown}"
+          echo "Architecture: ${RUNNER_ARCH:-unknown}"
+          uname -a
+      - name: Verify local runtime policy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS:-}" = Linux
+          test "${RUNNER_ARCH:-}" = ARM64
+          test "${SG_NETWORK_MODE}" = offline
+          test "${CLOUD_FIRST}" = false
+      - name: Verify runner policy
+        run: python3 scripts/check-runner-policy.py
+      - name: Verify pre-provisioned runtimes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 --version
+          node --version
+          npm --version
+          test -d node-bridge/node_modules
+      - name: Run canonical local CI
+        shell: bash
+        run: LOCAL_CI_FOCUSED_ONLY=1 bash scripts/local-ci.sh
+      - name: Run Python tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src:${{ github.workspace }}:${{ github.workspace }}/backend
+        run: python -m pytest -q
+      - name: Check Node bridge syntax
+        run: node --check node-bridge/server.js
+      - name: Test Node bridge
+        working-directory: node-bridge
+        run: npm test -- --test-reporter=spec
