@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   greet:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux ARM64
     steps:
       - name: Send greeting
         run: echo "Hello ${{ inputs.name }}"
