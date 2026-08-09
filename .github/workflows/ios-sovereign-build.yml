@@ -1,11 +1,11 @@
 name: iOS Sovereign Build (local-first)
 
-# PR runs — workflow kept. Push ara-hardened + manual only.
+# Device-independent validation. Native Xcode compilation remains a separate
+# macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [ ara-hardened ]
+    branches: [ ara-hardened, Collaboration ]
   workflow_dispatch:
-  
 
 env:
   PYTHONPATH: .:./backend
@@ -19,121 +19,32 @@ concurrency:
 
 jobs:
   lightweight-security:
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-
-      - name: Local-only build context manifest (no oqs download)
+      - name: Validate source and generate manifest
         run: |
-          python3 <<'PY'
-          import hashlib, hmac, json, secrets, time
-
-          class LocalCISigner:
-              def __init__(self):
-                  self._sk = secrets.token_bytes(32)
-                  self._pk = hashlib.sha256(self._sk).digest()
-
-              def sign(self, message: bytes) -> bytes:
-                  return hmac.new(self._sk, message, hashlib.sha256).digest()
-
-              def verify(self, message: bytes, signature: bytes) -> bool:
-                  return hmac.compare_digest(self.sign(message), signature)
-
+          python -m compileall -q backend
+          python3 - <<'PY'
+          import json, time
           payload = {
               'node_id': 'ios-build-${{ github.run_id }}',
-              'nonce': str(int(time.time())),
               'timestamp': int(time.time()),
               'build_ref': '${{ github.sha }}',
               'platform': 'iOS',
-              'signing_backend': 'hmac-sha256-ci-local',
-              'pr_trigger': 'paused',
-              'note': 'CI local-only; real ML-DSA-87 is device/offline',
+              'execution': 'github-hosted-validation',
+              'native_xcode_compile': False,
           }
-
-          signer = LocalCISigner()
-          message = json.dumps(payload, sort_keys=True).encode()
-          signature = signer.sign(message)
-          assert signer.verify(message, signature)
-
-          token = {
-              'payload': payload,
-              'signature': signature.hex(),
-              'public_key': signer._pk.hex(),
-              'algorithm': 'HMAC-SHA256-CI-LOCAL',
-          }
-          print(json.dumps(token, indent=2))
-          PY
-
-  build:
-    needs: lightweight-security
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for XcodeGen project definition
-        id: xcodegen
-        run: |
-          if [ -f project.yml ] || [ -f project.yaml ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "No project.yml — skipping XcodeGen/build on this runner"
-          fi
-
-      - name: Note on iOS compile path
-        if: steps.xcodegen.outputs.present == 'true'
-        run: |
-          echo "XcodeGen/xcodebuild require macOS. This job is on self-hosted Linux arm64 per owner policy."
-
-      - name: Create local-only build manifest (no PQC download)
-        run: |
-          python3 <<'PY'
-          import hashlib, hmac, json, secrets, time
-
-          class LocalCISigner:
-              def __init__(self):
-                  self._sk = secrets.token_bytes(32)
-                  self._pk = hashlib.sha256(self._sk).digest()
-
-              def sign(self, message: bytes) -> bytes:
-                  return hmac.new(self._sk, message, hashlib.sha256).digest()
-
-              def verify(self, message: bytes, signature: bytes) -> bool:
-                  return hmac.compare_digest(self.sign(message), signature)
-
-          manifest = {
-              'build_id': '${{ github.run_id }}',
-              'commit': '${{ github.sha }}',
-              'timestamp': int(time.time()),
-              'app': 'StreamStudioApp',
-              'platform': 'iOS',
-              'runner': 'self-hosted Linux arm64',
-              'signing_backend': 'hmac-sha256-ci-local',
-              'pr_trigger': 'paused',
-          }
-
-          signer = LocalCISigner()
-          message = json.dumps(manifest, sort_keys=True).encode()
-          signature = signer.sign(message)
-          assert signer.verify(message, signature)
-
-          manifest['signature'] = signature.hex()
-          manifest['public_key'] = signer._pk.hex()
-
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(manifest, fh, indent=2)
+              json.dump(payload, fh, indent=2)
           PY
-
-      - name: Upload local manifest
-        if: always()
+      - name: Upload validation manifest
         uses: actions/upload-artifact@v4
         with:
-          name: ios-sovereign-build-artifacts
+          name: ios-sovereign-build-artifacts-${{ github.run_id }}
           path: ios-build-manifest.json
-          if-no-files-found: ignore
+          if-no-files-found: error
