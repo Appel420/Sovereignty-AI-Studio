@@ -9,7 +9,12 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from backend.mcp.mcp_governance import MCPAuthorityAdapter, OperationRequest
+from backend.mcp.mcp_governance import (
+    CapabilityRecord,
+    IdentityContext,
+    MCPAuthorityAdapter,
+    OperationRequest,
+)
 
 PROTOCOL_VERSION = "2025-03-26"
 MAX_FILE_BYTES = 1_000_000
@@ -26,8 +31,12 @@ class WorkspaceAnalysisHelper:
         source = file_path.read_text("utf-8")
         diagnostics = self._syntax_diagnostics(source, file_path.suffix, relative_path)
         diagnostics.extend(self._cleanup_diagnostics(source, file_path.suffix, relative_path))
-        return {"path": relative_path, "language": self._language_name(file_path.suffix), "diagnostics": diagnostics,
-                "writeAccess": "disabled; review and apply fixes explicitly in the agent branch"}
+        return {
+            "path": relative_path,
+            "language": self._language_name(file_path.suffix),
+            "diagnostics": diagnostics,
+            "writeAccess": "disabled; review and apply fixes explicitly in the agent branch",
+        }
 
     @staticmethod
     def _language_name(suffix: str) -> str:
@@ -42,9 +51,15 @@ class WorkspaceAnalysisHelper:
             else:
                 return []
         except (SyntaxError, json.JSONDecodeError) as error:
-            return [{"file": relative_path, "line": error.lineno or 1, "column": error.offset or 1,
-                     "severity": "error", "rule": "syntax-error", "message": error.msg,
-                     "suggestedAction": "Correct the reported syntax before applying any other cleanup."}]
+            return [{
+                "file": relative_path,
+                "line": error.lineno or 1,
+                "column": error.offset or 1,
+                "severity": "error",
+                "rule": "syntax-error",
+                "message": error.msg,
+                "suggestedAction": "Correct the reported syntax before applying any other cleanup.",
+            }]
         return []
 
     @staticmethod
@@ -52,28 +67,45 @@ class WorkspaceAnalysisHelper:
         diagnostics: list[dict[str, Any]] = []
         for line_number, line in enumerate(source.splitlines(), start=1):
             if line.rstrip(" \t") != line:
-                diagnostics.append({"file": relative_path, "line": line_number,
-                                    "column": len(line.rstrip(" \t")) + 1, "severity": "warning",
-                                    "rule": "trailing-whitespace", "message": "Line contains trailing whitespace.",
-                                    "suggestedAction": "Remove trailing spaces or tabs."})
+                diagnostics.append({
+                    "file": relative_path,
+                    "line": line_number,
+                    "column": len(line.rstrip(" \t")) + 1,
+                    "severity": "warning",
+                    "rule": "trailing-whitespace",
+                    "message": "Line contains trailing whitespace.",
+                    "suggestedAction": "Remove trailing spaces or tabs.",
+                })
             if suffix.lower() == ".py" and line.startswith("\t"):
-                diagnostics.append({"file": relative_path, "line": line_number, "column": 1,
-                                    "severity": "warning", "rule": "tab-indentation",
-                                    "message": "Python indentation starts with a tab.",
-                                    "suggestedAction": "Use spaces consistently for Python indentation."})
+                diagnostics.append({
+                    "file": relative_path,
+                    "line": line_number,
+                    "column": 1,
+                    "severity": "warning",
+                    "rule": "tab-indentation",
+                    "message": "Python indentation starts with a tab.",
+                    "suggestedAction": "Use spaces consistently for Python indentation.",
+                })
         return diagnostics
 
 
 class SovereignMCPServer:
-    """Bounded read-only MCP provider with an explicit authority boundary."""
+    """Bounded read-only MCP provider with an explicit trusted-session boundary."""
 
-    def __init__(self, workspace: Path | None = None, mode: str | None = None,
-                 identity_id: str | None = None, policy: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        workspace: Path | None = None,
+        mode: str | None = None,
+        identity_context: IdentityContext | None = None,
+        policy: dict[str, Any] | None = None,
+    ) -> None:
         requested_workspace = workspace or Path(os.environ.get("SG_MCP_WORKSPACE", REPOSITORY_ROOT))
         self.workspace = requested_workspace.resolve()
         requested_mode = mode or os.environ.get("SG_MCP_MODE", "offline")
         self.mode = requested_mode if requested_mode in VALID_MODES else "offline"
-        self.identity_id = identity_id or os.environ.get("SG_MCP_IDENTITY", "")
+        # Environment variables are configuration only. They are never accepted
+        # as proof of identity or authority.
+        self.identity_context = identity_context
         self.policy = policy if policy is not None else self._load_policy()
         self.authority = MCPAuthorityAdapter(self.policy)
 
@@ -92,9 +124,11 @@ class SovereignMCPServer:
         if method == "notifications/initialized":
             return None
         if method == "initialize":
-            return self._result(request_id, {"protocolVersion": PROTOCOL_VERSION,
-                                             "capabilities": {"tools": {"listChanged": False}},
-                                             "serverInfo": {"name": "sovereignty-ai-studio", "version": "1.1.0"}})
+            return self._result(request_id, {
+                "protocolVersion": PROTOCOL_VERSION,
+                "capabilities": {"tools": {"listChanged": False}},
+                "serverInfo": {"name": "sovereignty-ai-studio", "version": "1.2.0"},
+            })
         if method == "tools/list":
             return self._result(request_id, {"tools": self._tools()})
         if method == "tools/call":
@@ -124,29 +158,34 @@ class SovereignMCPServer:
         if not isinstance(name, str) or not isinstance(arguments, dict):
             return self._error(request_id, -32602, "Tool name must be a string and arguments an object")
 
+        identity = self.identity_context or IdentityContext(
+            identity_id="",
+            authenticated=False,
+            attestation={},
+        )
         operation = name
         op_request = OperationRequest(
             request_id=str(request_id) if request_id is not None else "",
-            identity_id=self.identity_id,
-            capability_id=name,
+            identity=identity,
+            capability=CapabilityRecord(capability_id=name, active=True),
             operation=operation,
             mode=self.mode,
             workspace=str(self.workspace),
         )
         decision = self.authority.authorize(op_request)
         if decision.decision != "ALLOW":
-            return self._result(request_id, {"content": [{"type": "text", "text": json.dumps({
-                "error": "authorization_denied", "decision": decision.decision,
-                "request_id": decision.request_id, "reason": decision.reason,
-                "policy_version": decision.policy_version}, sort_keys=True)}], "isError": True})
+            return self._authorization_result(request_id, decision)
 
         try:
             if name == "sovereignty_status":
                 self._validate_arguments(arguments, set())
-                payload = {"mode": self.mode, "workspace": str(self.workspace),
-                           "network": "disabled by this MCP server",
-                           "credentials": "not accepted, stored, or transmitted",
-                           "writes": "disabled; this server only proposes diagnostics"}
+                payload = {
+                    "mode": self.mode,
+                    "workspace": str(self.workspace),
+                    "network": "disabled by this MCP server",
+                    "credentials": "not accepted, stored, or transmitted",
+                    "writes": "disabled; this server only proposes diagnostics",
+                }
             elif name == "workspace_list":
                 self._validate_arguments(arguments, {"path"})
                 payload = self._list_workspace(arguments.get("path", ""))
@@ -162,8 +201,39 @@ class SovereignMCPServer:
             else:
                 return self._error(request_id, -32602, f"Unknown tool: {name}")
         except (OSError, ValueError) as error:
+            try:
+                self.authority.audit.record_execution(request=op_request, result="EXECUTION_ERROR")
+            except Exception:
+                return self._authorization_failure(request_id, "audit failure after execution error")
             return self._result(request_id, {"content": [{"type": "text", "text": str(error)}], "isError": True})
+
+        try:
+            self.authority.audit.record_execution(request=op_request, result="SUCCESS")
+        except Exception:
+            return self._authorization_failure(request_id, "audit failure after execution")
         return self._result(request_id, {"content": [{"type": "text", "text": json.dumps(payload, sort_keys=True)}]})
+
+    @staticmethod
+    def _authorization_result(request_id: Any, decision: Any) -> dict[str, Any]:
+        return SovereignMCPServer._result(request_id, {
+            "content": [{"type": "text", "text": json.dumps({
+                "error": "authorization_denied",
+                "decision": decision.decision,
+                "request_id": decision.request_id,
+                "reason": decision.reason,
+                "policy_version": decision.policy_version,
+            }, sort_keys=True)}],
+            "isError": True,
+        })
+
+    @staticmethod
+    def _authorization_failure(request_id: Any, reason: str) -> dict[str, Any]:
+        return SovereignMCPServer._result(request_id, {
+            "content": [{"type": "text", "text": json.dumps({
+                "error": "authorization_boundary_failure", "reason": reason,
+            }, sort_keys=True)}],
+            "isError": True,
+        })
 
     @staticmethod
     def _validate_arguments(arguments: dict[str, Any], allowed: set[str], required: set[str] | None = None) -> None:
@@ -235,10 +305,16 @@ class SovereignMCPServer:
         staged = [line for line in porcelain.splitlines() if len(line) >= 2 and line[0] not in (" ", "?", "!")]
         unstaged = [line for line in porcelain.splitlines() if len(line) >= 2 and line[1] not in (" ", "?", "!")]
         untracked = [line for line in porcelain.splitlines() if line.startswith("??")]
-        return {"branch": branch, "commit": commit_full[:16] if commit_full else "unknown",
-                "staged_count": len(staged), "unstaged_count": len(unstaged), "untracked_count": len(untracked),
-                "clean": not (staged or unstaged or untracked), "workspace": str(self.workspace),
-                "shell_access": "disabled; git is invoked with fixed read-only arguments only"}
+        return {
+            "branch": branch,
+            "commit": commit_full[:16] if commit_full else "unknown",
+            "staged_count": len(staged),
+            "unstaged_count": len(unstaged),
+            "untracked_count": len(untracked),
+            "clean": not (staged or unstaged or untracked),
+            "workspace": str(self.workspace),
+            "shell_access": "disabled; git is invoked with fixed read-only arguments only",
+        }
 
     @staticmethod
     def _result(request_id: Any, result: dict[str, Any]) -> dict[str, Any]:
@@ -250,6 +326,8 @@ class SovereignMCPServer:
 
 
 def main() -> None:
+    # A raw stdio MCP process has no trusted identity context. It therefore
+    # exposes protocol discovery but denies all privileged tools by default.
     server = SovereignMCPServer()
     for line in sys.stdin:
         try:
