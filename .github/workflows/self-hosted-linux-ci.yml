@@ -1,4 +1,4 @@
-name: Linux ARM64 CI
+name: Linux arm64 CI
 
 on:
   push:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   test:
-    name: Core tests on self-hosted Linux ARM64
+    name: Core tests on self-hosted Linux arm64
     runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
     env:
@@ -50,12 +50,12 @@ jobs:
           printf 'Machine: '; uname -m
           printf 'Kernel: '; uname -r
 
-      - name: Verify self-hosted ARM64 runner
+      - name: Verify self-hosted arm64 runner
         shell: bash
         run: |
           set -Eeuo pipefail
           [[ "${RUNNER_OS:-}" == "Linux" ]] || { echo "FAIL: expected Linux" >&2; exit 1; }
-          [[ "${RUNNER_ARCH:-}" == "ARM64" ]] || { echo "FAIL: expected ARM64" >&2; exit 1; }
+          [[ "${RUNNER_ARCH:-}" == "arm64" ]] || { echo "FAIL: expected arm64" >&2; exit 1; }
           [[ "${SG_NETWORK_MODE}" == "offline" ]] || { echo "FAIL: CI must remain offline" >&2; exit 1; }
           [[ "${CLOUD_FIRST}" == "false" ]] || { echo "FAIL: cloud fallback is forbidden" >&2; exit 1; }
 

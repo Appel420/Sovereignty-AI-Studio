@@ -1,4 +1,4 @@
-name: Ara (disabled template)
+name: Ara.yml
 
 on:
   workflow_dispatch:
