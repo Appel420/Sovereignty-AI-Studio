@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from backend.gateone.gateone_policy_adapter import GateOnePolicyAdapter
+from backend.mcp.mcp_governance import IdentityContext
 from backend.mcp.mcp_policy_adapter import MCPPolicyAdapter
 from backend.mcp.policy_engine import PolicyDecision, PolicyEngine
 
@@ -41,6 +42,12 @@ ATTESTATION = {
     "mutation": False,
     "shell": False,
 }
+
+IDENTITY = IdentityContext(
+    identity_id="owner-local",
+    authenticated=True,
+    attestation=ATTESTATION,
+)
 
 
 def test_gateone_denies_external_access_in_ghost_mode() -> None:
@@ -102,18 +109,36 @@ def test_policy_decision_rejects_invalid_state() -> None:
     raise AssertionError("invalid policy decision was accepted")
 
 
-def test_adapter_does_not_invoke_bridge_when_denied() -> None:
+def test_adapter_does_not_invoke_bridge_when_identity_is_missing() -> None:
     called = False
 
     def handler() -> None:
         nonlocal called
         called = True
 
-    adapter = MCPPolicyAdapter(PolicyEngine(POLICY), {"authority_tool": handler})
+    adapter = MCPPolicyAdapter(PolicyEngine(POLICY), {"workspace_read": handler})
     decision, result = adapter.execute(
-        request_id="r4", tool="authority_tool", mode="offline",
-        workspace="/workspace", attestation=ATTESTATION
+        request_id="r4", tool="workspace_read", mode="offline",
+        workspace="/workspace", identity=None,
     )
     assert decision.decision == "DENY"
     assert result is None
     assert called is False
+
+
+def test_adapter_executes_only_for_authenticated_identity() -> None:
+    called = False
+
+    def handler() -> str:
+        nonlocal called
+        called = True
+        return "ok"
+
+    adapter = MCPPolicyAdapter(PolicyEngine(POLICY), {"workspace_read": handler})
+    decision, result = adapter.execute(
+        request_id="r5", tool="workspace_read", mode="offline",
+        workspace="/workspace", identity=IDENTITY,
+    )
+    assert decision.decision == "ALLOW"
+    assert result == "ok"
+    assert called is True
