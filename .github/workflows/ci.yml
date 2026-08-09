@@ -1,11 +1,8 @@
 name: CI
 
-# Hybrid CI policy:
-# - Primary execution stays on the owner's self-hosted Linux ARM64 runner.
-# - The runner label is expressed as three labels, not one combined label.
-# - This workflow is non-blocking so an unavailable local runner cannot block PRs.
-# - A completely offline self-hosted runner remains queued; GitHub Actions cannot
-#   fail over a queued job inside the same workflow without a hosted controller.
+# Online CI is the availability path for the repository. It does not depend on
+# the owner's device, iSH session, or a self-hosted runner being online.
+# Local/offline execution remains available through scripts/local-ci.sh.
 on:
   push:
   pull_request:
@@ -18,70 +15,71 @@ concurrency:
 permissions:
   contents: read
 
-jobs:
-  self-hosted:
-    name: Primary self-hosted Linux ARM64 CI
-    runs-on: [self-hosted, Linux, arm64]
-    continue-on-error: true
-    timeout-minutes: 30
+env:
+  SG_NETWORK_MODE: online-ci
+  SG_LOCAL_ONLY: '0'
+  CLOUD_FIRST: 'false'
+  PIP_NO_INPUT: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  npm_config_audit: 'false'
+  npm_config_fund: 'false'
 
+jobs:
+  conformance:
+    name: Repository conformance (GitHub-hosted)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Verify runner identity
+      - name: Verify hosted CI context
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-          test "$(uname -m)" = "aarch64"
-          echo "Verified self-hosted Linux ARM64 runner: ${RUNNER_NAME}"
-
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "CI controller: GitHub-hosted"
+          echo "Device independence: enabled"
+          echo "Commit: ${GITHUB_SHA}"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: pyproject.toml
-
-      - name: Install test and lint dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e ".[test,lint]"
-
+          python -m pip install -e '.[test,lint]'
       - name: Lint
         run: ruff check sovereign/
-
       - name: Type check
         run: mypy sovereign/
-
       - name: Test
         run: pytest -q
-
       - name: Create CI manifest
         if: always()
         run: |
           python3 - <<'PY'
-          import json, time
+          import json
+          import time
           manifest = {
-              "workflow": "CI",
-              "run_id": "${{ github.run_id }}",
-              "run_number": "${{ github.run_number }}",
-              "sha": "${{ github.sha }}",
-              "ref": "${{ github.ref }}",
-              "event": "${{ github.event_name }}",
-              "execution": "self-hosted-linux-arm64",
-              "non_blocking": True,
-              "timestamp": int(time.time()),
+              'workflow': 'CI',
+              'run_id': '${{ github.run_id }}',
+              'run_number': '${{ github.run_number }}',
+              'sha': '${{ github.sha }}',
+              'ref': '${{ github.ref }}',
+              'event': '${{ github.event_name }}',
+              'execution': 'github-hosted',
+              'device_independent': True,
+              'timestamp': int(time.time()),
           }
-          with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
+          with open('ci-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(manifest, fh, indent=2)
           PY
-
       - name: Upload CI manifest
         if: always()
         uses: actions/upload-artifact@v4
@@ -89,11 +87,4 @@ jobs:
           name: ci-build-manifest-${{ github.run_id }}
           path: ci-build-manifest.json
           retention-days: 30
-          if-no-files-found: ignore
-        continue-on-error: true
-
-      - name: Execution summary
-        if: always()
-        run: |
-          echo "Primary CI path: self-hosted Linux ARM64."
-          echo "The job is non-blocking by policy."
+          if-no-files-found: error
