@@ -1,13 +1,15 @@
 name: Node Bridge CI
 
-# PR runs — workflow kept.
 on:
   push:
-    branches: [ main ]
+    branches: [ main, Collaboration ]
+    paths:
+      - 'node-bridge/**'
+  pull_request:
+    branches: [ main, Collaboration ]
     paths:
       - 'node-bridge/**'
   workflow_dispatch:
-  
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -17,19 +19,20 @@ permissions:
 
 jobs:
   test:
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '25'
-
-    - name: Install dependencies
-      working-directory: node-bridge
-      run: npm ci
-
-    - name: Run tests
-      working-directory: node-bridge
-      run: npm test
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '25'
+          cache: npm
+          cache-dependency-path: node-bridge/package-lock.json
+      - name: Install dependencies
+        working-directory: node-bridge
+        run: npm ci
+      - name: Run tests
+        working-directory: node-bridge
+        run: npm test
