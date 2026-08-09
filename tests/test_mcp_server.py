@@ -1,4 +1,4 @@
-"""Unit and governance tests for the local-first stdio MCP server."""
+"""Unit and governance tests for the fail-closed local MCP boundary."""
 
 import json
 import subprocess
@@ -6,10 +6,26 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from backend.mcp.mcp_governance import IdentityContext
 from mcp_server import PROTOCOL_VERSION, SovereignMCPServer
 
 
 ATTESTED_IDENTITY = "owner-local"
+ATTESTATION = {
+    "trust_boundary": "local-only",
+    "network": False,
+    "credentials": False,
+    "mutation": False,
+    "shell": False,
+}
+
+
+def authorized_identity() -> IdentityContext:
+    return IdentityContext(
+        identity_id=ATTESTED_IDENTITY,
+        authenticated=True,
+        attestation=ATTESTATION,
+    )
 
 
 class SovereignMCPServerTests(unittest.TestCase):
@@ -20,7 +36,10 @@ class SovereignMCPServerTests(unittest.TestCase):
         (self.workspace / ".secret").write_text("hidden", encoding="utf-8")
         (self.workspace / ".env").write_text("TOKEN=private", encoding="utf-8")
         (self.workspace / "private.pem").write_text("private", encoding="utf-8")
-        self.server = SovereignMCPServer(workspace=self.workspace, identity_id=ATTESTED_IDENTITY)
+        self.server = SovereignMCPServer(
+            workspace=self.workspace,
+            identity_context=authorized_identity(),
+        )
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
@@ -42,22 +61,66 @@ class SovereignMCPServerTests(unittest.TestCase):
 
     def test_anonymous_workspace_call_is_denied_and_audited(self) -> None:
         server = SovereignMCPServer(workspace=self.workspace)
-        response = server.handle({"jsonrpc": "2.0", "id": "anon-1", "method": "tools/call",
-                                  "params": {"name": "workspace_list", "arguments": {}}})
+        response = server.handle({
+            "jsonrpc": "2.0",
+            "id": "anon-1",
+            "method": "tools/call",
+            "params": {"name": "workspace_list", "arguments": {}},
+        })
         self.assertTrue(response["result"]["isError"])
-        self.assertEqual(response["result"]["content"][0]["text"] and json.loads(response["result"]["content"][0]["text"])["decision"], "DENY")
+        denial = json.loads(response["result"]["content"][0]["text"])
+        self.assertEqual(denial["decision"], "DENY")
         event = server.authority.audit.events[-1]
         self.assertEqual(event["request_id"], "anon-1")
         self.assertEqual(event["identity_id"], "")
+        self.assertEqual(event["decision"], "DENY")
         self.assertNotIn("local data", json.dumps(event))
+
+    def test_identity_name_without_authenticated_session_is_denied(self) -> None:
+        server = SovereignMCPServer(
+            workspace=self.workspace,
+            identity_context=IdentityContext(
+                identity_id=ATTESTED_IDENTITY,
+                authenticated=False,
+                attestation=ATTESTATION,
+            ),
+        )
+        response = server.handle({
+            "jsonrpc": "2.0",
+            "id": "unauth-1",
+            "method": "tools/call",
+            "params": {"name": "workspace_list", "arguments": {}},
+        })
+        denial = json.loads(response["result"]["content"][0]["text"])
+        self.assertEqual(denial["reason"], "unauthenticated identity")
+
+    def test_invalid_attestation_is_denied(self) -> None:
+        server = SovereignMCPServer(
+            workspace=self.workspace,
+            identity_context=IdentityContext(
+                identity_id=ATTESTED_IDENTITY,
+                authenticated=True,
+                attestation={"network": True},
+            ),
+        )
+        response = server.handle({
+            "jsonrpc": "2.0",
+            "id": "bad-attestation",
+            "method": "tools/call",
+            "params": {"name": "workspace_list", "arguments": {}},
+        })
+        denial = json.loads(response["result"]["content"][0]["text"])
+        self.assertEqual(denial["reason"], "invalid local attestation")
 
     def test_authorized_workspace_list_executes_and_is_audited(self) -> None:
         listing = self.tool_text("workspace_list")
         self.assertEqual(listing["files"], ["notes.txt"])
-        event = self.server.authority.audit.events[-1]
-        self.assertEqual(event["decision"], "ALLOW")
-        self.assertEqual(event["identity_id"], ATTESTED_IDENTITY)
-        self.assertEqual(event["capability_id"], "workspace_list")
+        events = self.server.authority.audit.events
+        self.assertEqual(events[-2]["decision"], "ALLOW")
+        self.assertEqual(events[-2]["identity_id"], ATTESTED_IDENTITY)
+        self.assertEqual(events[-2]["capability_id"], "workspace_list")
+        self.assertEqual(events[-1]["event"], "MCP_EXECUTION_RESULT")
+        self.assertEqual(events[-1]["result"], "SUCCESS")
 
     def test_authorized_workspace_read_preserves_containment(self) -> None:
         content = self.tool_text("workspace_read", {"path": "notes.txt"})
@@ -108,13 +171,17 @@ class SovereignMCPServerTests(unittest.TestCase):
         self.assertIn("disabled", result["shell_access"])
 
     def test_repo_status_in_real_git_repo(self) -> None:
-        server_in_repo = SovereignMCPServer(workspace=Path.cwd(), identity_id=ATTESTED_IDENTITY)
+        server_in_repo = SovereignMCPServer(workspace=Path.cwd(), identity_context=authorized_identity())
         try:
             subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], capture_output=True, check=True, timeout=5)
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
             self.skipTest("Not inside a git repository or git not available")
-        result = server_in_repo.handle({"jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                                        "params": {"name": "workspace_repo_status", "arguments": {}}})
+        result = server_in_repo.handle({
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {"name": "workspace_repo_status", "arguments": {}},
+        })
         self.assertNotEqual(json.loads(result["result"]["content"][0]["text"])["branch"], "")
 
 

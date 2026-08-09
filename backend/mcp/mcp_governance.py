@@ -1,7 +1,8 @@
-"""Fail-closed request governance for the local MCP boundary.
+"""Fail-closed authorization boundary for the local MCP surface.
 
-This module is deliberately small: it validates request context and capability
-admission, records sanitized decisions, and never executes workspace operations.
+This module is deliberately independent of workspace execution.  MCP is
+never allowed to manufacture an identity, capability grant, or authority.
+The trusted local host must inject an authenticated session context.
 """
 from __future__ import annotations
 
@@ -11,13 +12,38 @@ from typing import Any, Mapping
 
 
 @dataclass(frozen=True, slots=True)
+class IdentityContext:
+    """Authenticated identity supplied by a trusted local authority."""
+
+    identity_id: str
+    authenticated: bool
+    attestation: Mapping[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityRecord:
+    """Capability granted by the authority plane, not by MCP."""
+
+    capability_id: str
+    active: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class OperationRequest:
     request_id: str
-    identity_id: str
-    capability_id: str
+    identity: IdentityContext
+    capability: CapabilityRecord
     operation: str
     mode: str
     workspace: str
+
+    @property
+    def identity_id(self) -> str:
+        return self.identity.identity_id
+
+    @property
+    def capability_id(self) -> str:
+        return self.capability.capability_id
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,7 +60,7 @@ class AuthorizationDecision:
 
 
 class AuditRecorder:
-    """In-memory evidence sink; callers may persist sanitized events separately."""
+    """Sanitized evidence sink; it never receives credentials or payloads."""
 
     def __init__(self) -> None:
         self._events: list[dict[str, Any]] = []
@@ -59,6 +85,19 @@ class AuditRecorder:
             }
         )
 
+    def record_execution(self, *, request: OperationRequest, result: str) -> None:
+        self._events.append(
+            {
+                "event": "MCP_EXECUTION_RESULT",
+                "request_id": request.request_id,
+                "identity_id": request.identity_id,
+                "capability_id": request.capability_id,
+                "operation": request.operation,
+                "mode": request.mode,
+                "result": result,
+            }
+        )
+
 
 class MCPAuthorityAdapter:
     """Authorize MCP operations before the bounded workspace executor runs."""
@@ -73,8 +112,12 @@ class MCPAuthorityAdapter:
         capabilities = self.policy.get("capabilities", {})
         capability = capabilities.get(request.capability_id)
 
-        if not request.request_id.strip() or not request.identity_id.strip():
-            return self._finish(request, version, "DENY", "missing request identity context", timestamp)
+        if not request.request_id.strip():
+            return self._finish(request, version, "DENY", "missing request id", timestamp)
+        if not request.identity.authenticated or not request.identity.identity_id.strip():
+            return self._finish(request, version, "DENY", "unauthenticated identity", timestamp)
+        if not request.capability.active:
+            return self._finish(request, version, "DENY", "inactive capability grant", timestamp)
         if not isinstance(capability, Mapping):
             return self._finish(request, version, "DENY", "unknown capability", timestamp)
         if request.mode not in set(capability.get("allowed_modes", ())):
@@ -85,7 +128,15 @@ class MCPAuthorityAdapter:
             return self._finish(request, version, "DENY", "explicit owner approval required", timestamp)
         if capability.get("classification") == "authority":
             return self._finish(request, version, "DENY", "MCP cannot grant authority", timestamp)
+        if not self._valid_attestation(request.identity.attestation):
+            return self._finish(request, version, "DENY", "invalid local attestation", timestamp)
         return self._finish(request, version, "ALLOW", "capability permitted", timestamp)
+
+    def _valid_attestation(self, attestation: Mapping[str, Any]) -> bool:
+        requirements = self.policy.get("bridge_requirements", {})
+        if not isinstance(requirements, Mapping) or not attestation:
+            return False
+        return all(attestation.get(key) == value for key, value in requirements.items())
 
     def _finish(
         self,
@@ -106,5 +157,20 @@ class MCPAuthorityAdapter:
             reason,
             timestamp,
         )
-        self.audit.record(result)
+        try:
+            self.audit.record(result)
+        except Exception as error:
+            # Evidence failure is a hard authorization failure.  Do not allow
+            # execution to proceed when the required audit boundary is broken.
+            return AuthorizationDecision(
+                result.request_id,
+                result.identity_id,
+                result.capability_id,
+                result.operation,
+                result.mode,
+                result.policy_version,
+                "DENY",
+                f"audit failure: {type(error).__name__}",
+                result.timestamp,
+            )
         return result
