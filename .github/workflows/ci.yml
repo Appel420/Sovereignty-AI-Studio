@@ -1,8 +1,5 @@
 name: CI
 
-# Online CI is the availability path for the repository. It does not depend on
-# the owner's device, iSH session, or a self-hosted runner being online.
-# Local/offline execution remains available through scripts/local-ci.sh.
 on:
   push:
   pull_request:
@@ -10,81 +7,52 @@ on:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  SG_NETWORK_MODE: online-ci
-  SG_LOCAL_ONLY: '0'
+  SGNETWORKMODE: online-ci
+  SGLOCALONLY: '0'
   CLOUD_FIRST: 'false'
-  PIP_NO_INPUT: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-  npm_config_audit: 'false'
-  npm_config_fund: 'false'
+  PIPNOINPUT: '1'
+  PIPDISABLEPIPVERSIONCHECK: '1'
+  npmconfigaudit: 'false'
+  npmconfigfund: 'false'
 
 jobs:
   conformance:
-    name: Repository conformance (GitHub-hosted)
-    runs-on: ubuntu-latest
+    name: Repository conformance (self-hosted)
+    runs-on: self-hosted linux ARM64
     timeout-minutes: 45
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
+    step:
+          name: Checkout repository
+          uses: actions/checkout@v4 with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Verify hosted CI context
-        shell: bash
-        run: |
+          name: Verify hosted CI context
+          shell: bash
+run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub-hosted"
           echo "Device independence: enabled"
-          echo "Commit: ${GITHUB_SHA}"
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
+          echo "Commit: ${GITHUB_SHA}" 
+          name: Set up Python
+          uses: actions/setup-python@v6
+          with:
           python-version: '3.13'
           cache: pip
           cache-dependency-path: pyproject.toml
-      - name: Install Python dependencies
-        run: |
+          name: Install Python dependencies
+          run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
-      - name: Lint
-        run: ruff check sovereign/
-      - name: Type check
-        run: mypy sovereign/
-      - name: Test
-        run: pytest -q
-      - name: Create CI manifest
-        if: always()
-        run: |
-          python3 - <<'PY'
-          import json
-          import time
-          manifest = {
-              'workflow': 'CI',
-              'run_id': '${{ github.run_id }}',
-              'run_number': '${{ github.run_number }}',
-              'sha': '${{ github.sha }}',
-              'ref': '${{ github.ref }}',
-              'event': '${{ github.event_name }}',
-              'execution': 'github-hosted',
-              'device_independent': True,
-              'timestamp': int(time.time()),
-          }
-          with open('ci-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(manifest, fh, indent=2)
-          PY
-      - name: Upload CI manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-build-manifest-${{ github.run_id }}
-          path: ci-build-manifest.json
-          retention-days: 30
-          if-no-files-found: error
+          name: Lint
+          run: ruff check sovereign/
+          name: Type check
+          run: mypy sovereign/
+          name: Test
+          run: pytest -q
