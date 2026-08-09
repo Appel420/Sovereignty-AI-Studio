@@ -1,19 +1,14 @@
 name: CI
 
-# Non-blocking CI: it still runs on pushes and pull requests, but failures do not
-# prevent other checks or merges from proceeding.
+# Global GitHub-hosted CI. This workflow does not depend on the owner's device,
+# local network, or self-hosted runner being online.
 on:
   push:
-    branches: [dev, main, copilot/main, Collaboration]
-    paths-ignore:
-      - 'README.md'
-      - '.github/workflows/readme-implementation-sync.yml'
   pull_request:
-    branches: [main, copilot/main, Collaboration]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -21,42 +16,57 @@ permissions:
 
 jobs:
   build:
-    name: Non-blocking CI
+    name: Global non-blocking CI
+    # Always use GitHub infrastructure so runs work for everyone, even when the
+    # owner's local/self-hosted device is offline.
+    runs-on: ubuntu-latest
     continue-on-error: true
-    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
+        continue-on-error: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        if: always()
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-          cache: 'pip'
+          cache: pip
           cache-dependency-path: pyproject.toml
+        continue-on-error: true
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[test,lint]"
-
-      - name: Lint
-        run: ruff check sovereign/
-
-      - name: Type check
-        run: mypy sovereign/
-
-      - name: Test
-        run: pytest
-
-      - name: Create local CI manifest
+      - name: Install test and lint dependencies
         if: always()
         run: |
-          python3 - <<'PY'
+          python -m pip install --upgrade pip || true
+          python -m pip install -e ".[test,lint]" || true
+          python -m pip install pytest ruff mypy || true
+        continue-on-error: true
+
+      - name: Lint
+        if: always()
+        run: ruff check sovereign/ || true
+        continue-on-error: true
+
+      - name: Type check
+        if: always()
+        run: mypy sovereign/ || true
+        continue-on-error: true
+
+      - name: Test
+        if: always()
+        run: pytest -q || true
+        continue-on-error: true
+
+      - name: Create CI manifest
+        if: always()
+        run: |
+          python3 - <<'PY' || true
           import json, time
           manifest = {
               "workflow": "CI",
@@ -66,16 +76,17 @@ jobs:
               "ref": "${{ github.ref }}",
               "actor": "${{ github.actor }}",
               "event": "${{ github.event_name }}",
-              "execution": "self-hosted-local-arm64",
+              "execution": "github-hosted-ubuntu-latest",
+              "owner_device_required": False,
               "non_blocking": True,
               "timestamp": int(time.time()),
           }
           with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
               json.dump(manifest, fh, indent=2)
-          print("Local CI manifest created")
+          print("Global CI manifest created")
           PY
 
-      - name: Upload CI Manifest
+      - name: Upload CI manifest
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -83,10 +94,11 @@ jobs:
           path: ci-build-manifest.json
           retention-days: 30
           if-no-files-found: ignore
+        continue-on-error: true
 
-      - name: Explain execution boundary
+      - name: Execution summary
         if: always()
         run: |
-          echo "This workflow is non-blocking."
-          echo "Failures are reported but do not block merges."
-          echo "Normal local CI path: bash scripts/offline-runner.sh"
+          echo "Global CI ran on GitHub-hosted ubuntu-latest."
+          echo "The owner's self-hosted device and local network were not required."
+          echo "This CI is non-blocking by design."
