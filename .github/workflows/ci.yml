@@ -1,46 +1,36 @@
 name: CI
-# Device-local / hybrid CI. GitHub dispatches the job; execution remains on the
-# owner's self-hosted ARM64 runner. No hosted build execution.
+
+# Non-blocking CI: it still runs on pushes and pull requests, but failures do not
+# prevent other checks or merges from proceeding.
 on:
   push:
-    branches: [ dev, main, copilot/main, Collaboration ]
+    branches: [dev, main, copilot/main, Collaboration]
     paths-ignore:
       - 'README.md'
       - '.github/workflows/readme-implementation-sync.yml'
-  workflow_dispatch:
   pull_request:
-    branches: [ main, copilot/main, Collaboration ]
+    branches: [main, copilot/main, Collaboration]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: false
-
-jobs:
-  build:
-    # Standard labels match the normal ARM64 self-hosted runner registration.
-    # Do not require the previous custom combined label.
-    runs-on: [self-hosted, Linux, ARM64]
-
-# Retained only as an owner-invoked diagnostic workflow.
-# Normal validation is local/offline via scripts/offline-runner.sh.
-# No push or pull_request trigger is allowed to create startup failures.
-on:
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   build:
+    name: Non-blocking CI
+    continue-on-error: true
     runs-on: ['self-hosted Linux arm64']
-
     timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -77,6 +67,7 @@ jobs:
               "actor": "${{ github.actor }}",
               "event": "${{ github.event_name }}",
               "execution": "self-hosted-local-arm64",
+              "non_blocking": True,
               "timestamp": int(time.time()),
           }
           with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
@@ -94,7 +85,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Explain execution boundary
+        if: always()
         run: |
-          echo "This workflow is manual-only."
-          echo "Normal CI path: bash scripts/offline-runner.sh"
-          echo "No automatic push or pull_request execution is enabled."
+          echo "This workflow is non-blocking."
+          echo "Failures are reported but do not block merges."
+          echo "Normal local CI path: bash scripts/offline-runner.sh"
