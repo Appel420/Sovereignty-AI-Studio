@@ -1,10 +1,22 @@
 /**
- * Local voice transport helpers.
+ * Local voice capture helpers.
  *
- * Audio is captured in the browser and sent to the local voice endpoint as a
- * multipart upload. The backend owns transcription and may use a bundled local
- * STT implementation. This module never calls a remote speech provider.
+ * This module only captures microphone data on the device. Uploading is a
+ * separate explicit step owned by the caller, which can enforce a loopback-only
+ * endpoint and local/offline policy before sending anything.
  */
+
+export interface LocalRecording {
+  blob: Blob;
+  mimeType: string;
+}
+
+export interface LocalRecordingController {
+  readonly mimeType: string;
+  readonly result: Promise<LocalRecording>;
+  stop: () => void;
+  cancel: () => void;
+}
 
 export interface VoiceInputResult {
   status: string;
@@ -28,10 +40,7 @@ export function supportsLocalRecording(): boolean {
     && typeof MediaRecorder !== 'undefined';
 }
 
-export async function recordLocalAudio(
-  onChunk: (chunk: Blob) => void,
-  signal?: AbortSignal,
-): Promise<{ blob: Blob; mimeType: string }> {
+export async function startLocalRecording(): Promise<LocalRecordingController> {
   if (!supportsLocalRecording()) {
     throw new Error('Local microphone recording is unavailable in this browser.');
   }
@@ -39,36 +48,60 @@ export async function recordLocalAudio(
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const recorder = new MediaRecorder(stream);
   const chunks: Blob[] = [];
+  const mimeType = recorder.mimeType || 'audio/webm';
+  let settled = false;
+  let rejectResult: (reason?: unknown) => void = () => undefined;
 
-  return new Promise((resolve, reject) => {
-    const cleanup = () => {
-      stream.getTracks().forEach((track) => track.stop());
-      signal?.removeEventListener('abort', abort);
-    };
-
-    const abort = () => {
-      if (recorder.state !== 'inactive') recorder.stop();
-      cleanup();
-      reject(new DOMException('Recording cancelled.', 'AbortError'));
-    };
-
+  const result = new Promise<LocalRecording>((resolve, reject) => {
+    rejectResult = reject;
     recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        chunks.push(event.data);
-        onChunk(event.data);
-      }
+      if (event.data.size > 0) chunks.push(event.data);
     };
     recorder.onerror = () => {
-      cleanup();
+      if (settled) return;
+      settled = true;
+      stream.getTracks().forEach((track) => track.stop());
       reject(new Error('Local microphone recording failed.'));
     };
     recorder.onstop = () => {
-      cleanup();
-      const mimeType = recorder.mimeType || 'audio/webm';
+      if (settled) return;
+      settled = true;
+      stream.getTracks().forEach((track) => track.stop());
       resolve({ blob: new Blob(chunks, { type: mimeType }), mimeType });
     };
-
-    signal?.addEventListener('abort', abort, { once: true });
     recorder.start();
   });
+
+  const cancel = () => {
+    if (settled) return;
+    if (recorder.state !== 'inactive') recorder.stop();
+    settled = true;
+    stream.getTracks().forEach((track) => track.stop());
+    rejectResult(new DOMException('Recording cancelled.', 'AbortError'));
+  };
+
+  return {
+    mimeType,
+    result,
+    stop: () => {
+      if (!settled && recorder.state !== 'inactive') recorder.stop();
+    },
+    cancel,
+  };
+}
+
+/** Compatibility helper for callers that want capture-to-completion. */
+export async function recordLocalAudio(
+  _onChunk?: (chunk: Blob) => void,
+  signal?: AbortSignal,
+): Promise<LocalRecording> {
+  const controller = await startLocalRecording();
+  const abort = () => controller.cancel();
+  signal?.addEventListener('abort', abort, { once: true });
+  try {
+    controller.stop();
+    return await controller.result;
+  } finally {
+    signal?.removeEventListener('abort', abort);
+  }
 }
