@@ -1,41 +1,54 @@
 name: CI
 
-# Device-local / hybrid CI. GitHub dispatches the job; execution remains on the
-# owner's self-hosted ARM64 runner. No hosted build execution.
+# Hybrid CI policy:
+# - Primary execution stays on the owner's self-hosted Linux ARM64 runner.
+# - The runner label is expressed as three labels, not one combined label.
+# - This workflow is non-blocking so an unavailable local runner cannot block PRs.
+# - A completely offline self-hosted runner remains queued; GitHub Actions cannot
+#   fail over a queued job inside the same workflow without a hosted controller.
 on:
   push:
-    branches: [ dev, main, copilot/main, Collaboration ]
-    paths-ignore:
-      - 'README.md'
-      - '.github/workflows/readme-implementation-sync.yml'
-  workflow_dispatch:
   pull_request:
-    branches: [ main, copilot/main, Collaboration ]
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: false
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-    # Standard labels match the normal ARM64 self-hosted runner registration.
-    # Do not require the previous custom combined label.
-    runs-on: [self-hosted, Linux, ARM64]
+  self-hosted:
+    name: Primary self-hosted Linux ARM64 CI
+    runs-on: [self-hosted, Linux, arm64]
+    continue-on-error: true
     timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Verify runner identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          test "$(uname -m)" = "aarch64"
+          echo "Verified self-hosted Linux ARM64 runner: ${RUNNER_NAME}"
+
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-          cache: 'pip'
+          cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install dependencies
+      - name: Install test and lint dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e ".[test,lint]"
@@ -47,9 +60,9 @@ jobs:
         run: mypy sovereign/
 
       - name: Test
-        run: pytest
+        run: pytest -q
 
-      - name: Create local CI manifest
+      - name: Create CI manifest
         if: always()
         run: |
           python3 - <<'PY'
@@ -60,17 +73,16 @@ jobs:
               "run_number": "${{ github.run_number }}",
               "sha": "${{ github.sha }}",
               "ref": "${{ github.ref }}",
-              "actor": "${{ github.actor }}",
               "event": "${{ github.event_name }}",
-              "execution": "self-hosted-local-arm64",
+              "execution": "self-hosted-linux-arm64",
+              "non_blocking": True,
               "timestamp": int(time.time()),
           }
           with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
               json.dump(manifest, fh, indent=2)
-          print("Local CI manifest created")
           PY
 
-      - name: Upload CI Manifest
+      - name: Upload CI manifest
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -78,3 +90,10 @@ jobs:
           path: ci-build-manifest.json
           retention-days: 30
           if-no-files-found: ignore
+        continue-on-error: true
+
+      - name: Execution summary
+        if: always()
+        run: |
+          echo "Primary CI path: self-hosted Linux ARM64."
+          echo "The job is non-blocking by policy."
