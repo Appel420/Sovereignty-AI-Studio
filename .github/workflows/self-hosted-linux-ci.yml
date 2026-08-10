@@ -1,10 +1,10 @@
 name: Linux ARM64 CI
 
-# Manual diagnostic workflow only.
-# Canonical validation remains local/offline via scripts/local-ci.sh
-# or scripts/offline-runner.sh. Automatic branch events are disabled
-# so local development is not blocked by Actions startup failures.
+# Canonical validation runs locally/offline on the repository-owned ARM64 runner.
+# Pull requests may execute this workflow directly; no hosted dependencies are used.
 on:
+  pull_request:
+    branches: [ main, Collaboration ]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +17,10 @@ concurrency:
 jobs:
   test:
     name: Core tests on self-hosted Linux ARM64
-    runs-on: ['self-hosted Linux arm64']
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 30
     env:
       SG_NETWORK_MODE: offline
