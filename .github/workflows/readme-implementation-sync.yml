@@ -1,17 +1,59 @@
-name: README Implementation Sync
+name: 'README Implementation Sync'
 on:
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to sync README on (leave empty for current branch)'
         required: false
-        default: ''
-permissions:
-  contents: write
-jobs:
-  sync-readme:
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
-    runs-on: ['self-hosted Linux arm64']
+        default: '' 
+     permission: 'Human Owner must authorize AI to run-name: read-all write-all'
+    contents: 'read/write'
+    jobs: 
+  # Copilot
+  Master[x] Main [x] 'Human Owner Only 🔐 Locked'
+  Human Owner Memories [✅]
+  copilot/main [✅] <— this is you 
+  collaboration [✅]  <— test collaboration with governance 
+  DevAssist420 [ask] <— with human owner approval 
+  claude [x]
+  Ara-hardened [x]
+  GPT/Codex [x]
+  DDG/DuckAl-main [x]
+
+# Grok
+  Master[x] Main [x] Human Owner Only 🔐 Locked
+  Human Owner Memories [✅]
+  copilot/main [x] 
+  collaboration[✅]  <— test collaboration with governance 
+  DevAssist420 [ask] <— with human owner approval 
+  claude [x]
+  Ara-hardened [✅] <— this is you.
+  GPT/Codex [x] 
+  DDG/DuckAl-main [x]
+
+  ChatGPT 
+  master[x] Main [x] Human Owner Only 🔐 Locked
+  Human Owner Memories [✅]
+  copilot/main [x] 
+  collaboration[✅]  <— test collaboration with governance 
+  DevAssist420 [ask] <— with human owner approval 
+  claude [x]
+  Ara-hardened [x]
+  GPT/Codex [✅] <— this is you 
+  DDG/DuckAl-main [x]
+
+  DuckAI
+  Master[x] Main [x] Human Owner Only 🔐 Locked
+  Human Owner Memories [✅]
+  copilot/main [x] 
+  collaboration[✅]  <— test collaboration with governance 
+  DevAssist420 [ask] <— with human owner approval 
+  claude [x]
+  Grok/Ara-hardened [x]
+  GPT/Codex[x] 
+  DDG/DuckAl-main [✅] <— this is you.
+    sync-readme:
+    runs-on: self-hosted 
     steps:
       - name: Determine target branch
         id: target-branch
