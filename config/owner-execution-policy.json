@@ -69,7 +69,7 @@
     "no cloud agent"
   ],
   "blocked_response": {
-    "format": "BLOCKED\\nfile: <path>\\nreason: <one line>",
+    "format": "BLOCKED\nfile: <path>\nreason: <one line>",
     "must_not_prevent_local_execution": true,
     "must_not_disable_dashboard": true,
     "must_not_disable_local_ci": true
