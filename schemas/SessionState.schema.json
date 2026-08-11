@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:session-state:v1",
+  "title": "SessionState",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "mode"],
+  "properties": {
+    "session_id": {"type": "string", "minLength": 1},
+    "mode": {"type": "string", "enum": ["offline", "hybrid", "online"]},
+    "selected_model": {"type": ["string", "null"]},
+    "selection_source": {"type": ["string", "null"]}
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:decision:v1",
+  "title": "Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["decision", "reason"],
+  "properties": {
+    "decision": {"type": "string", "enum": ["ALLOW", "DENY", "ESCALATE", "UNKNOWN"]},
+    "reason": {"type": "string", "minLength": 1},
+    "reason_code": {"type": ["string", "null"]},
+    "policy_version": {"type": ["string", "null"]},
+    "policy_hash": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

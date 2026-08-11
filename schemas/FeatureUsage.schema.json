@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:feature-usage:v1",
+  "title": "FeatureUsage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["feature", "enabled"],
+  "properties": {
+    "feature": {"type": "string", "minLength": 1},
+    "enabled": {"type": "boolean"},
+    "owner_approved": {"type": "boolean"}
+  }
+}

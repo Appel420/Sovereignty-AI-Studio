@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:effective-policy:v1",
+  "title": "EffectivePolicy",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["policy_version", "policy_hash"],
+  "properties": {
+    "policy_version": {"type": "string", "minLength": 1},
+    "policy_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "mode": {"type": "string", "enum": ["offline", "hybrid", "online"]},
+    "capabilities": {"type": "array", "items": {"type": "string"}}
+  }
+}

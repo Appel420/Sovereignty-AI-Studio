@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:local-model-selection-event:v1",
+  "title": "LocalModelSelectionEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_type", "event_version", "candidate_set", "owner_selected_model", "selection_mode", "visibility_mode"],
+  "properties": {
+    "event_type": {"const": "LOCAL_MODEL_SELECTION"},
+    "event_version": {"const": 1},
+    "candidate_set": {"type": "array", "items": {"$ref": "ModelDiscoveryResult.schema.json#/$defs/DiscoveredModel"}},
+    "owner_selected_model": {"type": ["string", "null"]},
+    "selection_mode": {"type": "string", "enum": ["explicit_owner_selection", "NO_SELECTION"]},
+    "visibility_mode": {"const": "full"}
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:audit-event:v1",
+  "title": "AuditEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "event", "route", "mode", "decision", "policy_hash", "receipt_hash", "timestamp", "event_hash"],
+  "properties": {
+    "task_id": {"type": "string", "minLength": 1},
+    "event": {"type": "string", "minLength": 1},
+    "route": {"type": "string", "minLength": 1},
+    "mode": {"type": "string", "enum": ["offline", "hybrid", "online"]},
+    "decision": {"type": "string", "enum": ["ALLOW", "DENY", "ESCALATE"]},
+    "policy_hash": {"type": "string", "minLength": 1},
+    "receipt_hash": {"type": ["string", "null"]},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "event_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}
