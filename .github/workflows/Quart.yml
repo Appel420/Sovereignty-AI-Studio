@@ -12,15 +12,15 @@ permissions:
 
 concurrency:
   group: quart-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: False
 
 jobs:
   build-linux:
-    runs-on: self-hosted
+    runs-on: self-hosted 
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: True
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
