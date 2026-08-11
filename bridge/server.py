@@ -41,7 +41,7 @@ SOVEREIGN_API_URL = os.environ.get(
     "SOVEREIGN_API_URL", "http://localhost:9897/api/ai"
 ).rstrip("/")
 
-ROOT_DIR = pathlib.Path(__file__).parent
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent
 LOGS_DIR = ROOT_DIR / "logs"
 LOGS_DIR.mkdir(exist_ok=True)
 

@@ -3,24 +3,24 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, Collaboration ]
+    branches: [ copilot/main, Collaboration ]
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [ copilot/main, Collaboration ]
 
 permissions:
   contents: read
 
 concurrency:
   group: quart-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: False
 
 jobs:
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted linux arm64
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: True
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -44,4 +44,4 @@ jobs:
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
           sleep 5
           kill -0 "$APP_PID"
-          curl -f http://127.0.0.1:[*]/api/weather?city=London
+          curl -f http://127.0.0.1:8001/api/weather?city=London
