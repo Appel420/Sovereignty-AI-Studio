@@ -24,7 +24,7 @@ env:
 jobs:
   conformance:
     name: Repository conformance (self-hosted)
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: self-hosted 
     timeout-minutes: 45
     steps:
       - name: Checkout repository
@@ -40,7 +40,7 @@ jobs:
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted Linux ARM64"
+          echo "Execution: self-hosted
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
