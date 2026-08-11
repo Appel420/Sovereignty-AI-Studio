@@ -58,6 +58,8 @@ class AuditRecorder:
                 "timestamp": decision.timestamp,
             }
         )
+        if len(self._events) > 1000:
+            del self._events[: len(self._events) - 1000]
 
 
 class MCPAuthorityAdapter:
