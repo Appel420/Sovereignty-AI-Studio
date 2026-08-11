@@ -1,0 +1,79 @@
+# Symmetric Sync Protocol
+
+This document defines the governance direction for a sovereign branch architecture.
+
+## Branch Roles
+
+| Branch | Role | Authority | Direct autonomous writes |
+|--------|------|-----------|--------------------------|
+| `main` | Production | Owner | No |
+| `collaboration` | Integration / reconciliation | Owner | No |
+| `copilot/main` | Copilot development | Assigned lane | Yes, within policy |
+| `ara-hardened` | Ara development | Assigned lane | Yes, within policy |
+| `claude` | Claude development | Assigned lane | Yes, within policy |
+| `devassist420` | DevAssist420 development | Assigned lane | Yes, within policy |
+
+## Promotion Pipeline
+
+```text
+Agent Lane
+      │
+      ▼
+Owner-controlled Review
+      │
+      ▼
+collaboration (protected)
+      │
+Policy Validation
+Lease Validation
+Registry Validation
+SCAR Verification
+Conflict Resolution (if required)
+      │
+      ▼
+Owner-controlled Promotion
+      │
+      ▼
+main (protected)
+```
+
+`authorized_operations` is preferred to `accepted_operations` because authorization is derived from policy.
+
+```yaml
+collaboration:
+  role: integration
+  protected: true
+  authority: owner
+  autonomous_writes: false
+  authorized_operations:
+    - owner-approved merge
+    - owner-approved cherry-pick
+    - owner-authorized integration service
+```
+
+## Governance Layers
+
+```text
+Root Authority
+        │
+        ▼
+Policy / Branch Registry
+        │
+        ▼
+Signed Lease & Scope Coordination
+        │
+        ▼
+Agent Development Lanes
+        │
+        ▼
+Owner-controlled Integration (collaboration)
+        │
+        ▼
+Protected Production (main)
+```
+
+## Symmetric Sync Invariant
+
+Replication moves encrypted state between authorized replicas. Synchronization MUST NOT change ownership, authority, branch policy, or the authoritative device designation. A conflict is resolved by explicit policy and owner authority, not by the storage provider.
+
+The `collaboration` branch is an integration target, not an autonomous authority. Its live existence and protection status must be verified rather than assumed.

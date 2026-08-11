@@ -1,0 +1,92 @@
+# On-device AI Memory
+
+## On-device storage
+
+Everything lives on-device first: keys, authority, documents, projects, policies, and memory. Backups are optional replicas. If the owner has no other storage, an encrypted Git repository can be used as a backup target, but it is never the authority.
+
+```text
+Device
+    ↓
+Encrypted Backup (optional)
+        ↓
+GitHub (optional)
+Cloud Storage (optional)
+NAS (optional)
+Family Server (optional)
+```
+
+The device remains the source of truth unless the owner explicitly delegates otherwise.
+
+## Branches are workspaces
+
+Each branch is a self-contained workspace with its own policies, encryption boundary, audit trail, collaborators, and storage namespace. Nothing crosses branch boundaries without explicit delegation.
+
+```text
+Root
+├── Personal
+├── Business
+├── AI Projects
+├── Family
+├── Finance
+├── Medical
+├── Photography
+└── Research
+```
+
+## Cryptographic family tree
+
+Each family member can have an independent cryptographic branch with its own authority keys and lineage. Parents may delegate authority; children can eventually become root owners of their own branches. Inheritance is explicit rather than password-based.
+
+## Private by default
+
+Visibility levels should be explicit:
+
+```text
+Private  — Only you can see this.
+Family   — Selected family members.
+Workspace — This workspace only.
+Public   — Everyone; may be indexed, copied, and shared.
+```
+
+Publishing is a deliberate signed action. The interface must show the audience before publication and warn that public material may be permanent or impossible to make private again.
+
+## Bring your own storage
+
+Storage backends are interchangeable adapters:
+
+- Local SSD
+- External drive
+- NAS
+- Git repository
+- S3 or other object storage
+- iCloud, Dropbox, or family server
+
+A backend stores encrypted objects; it does not own identity, authority, or meaning.
+
+## GitHub as encrypted backup
+
+GitHub is an optional encrypted replica target. It should receive encrypted blobs and manifests, not root secrets. It cannot derive authority or impersonate the owner.
+
+## Protocol direction
+
+The architecture is best expressed as a protocol stack:
+
+```text
+Root Authority
+      ↓
+Branches and policies
+      ↓
+Canonical objects
+      ↓
+Storage adapters
+      ↓
+Synchronization
+      ↓
+Optional encrypted egress
+```
+
+Authority, storage, and execution remain separate. AI is a scoped capability or branch; it never owns the Root.
+
+## Sovereign Ownership Principle
+
+Every user owns a Root Authority. All data is local-first. Cloud destinations are optional encrypted replicas, never the source of truth. Branches are independent workspaces with explicit delegation, cryptographic isolation, and user-controlled visibility. Private ownership is the default; public sharing is intentional.

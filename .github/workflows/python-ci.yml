@@ -1,90 +1,65 @@
 name: Python CI
 
-# PR runs PAUSED — file kept. Use push to ara-hardened/dev or workflow_dispatch.
 on:
   workflow_dispatch:
   push:
-    branches: [ dev, ara-hardened ]
-  # pull_request: paused
+    branches: [ main, dev, ara-hardened, Collaboration ]
+  pull_request:
+    branches: [ main, dev, ara-hardened, Collaboration ]
 
 concurrency:
   group: python-ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   test:
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 15
+    runs-on: self-hosted linux ARM64
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-
-      - name: Install lightweight test/lint tools only
+          cache: pip
+      - name: Install test/lint tools
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest || true
-          pip install -e ".[test,lint]" 2>/dev/null || true
-
-      - name: Lint (non-blocking if ruff missing)
-        run: ruff check backend/coordination prototypes/accessibility 2>/dev/null || true
-
+          pip install ruff pytest
+          pip install -e '.[test,lint]'
+      - name: Lint
+        run: ruff check backend/coordination prototypes/accessibility
       - name: Run focused tests
         env:
           PYTHONPATH: prototypes:.
+        run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
+      - name: Coordination import check
+        run: python -c "from backend.coordination import BranchRegistry; print('ok')"
+      - name: Create CI manifest
         run: |
-          pytest -q prototypes/accessibility/tests/test_accessibility_control.py 2>/dev/null || true
-          python -c "from backend.coordination import BranchRegistry; print('ok')" || true
-
-      - name: Create local-only CI manifest (no PQC download)
-        run: |
-          python3 <<'PY'
-          import hashlib, hmac, json, secrets, time
-
-          class LocalCISigner:
-              def __init__(self):
-                  self._sk = secrets.token_bytes(32)
-                  self._pk = hashlib.sha256(self._sk).digest()
-
-              def sign(self, message: bytes) -> bytes:
-                  return hmac.new(self._sk, message, hashlib.sha256).digest()
-
-              def verify(self, message: bytes, signature: bytes) -> bool:
-                  return hmac.compare_digest(self.sign(message), signature)
-
+          python3 - <<'PY'
+          import hashlib, hmac, json
           manifest = {
               'workflow': 'Python CI',
               'run_id': '${{ github.run_id }}',
               'sha': '${{ github.sha }}',
               'ref': '${{ github.ref }}',
-              'timestamp': int(time.time()),
+              'execution': 'github-hosted',
+              'device_independent': True,
               'signing_backend': 'hmac-sha256-ci-local',
-              'pqc_full_build': False,
-              'oauth_generator': False,
-              'pr_trigger': 'paused',
-              'note': 'Real ML-DSA-87 is device/offline; CI does not download oqs/liboqs',
           }
-
-          signer = LocalCISigner()
+          key = b'ci-manifest-local-verification'
           message = json.dumps(manifest, sort_keys=True).encode()
-          signature = signer.sign(message)
-          assert signer.verify(message, signature)
-
-          manifest['signature'] = signature.hex()
-          manifest['public_key'] = signer._pk.hex()
-
+          manifest['signature'] = hmac.new(key, message, hashlib.sha256).hexdigest()
           with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(manifest, fh, indent=2)
-
-          print('Python CI local manifest created (PR paused)')
           PY
-
       - name: Upload Test Manifest
         if: always()
         uses: actions/upload-artifact@v4
@@ -92,4 +67,4 @@ jobs:
           name: python-ci-manifest-${{ github.run_id }}
           path: python-ci-manifest.json
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
