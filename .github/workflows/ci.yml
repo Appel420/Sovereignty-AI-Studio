@@ -20,7 +20,7 @@ jobs:
   build:
     # Standard labels match the normal ARM64 self-hosted runner registration.
     # Do not require the previous custom combined label.
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
