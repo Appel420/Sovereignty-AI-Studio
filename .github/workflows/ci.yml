@@ -23,11 +23,7 @@ env:
 
 jobs:
   conformance:
-    name: Repository conformance (self-hosted)
-    # Three labels are required; do not collapse them into one label string.
-    # This intentionally remains self-hosted and therefore requires a genuine
-    # connected Linux ARM64 runner. No ARM64 capability is faked here.
-    runs-on:
+    name: Repository conformance ('self-hosted')
       - self-hosted
       - Linux
       - ARM64
