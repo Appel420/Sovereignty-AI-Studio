@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: python-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: False
 
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: True
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
