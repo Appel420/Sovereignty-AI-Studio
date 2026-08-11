@@ -22,7 +22,7 @@ def _loopback_status(url: str = DEVASSIST_STATUS_URL) -> dict[str, Any]:
         return {"state": "UNAVAILABLE", "reason": "non-loopback endpoint rejected", "url": url}
     try:
         request = Request(url, headers={"Cache-Control": "no-store"})
-        with urlopen(request, timeout=1.5) as response:  # noqa: S310 - URL is fixed loopback only
+        with urlopen(request, timeout=1.5) as response:  # noqa: S310 - fixed loopback URL
             payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("bridge status is not an object")
@@ -60,6 +60,12 @@ def local_status() -> dict[str, Any]:
         "oauth_generator": _exists("scripts/oauth_local_generator.py"),
         "local_state_validator": _exists("scripts/validate-local-state.sh"),
         "local_ci": _exists("scripts/local-ci.sh"),
+        "m4_neural": {
+            "available": _exists("docs/apple_m4_neural.md"),
+            "tops": 38,
+            "memory": "unified",
+            "path": "docs/apple_m4_neural.md",
+        },
         "phpwin": {"state": "RUNNING", "source": "dashboard-process"},
         "node_bridge": {
             "state": "RUNNING" if devassist.get("state") == "RUNNING" else "UNAVAILABLE",
