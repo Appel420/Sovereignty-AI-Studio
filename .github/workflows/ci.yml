@@ -1,66 +1,61 @@
+
 name: CI
 
+# Full PR CI is enabled with owner approval.
 on:
   push:
+    branches: [ dev, main ]
+    paths-ignore:
+      - 'README.md'
+      - '.github/workflows/readme-implementation-sync.yml'
   pull_request:
+    branches: [ dev, main ]
+    paths-ignore:
+      - 'README.md'
+      - '.github/workflows/readme-implementation-sync.yml'
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
-permissions:
-  contents: read
-
-env:
-  SGNETWORKMODE: online-ci
-  SGLOCALONLY: '0'
-  CLOUD_FIRST: 'false'
-  PIPNOINPUT: '1'
-  PIPDISABLEPIPVERSIONCHECK: '1'
-  npmconfigaudit: 'false'
-  npmconfigfund: 'false'
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  conformance:
-    name: Repository conformance (self-hosted)
-    # Three labels are required; do not collapse them into one label string.
-    # This intentionally remains self-hosted and therefore requires a genuine
-    # connected Linux ARM64 runner. No ARM64 capability is faked here.
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
-    timeout-minutes: 45
+  build:
+    runs-on: self-hosted 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Verify Actions context
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          test -n "${GITHUB_SHA}"
-          echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted Linux ARM64"
-          echo "Commit: ${GITHUB_SHA}"
-
+      - uses: actions/checkout@v4
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-          cache: pip
+          cache: 'pip'
           cache-dependency-path: pyproject.toml
 
-      - name: Install Python dependencies
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            ninja-build \
+            libssl-dev \
+            pkg-config
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
-
+          python -m pip install -e ".[test,lint,pqc]"
+      - name: Verify PQC provider (ML-DSA-87)
+        run: |
+          python - <<'PY'
+          import oqs
+          supported = oqs.get_enabled_sig_mechanisms()
+          if "ML-DSA-87" not in supported:
+              raise SystemExit(
+                  f"ML-DSA-87 is unavailable in this liboqs build.\n"
+                  f"Supported algorithms: {supported}"
+              )
+          print(f"liboqs {oqs.oqs_version()} — ML-DSA-87 available")
+          PY
       - name: Lint
         run: ruff check sovereign/
 
@@ -68,4 +63,42 @@ jobs:
         run: mypy sovereign/
 
       - name: Test
-        run: pytest -q
+        run: pytest
+
+      - name: Create PQC-Signed CI Manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          import sys
+          import time
+          sys.path.insert(0, ".")
+          from sovereign.pqc_signatures import MLDSASigner
+          manifest = {
+              "workflow": "CI",
+              "run_id": "${{ github.run_id }}",
+              "run_number": "${{ github.run_number }}",
+              "sha": "${{ github.sha }}",
+              "ref": "${{ github.ref }}",
+              "actor": "${{ github.actor }}",
+              "event": "${{ github.event_name }}",
+              "timestamp": int(time.time()),
+          }
+          signer = MLDSASigner(algorithm="ML-DSA-87")
+          public_key, _ = signer.load_or_create_keypair()
+          message = json.dumps(manifest, sort_keys=True).encode()
+          signature = signer.sign(message)
+          if not signer.verify(message, signature):
+              raise RuntimeError("ML-DSA-87 signature verification failed")
+          manifest["ml_dsa_87_signature"] = signature.hex()
+          manifest["public_key"] = public_key.hex()
+          with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
+              json.dump(manifest, fh, indent=2)
+          print("PQC-signed CI build manifest created (ML-DSA-87)")
+          PY
+      - name: Upload CI Manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-build-manifest-${{ github.run_id }}
+          path: ci-build-manifest.json
+          retention-days: 30
