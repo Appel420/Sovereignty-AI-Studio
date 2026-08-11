@@ -23,10 +23,8 @@ env:
 
 jobs:
   conformance:
-    name: Repository conformance ('self-hosted')
-      - self-hosted
-      - Linux
-      - ARM64
+    name: Repository conformance (self-hosted)
+    runs-on: ['self-hosted Linux arm64']
     timeout-minutes: 45
     steps:
       - name: Checkout repository
