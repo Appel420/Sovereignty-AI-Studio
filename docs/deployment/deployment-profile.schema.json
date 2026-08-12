@@ -1,68 +1,74 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sovereignty-ai-gate/schemas/deployment-profile/v1.0.0",
-  "title": "Sovereignty Deployment Profile",
-  "description": "Portable, instance-specific deployment configuration. It defines topology and local references without embedding owner identity, private memory, credentials, or secrets.",
+  "$id": "https://sovereignty.local/schemas/deployment-profile/v1.json",
+  "title": "Sovereignty Deployment Profile Contract",
+  "description": "Portable translation boundary between the Sovereignty Core and a single installation. Contains no personal identity, private memory, keys, or repository-specific assumptions.",
   "type": "object",
+  "additionalProperties": false,
+  "required": ["deployment", "identity", "vault", "topology", "capabilities", "governance"],
   "properties": {
-    "schemaVersion": { "type": "string", "const": "1.0.0" },
-    "deploymentId": { "type": "string", "minLength": 1 },
-    "profileName": { "type": "string", "minLength": 1 },
-    "identity": {
-      "type": "object",
+    "deployment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "profile", "created_at", "schema_version"],
       "properties": {
-        "ownerRef": { "type": "string", "minLength": 1 },
-        "deviceRef": { "type": "string", "minLength": 1 },
-        "authorityRef": { "type": "string", "minLength": 1 },
-        "keyRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
-      },
-      "required": ["ownerRef", "deviceRef", "authorityRef", "keyRefs"],
-      "additionalProperties": false
+        "id": {"type": "string", "minLength": 16},
+        "profile": {"type": "string", "enum": ["personal", "team", "enterprise", "community", "custom"]},
+        "created_at": {"type": "string", "format": "date-time"},
+        "schema_version": {"type": "string", "const": "1.0.0"},
+        "reference_only": {"type": "boolean", "default": false}
+      }
+    },
+    "identity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["owner_ref", "device_id", "authority_id"],
+      "properties": {
+        "owner_ref": {"type": "string", "minLength": 8},
+        "device_id": {"type": "string", "minLength": 16},
+        "authority_id": {"type": "string", "minLength": 16},
+        "key_refs": {"type": "array", "items": {"type": "string"}}
+      }
     },
     "vault": {
-      "type": "object",
+      "type": "object", "additionalProperties": false,
+      "required": ["state_path", "memory_scope", "evidence_path", "isolation", "credentials_protected"],
       "properties": {
-        "stateRef": { "type": "string", "minLength": 1 },
-        "memoryRef": { "type": "string", "minLength": 1 },
-        "evidenceRef": { "type": "string", "minLength": 1 },
-        "credentialsRef": { "type": "string", "minLength": 1 }
-      },
-      "required": ["stateRef", "memoryRef", "evidenceRef", "credentialsRef"],
-      "additionalProperties": false
+        "state_path": {"type": "string", "minLength": 1},
+        "memory_scope": {"type": "string", "enum": ["instance-local", "owner-local"]},
+        "evidence_path": {"type": "string", "minLength": 1},
+        "isolation": {"type": "string", "const": "strict"},
+        "credentials_protected": {"type": "boolean", "const": true}
+      }
     },
     "topology": {
-      "type": "object",
+      "type": "object", "additionalProperties": false,
+      "required": ["production_branch", "integration_branch"],
       "properties": {
-        "productionBranch": { "type": "string", "minLength": 1 },
-        "integrationBranch": { "type": "string", "minLength": 1 },
-        "developmentLanes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
-      },
-      "required": ["productionBranch", "integrationBranch", "developmentLanes"],
-      "additionalProperties": false
+        "production_branch": {"type": "string", "minLength": 1},
+        "integration_branch": {"type": "string", "minLength": 1},
+        "development_lanes": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "agents": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "providers": {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      }
     },
     "capabilities": {
-      "type": "object",
+      "type": "object", "additionalProperties": false,
+      "required": ["local_execution", "external_execution", "communication", "persistence"],
       "properties": {
-        "localExecution": { "type": "boolean" },
-        "externalExecution": { "type": "boolean" },
-        "communication": { "type": "boolean" },
-        "persistence": { "type": "boolean" }
-      },
-      "required": ["localExecution", "externalExecution", "communication", "persistence"],
-      "additionalProperties": false
+        "local_execution": {"type": "boolean"},
+        "external_execution": {"type": "boolean"},
+        "communication": {"type": "boolean"},
+        "persistence": {"type": "boolean"}
+      }
     },
     "governance": {
-      "type": "object",
+      "type": "object", "additionalProperties": false,
+      "required": ["authorization", "promotion", "audit", "transparency"],
       "properties": {
-        "authorization": { "type": "string", "enum": ["owner", "team", "organization", "custom"] },
-        "promotion": { "type": "string", "enum": ["owner", "team", "organization", "custom"] },
-        "auditRequired": { "type": "boolean", "const": true },
-        "transparencyRequired": { "type": "boolean", "const": true }
-      },
-      "required": ["authorization", "promotion", "auditRequired", "transparencyRequired"],
-      "additionalProperties": false
+        "authorization": {"type": "string", "const": "owner-controlled"},
+        "promotion": {"type": "string", "const": "owner-controlled"},
+        "audit": {"type": "string", "const": "mandatory"},
+        "transparency": {"type": "string", "const": "mandatory"}
+      }
     }
-  },
-  "required": ["schemaVersion", "deploymentId", "profileName", "identity", "vault", "topology", "capabilities", "governance"],
-  "additionalProperties": false
+  }
 }

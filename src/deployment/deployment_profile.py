@@ -24,11 +24,11 @@ class ProfileError(Exception):
 
 
 class ValidationError(ProfileError):
-    """Raised when validation fails; activation must remain blocked."""
+    """Validation failure; activation must remain blocked."""
 
 
 class IsolationError(ProfileError):
-    """Raised when deployment isolation cannot be established."""
+    """Deployment isolation failure."""
 
 
 @dataclass(frozen=True)
@@ -98,7 +98,7 @@ class DeploymentProfile:
         return json.dumps(self.to_dict(), indent=2, sort_keys=True)
 
 
-def _id(prefix: str) -> str:
+def _new_id(prefix: str) -> str:
     return f"{prefix}{secrets.token_hex(16)}"
 
 
@@ -122,20 +122,19 @@ def generate_fresh_profile(
     persistence: bool = True,
     reference_only: bool = False,
 ) -> DeploymentProfile:
-    """Create a profile from explicit installation inputs; no topology defaults."""
+    """Generate an isolated instance; topology values are explicit inputs."""
     if profile_type not in ALLOWED_PROFILES:
         raise ValidationError(f"invalid profile type: {profile_type}")
     if len(owner_ref) < 8:
         raise ValidationError("owner_ref must be an opaque local reference of at least 8 characters")
     if not production_branch or not integration_branch:
-        raise ValidationError("production_branch and integration_branch must be explicit")
+        raise ValidationError("production_branch and integration_branch are required")
 
-    deployment_id = _id("dep_")
+    deployment_id = _new_id("dep_")
     instance_root = Path(base_vault_dir).expanduser() / deployment_id
-
     return DeploymentProfile(
         deployment=DeploymentSection(deployment_id, profile_type, _utc_now(), reference_only=reference_only),
-        identity=IdentitySection(owner_ref, _id("dev_"), _id("auth_")),
+        identity=IdentitySection(owner_ref, _new_id("dev_"), _new_id("auth_")),
         vault=VaultSection(str(instance_root / "state"), "instance-local", str(instance_root / "evidence")),
         topology=TopologySection(
             production_branch,
@@ -150,40 +149,48 @@ def generate_fresh_profile(
 
 
 def validate_profile(profile: DeploymentProfile, schema_path: Path) -> list[str]:
-    """Run structural, identity, isolation, topology, capability, and governance checks."""
+    """Return all failures. An empty list is necessary but not sufficient for activation."""
     errors: list[str] = []
-    document = profile.to_dict()
-
     try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return [f"schema unavailable: {exc}"]
 
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors.extend(error.message for error in validator.iter_errors(document))
+    try:
+        validator = Draft202012Validator(schema, format_checker=FormatChecker())
+        errors.extend(error.message for error in validator.iter_errors(profile.to_dict()))
+    except Exception as exc:  # fail-closed on invalid schemas
+        return [f"schema invalid: {exc}"]
 
     if profile.deployment.reference_only:
-        errors.append("reference_only profiles cannot be activated")
+        errors.append("reference_only profile cannot be activated")
 
-    identity = profile.identity
-    for name, value in (("owner_ref", identity.owner_ref), ("device_id", identity.device_id), ("authority_id", identity.authority_id)):
-        if not value or len(value) < 8:
+    for name, value in (
+        ("owner_ref", profile.identity.owner_ref),
+        ("device_id", profile.identity.device_id),
+        ("authority_id", profile.identity.authority_id),
+    ):
+        if len(value) < 8:
             errors.append(f"identity.{name} is missing or too short")
         if "@" in value:
             errors.append(f"identity.{name} contains an email-like identifier")
 
     vault = profile.vault
     if vault.isolation != "strict":
-        errors.append("vault isolation is not strict")
+        errors.append("vault.isolation must be strict")
     if vault.credentials_protected is not True:
-        errors.append("vault credentials are not protected")
+        errors.append("vault.credentials_protected must be true")
     if Path(vault.state_path) == Path(vault.evidence_path):
-        errors.append("state and evidence paths collide")
+        errors.append("state_path and evidence_path collide")
 
     topology = profile.topology
     if not topology.production_branch or not topology.integration_branch:
         errors.append("production and integration branches must be explicit")
-    for name, values in (("development_lanes", topology.development_lanes), ("agents", topology.agents), ("providers", topology.providers)):
+    for name, values in (
+        ("development_lanes", topology.development_lanes),
+        ("agents", topology.agents),
+        ("providers", topology.providers),
+    ):
         if len(values) != len(set(values)):
             errors.append(f"topology.{name} contains duplicates")
 
@@ -209,19 +216,29 @@ class ValidationReport:
 
 
 def run_validation_pipeline(profile: DeploymentProfile, schema_path: Path) -> ValidationReport:
-    """Validate without activation; owner approval remains a separate boundary."""
+    """Run automated checks; never grant owner approval or activate the profile."""
     errors = validate_profile(profile, schema_path)
-    steps = [
-        "schema_validation",
-        "identity_validation",
-        "vault_isolation_validation",
-        "topology_validation",
-        "capability_validation",
-        "governance_validation",
-        "scar_initialization_required",
-        "owner_approval_required",
-    ]
-    return ValidationReport(profile.deployment.id, not errors, errors, _utc_now(), steps)
+
+    steps_completed = ["schema_validation"]
+    if not (len(errors) == 1 and errors[0].startswith("schema unavailable:")):
+        steps_completed.extend(
+            [
+                "identity_validation",
+                "vault_isolation_validation",
+                "topology_validation",
+                "capability_validation",
+                "governance_validation",
+            ]
+        )
+    steps_completed.extend(["scar_initialization_required", "owner_approval_required"])
+
+    return ValidationReport(
+        deployment_id=profile.deployment.id,
+        valid=not errors,
+        errors=errors,
+        timestamp=_utc_now(),
+        steps_completed=steps_completed,
+    )
 
 
 def save_profile(profile: DeploymentProfile, path: str | Path) -> None:

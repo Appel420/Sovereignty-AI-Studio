@@ -1,34 +1,46 @@
 # Deployment Profile Boundary
 
-The portable Sovereignty runtime is independent of any individual owner's identity, memory, keys, repositories, branches, or provider topology.
+The portable Sovereignty runtime is independent of any individual owner's identity, private memory, keys, repositories, branches, or provider topology.
 
 A deployment profile instantiates the runtime for one installation. It supplies references to local identity, vault state, evidence, credentials, topology, capabilities, and governance policy.
 
-## Invariants
+## Production invariants
 
-- Personal identity is never embedded in the portable core.
-- Private memory, keys, credentials, and evidence are instance-local.
-- Repository and branch names are deployment choices, not architectural constants.
-- A reference deployment is documentation and test material only; it is not a default identity or default vault.
-- Validation must reject unknown fields and invalid topology rather than silently substituting another deployment's values.
-- Audit and transparency are mandatory deployment properties.
-- External execution is optional and never becomes an authority solely because it is enabled.
-- Production promotion remains governed by the selected deployment's authorization policy.
+- No personal identity or personal branch topology is embedded in the portable core.
+- Every installation receives fresh deployment, device, and authority identifiers unless an owner explicitly imports existing identity with proof.
+- Private memory, keys, credentials, and evidence remain inside the selected vault boundary.
+- Repository and branch names are deployment choices; the reference example is not a default.
+- Unknown fields and invalid values fail closed.
+- External execution is an explicit capability, never an authority.
+- Audit and transparency are mandatory.
+- Automated validation never grants owner approval.
+- A reference-only profile can document architecture but can never activate.
+- SCAR initialization and owner approval are explicit post-validation gates.
 
-## Initialization
-
-`deployment-profile.schema.json` is the structural contract. A new installation should generate its own `deploymentId`, identity references, vault references, and topology. The example profile demonstrates the shape without containing a real owner's identity or secrets.
-
-## Boundary
+## Activation boundary
 
 ```text
-portable core
-    -> deployment profile
-    -> instance identity / vault / topology
-    -> schema validation
-    -> policy + governance validation
-    -> owner authorization
-    -> active runtime
+explicit installation inputs
+        |
+        v
+fresh instance identity + isolated vault
+        |
+        v
+schema validation
+        |
+        v
+identity / isolation / topology / capability / governance validation
+        |
+        v
+SCAR initialization evidence
+        |
+        v
+OWNER APPROVAL
+        |
+        +---- denied / unavailable -> NOT ACTIVE
+        |
+        v
+ACTIVE INSTANCE
 ```
 
 The profile is configuration. It is not authority by itself.
