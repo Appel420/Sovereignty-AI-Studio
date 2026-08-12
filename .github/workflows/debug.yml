@@ -7,11 +7,11 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
-  contents: read
+  contents: read, write,
 
 jobs:
   debug:
-    runs-on: self-hosted linux arm64
+    runs-on: ['self-hosted linux arm64']
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
