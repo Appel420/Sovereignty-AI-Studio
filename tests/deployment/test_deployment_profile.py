@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import tempfile
 
 from src.deployment.deployment_profile import generate_fresh_profile, run_validation_pipeline, validate_profile
 
@@ -14,7 +15,7 @@ def make_profile(**overrides):
         "profile_type": "personal",
         "production_branch": "production",
         "integration_branch": "integration",
-        "base_vault_dir": "/tmp/sovereignty-test",
+        "base_vault_dir": str(Path(tempfile.gettempdir()) / "sovereignty-test"),
     }
     values.update(overrides)
     return generate_fresh_profile(**values)
