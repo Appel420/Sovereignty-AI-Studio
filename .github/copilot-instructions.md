@@ -161,5 +161,5 @@ BLOCKED
 file: <path>
 reason: <one line>
 ```
-## Than UNBLOCK for Human Owner if requested and authorized.
+## Then UNBLOCK for Human Owner if requested and authorized.
 Same guideline for every agent. Re-read before every turn of work.

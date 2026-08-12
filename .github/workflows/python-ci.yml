@@ -22,7 +22,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: True
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
