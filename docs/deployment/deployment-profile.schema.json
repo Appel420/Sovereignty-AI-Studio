@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereignty-ai-gate/schemas/deployment-profile/v1.0.0",
+  "title": "Sovereignty Deployment Profile",
+  "description": "Portable, instance-specific deployment configuration. It defines topology and local references without embedding owner identity, private memory, credentials, or secrets.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "deploymentId": { "type": "string", "minLength": 1 },
+    "profileName": { "type": "string", "minLength": 1 },
+    "identity": {
+      "type": "object",
+      "properties": {
+        "ownerRef": { "type": "string", "minLength": 1 },
+        "deviceRef": { "type": "string", "minLength": 1 },
+        "authorityRef": { "type": "string", "minLength": 1 },
+        "keyRefs": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "required": ["ownerRef", "deviceRef", "authorityRef", "keyRefs"],
+      "additionalProperties": false
+    },
+    "vault": {
+      "type": "object",
+      "properties": {
+        "stateRef": { "type": "string", "minLength": 1 },
+        "memoryRef": { "type": "string", "minLength": 1 },
+        "evidenceRef": { "type": "string", "minLength": 1 },
+        "credentialsRef": { "type": "string", "minLength": 1 }
+      },
+      "required": ["stateRef", "memoryRef", "evidenceRef", "credentialsRef"],
+      "additionalProperties": false
+    },
+    "topology": {
+      "type": "object",
+      "properties": {
+        "productionBranch": { "type": "string", "minLength": 1 },
+        "integrationBranch": { "type": "string", "minLength": 1 },
+        "developmentLanes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "required": ["productionBranch", "integrationBranch", "developmentLanes"],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "localExecution": { "type": "boolean" },
+        "externalExecution": { "type": "boolean" },
+        "communication": { "type": "boolean" },
+        "persistence": { "type": "boolean" }
+      },
+      "required": ["localExecution", "externalExecution", "communication", "persistence"],
+      "additionalProperties": false
+    },
+    "governance": {
+      "type": "object",
+      "properties": {
+        "authorization": { "type": "string", "enum": ["owner", "team", "organization", "custom"] },
+        "promotion": { "type": "string", "enum": ["owner", "team", "organization", "custom"] },
+        "auditRequired": { "type": "boolean", "const": true },
+        "transparencyRequired": { "type": "boolean", "const": true }
+      },
+      "required": ["authorization", "promotion", "auditRequired", "transparencyRequired"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schemaVersion", "deploymentId", "profileName", "identity", "vault", "topology", "capabilities", "governance"],
+  "additionalProperties": false
+}

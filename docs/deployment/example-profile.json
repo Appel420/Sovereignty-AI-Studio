@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "deploymentId": "example-deployment",
+  "profileName": "example-owner-topology",
+  "identity": {
+    "ownerRef": "local://identity/owner",
+    "deviceRef": "local://identity/device",
+    "authorityRef": "local://authority/root",
+    "keyRefs": ["local://keys/signing"]
+  },
+  "vault": {
+    "stateRef": "local://vault/state",
+    "memoryRef": "local://vault/memory",
+    "evidenceRef": "local://vault/evidence",
+    "credentialsRef": "local://vault/credentials"
+  },
+  "topology": {
+    "productionBranch": "main",
+    "integrationBranch": "collaboration",
+    "developmentLanes": ["agent-a", "agent-b"]
+  },
+  "capabilities": {
+    "localExecution": true,
+    "externalExecution": false,
+    "communication": true,
+    "persistence": true
+  },
+  "governance": {
+    "authorization": "owner",
+    "promotion": "owner",
+    "auditRequired": true,
+    "transparencyRequired": true
+  }
+}
