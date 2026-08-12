@@ -1,44 +1,66 @@
-name: Deploy static content to Pages
+name: Runtime smoke validation
 
 on:
-  push:
-    branches: ["main", "Collaboration"]
-    paths:
-      - "docs/**"
-      - "*.html"
-      - "**/*.html"
-      - "**/*.css"
-      - "**/*.js"
-      - "!.github/**"
   workflow_dispatch:
+  push:
+    branches: ["copilot/main", "collaboration"]
+    paths:
+      - "START_SERVER.sh"
+      - "bridge.py"
+      - "node-bridge/**"
+      - "frontend/runtime/**"
+      - "config/runtime-coherence.json"
+      - "scripts/**"
+      - ".github/workflows/static.yml"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: "pages"
+  group: runtime-smoke-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  runtime-smoke:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
         with:
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+          persist-credentials: false
+
+      - name: Validate launcher syntax
+        run: bash -n START_SERVER.sh
+
+      - name: Validate canonical runtime coherence
+        run: python3 scripts/validate-runtime-coherence.py
+
+      - name: Install Node bridge dependencies
+        working-directory: node-bridge
+        run: npm ci
+
+      - name: Validate Node bridge syntax
+        run: node --check node-bridge/server.js
+
+      - name: Validate Python bridge syntax
+        run: python3 -m py_compile bridge.py
+
+      - name: Run local runtime smoke test
+        env:
+          SG_DEVICE_MODE: ghost
+          SG_NETWORK_MODE: offline
+          SG_ENABLE_REMOTE_NETWORK: '0'
+          SG_ALLOW_BACKGROUND_POLLING: '0'
+          SG_ENABLE_WEBSOCKET: '0'
+          SG_ENABLE_SSE: '0'
+        run: |
+          set -Eeuo pipefail
+          test -f SGHv119.html
+          test -f bridge.py
+          test -f node-bridge/server.js
+          test -d node-bridge/node_modules
+          echo "Canonical runtime artifacts present."
+          echo "No GitHub Pages deployment is performed."
