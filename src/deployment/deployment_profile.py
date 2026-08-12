@@ -215,21 +215,26 @@ class ValidationReport:
 def run_validation_pipeline(profile: DeploymentProfile, schema_path: Path) -> ValidationReport:
     """Run automated checks; never grant owner approval or activate the profile."""
     errors = validate_profile(profile, schema_path)
+
+    steps_completed = ["schema_validation"]
+    if not (len(errors) == 1 and errors[0].startswith("schema unavailable:")):
+        steps_completed.extend(
+            [
+                "identity_validation",
+                "vault_isolation_validation",
+                "topology_validation",
+                "capability_validation",
+                "governance_validation",
+            ]
+        )
+    steps_completed.extend(["scar_initialization_required", "owner_approval_required"])
+
     return ValidationReport(
         deployment_id=profile.deployment.id,
         valid=not errors,
         errors=errors,
         timestamp=_utc_now(),
-        steps_completed=[
-            "schema_validation",
-            "identity_validation",
-            "vault_isolation_validation",
-            "topology_validation",
-            "capability_validation",
-            "governance_validation",
-            "scar_initialization_required",
-            "owner_approval_required",
-        ],
+        steps_completed=steps_completed,
     )
 
 
