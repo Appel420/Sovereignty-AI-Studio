@@ -2,7 +2,7 @@ name: Deploy static content to Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "Collaboration"]
     paths:
       - "docs/**"
       - "*.html"
@@ -29,8 +29,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -1,4 +1,5 @@
 name: README Implementation Sync
+
 on:
   workflow_dispatch:
     inputs:
@@ -6,25 +7,24 @@ on:
         description: 'Branch to sync README on (leave empty for current branch)'
         required: false
         default: ''
+
 permissions:
   contents: write
+
 jobs:
   sync-readme:
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     steps:
       - name: Determine target branch
         id: target-branch
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             BRANCH="${{ github.event.inputs.branch }}"
-            if [ -z "$BRANCH" ]; then
-              BRANCH="${{ github.ref_name }}"
-            fi
-            echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+            if [ -z "$BRANCH" ]; then BRANCH="${{ github.ref_name }}"; fi
+            echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
           else
-            echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+            echo "branch=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
           fi
       - name: Checkout repository
         uses: actions/checkout@v4

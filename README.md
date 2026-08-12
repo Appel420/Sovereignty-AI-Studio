@@ -1,4 +1,4 @@
-[![CI](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml)
+[![CI](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ci.yml)   [![iOS Sovereign Build (local-first)](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ios-sovereign-build.yml/badge.svg)](https://github.com/Appel420/Sovereignty-AI-Studio/actions/workflows/ios-sovereign-build.yml)
 # Sovereignty AI Studio
 
 @claude @codex @copilot @grok @duckai
