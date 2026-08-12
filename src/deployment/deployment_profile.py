@@ -156,8 +156,11 @@ def validate_profile(profile: DeploymentProfile, schema_path: Path) -> list[str]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return [f"schema unavailable: {exc}"]
 
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors.extend(error.message for error in validator.iter_errors(profile.to_dict()))
+    try:
+        validator = Draft202012Validator(schema, format_checker=FormatChecker())
+        errors.extend(error.message for error in validator.iter_errors(profile.to_dict()))
+    except Exception as exc:  # fail-closed on invalid schemas
+        return [f"schema invalid: {exc}"]
 
     if profile.deployment.reference_only:
         errors.append("reference_only profile cannot be activated")
