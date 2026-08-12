@@ -1,0 +1,7 @@
+- name: Analyze with CodeQL
+  # You may pin to the exact commit or the version.
+  # uses: codebeltnet/codeql-scan@c88e7da885098fab4183561c3553fc49ec48fb35
+  uses: codebeltnet/codeql-scan@v1.0.0
+  with:
+    # A comma-separated list of CodeQL languages to analyze. Default is csharp.
+    languages: # default is csharp

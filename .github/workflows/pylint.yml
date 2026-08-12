@@ -1,29 +1,35 @@
 name: Pylint
+
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
+    branches: [ main, Collaboration ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, Collaboration ]
+
 concurrency:
   group: pylint-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   build:
-    # Owner policy: self-hosted Linux ARM64 only. No GitHub-hosted runners.
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.13"]
+        python-version: ['3.13']
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pylint
-      - name: Analysing the code with pylint
+          cache: pip
+      - name: Install pylint
+        run: python -m pip install --upgrade pip pylint
+      - name: Analyse the code with pylint
         run: make py-lint

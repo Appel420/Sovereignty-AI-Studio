@@ -1,17 +1,11 @@
-# OAUTH API GENERATOR — DISABLED FOR AUTO CI
-#
-# Owner policy (ara-hardened):
-# - Do not run on every push/PR (was path-matching **/*.py and calling out).
-# - No pip safety network calls, no ghcr push, no Fulcio/Rekor cosign by default.
-# - Manual workflow_dispatch only when the owner explicitly needs this pipeline.
-#
+# OAUTH API GENERATOR — manual, offline-safe syntax validation
 name: OAUTH-API-GENERATOR
 
 on:
   workflow_dispatch:
     inputs:
       confirm_outbound:
-        description: "Type ALLOW-OUTBOUND to enable network steps (default offline)"
+        description: "Type ALLOW-OUTBOUND to explicitly enable outbound steps"
         required: false
         default: "OFFLINE"
 
@@ -19,7 +13,8 @@ concurrency:
   group: oauth-api-generator-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: {}
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -34,31 +29,22 @@ env:
 
 jobs:
   offline-syntax-only:
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
-
-      - name: Offline syntax check only (no pip install from network if cache cold)
+          python-version: '3.13'
+      - name: Offline syntax check
         run: |
-          echo "OAuth generator CI is offline-by-default."
-          echo "No safety check, no docker push, no cosign, no full PQC build."
-          python -m compileall -q oauth_local_generator.py 2>/dev/null || true
-          python -m compileall -q backend 2>/dev/null || true
-          echo "OK — offline gate passed"
-
+          python -m compileall -q oauth_local_generator.py
+          python -m compileall -q backend
+          echo "OK — offline syntax gate passed"
       - name: Refuse accidental outbound confirmation
         if: ${{ github.event.inputs.confirm_outbound == 'ALLOW-OUTBOUND' }}
-        run: |
-          echo "::warning::ALLOW-OUTBOUND was requested; still no automatic remote OAuth or full PQC install in this workflow."
-          echo "Use a dedicated owner-approved offline tool on device for OAuth generation."
+        run: echo "Outbound approval was supplied; this workflow does not execute remote OAuth or PQC installation."
