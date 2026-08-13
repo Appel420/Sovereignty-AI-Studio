@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sovereignty://schemas/repository-contract.schema.json",
+  "title": "Sovereignty Repository Contract Registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "registry_id", "registry_revision_id", "status", "repositories"],
+  "properties": {
+    "schema_version": {"type": "string", "const": "1.0"},
+    "registry_id": {"type": "string", "minLength": 1},
+    "registry_revision_id": {"type": "string", "minLength": 1},
+    "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "status": {"type": "string", "enum": ["declarative-only", "verified"]},
+    "repositories": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/repository"}
+    }
+  },
+  "$defs": {
+    "repository": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repository", "role", "required", "capabilities", "trust_level", "network", "authority_domain", "interfaces", "dependencies"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "repository": {"type": "string", "pattern": "^[^/\\s]+/[^/\\s]+$"},
+        "role": {"type": "string", "minLength": 1},
+        "required": {"type": "boolean"},
+        "capabilities": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "trust_level": {"type": "string", "minLength": 1},
+        "network": {"type": "string", "enum": ["disabled", "loopback-only", "policy-gated", "owner-approved"]},
+        "authority_domain": {"type": "string", "enum": ["authority", "integration", "execution", "transport", "evidence", "assurance", "security", "policy", "client", "core", "research", "reference", "crypto"]},
+        "interfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "object", "additionalProperties": false, "required": ["name", "kind"], "properties": {"name": {"type": "string", "minLength": 1}, "kind": {"type": "string", "enum": ["http", "stdio", "file", "library", "mesh", "evidence", "contract"]}}}
+        },
+        "dependencies": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"}},
+        "consumes_capabilities": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "evidence_contract": {"type": "string"},
+        "attestation_contract": {"type": "string"}
+      }
+    }
+  }
+}
