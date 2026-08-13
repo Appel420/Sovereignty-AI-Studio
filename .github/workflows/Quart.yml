@@ -35,10 +35,11 @@ jobs:
           set -Eeuo pipefail
           python -m pip install --upgrade pip
           if [[ -f .github/workflows/Requirements.txt ]]; then python -m pip install -r .github/workflows/Requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test]'; fi
           python -m pip install pytest hypercorn
       - name: Test with pytest
         env:
-          PYTHONPATH: .:./backend
+          PYTHONPATH: .:./backend:./src:./prototypes
         run: python -m pytest -q
       - name: Quart smoke test
         shell: bash
