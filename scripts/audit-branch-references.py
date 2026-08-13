@@ -13,8 +13,7 @@ import subprocess
 from pathlib import Path
 
 DEFAULT_CANONICAL = "Collaboration"
-STALE_BRANCHES = {"main", "master", "collaboration"}
-TEXT_SUFFIXES = {".py", ".sh", ".js", ".ts", ".tsx", ".yml", ".yaml", ".json", ".md", ".txt"}
+TEXT_SUFFIXES = {".py", ".sh", ".js", ".ts", ".tsx", ".yml", ".yaml", ".json", ".md", ".txt", ".rs", ".toml"}
 PATTERNS = [
     re.compile(r"(?i)\bBRANCH\s*=\s*['\"]main['\"]"),
     re.compile(r"(?i)\bref(?:erence)?\s*[:=]\s*['\"]main['\"]"),
