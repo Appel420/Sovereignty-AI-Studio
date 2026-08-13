@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   sync-readme:
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted Linux arm64']
     steps:
       - name: Determine target branch
         id: target-branch
