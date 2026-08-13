@@ -24,7 +24,10 @@ env:
 jobs:
   conformance:
     name: Repository conformance (self-hosted Linux arm64)
-    runs-on: ['self-hosted Linux arm64']
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 45
     steps:
       - name: Checkout repository
@@ -40,7 +43,7 @@ jobs:
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted
+          echo "Execution: self-hosted Linux arm64"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
@@ -63,3 +66,71 @@ jobs:
 
       - name: Test
         run: pytest -q
+
+      - name: Validate runtime coherence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f scripts/validate-runtime-coherence.py ]]; then
+            python3 scripts/validate-runtime-coherence.py
+          else
+            echo 'runtime coherence validator unavailable; failing closed'
+            exit 1
+          fi
+
+      - name: Validate local dashboard inputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f scripts/validate-local-dashboard.py ]]; then
+            python3 scripts/validate-local-dashboard.py
+          else
+            echo 'local dashboard validator unavailable; failing closed'
+            exit 1
+          fi
+
+      - name: Run repository-owned local CI
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -x scripts/local-ci.sh ]]; then
+            bash scripts/local-ci.sh
+          elif [[ -x scripts/v1_local-ci.sh ]]; then
+            bash scripts/v1_local-ci.sh
+          elif [[ -x scripts/v2_v2_local-ci.sh ]]; then
+            bash scripts/v2_v2_local-ci.sh
+          else
+            echo 'No repository-owned local CI entrypoint found'
+            exit 1
+          fi
+
+      - name: Run Python tests without installation
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend
+        run: |
+          set -Eeuo pipefail
+          python3 -m pytest -q
+
+      - name: Check Node bridge syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f node-bridge/server.js ]]; then
+            command -v node >/dev/null 2>&1 || { echo 'node is required'; exit 1; }
+            node --check node-bridge/server.js
+          else
+            echo 'node-bridge/server.js not present; skipping Node syntax check'
+          fi
+
+      - name: Check frontend ownership contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
+            command -v node >/dev/null 2>&1 || { echo 'node is required'; exit 1; }
+            node frontend/scripts/test-sghv119-ownership.js
+          else
+            echo 'frontend ownership test unavailable; failing closed'
+            exit 1
+          fi
