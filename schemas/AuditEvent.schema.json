@@ -11,8 +11,8 @@
     "route": {"type": "string", "minLength": 1},
     "mode": {"type": "string", "enum": ["offline", "hybrid", "online"]},
     "decision": {"type": "string", "enum": ["ALLOW", "DENY", "ESCALATE"]},
-    "policy_hash": {"type": "string", "minLength": 1},
-    "receipt_hash": {"type": ["string", "null"]},
+    "policy_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "receipt_hash": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"},
     "timestamp": {"type": "string", "format": "date-time"},
     "event_hash": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
   }
