@@ -8,7 +8,7 @@
   "properties": {
     "event_type": {"const": "LOCAL_MODEL_SELECTION"},
     "event_version": {"const": 1},
-    "candidate_set": {"type": "array", "items": {"$ref": "ModelDiscoveryResult.schema.json#/$defs/DiscoveredModel"}},
+    "candidate_set": {"type": "array", "items": {"$ref": "urn:sovereignty:model-discovery-result:v1#/$defs/DiscoveredModel"}},
     "owner_selected_model": {"type": ["string", "null"]},
     "selection_mode": {"type": "string", "enum": ["explicit_owner_selection", "NO_SELECTION"]},
     "visibility_mode": {"const": "full"}
