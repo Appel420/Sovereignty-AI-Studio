@@ -220,7 +220,8 @@ def run_validation_pipeline(profile: DeploymentProfile, schema_path: Path) -> Va
     errors = validate_profile(profile, schema_path)
 
     steps_completed = ["schema_validation"]
-    if not (len(errors) == 1 and errors[0].startswith("schema unavailable:")):
+    schema_blocked = len(errors) == 1 and errors[0].startswith(("schema unavailable:", "schema invalid:"))
+    if not schema_blocked:
         steps_completed.extend(
             [
                 "identity_validation",
