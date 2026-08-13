@@ -3,18 +3,24 @@ name: Debug Workflow
 on:
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 permissions:
-  contents: read, write,
+  contents: read
+
+concurrency:
+  group: debug-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   debug:
-    runs-on: ['self-hosted linux arm64']
+    name: GitHub Debug
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -23,10 +29,11 @@ jobs:
         run: |
           python3 --version
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+          python -m pip install pytest flake8
       - name: Run debug tests
         run: |
-          pytest
+          python -m pytest
           flake8
       - name: Debug summary
-        run: echo "Debug validation complete."
+        run: echo "GitHub debug validation complete."
