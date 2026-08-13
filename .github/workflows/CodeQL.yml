@@ -8,12 +8,10 @@ permissions:
 
 jobs:
   analyze:
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Analyze with CodeQL
         uses: codebeltnet/codeql-scan@v1.0.0
         with:
           languages: csharp
-    # A comma-separated list of CodeQL languages to analyze. Default is csharp.
-    languages: # default is csharp
