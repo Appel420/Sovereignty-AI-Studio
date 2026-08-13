@@ -95,13 +95,22 @@ export async function recordLocalAudio(
   _onChunk?: (chunk: Blob) => void,
   signal?: AbortSignal,
 ): Promise<LocalRecording> {
+  if (!signal) {
+    throw new Error('recordLocalAudio requires an AbortSignal; use startLocalRecording() for manual control.');
+  }
+
   const controller = await startLocalRecording();
-  const abort = () => controller.cancel();
-  signal?.addEventListener('abort', abort, { once: true });
+
+  if (signal.aborted) {
+    controller.cancel();
+    throw new DOMException('Recording cancelled.', 'AbortError');
+  }
+
+  const stop = () => controller.stop();
+  signal.addEventListener('abort', stop, { once: true });
   try {
-    controller.stop();
     return await controller.result;
   } finally {
-    signal?.removeEventListener('abort', abort);
+    signal.removeEventListener('abort', stop);
   }
 }
