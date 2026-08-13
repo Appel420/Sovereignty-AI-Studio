@@ -46,23 +46,41 @@ class RepositoryContract:
             raise RepositoryRegistryError(
                 f"repository entry missing fields: {sorted(missing)}"
             )
+        entry_id = str(value.get("id", "<unknown>"))
+        required_value = value["required"]
+        if not isinstance(required_value, bool):
+            raise RepositoryRegistryError(
+                f"repository entry {entry_id} field 'required' must be boolean"
+            )
+        try:
+            interfaces = tuple(
+                {"name": str(item["name"]), "kind": str(item["kind"])}
+                for item in value["interfaces"]
+            )
+        except (TypeError, KeyError) as exc:
+            raise RepositoryRegistryError(
+                f"repository entry {entry_id} has invalid interfaces: {exc}"
+            ) from exc
+        try:
+            capabilities = frozenset(map(str, value["capabilities"]))
+            dependencies = frozenset(map(str, value["dependencies"]))
+            consumes = frozenset(map(str, value.get("consumes_capabilities", [])))
+        except TypeError as exc:
+            raise RepositoryRegistryError(
+                f"repository entry {entry_id} has invalid list fields: {exc}"
+            ) from exc
         return cls(
-            id=str(value["id"]),
+            id=entry_id,
             repository=str(value["repository"]),
             role=str(value["role"]),
-            required=bool(value["required"]),
-            capabilities=frozenset(map(str, value["capabilities"])),
+            required=required_value,
+            capabilities=capabilities,
             trust_level=str(value["trust_level"]),
             network=str(value["network"]),
             authority_domain=str(value["authority_domain"]),
-            interfaces=tuple(
-                {"name": str(item["name"]), "kind": str(item["kind"])}
-                for item in value["interfaces"]
-            ),
-            dependencies=frozenset(map(str, value["dependencies"])),
-            consumes_capabilities=frozenset(
-                map(str, value.get("consumes_capabilities", []))
-            ),
+            interfaces=interfaces,
+            dependencies=dependencies,
+            consumes_capabilities=consumes,
             evidence_contract=value.get("evidence_contract"),
             attestation_contract=value.get("attestation_contract"),
         )
