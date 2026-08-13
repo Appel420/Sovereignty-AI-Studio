@@ -4,17 +4,17 @@ Music Generator Service – AI-powered music composition and generation.
 Supports prompt-based music generation, loop creation, and beat synthesis
 using on-device models with Piper TTS vocal overlay capability.
 """
-import os
+import logging
 import math
+import os
+import struct
 import uuid
 import wave
-import struct
-import logging
-from enum import Enum
-from typing import Optional, Dict, Any, List
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from enum import Enum
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class MusicStatus(str, Enum):
 @dataclass
 class MusicJob:
     """Tracks a music generation job."""
+
     job_id: str
     user_id: str
     prompt: str
@@ -61,13 +62,12 @@ class MusicJob:
 
     def __post_init__(self):
         if not self.created_at:
-            self.created_at = datetime.now(timezone.utc).isoformat()
+            self.created_at = datetime.now(UTC).isoformat()
 
 
 class MusicGeneratorService:
     """AI music composition and generation service."""
 
-    # Base frequencies for genre tone generation (Hz)
     _GENRE_FREQ: Dict[str, float] = {
         "ambient": 220.0,
         "electronic": 440.0,
@@ -109,8 +109,12 @@ class MusicGeneratorService:
 
         logger.info(
             "Music job %s (%s, %ds, %d bpm) for user %s → %s",
-            job.job_id, job.genre.value, job.duration_seconds,
-            job.bpm, user_id, job.status.value,
+            job.job_id,
+            job.genre.value,
+            job.duration_seconds,
+            job.bpm,
+            user_id,
+            job.status.value,
         )
         return self._job_to_dict(job)
 
@@ -132,15 +136,8 @@ class MusicGeneratorService:
             "supported_genres": [g.value for g in MusicGenre],
         }
 
-    # ── Composition pipeline ─────────────────────────────────────────
-
     def _process_composition(self, job: MusicJob) -> None:
-        """Process a music composition job by synthesising a real WAV file.
-
-        Generates a sine-wave tone at the genre-appropriate base frequency,
-        modulated by the requested BPM. In a full deployment this delegates
-        to a neural music synthesis model.
-        """
+        """Process a music composition job by synthesising a real WAV file."""
         job.status = MusicStatus.COMPOSING
         try:
             os.makedirs(self._output_dir, exist_ok=True)
@@ -149,7 +146,7 @@ class MusicGeneratorService:
             sample_rate = 22050
             base_freq = self._GENRE_FREQ.get(job.genre.value, 440.0)
             n_samples = int(sample_rate * job.duration_seconds)
-            beat_freq = job.bpm / 60.0  # beats per second
+            beat_freq = job.bpm / 60.0
 
             job.status = MusicStatus.RENDERING
 
@@ -157,23 +154,36 @@ class MusicGeneratorService:
                 wf.setnchannels(1)
                 wf.setsampwidth(2)
                 wf.setframerate(sample_rate)
-                # Pre-compute all samples into a buffer for efficiency
                 frames = b"".join(
-                    struct.pack("<h", max(-32767, min(32767, int(
-                        16000
-                        * (0.5 + 0.5 * math.sin(2 * math.pi * beat_freq * i / sample_rate))
-                        * math.sin(2 * math.pi * base_freq * i / sample_rate)
-                    ))))
+                    struct.pack(
+                        "<h",
+                        max(
+                            -32767,
+                            min(
+                                32767,
+                                int(
+                                    16000
+                                    * (0.5 + 0.5 * math.sin(2 * math.pi * beat_freq * i / sample_rate))
+                                    * math.sin(2 * math.pi * base_freq * i / sample_rate)
+                                ),
+                            ),
+                        ),
+                    )
                     for i in range(n_samples)
                 )
                 wf.writeframes(frames)
 
             job.result_path = out_path
             job.status = MusicStatus.COMPLETED
-            job.completed_at = datetime.now(timezone.utc).isoformat()
-            logger.info("Music composed: %s (%s, %ds, %d bpm)",
-                        out_path, job.genre.value, job.duration_seconds, job.bpm)
-        except Exception as exc:
+            job.completed_at = datetime.now(UTC).isoformat()
+            logger.info(
+                "Music composed: %s (%s, %ds, %d bpm)",
+                out_path,
+                job.genre.value,
+                job.duration_seconds,
+                job.bpm,
+            )
+        except (OSError, ValueError, wave.Error, struct.error) as exc:
             job.status = MusicStatus.FAILED
             job.error_message = str(exc)
             logger.error("Music composition failed: %s", exc)
@@ -195,5 +205,4 @@ class MusicGeneratorService:
         }
 
 
-# Module-level singleton
 music_generator_service = MusicGeneratorService()
