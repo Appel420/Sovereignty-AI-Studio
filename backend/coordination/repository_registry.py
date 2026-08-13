@@ -120,6 +120,20 @@ class RepositoryRegistry:
         except (OSError, json.JSONDecodeError) as exc:
             raise RepositoryRegistryError(f"cannot load registry: {exc}") from exc
 
+        if not isinstance(document, dict):
+            raise RepositoryRegistryError("registry document must be a JSON object")
+
+        required_fields = {
+            "schema_version",
+            "registry_id",
+            "registry_revision_id",
+            "status",
+            "repositories",
+        }
+        missing = required_fields.difference(document)
+        if missing:
+            raise RepositoryRegistryError(f"registry missing fields: {sorted(missing)}")
+
         if document.get("schema_version") != "1.0":
             raise RepositoryRegistryError("unsupported registry schema_version")
         repositories = tuple(
