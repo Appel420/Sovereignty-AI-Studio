@@ -29,13 +29,20 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-      - name: Install test/lint tools
+          cache-dependency-path: pyproject.toml
+      - name: Install project and test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
+          if [[ -f pyproject.toml ]]; then
+            python -m pip install -e '.[test,lint]'
+          elif [[ -f requirements.txt ]]; then
+            python -m pip install -r requirements.txt
+          else
+            python -m pip install -r .github/workflows/Requirements.txt
+          fi
           python -m pip install ruff pytest
-          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
       - name: Lint
         shell: bash
         run: |
@@ -44,7 +51,9 @@ jobs:
           if [[ -d prototypes/accessibility ]]; then ruff check prototypes/accessibility; fi
       - name: Run tests
         env:
-          PYTHONPATH: prototypes:.
+          PYTHONPATH: .:src:backend:prototypes
         run: python -m pytest -q
       - name: Coordination import check
+        env:
+          PYTHONPATH: .:src:backend:prototypes
         run: python -c "from backend.coordination import BranchRegistry; print('ok')"
