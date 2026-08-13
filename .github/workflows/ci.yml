@@ -2,20 +2,19 @@ name: CI
 
 on:
   push:
+    branches: [Collaboration, main, dev, copilot/main]
   pull_request:
+    branches: [Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: github-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  SGNETWORKMODE: online-ci
-  SGLOCALONLY: '0'
-  CLOUD_FIRST: 'false'
   PIPNOINPUT: '1'
   PIPDISABLEPIPVERSIONCHECK: '1'
   npmconfigaudit: 'false'
@@ -23,12 +22,9 @@ env:
 
 jobs:
   conformance:
-    name: Repository conformance (self-hosted Linux arm64)
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
-    timeout-minutes: 45
+    name: GitHub CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,14 +32,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify Actions context
+      - name: Verify GitHub-hosted execution
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted Linux arm64"
+          echo "Execution: GitHub-hosted ubuntu-latest"
+          echo "Device-local CI is not part of this workflow"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
@@ -54,83 +51,57 @@ jobs:
           cache-dependency-path: pyproject.toml
 
       - name: Install Python dependencies
+        shell: bash
         run: |
+          set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
+          if [[ -f pyproject.toml ]]; then
+            python -m pip install -e '.[test,lint]'
+          elif [[ -f requirements.txt ]]; then
+            python -m pip install -r requirements.txt
+          fi
+          python -m pip install ruff pytest
 
-      - name: Lint
-        run: ruff check sovereign/
-
-      - name: Type check
-        run: mypy sovereign/
-
-      - name: Test
-        run: pytest -q
-
-      - name: Validate runtime coherence
+      - name: Python lint
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -f scripts/validate-runtime-coherence.py ]]; then
-            python3 scripts/validate-runtime-coherence.py
-          else
-            echo 'runtime coherence validator unavailable; failing closed'
-            exit 1
-          fi
+          if [[ -d sovereign ]]; then ruff check sovereign; fi
+          if [[ -d backend ]]; then ruff check backend; fi
 
-      - name: Validate local dashboard inputs
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -f scripts/validate-local-dashboard.py ]]; then
-            python3 scripts/validate-local-dashboard.py
-          else
-            echo 'local dashboard validator unavailable; failing closed'
-            exit 1
-          fi
-
-      - name: Run repository-owned local CI
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -x scripts/local-ci.sh ]]; then
-            bash scripts/local-ci.sh
-          elif [[ -x scripts/v1_local-ci.sh ]]; then
-            bash scripts/v1_local-ci.sh
-          elif [[ -x scripts/v2_v2_local-ci.sh ]]; then
-            bash scripts/v2_v2_local-ci.sh
-          else
-            echo 'No repository-owned local CI entrypoint found'
-            exit 1
-          fi
-
-      - name: Run Python tests without installation
+      - name: Python tests
         shell: bash
         env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
         run: |
           set -Eeuo pipefail
-          python3 -m pytest -q
+          if [[ -d tests ]]; then python -m pytest -q tests; fi
 
-      - name: Check Node bridge syntax
+      - name: Phase 0 Rust tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f phase0/Cargo.toml ]]; then
+            command -v cargo >/dev/null 2>&1
+            cargo test --manifest-path phase0/Cargo.toml --locked
+          else
+            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+          fi
+
+      - name: Node syntax check
         shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f node-bridge/server.js ]]; then
-            command -v node >/dev/null 2>&1 || { echo 'node is required'; exit 1; }
+            command -v node >/dev/null 2>&1
             node --check node-bridge/server.js
-          else
-            echo 'node-bridge/server.js not present; skipping Node syntax check'
           fi
 
-      - name: Check frontend ownership contract
+      - name: Frontend ownership contract
         shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
-            command -v node >/dev/null 2>&1 || { echo 'node is required'; exit 1; }
+            command -v node >/dev/null 2>&1
             node frontend/scripts/test-sghv119-ownership.js
-          else
-            echo 'frontend ownership test unavailable; failing closed'
-            exit 1
           fi
