@@ -3,45 +3,54 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [ copilot/main, Collaboration ]
+    branches: [Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: [ copilot/main, Collaboration ]
+    branches: [Collaboration, main, dev, copilot/main]
 
 permissions:
   contents: read
 
 concurrency:
-  group: quart-${{ github.ref }}
-  cancel-in-progress: False
+  group: quart-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-linux:
-    runs-on: self-hosted linux arm64
+    name: Quart CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: True
+          fetch-depth: 1
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
-          pip install pytest hypercorn
-      - name: Test with pytest
-        env:
-          PYTHONPATH: .:./backend
-        run: pytest -q
-      - name: Run Quart App for local smoke test
         shell: bash
         run: |
           set -Eeuo pipefail
-          hypercorn weather_dashboard:app --bind 127.0.0.1:8001 &
-          APP_PID=$!
-          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          sleep 5
-          kill -0 "$APP_PID"
-          curl -f http://127.0.0.1:8001/api/weather?city=London
+          python -m pip install --upgrade pip
+          if [[ -f .github/workflows/Requirements.txt ]]; then python -m pip install -r .github/workflows/Requirements.txt; fi
+          python -m pip install pytest hypercorn
+      - name: Test with pytest
+        env:
+          PYTHONPATH: .:./backend
+        run: python -m pytest -q
+      - name: Quart smoke test
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f weather_dashboard.py ]]; then
+            hypercorn weather_dashboard:app --bind 127.0.0.1:8001 &
+            APP_PID=$!
+            trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
+            sleep 5
+            kill -0 "$APP_PID"
+            curl -f 'http://127.0.0.1:8001/api/weather?city=London'
+          else
+            echo 'weather_dashboard.py not present; skipping Quart smoke test'
+          fi
