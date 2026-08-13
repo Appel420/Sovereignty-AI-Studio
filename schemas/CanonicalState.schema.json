@@ -6,9 +6,9 @@
   "additionalProperties": false,
   "required": ["policy", "session", "audit"],
   "properties": {
-    "policy": {"$ref": "EffectivePolicy.schema.json"},
-    "session": {"$ref": "SessionState.schema.json"},
-    "audit": {"type": "array", "items": {"$ref": "AuditEvent.schema.json"}},
-    "feature_usage": {"type": "array", "items": {"$ref": "FeatureUsage.schema.json"}}
+    "policy": {"$ref": "urn:sovereignty:effective-policy:v1"},
+    "session": {"$ref": "urn:sovereignty:session-state:v1"},
+    "audit": {"type": "array", "items": {"$ref": "urn:sovereignty:audit-event:v1"}},
+    "feature_usage": {"type": "array", "items": {"$ref": "urn:sovereignty:feature-usage:v1"}}
   }
 }
