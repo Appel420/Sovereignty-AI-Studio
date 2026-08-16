@@ -1,7 +1,7 @@
 """DevAssist local execution boundary.
 
-The adapter accepts an authorized route and an injected local executor. It does
-not authorize, expand scope, contact providers, or create policy.
+The adapter accepts an already-authorized route and an injected local executor.
+It does not authorize, expand scope, contact providers, or create policy.
 """
 from __future__ import annotations
 
@@ -22,9 +22,15 @@ class DevAssistExecutionAdapter:
         if not callable(executor):
             raise TypeError("executor must be callable")
         self._executor = executor
-        self._allowed_routes = allowed_routes or {"devassist"}
+        self._allowed_routes = {"devassist"} if allowed_routes is None else set(allowed_routes)
+        if not self._allowed_routes or any(not isinstance(route, str) or not route for route in self._allowed_routes):
+            raise ValueError("allowed_routes must contain at least one non-empty route")
 
     def execute(self, task: TaskEnvelope, route: RouteDecision) -> ExecutionReceipt:
+        if not isinstance(task, TaskEnvelope):
+            raise TypeError("task must be a TaskEnvelope")
+        if not isinstance(route, RouteDecision):
+            raise TypeError("route must be a RouteDecision")
         if route.task_id != task.task_id:
             raise ValueError("task and route task_id do not match")
         if route.decision != "ALLOW":
@@ -48,13 +54,17 @@ class DevAssistExecutionAdapter:
         if not isinstance(network_accessed, bool):
             raise ValueError("network_accessed must be boolean")
 
+        output_hash = result.get("output_hash")
+        if output_hash is not None and (not isinstance(output_hash, str) or not output_hash):
+            raise ValueError("output_hash must be a non-empty string when provided")
+
         return ExecutionReceipt(
             task_id=task.task_id,
             route=route.route,
             mode=task.mode,
             status=str(result.get("status", "COMPLETED")),
             decision_hash=_decision_hash(route),
-            output_hash=result.get("output_hash"),
+            output_hash=output_hash,
             files_changed=tuple(files_changed),
             network_accessed=network_accessed,
         )
