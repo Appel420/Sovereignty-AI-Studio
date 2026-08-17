@@ -14,9 +14,12 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  SOVEREIGN_CI_RUNNER: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.SOVEREIGN_CI_RUNNER }}
     strategy:
       matrix:
         python-version: ['3.13']
