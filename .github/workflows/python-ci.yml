@@ -14,10 +14,15 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Repository variable may select the sovereign self-hosted ARM64 runner.
+  # When it is absent, GitHub-hosted Linux keeps CI globally runnable.
+  SOVEREIGN_CI_RUNNER: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
+
 jobs:
   test:
     name: Python CI
-    runs-on: ubuntu-latest
+    runs-on: ${{ env.SOVEREIGN_CI_RUNNER }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
