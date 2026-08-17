@@ -14,15 +14,12 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  # Portable default; operators can select the sovereign runner without
-  # changing the workflow: SOVEREIGN_CI_RUNNER=self-hosted Linux arm64.
-  CI_RUNNER: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
-
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
+    # Always use a universally available hosted runner for required CI.
+    # Sovereign execution is provided by the separate opt-in workflow.
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -40,7 +37,7 @@ jobs:
           test -n "${RUNNER_OS}"
           test -n "${RUNNER_ARCH}"
           echo "CI controller: GitHub Actions"
-          echo "Configured runner: ${CI_RUNNER}"
+          echo "Execution mode: portable hosted"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Commit: ${GITHUB_SHA}"
 
@@ -58,13 +55,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          if [[ -f pyproject.toml ]]; then
-            python -m pip install -e '.[test,lint]'
-          fi
+          python -m pip install -e '.[test,lint]'
           if [[ -f requirements.txt ]]; then
             python -m pip install -r requirements.txt
           fi
-          python -m pip install ruff pytest
+          python -m pip check
           python - <<'PY'
           import nacl
           print('PyNaCl:', nacl.__version__)
