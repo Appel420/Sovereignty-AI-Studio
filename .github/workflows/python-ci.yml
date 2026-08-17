@@ -17,7 +17,9 @@ permissions:
 jobs:
   test:
     name: Python CI
-    runs-on: ubuntu-latest
+    # Default: GitHub-hosted Linux. Set repository variable
+    # SOVEREIGN_CI_RUNNER=self-hosted Linux arm64 for sovereign execution.
+    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
