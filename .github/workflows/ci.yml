@@ -14,10 +14,15 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Portable default; operators can select the sovereign runner without
+  # changing the workflow: SOVEREIGN_CI_RUNNER=self-hosted Linux arm64.
+  CI_RUNNER: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
+
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -26,15 +31,17 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify GitHub-hosted execution
+      - name: Verify runner execution
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
+          test -n "${RUNNER_OS}"
+          test -n "${RUNNER_ARCH}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: GitHub-hosted ubuntu-latest"
-          echo "Device-local/offline runtime is independent of GitHub CI"
+          echo "Configured runner: ${CI_RUNNER}"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
