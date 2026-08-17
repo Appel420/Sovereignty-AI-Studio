@@ -1,23 +1,10 @@
 #!/usr/bin/env python3
-"""Maximum contiguous subarray sum using Kadane's algorithm."""
+"""Compatibility entry point for the canonical maximum-subarray utility."""
 from __future__ import annotations
 
+from src.utils.max_subarray import find_max_subarray, find_max_subarray_sum
 
-def find_max_subarray_sum(arr: list[int]) -> int:
-    """Return the largest sum of any contiguous subarray.
-
-    Empty input returns 0. For non-empty input, a subarray must contain at
-    least one element, so an all-negative array returns its largest element.
-    """
-    if not arr:
-        return 0
-
-    current_max = max_so_far = arr[0]
-    for value in arr[1:]:
-        current_max = max(value, current_max + value)
-        max_so_far = max(max_so_far, current_max)
-
-    return max_so_far
+__all__ = ["find_max_subarray", "find_max_subarray_sum"]
 
 
 if __name__ == "__main__":
