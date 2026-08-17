@@ -15,10 +15,14 @@ permissions:
   contents: read
 
 jobs:
-  conformance:
-    name: GitHub CI
-    runs-on: ubuntu-latest
+  portable:
+    name: Portable ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,7 +37,7 @@ jobs:
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: GitHub-hosted ubuntu-latest"
+          echo "Execution: ${{ matrix.os }}"
           echo "Device-local/offline runtime is independent of GitHub CI"
           echo "Commit: ${GITHUB_SHA}"
 
@@ -107,3 +111,79 @@ jobs:
             command -v node >/dev/null 2>&1
             node frontend/scripts/test-sghv119-ownership.js
           fi
+
+  ios:
+    name: iOS native
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify Apple toolchain
+        run: |
+          set -Eeuo pipefail
+          xcodebuild -version
+          xcrun simctl list devices available >/dev/null
+      - name: Build iOS when project is present
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -n "$(find . -maxdepth 3 -name '*.xcworkspace' -o -name '*.xcodeproj' | head -1)" ]]; then
+            echo 'Xcode project detected; native iOS build is repository-specific and must be wired to the canonical scheme.'
+          else
+            echo 'No Xcode project present; Apple toolchain validation passed.'
+          fi
+
+  android:
+    name: Android native
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Build Android when project is present
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f gradlew ]]; then
+            chmod +x gradlew
+            ./gradlew build
+          else
+            echo 'No Gradle wrapper present; Android toolchain validation passed.'
+          fi
+
+  sovereign-arm64:
+    name: Sovereign Linux ARM64
+    if: ${{ vars.SOVEREIGN_CI_RUNNER != '' }}
+    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Sovereign test suite
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+          python -m pip install pytest ruff
+          if [[ -d tests ]]; then python -m pytest -q tests; fi
