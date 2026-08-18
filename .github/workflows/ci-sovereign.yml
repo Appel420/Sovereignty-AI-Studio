@@ -11,14 +11,14 @@ jobs:
     name: Sovereign CI
     # Requires an explicitly configured self-hosted runner. This workflow is
     # opt-in so a missing sovereign runner can never block required global CI.
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ['self-hosted, Linux arm64','ubuntu-latest']
     timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify sovereign runner
         shell: bash
