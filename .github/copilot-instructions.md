@@ -125,17 +125,12 @@ Stay on your assigned branch. Do not edit another agent’s branch. Do not push 
 
 ## Rule 3 — Runners
 
-Every first-party job in `.github/workflows/*.yml` must use **exactly**:
-
 ```yaml
-runs-on: ['self-hosted Linux arm64']
-```
+runs-on: self-hosted 
+``
 
-No `ubuntu-latest`, no `macos-*`, no hosted fallbacks.
-
-## Rule 4 — Local / offline
-
-- Local and offline first.
+## Rule 4 — Local / offline / hybrid / online
+- Local and offline first.  
 - No cloud agent sessions / Allow path.
 - Do not delete workflows, dependencies, or project files unless the owner explicitly orders it.
 
@@ -151,15 +146,4 @@ Local gate when available:
 
 ```bash
 bash scripts/enforce-owner-execution-policy.sh
-bash scripts/local-ci.sh
-```
-
-## If blocked
-
-```text
-BLOCKED
-file: <path>
-reason: <one line>
-```
-## Than UNBLOCK for Human Owner if requested and authorized.
-Same guideline for every agent. Re-read before every turn of work.
+bash scripts/local-
