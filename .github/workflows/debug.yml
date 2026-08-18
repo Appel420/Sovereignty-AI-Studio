@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   debug:
-    runs-on: self-hosted linux arm64
+    runs-on: self-hosted
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
