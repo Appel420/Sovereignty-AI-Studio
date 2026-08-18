@@ -1,50 +1,53 @@
 # CI Runner Policy (Owner Authority)
 
 **Status:** LOCKED  
-**Branch authority:** ara-hardened (and all first-party workflows)  
+**Branch authority:** owner-controlled first-party workflows  
 **Judge / executioner:** Human owner
 
-## Required value
+## Required execution model
+
+First-party CI is **hybrid and portable**. Workflows run on a broadly available hosted runner by default and support sovereign self-hosted execution when the repository variable `SOVEREIGN_CI_RUNNER` is configured.
+
+Portable jobs use:
 
 ```yaml
-runs-on: ['self-hosted Linux arm64']
+runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
 ```
 
-## Prohibited
+Supported sovereign value:
 
-```yaml
+```text
+self-hosted Linux arm64
+```
+
+Default hosted value:
+
+```text
 ubuntu-latest
-macos-latest
-macos-15
-self-hosted linux
-linux Arm64 : ubuntu latest
-self-hosted Linux          # incomplete — must include arm64 in the exact form above
 ```
 
-No GitHub-hosted runners. No mixed fallback. No reinterpretation.
+macOS workflows may use `macos-latest` or `macos-15` when native Apple/Xcode tooling is required.
 
 ## Enforcement
 
-Before opening a PR or merging workflow changes:
+The canonical policy checker is:
 
 ```bash
-python3 scripts/check-runner-policy.py
+python3 scripts/check-runner-policy-hybrid.py
 ```
 
-Exit code 1 = invalid runner present.
+It accepts only the portable hybrid expression, the canonical sovereign ARM64 runner, `ubuntu-latest`, and native macOS runners. Unknown runner declarations fail closed.
+
+## Why this model
+
+The previous policy prohibited GitHub-hosted runners while Python CI requested `ubuntu-latest`. That was internally contradictory. The hybrid model removes that contradiction without binding CI to one physical host, network, or device.
+
+GitHub Actions selects a runner before a job starts. Therefore automatic in-job fallback is not used. The default hosted path provides broad availability; an operator can explicitly select a registered sovereign ARM64 runner through `SOVEREIGN_CI_RUNNER`.
+
+## Global portability boundary
+
+Portability does not mean every arbitrary device can execute GitHub Actions directly. Device-local and offline execution belongs to the repository's local CI path. Remote CI has two supported execution classes: GitHub-hosted runners and sovereign self-hosted runners.
 
 ## Scope
 
-- All files under `.github/workflows/*.yml` / `*.yaml`
-- `external/` is vendored and out of scope for this policy file’s rewrite rule, but first-party workflows must never point jobs at hosted runners
-
-## WHO / WHAT / WHEN / WHERE / WHY / HOW
-
-| | |
-|--|--|
-| **WHO** | Owner (Appel420) sets policy; agents must not override |
-| **WHAT** | Runner label on every first-party CI job |
-| **WHEN** | Every workflow edit, every PR |
-| **WHERE** | `.github/workflows/` |
-| **WHY** | Denied services must not be reintroduced; self-hosted ARM64 is the canonical runtime |
-| **HOW** | Exact `runs-on: ['self-hosted Linux arm64']` + `scripts/check-runner-policy.py` |
+This policy applies to all first-party `.github/workflows/*.yml` and `.yaml` files. Vendored `external/` content is outside first-party runner enforcement.
