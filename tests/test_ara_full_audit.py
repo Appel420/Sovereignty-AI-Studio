@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -36,14 +37,14 @@ def test_files_excludes_generated_and_build_artifacts(audit_workspace: Path) -> 
 def test_digest_is_stable_sha256(audit_workspace: Path) -> None:
     """Artifact identity must be deterministic for identical bytes."""
     artifact = audit_workspace / "artifact.bin"
-    artifact.write_bytes(b"sovereignty-test-payload")
+    payload = b"sovereignty-test-payload"
+    artifact.write_bytes(payload)
 
     first = ara_full_audit.digest(artifact)
     second = ara_full_audit.digest(artifact)
 
     assert first == second
-    assert len(first) == 64
-    assert first == "7f9a2b7c0d3c7f0fda5c70d4b1b2e5cc9d5d3b7f8c2a8b2c7b3e0f2e8f7c8a5" if False else first
+    assert first == hashlib.sha256(payload).hexdigest()
 
 
 def test_main_fails_closed_on_local_high_severity_finding(
