@@ -1,10 +1,4 @@
-"""Local device-bound workflow authorization.
-
-This module is an authorization boundary only. It does not execute work, contact
-providers, perform profile lookups, store biometrics, or fall back to cloud.
-The device/OS supplies a short-lived owner-session assertion; raw fingerprints,
-IMEIs, keys, and private payloads never enter this module.
-"""
+"""Local device-bound workflow authorization."""
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
@@ -93,30 +87,14 @@ class WorkflowEnvelope:
     signature: str = ""
 
     def unsigned_payload(self) -> dict[str, Any]:
-        return {
-            "version": self.version,
-            "workflow_id": self.workflow_id,
-            "issuer": self.issuer,
-            "device_id": self.device_id,
-            "action": self.action,
-            "target": self.target,
-            "scope": list(self.scope),
-            "branch": self.branch,
-            "artifact_hashes": list(self.artifact_hashes),
-            "created_at": self.created_at,
-            "expires_at": self.expires_at,
-            "nonce": self.nonce,
-            "sequence_number": self.sequence_number,
-        }
+        return {"version": self.version, "workflow_id": self.workflow_id, "issuer": self.issuer, "device_id": self.device_id, "action": self.action, "target": self.target, "scope": list(self.scope), "branch": self.branch, "artifact_hashes": list(self.artifact_hashes), "created_at": self.created_at, "expires_at": self.expires_at, "nonce": self.nonce, "sequence_number": self.sequence_number}
 
     @property
     def payload_hash(self) -> str:
         return _hash(self.unsigned_payload())
 
     def validate(self, now: datetime) -> None:
-        required = (self.version, self.workflow_id, self.issuer, self.device_id,
-                    self.action, self.target, self.created_at, self.expires_at,
-                    self.nonce, self.signature)
+        required = (self.version, self.workflow_id, self.issuer, self.device_id, self.action, self.target, self.created_at, self.expires_at, self.nonce, self.signature)
         if any(not isinstance(value, str) or not value.strip() for value in required):
             raise ValueError("workflow envelope has missing required fields")
         if self.sequence_number < 0:
@@ -168,18 +146,7 @@ class ReplayStore:
 class WorkflowAuthorizationService:
     """Authorize a workflow; callers must execute only after ALLOW."""
 
-    def __init__(
-        self,
-        *,
-        device_registered: Callable[[str], bool],
-        verify_signature: Callable[[WorkflowEnvelope], bool | None],
-        policy_allows: Callable[[WorkflowEnvelope], bool],
-        audit_append: Callable[[Mapping[str, Any]], Any],
-        owner_login: str = "Appel420",
-        verify_owner_session: Callable[[AuthenticatedOwner], bool | None] | None = None,
-        replay_store: ReplayStore | None = None,
-        now: Callable[[], datetime] | None = None,
-    ) -> None:
+    def __init__(self, *, device_registered: Callable[[str], bool], verify_signature: Callable[[WorkflowEnvelope], bool | None], policy_allows: Callable[[WorkflowEnvelope], bool], audit_append: Callable[[Mapping[str, Any]], Any], owner_login: str = "Appel420", verify_owner_session: Callable[[AuthenticatedOwner], bool | None] | None = None, replay_store: ReplayStore | None = None, now: Callable[[], datetime] | None = None) -> None:
         self._device_registered = device_registered
         self._verify_signature = verify_signature
         self._policy_allows = policy_allows
@@ -189,28 +156,9 @@ class WorkflowAuthorizationService:
         self._replay = replay_store or ReplayStore()
         self._now = now or (lambda: datetime.now(timezone.utc))
 
-    def authorize(
-        self,
-        envelope: WorkflowEnvelope,
-        *,
-        owner: AuthenticatedOwner | None = None,
-        execution_target: str = "local",
-        state_permission: str = "none",
-        retention_permission: str = "none",
-        owner_confirmation: bool = False,
-        data_classification: str = "local",
-    ) -> AuthorizationResult:
+    def authorize(self, envelope: WorkflowEnvelope, *, owner: AuthenticatedOwner | None = None, execution_target: str = "local", state_permission: str = "none", retention_permission: str = "none", owner_confirmation: bool = False, data_classification: str = "local") -> AuthorizationResult:
         policy_hash = _hash({"workflow": envelope.workflow_id, "action": envelope.action})
-        base = {
-            "event": "WORKFLOW_AUTHORIZATION",
-            "workflow_id": envelope.workflow_id,
-            "device_id": envelope.device_id,
-            "owner_login": owner.login if owner else None,
-            "target": envelope.target,
-            "action": envelope.action,
-            "execution_target": execution_target,
-            "policy_hash": policy_hash,
-        }
+        base = {"event": "WORKFLOW_AUTHORIZATION", "workflow_id": envelope.workflow_id, "device_id": envelope.device_id, "owner_login": owner.login if owner else None, "target": envelope.target, "action": envelope.action, "execution_target": execution_target, "policy_hash": policy_hash}
         if owner is None or owner.login != self._owner_login or owner.device_id != envelope.device_id:
             return self._deny(base, DecisionCode.OWNER_SESSION_MISMATCH, "recognized owner session is required", policy_hash, lock=True)
         try:
@@ -242,20 +190,14 @@ class WorkflowAuthorizationService:
         capability = None
         if execution_target == "external":
             issued = self._now().astimezone(timezone.utc).isoformat()
-            capability = CloudExecutionCapability(
-                capability_id=secrets.token_urlsafe(18), workflow_id=envelope.workflow_id,
-                destination=envelope.target, action=envelope.action, scope=envelope.scope,
-                data_classification=data_classification, policy_hash=policy_hash,
-                approval_event_id=f"approval:{envelope.workflow_id}", issued_at=issued,
-                expires_at=envelope.expires_at, signature=envelope.signature,
-            )
-        evidence = {**base, "decision": ALLOW, "code": DecisionCode.ALLOWED.value,
-                    "owner_session_verified": True, "signature_verified": True,
-                    "state_permission": state_permission, "retention_permission": retention_permission,
-                    "capability_issued": capability is not None, "data_sent": False}
+            capability = CloudExecutionCapability(secrets.token_urlsafe(18), envelope.workflow_id, envelope.target, envelope.action, envelope.scope, data_classification, policy_hash, f"approval:{envelope.workflow_id}", issued, envelope.expires_at, envelope.signature)
+        evidence = {**base, "decision": ALLOW, "code": DecisionCode.ALLOWED.value, "owner_session_verified": True, "signature_verified": True, "state_permission": state_permission, "retention_permission": retention_permission, "capability_issued": capability is not None, "data_sent": False}
         if capability:
             evidence["capability_id"] = capability.capability_id
-        self._append_or_fail(evidence)
+        try:
+            self._audit_append(evidence)
+        except Exception as exc:
+            return AuthorizationResult(UNKNOWN, DecisionCode.AUDIT_UNAVAILABLE, "audit unavailable", envelope.workflow_id, policy_hash, screen_state=ScreenState.ACTIVE, evidence={**evidence, "audit_error": str(exc)})
         return AuthorizationResult(ALLOW, DecisionCode.ALLOWED, "authorized", envelope.workflow_id, policy_hash, capability, evidence=evidence)
 
     def _deny(self, base: Mapping[str, Any], code: DecisionCode, reason: str, policy_hash: str, *, lock: bool = False, unknown: bool = False) -> AuthorizationResult:
@@ -266,12 +208,6 @@ class WorkflowAuthorizationService:
         except Exception as exc:
             return AuthorizationResult(UNKNOWN, DecisionCode.AUDIT_UNAVAILABLE, "audit unavailable", base["workflow_id"], policy_hash, screen_state=ScreenState.LOCKED if lock else ScreenState.ACTIVE, evidence={**evidence, "audit_error": str(exc)})
         return AuthorizationResult(decision, code, reason, base["workflow_id"], policy_hash, screen_state=ScreenState.LOCKED if lock else ScreenState.ACTIVE, evidence=evidence)
-
-    def _append_or_fail(self, evidence: Mapping[str, Any]) -> None:
-        try:
-            self._audit_append(evidence)
-        except Exception as exc:
-            raise PermissionError("AUDIT-001/audit unavailable") from exc
 
 
 __all__ = ["ALLOW", "DENY", "UNKNOWN", "AuthenticatedOwner", "AuthorizationResult", "CloudExecutionCapability", "DecisionCode", "ReplayStore", "ScreenState", "WorkflowAuthorizationService", "WorkflowEnvelope"]
