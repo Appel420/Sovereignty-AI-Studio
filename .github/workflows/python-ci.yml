@@ -9,20 +9,20 @@ on:
 
 concurrency:
   group: python-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   test:
-    runs-on: self-hosted linux ARM64
+    runs-on: self-hosted, linux arm64
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
