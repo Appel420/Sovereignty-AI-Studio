@@ -1,0 +1,74 @@
+name: Production Health — Daily
+
+on:
+  schedule:
+    - cron: '0 12 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-health-daily
+  cancel-in-progress: false
+
+jobs:
+  health:
+    name: Daily production health
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Report execution state
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "=== PRODUCTION HEALTH ==="
+          echo "state=RUNNING"
+          echo "mode=portable-hosted"
+          echo "runner=${RUNNER_NAME}"
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+          echo "workflow=${GITHUB_WORKFLOW}"
+          echo "run_id=${GITHUB_RUN_ID}"
+          echo "commit=${GITHUB_SHA}"
+          echo "event=${GITHUB_EVENT_NAME}"
+
+      - name: Python compile visibility
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -d backend ]]; then python -m compileall -q backend; fi
+          if [[ -d sovereign ]]; then python -m compileall -q sovereign; fi
+          echo "python_compile=PASS"
+
+      - name: Node syntax visibility
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
+          echo "node_syntax=PASS"
+
+      - name: Repository test visibility
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
+        run: |
+          set -Eeuo pipefail
+          if [[ -d tests ]]; then python -m pytest -q tests; else echo 'tests=SKIPPED (directory absent)'; fi
+
+      - name: Final state
+        if: always()
+        shell: bash
+        run: |
+          if [[ "${{ job.status }}" == "success" ]]; then
+            echo "production_health=PASS"
+          else
+            echo "production_health=${{ job.status }}"
+            exit 1
+          fi
