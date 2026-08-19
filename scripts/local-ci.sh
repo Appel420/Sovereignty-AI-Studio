@@ -6,7 +6,9 @@ set -Eeuo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-export SG_NETWORK_MODE="${SG_NETWORK_MODE:-offline}"
+# Keep the canonical literal assignment visible to policy/conformance checks.
+SG_NETWORK_MODE="offline"
+export SG_NETWORK_MODE
 export SG_LOCAL_ONLY="${SG_LOCAL_ONLY:-1}"
 export SG_EXTERNAL_FEEDS="${SG_EXTERNAL_FEEDS:-disabled}"
 export CLOUD_FIRST="${CLOUD_FIRST:-false}"
