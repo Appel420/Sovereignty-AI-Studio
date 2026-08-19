@@ -3,5 +3,6 @@ members = [
     "crates/principal",
     "crates/policy-engine",
     "crates/orchestrator",
+    "phase0",
 ]
 resolver = "2"
