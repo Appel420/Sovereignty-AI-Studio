@@ -8,7 +8,7 @@ on:
 
 concurrency:
   group: ara-hardened-unit-ci-local-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -16,19 +16,19 @@ permissions:
 env:
   CI_NAME: ara-hardened-unit-ci-local
   CI_MODE: local
-  SG_NETWORK_MODE: offline
+  SG_NETWORK_MODE: local
   SG_LOCAL_ONLY: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   light:
-    runs-on: self-hosted 
+    runs-on: self-hosted, linux arm64
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
       - name: Announce CI identity
         run: |
           echo "CI:   $CI_NAME"
