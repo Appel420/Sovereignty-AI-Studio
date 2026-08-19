@@ -87,7 +87,7 @@ jobs:
           set -Eeuo pipefail
           if [[ -f phase0/Cargo.toml ]]; then
             command -v cargo >/dev/null 2>&1
-            cargo test --manifest-path phase0/Cargo.toml --locked
+            cargo test --manifest-path phase0/Cargo.toml
           else
             echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
           fi
