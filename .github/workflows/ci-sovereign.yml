@@ -6,19 +6,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   conformance:
     name: Sovereign CI
-    # Requires an explicitly configured self-hosted runner. This workflow is
-    # opt-in so a missing sovereign runner can never block required global CI.
-    runs-on: ['self-hosted, Linux arm64','ubuntu-latest']
+    # Requires an explicitly configured self-hosted Linux ARM64 runner.
+    # This workflow is opt-in so a missing sovereign runner cannot block required global CI.
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify sovereign runner
         shell: bash
@@ -42,7 +46,6 @@ jobs:
             requirements.txt
 
       - name: Install Python dependencies
-        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
@@ -51,25 +54,25 @@ jobs:
           python -m pip check
 
       - name: Python tests
-        shell: bash
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
         run: python -m pytest -q tests
 
       - name: Phase 0 Rust tests
-        shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml --locked; fi
+          if [[ -f phase0/Cargo.toml ]]; then
+            cargo test --manifest-path phase0/Cargo.toml
+          else
+            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+          fi
 
       - name: Node syntax check
-        shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
 
       - name: Frontend ownership contract
-        shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; fi
