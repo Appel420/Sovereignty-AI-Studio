@@ -4,7 +4,7 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [ ara-hardened, Collaboration, GPT/Codex, copilot/main, claude, DuckAi, main ]
+    branches: 'all'
   workflow_dispatch:
 
 env:
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   lightweight-security:
-    runs-on: self-hosted, linux | ubuntu-latest
+    runs-on: "self-hosted, linux arm64" || "ubuntu-latest"
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
