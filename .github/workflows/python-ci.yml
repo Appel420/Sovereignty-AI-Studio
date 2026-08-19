@@ -17,20 +17,36 @@ permissions:
 jobs:
   test:
     name: Python CI
-    # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
-    # when a registered sovereign runner is available.
-    runs-on: "self-hosted, linux arm64" || "ubuntu-latest" 
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Verify runner execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          test -n "${RUNNER_OS}"
+          test -n "${RUNNER_ARCH}"
+          echo "Execution mode: portable hosted"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
+          echo "Commit: ${GITHUB_SHA}"
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
+
       - name: Install test/lint tools
         shell: bash
         run: |
@@ -38,15 +54,19 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ruff pytest
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
+          python -m pip check
+
       - name: Lint
         shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -d backend ]]; then ruff check backend; fi
           if [[ -d prototypes/accessibility ]]; then ruff check prototypes/accessibility; fi
+
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
+
       - name: Coordination import check
         run: python -c "from backend.coordination import BranchRegistry; print('ok')"
