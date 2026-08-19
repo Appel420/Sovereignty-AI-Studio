@@ -4,7 +4,9 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: ['all']
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+  pull_request:
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 env:
@@ -14,23 +16,38 @@ permissions:
   contents: read
 
 concurrency:
-  group: ios-sovereign-${{ github.ref }}
+  group: ios-sovereign-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   lightweight-security:
-    # Labels are cumulative. This requires an online/idle sovereign Linux ARM64 runner.
+    # Labels are cumulative. This requires a registered Linux ARM64 runner.
     runs-on: [self-hosted, linux, ARM64]
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
+      - name: Verify sovereign runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Execution mode: self-hosted-linux-arm64-validation"
+          echo "Commit: ${GITHUB_SHA}"
+
       - name: Validate source and generate manifest
         run: |
+          set -Eeuo pipefail
           python -m compileall -q backend
           python3 - <<'PY'
           import json
