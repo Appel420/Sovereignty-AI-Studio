@@ -3,7 +3,7 @@ name: ara-hardened-unit-ci-local
 # Local validation lane. Canonical online CI is .github/workflows/ci.yml.
 on:
   push:
-    branches: [ ara-hardened ]
+    branches: [ all ]
   workflow_dispatch:
 
 concurrency:
