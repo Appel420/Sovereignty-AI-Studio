@@ -17,8 +17,6 @@ permissions:
 jobs:
   conformance:
     name: GitHub CI
-    # Required CI uses a broadly available hosted runner.
-    # Sovereign execution is provided by the separate opt-in workflow.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -39,6 +37,9 @@ jobs:
           echo "CI controller: GitHub Actions"
           echo "Execution mode: portable hosted"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
