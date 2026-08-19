@@ -14,70 +14,52 @@ env:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: ios-sovereign-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   runner-preflight:
     name: Sovereign Runner Preflight
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     outputs:
       available: ${{ steps.check.outputs.available }}
     steps:
-      - name: Check sovereign runner capability
+      - name: Check hosted ARM64 execution
         id: check
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUNNER_INVENTORY_TOKEN: ${{ secrets.SOVEREIGN_RUNNER_TOKEN }}
         run: |
           set -Eeuo pipefail
           echo "CI controller: GitHub Actions"
           echo "Workflow: ${GITHUB_WORKFLOW}"
           echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
-          echo "Required runner labels: self-hosted + linux + ARM64"
-
-          # Repository runner inventory requires repository-administration read
-          # access, which the default GITHUB_TOKEN intentionally does not have.
-          # Use an explicitly provisioned read-only token when available. Never
-          # fail the workflow merely because inventory introspection is unavailable;
-          # GitHub's scheduler remains the authoritative runner selector.
-          token="${RUNNER_INVENTORY_TOKEN:-${GH_TOKEN}}"
-          if [[ -n "${RUNNER_INVENTORY_TOKEN:-}" ]]; then
-            if response=$(curl --fail-with-body --silent --show-error \
-                --header "Accept: application/vnd.github+json" \
-                --header "Authorization: Bearer ${token}" \
-                --header "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100"); then
-              python -c 'import json,sys; d=json.load(sys.stdin); [(print(f"  {r[\"name\"]}: status={r.get(\"status\")}, busy={r.get(\"busy\")}")) for r in d.get("runners",[]) if {x["name"].lower() for x in r.get("labels",[])} >= {"self-hosted","linux","arm64"}]' <<<"${response}"
-              available=$(python -c 'import json,sys; d=json.load(sys.stdin); print(str(any(r.get("status")=="online" and not r.get("busy") and {x["name"].lower() for x in r.get("labels",[])} >= {"self-hosted","linux","arm64"} for r in d.get("runners",[]))).lower())' <<<"${response}")
-              echo "Runner inventory available: ${available}"
-              echo "available=${available}" >> "${GITHUB_OUTPUT}"
-              exit 0
-            fi
-            echo "Runner inventory query failed; GitHub scheduler remains authoritative."
-          else
-            echo "Runner inventory introspection is unavailable with GITHUB_TOKEN (repository administration permission required)."
-          fi
-
-          echo "Preflight result: scheduler-authoritative"
+          echo "Execution mode: hosted-linux-arm64-validation"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "OS: ${RUNNER_OS}"
+          echo "Architecture: ${RUNNER_ARCH}"
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
           echo "available=true" >> "${GITHUB_OUTPUT}"
 
-      - name: Explain scheduler authority
+      - name: Record execution boundary
         run: |
-          echo "The self-hosted job will be scheduled by GitHub against its required labels."
-          echo "A missing/offline runner will therefore be visible as a queued job rather than a false preflight failure."
+          set -Eeuo pipefail
+          printf '%s\n' \
+            "runner=${RUNNER_NAME}" \
+            "os=${RUNNER_OS}" \
+            "arch=${RUNNER_ARCH}" \
+            "workflow=${GITHUB_WORKFLOW}" \
+            "run_id=${GITHUB_RUN_ID}" \
+            "commit=${GITHUB_SHA}"
 
   lightweight-security:
     name: Sovereign Linux ARM64 Validation
     needs: runner-preflight
     if: needs.runner-preflight.outputs.available == 'true'
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -91,13 +73,13 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Verify sovereign runner
+      - name: Verify ARM64 runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
-          echo "Execution mode: self-hosted-linux-arm64-validation"
+          echo "Execution mode: hosted-linux-arm64-validation"
           echo "Commit: ${GITHUB_SHA}"
           echo "Runner: ${RUNNER_NAME}"
           echo "Workflow: ${GITHUB_WORKFLOW}"
@@ -117,7 +99,7 @@ jobs:
               'timestamp': int(time.time()),
               'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
-              'execution': 'self-hosted-linux-arm64-validation',
+              'execution': 'hosted-linux-arm64-validation',
               'native_xcode_compile': False,
               'runner_name': os.environ.get('RUNNER_NAME'),
               'runner_os': os.environ.get('RUNNER_OS'),
