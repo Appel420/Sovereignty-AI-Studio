@@ -13,9 +13,9 @@ concurrency:
 jobs:
   conformance:
     name: Sovereign CI
-    # Requires an explicitly configured self-hosted Linux ARM64 runner.
+    # Requires an explicitly configured self-hosted Linux arm64 runner.
     # This workflow is opt-in so a missing sovereign runner cannot block required global CI.
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ["self-hosted, Linux, arm64"]
     timeout-minutes: 30
     steps:
       - name: Checkout repository
