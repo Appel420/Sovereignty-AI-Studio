@@ -37,7 +37,27 @@ def _repo_status() -> dict[str, Any]:
     branch = _git("rev-parse", "--abbrev-ref", "HEAD") or "unknown"
     commit = (_git("log", "--format=%H", "-1") or "unknown")[:16]
     porcelain = _git("status", "--porcelain")
-    return {"branch": branch, "commit": commit, "changes": len(porcelain.splitlines()), "clean": not porcelain}
+    staged = unstaged = untracked = 0
+    for line in porcelain.splitlines():
+        if len(line) < 2:
+            continue
+        index_state, worktree_state = line[0], line[1]
+        if index_state == "?" and worktree_state == "?":
+            untracked += 1
+            continue
+        if index_state not in (" ", "?"):
+            staged += 1
+        if worktree_state not in (" ", "?"):
+            unstaged += 1
+    return {
+        "branch": branch,
+        "commit": commit,
+        "staged_count": staged,
+        "unstaged_count": unstaged,
+        "untracked_count": untracked,
+        "clean": not porcelain,
+        "shell_access": "disabled",
+    }
 
 
 def _agent_status() -> dict[str, Any]:
@@ -49,7 +69,8 @@ def _agent_status() -> dict[str, Any]:
 def _cicd_status() -> dict[str, Any]:
     directory = _REPO_ROOT / ".github" / "workflows"
     files = sorted(p.name for p in directory.glob("*.yml")) if directory.is_dir() else []
-    return {"workflows": files, "count": len(files), "source": "local-workflow-scan"}
+    workflows = [{"name": pathlib.Path(filename).stem, "file": filename} for filename in files]
+    return {"workflows": workflows, "count": len(workflows), "source": "local-workflow-scan"}
 
 
 def _network_audit() -> dict[str, Any]:
