@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +17,7 @@ permissions:
 jobs:
   conformance:
     name: GitHub CI
-    # Always use a universally available hosted runner for required CI.
+    # Required CI uses a broadly available hosted runner.
     # Sovereign execution is provided by the separate opt-in workflow.
     runs-on: ubuntu-latest
     timeout-minutes: 30
