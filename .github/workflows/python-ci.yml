@@ -9,7 +9,7 @@ on:
 
 concurrency:
   group: python-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -17,9 +17,7 @@ permissions:
 jobs:
   test:
     name: Python CI
-    # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
-    # when a registered sovereign runner is available.
-    runs-on: "self-hosted, linux arm64" || "ubuntu-latest" 
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +29,18 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
+      - name: Verify execution boundary
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test "${RUNNER_OS}" = "Linux"
+          echo "Execution mode: portable-hosted-python"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "Architecture: ${RUNNER_ARCH}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
+          echo "Commit: ${GITHUB_SHA}"
       - name: Install test/lint tools
         shell: bash
         run: |
@@ -38,7 +48,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ruff pytest
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
-      - name: Lint
+          python -m pip check
+      - name: Lint supported source trees
         shell: bash
         run: |
           set -Eeuo pipefail
