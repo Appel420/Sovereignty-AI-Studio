@@ -4,13 +4,13 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: 'all'
+    branches: ['all']
   workflow_dispatch:
 
 env:
   PYTHONPATH: .:./backend
 
-permissions: 
+permissions:
   contents: read
 
 concurrency:
@@ -19,29 +19,36 @@ concurrency:
 
 jobs:
   lightweight-security:
-    runs-on: ['self-hosted, linux arm64']
+    # Labels are cumulative. This requires an online/idle sovereign Linux ARM64 runner.
+    runs-on: [self-hosted, linux, ARM64]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
+
       - name: Validate source and generate manifest
         run: |
           python -m compileall -q backend
           python3 - <<'PY'
-          import json, time
+          import json
+          import os
+          import time
+
           payload = {
-              'node_id': 'ios-build-${{ github.run_id }}',
+              'node_id': 'ios-build-' + os.environ['GITHUB_RUN_ID'],
               'timestamp': int(time.time()),
-              'build_ref': '${{ github.sha }}',
+              'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
-              'execution': 'github-hosted-validation',
-              'native_xcode_compile': true,
+              'execution': 'self-hosted-linux-arm64-validation',
+              'native_xcode_compile': False,
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
           PY
+
       - name: Upload validation manifest
         uses: actions/upload-artifact@v4
         with:
