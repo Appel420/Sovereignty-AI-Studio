@@ -18,8 +18,8 @@ env:
   CLOUD_FIRST: 'false'
   PIPNOINPUT: '1'
   PIPDISABLEPIPVERSIONCHECK: '1'
-  npmconfigaudit: 'false'
-  npmconfigfund: 'false'
+  npmconfigaudit: 'true'
+  npmconfigfund: 'true'
 
 jobs:
   conformance:
@@ -27,10 +27,7 @@ jobs:
     # Three labels are required; do not collapse them into one label string.
     # This intentionally remains self-hosted and therefore requires a genuine
     # connected Linux ARM64 runner. No ARM64 capability is faked here.
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
+    runs-on: "self-hosted, linux arm64"
     timeout-minutes: 45
     steps:
       - name: Checkout repository
