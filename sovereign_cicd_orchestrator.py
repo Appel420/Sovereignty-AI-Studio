@@ -1,95 +1,128 @@
 #!/usr/bin/env python3
+"""Local sovereign CI/CD orchestration primitives.
+
+The HTTP transport lives in ``sovereign_cicd_server.py``. This module contains
+only the job/step state machine and local command execution surface.
 """
-Sovereign CI/CD HTTP Server
-Binds to 127.0.0.1:9898 (next to your 9897 Python bridge)
-Exposes endpoints for the big Sovereign Validator Dashboard to trigger and monitor jobs.
+from __future__ import annotations
 
-No external exposure. Local only. Sovereign.
-"""
+from dataclasses import dataclass, field
+import hashlib
+import subprocess
+import uuid
+from typing import Dict, List
 
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import json
-from urllib.parse import urlparse, parse_qs
-from sovereign_cicd_orchestrator import SovereignCICDMOrchestrator
 
-ORCH = SovereignCICDMOrchestrator()
-PORT = 9898
+class MerkleLedger:
+    def __init__(self) -> None:
+        self._leaves: List[str] = []
 
-class CICDServer(BaseHTTPRequestHandler):
-    def _send_json(self, data, code=200):
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.end_headers()
-        self.wfile.write(json.dumps(data, indent=2).encode())
+    def append(self, value: str) -> None:
+        self._leaves.append(hashlib.sha256(value.encode()).hexdigest())
 
-    def do_POST(self):
-        parsed = urlparse(self.path)
-        if parsed.path == "/job/create":
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                payload = json.loads(body)
-                repo = payload.get("repo_path", ".")
-                reason = payload.get("reason", "")
-                job = ORCH.create_job(repo, reason)
-                self._send_json({"job_id": job.job_id, "status": "created", "merkle_root": ORCH.merkle.root()})
-            except Exception as e:
-                self._send_json({"error": str(e)}, 400)
+    def root(self) -> str:
+        if not self._leaves:
+            return hashlib.sha256(b"").hexdigest()
+        level = self._leaves[:]
+        while len(level) > 1:
+            if len(level) % 2:
+                level.append(level[-1])
+            level = [hashlib.sha256((level[i] + level[i + 1]).encode()).hexdigest() for i in range(0, len(level), 2)]
+        return level[0]
 
-        elif parsed.path.startswith("/job/") and parsed.path.endswith("/add_step"):
-            job_id = parsed.path.split("/")[2]
-            length = int(self.headers.get("Content-Length", 0))
-            body = self.rfile.read(length)
-            try:
-                payload = json.loads(body)
-                command = payload.get("command", "")
-                step = ORCH.add_step(job_id, command)
-                self._send_json({"step_id": step.step_id, "status": step.status})
-            except Exception as e:
-                self._send_json({"error": str(e)}, 400)
 
-        elif parsed.path.startswith("/job/") and parsed.path.endswith("/run_step"):
-            parts = parsed.path.split("/")
-            job_id = parts[2]
-            step_index = int(parts[4]) if len(parts) > 4 else 0
-            try:
-                step = ORCH.run_step(job_id, step_index)
-                self._send_json({"step_id": step.step_id, "status": step.status, "output": step.output[:2000]})
-            except Exception as e:
-                self._send_json({"error": str(e)}, 400)
+@dataclass
+class Step:
+    step_id: str
+    command: str
+    status: str = "pending"
+    output: str = ""
 
-        elif parsed.path.startswith("/job/") and parsed.path.endswith("/finalize"):
-            job_id = parsed.path.split("/")[2]
-            try:
-                job = ORCH.finalize_job(job_id)
-                self._send_json({
-                    "job_id": job.job_id,
-                    "status": job.overall_status,
-                    "final_merkle_root": job.final_merkle_root,
-                    "pqc_signature": job.pqc_signature
-                })
-            except Exception as e:
-                self._send_json({"error": str(e)}, 400)
 
-        else:
-            self._send_json({"error": "Unknown endpoint"}, 404)
+@dataclass
+class Job:
+    job_id: str
+    repo_path: str
+    reason: str
+    steps: List[Step] = field(default_factory=list)
+    overall_status: str = "created"
+    final_merkle_root: str = ""
+    pqc_signature: str = ""
 
-    def do_GET(self):
-        parsed = urlparse(self.path)
-        if parsed.path.startswith("/job/") and parsed.path.endswith("/status"):
-            job_id = parsed.path.split("/")[2]
-            status = ORCH.get_status(job_id)
-            self._send_json(status)
-        elif parsed.path == "/health":
-            self._send_json({"status": "sovereign_cicd_alive", "active_jobs": len(ORCH.active_jobs)})
-        else:
-            self._send_json({"error": "Unknown endpoint"}, 404)
 
-if __name__ == "__main__":
-    print(f"Sovereign CI/CD Server starting on http://127.0.0.1:{PORT}")
-    print("This is YOUR CI/CD. No Google. No GitHub Actions. Root Chain Oversight enforced.")
-    server = HTTPServer(("127.0.0.1", PORT), CICDServer)
-    try:
-        server.serve_forever()
-    except KeyboardInterrupt:
-        print("\nSovereign CI/CD shutting down.")
+class SovereignCICDMOrchestrator:
+    """Minimal local-only CI/CD state machine.
+
+    No network execution or provider fallback is introduced. Commands execute
+    only on the local machine through the explicitly supplied repository path.
+    """
+
+    def __init__(self) -> None:
+        self.active_jobs: Dict[str, Job] = {}
+        self.merkle = MerkleLedger()
+
+    def create_job(self, repo_path: str, reason: str) -> Job:
+        job = Job(str(uuid.uuid4()), repo_path, reason)
+        self.active_jobs[job.job_id] = job
+        self.merkle.append(f"create:{job.job_id}:{repo_path}:{reason}")
+        return job
+
+    def add_step(self, job_id: str, command: str) -> Step:
+        job = self._job(job_id)
+        if not command.strip():
+            raise ValueError("command is required")
+        step = Step(str(uuid.uuid4()), command)
+        job.steps.append(step)
+        self.merkle.append(f"step:{job.job_id}:{step.step_id}:{command}")
+        return step
+
+    def run_step(self, job_id: str, step_index: int = 0) -> Step:
+        job = self._job(job_id)
+        try:
+            step = job.steps[step_index]
+        except IndexError as exc:
+            raise ValueError("step not found") from exc
+        step.status = "running"
+        try:
+            completed = subprocess.run(
+                step.command,
+                shell=True,
+                cwd=job.repo_path,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                timeout=900,
+                check=False,
+            )
+            step.output = completed.stdout or ""
+            step.status = "passed" if completed.returncode == 0 else "failed"
+        except Exception as exc:
+            step.output = str(exc)
+            step.status = "failed"
+        self.merkle.append(f"result:{step.step_id}:{step.status}:{step.output}")
+        return step
+
+    def finalize_job(self, job_id: str) -> Job:
+        job = self._job(job_id)
+        job.overall_status = "passed" if job.steps and all(s.status == "passed" for s in job.steps) else "failed"
+        job.final_merkle_root = self.merkle.root()
+        job.pqc_signature = ""
+        self.merkle.append(f"finalize:{job.job_id}:{job.overall_status}:{job.final_merkle_root}")
+        return job
+
+    def get_status(self, job_id: str) -> dict:
+        job = self._job(job_id)
+        return {
+            "job_id": job.job_id,
+            "repo_path": job.repo_path,
+            "reason": job.reason,
+            "status": job.overall_status,
+            "steps": [{"step_id": s.step_id, "status": s.status, "command": s.command} for s in job.steps],
+            "merkle_root": self.merkle.root(),
+        }
+
+    def _job(self, job_id: str) -> Job:
+        try:
+            return self.active_jobs[job_id]
+        except KeyError as exc:
+            raise ValueError("job not found") from exc

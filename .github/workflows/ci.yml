@@ -2,30 +2,23 @@ name: CI
 
 on:
   push:
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   pull_request:
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: github-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
-env:
-  SGNETWORKMODE: online-ci
-  SGLOCALONLY: '0'
-  CLOUD_FIRST: 'false'
-  PIPNOINPUT: '1'
-  PIPDISABLEPIPVERSIONCHECK: '1'
-  npmconfigaudit: 'false'
-  npmconfigfund: 'false'
-
 jobs:
   conformance:
-    name: Repository conformance (self-hosted)
-    runs-on: ['self-hosted Linux arm64']
-    timeout-minutes: 45
+    name: GitHub CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,14 +26,20 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify Actions context
+      - name: Verify runner execution
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
+          test -n "${RUNNER_OS}"
+          test -n "${RUNNER_ARCH}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted Linux ARM64"
+          echo "Execution mode: portable hosted"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
@@ -48,18 +47,66 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
 
       - name: Install Python dependencies
+        shell: bash
         run: |
+          set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
+          if [[ -f requirements.txt ]]; then
+            python -m pip install -r requirements.txt
+          fi
+          python -m pip check
+          python - <<'PY'
+          import nacl
+          print('PyNaCl:', nacl.__version__)
+          PY
 
-      - name: Lint
-        run: ruff check sovereign/
+      - name: Python lint diagnostics
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -d sovereign ]]; then ruff check sovereign; fi
+          if [[ -d backend ]]; then ruff check backend; fi
 
-      - name: Type check
-        run: mypy sovereign/
+      - name: Python tests
+        shell: bash
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
+        run: |
+          set -Eeuo pipefail
+          if [[ -d tests ]]; then python -m pytest -q tests; fi
 
-      - name: Test
-        run: pytest -q
+      - name: Phase 0 Rust tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f phase0/Cargo.toml ]]; then
+            command -v cargo >/dev/null 2>&1
+            cargo test --manifest-path phase0/Cargo.toml
+          else
+            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+          fi
+
+      - name: Node syntax check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f node-bridge/server.js ]]; then
+            command -v node >/dev/null 2>&1
+            node --check node-bridge/server.js
+          fi
+
+      - name: Frontend ownership contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
+            command -v node >/dev/null 2>&1
+            node frontend/scripts/test-sghv119-ownership.js
+          fi

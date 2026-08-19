@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
     strategy:
       matrix:
         python-version: ['3.13']

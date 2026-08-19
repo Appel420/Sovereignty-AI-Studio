@@ -3,68 +3,50 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ copilot/main, main, dev, ara-hardened, Collaboration ]
+    branches: [Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: [ copilot/main, main, dev, ara-hardened, Collaboration ]
+    branches: [Collaboration, main, dev, copilot/main]
 
 concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: False
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   test:
-    runs-on: self-hosted linux ARM64
-    timeout-minutes: 10
+    name: Python CI
+    # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
+    # when a registered sovereign runner is available.
+    runs-on: "self-hosted, linux arm64" || "ubuntu-latest" 
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: True
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
       - name: Install test/lint tools
+        shell: bash
         run: |
+          set -Eeuo pipefail
           python -m pip install --upgrade pip
-          pip install ruff pytest
-          pip install -e '.[test,lint]'
+          python -m pip install ruff pytest
+          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
       - name: Lint
-        run: ruff check backend/coordination prototypes/accessibility
-      - name: Run focused tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -d backend ]]; then ruff check backend; fi
+          if [[ -d prototypes/accessibility ]]; then ruff check prototypes/accessibility; fi
+      - name: Run tests
         env:
           PYTHONPATH: prototypes:.
-        run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
+        run: python -m pytest -q
       - name: Coordination import check
         run: python -c "from backend.coordination import BranchRegistry; print('ok')"
-      - name: Create CI manifest
-        run: |
-          python3 - <<'PY'
-          import hashlib, hmac, json
-          manifest = {
-              'workflow': 'Python CI',
-              'run_id': '${{ github.run_id }}',
-              'sha': '${{ github.sha }}',
-              'ref': '${{ github.ref }}',
-              'execution': 'github-hosted',
-              'device_independent': True,
-              'signing_backend': 'hmac-sha256-ci-local',
-          }
-          key = b'ci-manifest-local-verification'
-          message = json.dumps(manifest, sort_keys=True).encode()
-          manifest['signature'] = hmac.new(key, message, hashlib.sha256).hexdigest()
-          with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(manifest, fh, indent=2)
-          PY
-      - name: Upload Test Manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-ci-manifest-${{ github.run_id }}
-          path: python-ci-manifest.json
-          retention-days: 30
-          if-no-files-found: error

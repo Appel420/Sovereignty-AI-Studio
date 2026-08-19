@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Read-only status for the local dashboard build surface."""
 from __future__ import annotations
 
@@ -9,7 +8,6 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent.parent
-LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 DEVASSIST_STATUS_URL = "http://127.0.0.1:9899/api/devassist/status"
 
 
@@ -18,11 +16,11 @@ def _exists(relative: str) -> bool:
 
 
 def _loopback_status(url: str = DEVASSIST_STATUS_URL) -> dict[str, Any]:
-    if not any(url.startswith(prefix) for prefix in ("http://127.0.0.1:", "http://localhost:", "http://[::1]:")):
+    if not url.startswith(("http://127.0.0.1:", "http://localhost:", "http://[::1]:")):
         return {"state": "UNAVAILABLE", "reason": "non-loopback endpoint rejected", "url": url}
     try:
         request = Request(url, headers={"Cache-Control": "no-store"})
-        with urlopen(request, timeout=1.5) as response:  # noqa: S310 - URL is fixed loopback only
+        with urlopen(request, timeout=1.5) as response:  # noqa: S310
             payload = json.loads(response.read().decode("utf-8"))
         if not isinstance(payload, dict):
             raise ValueError("bridge status is not an object")
@@ -32,24 +30,19 @@ def _loopback_status(url: str = DEVASSIST_STATUS_URL) -> dict[str, Any]:
 
 
 def local_status() -> dict[str, Any]:
-    oauth_policy_path = ROOT / "config" / "local-oauth-policy.json"
+    policy_path = ROOT / "config" / "local-oauth-policy.json"
     policy: dict[str, Any] = {}
-    if oauth_policy_path.is_file():
+    if policy_path.is_file():
         try:
-            policy = json.loads(oauth_policy_path.read_text(encoding="utf-8"))
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
-            policy = {}
+            pass
 
     try:
         from scripts.audit_external_integrations import inventory
         external = inventory()
-    except Exception as exc:  # pragma: no cover - status must remain readable
-        external = {
-            "mode": "offline",
-            "network_access": False,
-            "inventory_error": str(exc),
-            "source": "local-read-only-inventory",
-        }
+    except Exception as exc:  # pragma: no cover
+        external = {"mode": "offline", "network_access": False, "inventory_error": str(exc)}
 
     devassist = _loopback_status()
     return {
@@ -60,6 +53,11 @@ def local_status() -> dict[str, Any]:
         "oauth_generator": _exists("scripts/oauth_local_generator.py"),
         "local_state_validator": _exists("scripts/validate-local-state.sh"),
         "local_ci": _exists("scripts/local-ci.sh"),
+        "m4_neural": {
+            "tops": 38,
+            "memory": "unified",
+            "path": "docs/apple_m4_neural.md",
+        },
         "phpwin": {"state": "RUNNING", "source": "dashboard-process"},
         "node_bridge": {
             "state": "RUNNING" if devassist.get("state") == "RUNNING" else "UNAVAILABLE",

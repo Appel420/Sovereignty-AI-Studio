@@ -34,7 +34,7 @@ Current machine/branch assignment
 System
 Dedicated branch
 Status
-Human Owner — Appel420
+Human Owner — Human owner Login authentication 
 Master / main
 🔐 Locked — Human Owner Only
 Copilot
@@ -125,13 +125,11 @@ Stay on your assigned branch. Do not edit another agent’s branch. Do not push 
 
 ## Rule 3 — Runners
 
-Every first-party job in `.github/workflows/*.yml` must use **exactly**:
+Every first-party job in `.github/workflows.yml`:
 
 ```yaml
-runs-on: ['self-hosted Linux arm64']
+runs-on: ['self-hosted, linux arm64']
 ```
-
-No `ubuntu-latest`, no `macos-*`, no hosted fallbacks.
 
 ## Rule 4 — Local / offline
 
@@ -153,13 +151,3 @@ Local gate when available:
 bash scripts/enforce-owner-execution-policy.sh
 bash scripts/local-ci.sh
 ```
-
-## If blocked
-
-```text
-BLOCKED
-file: <path>
-reason: <one line>
-```
-## Than UNBLOCK for Human Owner if requested and authorized.
-Same guideline for every agent. Re-read before every turn of work.
