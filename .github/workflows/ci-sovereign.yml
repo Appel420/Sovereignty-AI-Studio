@@ -8,14 +8,17 @@ permissions:
 
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   conformance:
     name: Sovereign CI
-    # Requires an explicitly configured self-hosted Linux arm64 runner.
+    # Requires an explicitly configured self-hosted Linux ARM64 runner.
     # This workflow is opt-in so a missing sovereign runner cannot block required global CI.
-    runs-on: ["self-hosted, Linux, arm64"]
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -23,7 +26,6 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Verify sovereign runner
         shell: bash
         run: |
@@ -34,8 +36,10 @@ jobs:
           test "${RUNNER_ARCH}" = "ARM64"
           echo "Execution mode: sovereign self-hosted"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -44,7 +48,6 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements.txt
-
       - name: Install Python dependencies
         run: |
           set -Eeuo pipefail
@@ -52,26 +55,18 @@ jobs:
           python -m pip install -e '.[test,lint]'
           if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip check
-
       - name: Python tests
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
         run: python -m pytest -q tests
-
       - name: Phase 0 Rust tests
         run: |
           set -Eeuo pipefail
-          if [[ -f phase0/Cargo.toml ]]; then
-            cargo test --manifest-path phase0/Cargo.toml
-          else
-            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
-          fi
-
+          if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'; fi
       - name: Node syntax check
         run: |
           set -Eeuo pipefail
           if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
-
       - name: Frontend ownership contract
         run: |
           set -Eeuo pipefail
