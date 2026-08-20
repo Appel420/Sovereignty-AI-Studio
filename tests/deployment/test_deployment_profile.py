@@ -61,3 +61,16 @@ def test_missing_schema_fails_closed(tmp_path: Path):
     report = run_validation_pipeline(make_profile(), tmp_path / "missing.json")
     assert report.valid is False
     assert report.errors
+
+
+def test_minimal_schema_fallback_enforces_schema_contract(monkeypatch):
+    from src.deployment import deployment_profile as module
+
+    monkeypatch.setattr(module, "Draft202012Validator", None)
+    monkeypatch.setattr(module, "FormatChecker", None)
+    profile = make_profile()
+    object.__setattr__(profile.deployment, "schema_version", "0.0.0")
+
+    errors = module.validate_profile(profile, SCHEMA)
+
+    assert any("schema_version" in error for error in errors)
