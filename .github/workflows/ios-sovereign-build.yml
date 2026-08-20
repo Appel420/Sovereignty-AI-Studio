@@ -1,74 +1,71 @@
 name: iOS Sovereign Build (local-first)
-
-# Device-independent validation. Native Xcode compilation remains a separate
-# macOS capability; this workflow never claims a Linux build is an iOS build.
-on:
-  push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
-  pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
-  workflow_dispatch:
-
-env:
-  PYTHONPATH: .:./backend
-
-permissions:
-  contents: read
-  actions: read
-
-concurrency:
-  group: ios-sovereign-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
-jobs:
-  runner-preflight:
-    name: Sovereign Runner Preflight
-    runs-on: ['self-hosted, linux arm64']
-    timeout-minutes: 5
-    outputs:
-      available: ${{ steps.check.outputs.available }}
-    steps:
-      - name: Check sovereign runner capability
-        id: check
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUNNER_INVENTORY_TOKEN: ${{ secrets.SOVEREIGN_RUNNER_TOKEN }}
-        run: |
-          set -Eeuo pipefail
-          echo "CI controller: GitHub Actions"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
-          echo "Commit: ${GITHUB_SHA}"
-          echo "Required runner labels: self-hosted + linux + ARM64"
-
-          # Repository runner inventory requires repository-administration read
-          # access, which the default GITHUB_TOKEN intentionally does not have.
-          # Use an explicitly provisioned read-only token when available. Never
-          # fail the workflow merely because inventory introspection is unavailable;
-          # GitHub's scheduler remains the authoritative runner selector.
-          token="${RUNNER_INVENTORY_TOKEN:-${GH_TOKEN}}"
-          if [[ -n "${RUNNER_INVENTORY_TOKEN:-}" ]]; then
-            if response=$(curl --fail-with-body --silent --show-error \
-                --header "Accept: application/vnd.github+json" \
-                --header "Authorization: Bearer ${token}" \
-                --header "X-GitHub-Api-Version: 2022-11-28" \
-                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100"); then
-              python -c 'import json,sys; d=json.load(sys.stdin); [(print(f"  {r[\"name\"]}: status={r.get(\"status\")}, busy={r.get(\"busy\")}")) for r in d.get("runners",[]) if {x["name"].lower() for x in r.get("labels",[])} >= {"self-hosted","linux","arm64"}]' <<<"${response}"
-              available=$(python -c 'import json,sys; d=json.load(sys.stdin); print(str(any(r.get("status")=="online" and not r.get("busy") and {x["name"].lower() for x in r.get("labels",[])} >= {"self-hosted","linux","arm64"} for r in d.get("runners",[]))).lower())' <<<"${response}")
-              echo "Runner inventory available: ${available}"
-              echo "available=${available}" >> "${GITHUB_OUTPUT}"
-              exit 0
-            fi
-            echo "Runner inventory query failed; GitHub scheduler remains authoritative."
-          else
-            echo "Runner inventory introspection is unavailable with GITHUB_TOKEN (repository administration permission required)."
-          fi
-
-          echo "Preflight result: scheduler-authoritative"
+          echo "available=true" >> "${GITHUB_OUTPUT}"
+name: iOS Sovereign Build (local-first)
           echo "available=true" >> "${GITHUB_OUTPUT}"
 
-      - name: Explain scheduler authority
+name: Explain scheduler authority
+run:
+  lightweight-security:
+    name: Sovereign Linux ARM64 Validation
+    needs: runner-preflight
+    if: needs.runner-preflight.outputs.available == 'true'
+    runs-on: ['self-hosted, linux arm64']
+    timeout-minutes: 15
+    steps:
+    name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+name: Verify sovereign runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Execution mode: self-hosted-linux-arm64-validation"
+          echo "Commit: ${GITHUB_SHA}"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUBRUNID}"
+
+name: Validate source and generate manifest
+        run: |
+          set -Eeuo pipefail
+          python -m compileall -q backend
+          python3 - <<'PY'
+          import json
+          import os
+          import time
+
+          payload = {
+              'nodeid': 'ios-build-' + os.environ['GITHUBRUN_ID'],
+              'timestamp': int(time.time()),
+              'buildref': os.environ['GITHUBSHA'],
+              'platform': 'iOS',
+              'execution': 'self-hosted-linux-arm64-validation',
+              'nativexcodecompile': False,
+              'runnername': os.environ.get('RUNNERNAME'),
+              'runneros': os.environ.get('RUNNEROS'),
+              'runnerarch': os.environ.get('RUNNERARCH'),
+          }
+          with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
+              json.dump(payload, fh, indent=2)
+          PY
+
+name: Upload validation manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-sovereign-build-artifacts-${{ github.run_id }}
+          path: ios-build-manifest.json
+          if-no-files-found: error
+name: Explain scheduler authority
         run: |
           echo "The self-hosted job will be scheduled by GitHub against its required labels."
           echo "A missing/offline runner will therefore be visible as a queued job rather than a false preflight failure."
@@ -80,20 +77,20 @@ jobs:
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     steps:
-      - name: Checkout repository
+name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Set up Python
+name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
 
-      - name: Verify sovereign runner
-        shell: bash
-        run: |
+name: Verify sovereign runner
+          shell: bash
+          run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
@@ -101,10 +98,10 @@ jobs:
           echo "Commit: ${GITHUB_SHA}"
           echo "Runner: ${RUNNER_NAME}"
           echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
+          echo "Run ID: ${GITHUBRUNID}"
 
-      - name: Validate source and generate manifest
-        run: |
+          name: Validate source and generate manifest
+          run: |
           set -Eeuo pipefail
           python -m compileall -q backend
           python3 - <<'PY'
@@ -113,23 +110,23 @@ jobs:
           import time
 
           payload = {
-              'node_id': 'ios-build-' + os.environ['GITHUB_RUN_ID'],
+              'nodeid': 'ios-build-' + os.environ['GITHUBRUN_ID'],
               'timestamp': int(time.time()),
-              'build_ref': os.environ['GITHUB_SHA'],
+              'buildref': os.environ['GITHUBSHA'],
               'platform': 'iOS',
               'execution': 'self-hosted-linux-arm64-validation',
-              'native_xcode_compile': False,
-              'runner_name': os.environ.get('RUNNER_NAME'),
-              'runner_os': os.environ.get('RUNNER_OS'),
-              'runner_arch': os.environ.get('RUNNER_ARCH'),
+              'nativexcodecompile': False,
+              'runnername': os.environ.get('RUNNERNAME'),
+              'runneros': os.environ.get('RUNNEROS'),
+              'runnerarch': os.environ.get('RUNNERARCH'),
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
           PY
 
-      - name: Upload validation manifest
-        uses: actions/upload-artifact@v4
-        with:
+          name: Upload validation manifest
+          uses: actions/upload-artifact@v4
+          with:
           name: ios-sovereign-build-artifacts-${{ github.run_id }}
           path: ios-build-manifest.json
           if-no-files-found: error
