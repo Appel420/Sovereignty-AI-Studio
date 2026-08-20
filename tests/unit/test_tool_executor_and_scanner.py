@@ -20,3 +20,12 @@ def test_scanner_is_report_only(tmp_path):
     reports = scan_path(tmp_path)
     assert reports[0].findings[0].rule == "bare_except"
     assert source.read_text(encoding="utf-8").startswith("def f")
+
+
+def test_scanner_detects_subprocess_attribute_calls(tmp_path):
+    source = tmp_path / "runner.py"
+    source.write_text("import subprocess\nsubprocess.run(['echo', 'ok'])\n", encoding="utf-8")
+
+    reports = scan_path(tmp_path)
+
+    assert reports[0].findings[0].rule == "subprocess_reference"

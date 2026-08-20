@@ -37,9 +37,18 @@ def _python_findings(path: Path, text: str) -> list[Finding]:
             findings.append(Finding("bare_except", "high", "Bare except masks failures", node.lineno))
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in {"eval", "exec"}:
             findings.append(Finding("dynamic_execution", "critical", f"Use of {node.func.id} detected", node.lineno))
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "subprocess":
+        if isinstance(node, ast.Call) and _is_subprocess_call(node.func):
             findings.append(Finding("subprocess_reference", "medium", "Review subprocess use", node.lineno))
     return findings
+
+
+def _is_subprocess_call(func: ast.expr) -> bool:
+    """Return True for subprocess invocations such as subprocess.run(...)."""
+    return (
+        isinstance(func, ast.Attribute)
+        and isinstance(func.value, ast.Name)
+        and func.value.id == "subprocess"
+    )
 
 
 def scan_path(root: Path) -> list[FileReport]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib import import_module, util
 import json
 import secrets
 import time
@@ -7,7 +8,15 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from jsonschema import Draft202012Validator, FormatChecker
+
+_jsonschema_spec = util.find_spec("jsonschema")
+if _jsonschema_spec is not None:
+    _jsonschema = import_module("jsonschema")
+    Draft202012Validator = _jsonschema.Draft202012Validator
+    FormatChecker = _jsonschema.FormatChecker
+else:  # optional dependency fallback for offline/minimal audit environments
+    Draft202012Validator = None
+    FormatChecker = None
 
 SCHEMA_VERSION = "1.0.0"
 ALLOWED_PROFILES = {"personal", "team", "enterprise", "community", "custom"}
@@ -148,6 +157,83 @@ def generate_fresh_profile(
     )
 
 
+def _type_matches(value: Any, expected: str) -> bool:
+    if expected == "object":
+        return isinstance(value, dict)
+    if expected == "array":
+        return isinstance(value, list)
+    if expected == "string":
+        return isinstance(value, str)
+    if expected == "boolean":
+        return isinstance(value, bool)
+    return False
+
+
+def _minimal_schema_errors(value: Any, schema: dict[str, Any], path: str = "$") -> list[str]:
+    """Validate the deployment schema subset used by this repository.
+
+    This fallback preserves local/offline validation when the optional
+    ``jsonschema`` package is not installed. It intentionally supports only the
+    keywords used by ``deployment-profile.schema.json`` and fails closed for
+    unsupported schema shapes.
+    """
+    errors: list[str] = []
+    expected_type = schema.get("type")
+    if isinstance(expected_type, str) and not _type_matches(value, expected_type):
+        return [f"{path}: expected {expected_type}"]
+
+    if "const" in schema and value != schema["const"]:
+        errors.append(f"{path}: must equal {schema['const']!r}")
+    if "enum" in schema and value not in schema["enum"]:
+        errors.append(f"{path}: must be one of {schema['enum']!r}")
+    if isinstance(value, str) and len(value) < int(schema.get("minLength", 0)):
+        errors.append(f"{path}: shorter than minimum length {schema['minLength']}")
+    if schema.get("format") == "date-time" and isinstance(value, str):
+        if not (value.endswith("Z") and "T" in value):
+            errors.append(f"{path}: is not an RFC3339 UTC timestamp")
+
+    if isinstance(value, dict):
+        properties = schema.get("properties", {})
+        if not isinstance(properties, dict):
+            return [f"{path}: schema properties must be an object"]
+        for required in schema.get("required", []):
+            if required not in value:
+                errors.append(f"{path}: missing required property {required!r}")
+        if schema.get("additionalProperties") is False:
+            for key in value:
+                if key not in properties:
+                    errors.append(f"{path}: additional property {key!r} is not allowed")
+        for key, child_schema in properties.items():
+            if key in value:
+                if not isinstance(child_schema, dict):
+                    return [f"{path}.{key}: child schema must be an object"]
+                errors.extend(_minimal_schema_errors(value[key], child_schema, f"{path}.{key}"))
+
+    if isinstance(value, list):
+        if schema.get("uniqueItems") is True and len(value) != len(set(map(json.dumps, value))):
+            errors.append(f"{path}: array items must be unique")
+        item_schema = schema.get("items")
+        if item_schema is not None:
+            if not isinstance(item_schema, dict):
+                return [f"{path}: item schema must be an object"]
+            for index, item in enumerate(value):
+                errors.extend(_minimal_schema_errors(item, item_schema, f"{path}[{index}]"))
+
+    return errors
+
+
+def _validate_schema_contract(instance: dict[str, Any], schema: Any) -> list[str]:
+    if not isinstance(schema, dict) or schema.get("type") != "object":
+        return ["schema invalid: deployment profile schema must be an object schema"]
+    if Draft202012Validator is not None and FormatChecker is not None:
+        try:
+            validator = Draft202012Validator(schema, format_checker=FormatChecker())
+            return [error.message for error in validator.iter_errors(instance)]
+        except Exception as exc:  # fail-closed on invalid schemas
+            return [f"schema invalid: {exc}"]
+    return _minimal_schema_errors(instance, schema)
+
+
 def validate_profile(profile: DeploymentProfile, schema_path: Path) -> list[str]:
     """Return all failures. An empty list is necessary but not sufficient for activation."""
     errors: list[str] = []
@@ -156,11 +242,9 @@ def validate_profile(profile: DeploymentProfile, schema_path: Path) -> list[str]
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         return [f"schema unavailable: {exc}"]
 
-    try:
-        validator = Draft202012Validator(schema, format_checker=FormatChecker())
-        errors.extend(error.message for error in validator.iter_errors(profile.to_dict()))
-    except Exception as exc:  # fail-closed on invalid schemas
-        return [f"schema invalid: {exc}"]
+    schema_errors = _validate_schema_contract(profile.to_dict(), schema)
+    if schema_errors:
+        errors.extend(schema_errors)
 
     if profile.deployment.reference_only:
         errors.append("reference_only profile cannot be activated")
