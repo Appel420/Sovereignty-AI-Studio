@@ -2,12 +2,12 @@ name: iOS Build
 
 on:
   push:
-    branches: [ main, Collaboration ]
+    branches: all
     paths:
       - 'ios/**'
       - 'src/native/**'
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: all
     paths:
       - 'ios/**'
       - 'src/native/**'
@@ -21,12 +21,12 @@ permissions:
 
 concurrency:
   group: ios-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ubuntu-latest
+    runs-on: self-hosted, linux arm64
     steps:
       - uses: actions/checkout@v4
       - name: Validate iOS source presence
