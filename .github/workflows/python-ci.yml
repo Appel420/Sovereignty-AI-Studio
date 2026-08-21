@@ -10,16 +10,31 @@ on:
 permissions:
   contents: read
 
+# CI runs are evidence. Never replace a visible run with a newer run.
+concurrency:
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
     name: Python CI
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
+      - name: Record execution provenance
+        run: |
+          set -Eeuo pipefail
+          echo "CI controller: GitHub Actions"
+          echo "Execution mode: portable hosted"
+          echo "Runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
+          echo "Commit: ${GITHUB_SHA}"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
