@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v5
@@ -101,7 +101,7 @@ jobs:
         run: |
           safety check -r .github/workflows/Requirements.txt --output text || true
           safety check -r requirements.txt --output text || true
-        continue-on-error: true
+        continue-on-error: false
 
   # =========================================================
   # NODE CHECK
@@ -134,7 +134,7 @@ jobs:
   # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
   # =========================================================
   build-sign:
-    needs: "[build-test, node-check"
+    needs: security-scan
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 30
@@ -192,8 +192,8 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-            ${{ env.REGISTRY_LC }}:latest
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
+            "${{ env.REGISTRY_LC }}:latest"
+            "${{ env.REGISTRY_LC }}:${{ github.sha }}"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
@@ -204,7 +204,7 @@ jobs:
             --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
+            "${{ env.REGISTRY_LC }}:${{ github.sha }}"
         env:
           COSIGN_EXPERIMENTAL: 1
 
@@ -217,7 +217,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Dependency Review
-        continue-on-error: true
+        continue-on-error: false
         uses: actions/dependency-review-action@v4
         # Advisory only: some repositories do not have dependency graph / GHAS
         # enabled, so this should not block regulated-use CI execution.
@@ -235,7 +235,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
@@ -275,8 +275,6 @@ jobs:
 # For key custody, use SHAMIR secret-sharing operationally; CI only checks that
 # release-share secret inputs are configured and never reconstructs master keys.
 # Compliance checks are advisory guards, not certification claims.
-
-Github.com/Appel420/Sovereignty-AI-Studio
-
-Organization Sovereignty One AI
-OAuth API Generator 	
+# Github.com/Appel420/Sovereignty-AI-Studio
+# Organization Sovereignty One AI
+# OAuth API Generator 	
