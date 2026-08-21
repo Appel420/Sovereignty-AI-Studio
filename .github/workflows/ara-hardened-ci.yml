@@ -1,15 +1,10 @@
 name: ara-hardened-unit-ci
 
-# Online self-hosted validation lane. Canonical runner label is exact and shared
-# with the repository-wide CI contract.
+# Online self-hosted validation lane. Every dispatch/push is independently visible.
 on:
   push:
     branches: [ara-hardened]
   workflow_dispatch:
-
-concurrency:
-  group: ara-hardened-unit-ci-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -23,7 +18,7 @@ env:
 
 jobs:
   light:
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
