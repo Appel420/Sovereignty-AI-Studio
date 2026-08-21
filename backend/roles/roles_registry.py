@@ -157,7 +157,7 @@ _r("org_admin",    "Org Admin",     level=4, category="general",
                 "audit:read", "data:read", "data:write"],
    inherits=["project_lead"])
 
-# ─── Security Admin ───────────────────────────────────────────────────────
+# ─── Security Admin ──────────────────────────────────────────────────────
 _r("security_admin", "Security Admin", level=5, category="security",
    permissions=["security:admin", "audit:admin", "user:admin",
                 "org:admin", "data:write"],
@@ -187,8 +187,8 @@ def effective_permissions(role_key: str) -> FrozenSet[str]:
     """
     Return the full set of permissions for a role, including inherited roles.
     """
-    seen: set = set()
-    perms: set = set()
+    seen: set[str] = set()
+    perms: set[str] = set()
 
     def _collect(key: str) -> None:
         if key in seen:
@@ -211,8 +211,8 @@ def has_permission(role_key: str, permission: str) -> bool:
 
 
 def list_roles() -> List[Dict[str, object]]:
-    """Return all roles as serialisable dicts (for the dashboard API)."""
-    result = []
+    """Return all roles as serialisable dictionaries for the dashboard API."""
+    result: List[Dict[str, object]] = []
     for role in ROLES.values():
         result.append({
             "key": role.key,
@@ -222,12 +222,17 @@ def list_roles() -> List[Dict[str, object]]:
             "permissions": sorted(effective_permissions(role.key)),
             "inherits": sorted(role.inherits),
         })
-    return sorted(result, key=lambda r: (r["category"], -r["level"]))  # type: ignore[arg-type]
+
+    def sort_key(role: Dict[str, object]) -> tuple[str, int]:
+        return str(role["category"]), -int(role["level"])
+
+    return sorted(result, key=sort_key)
 
 
 # ---------------------------------------------------------------------------
 # RBAC middleware helper (framework-agnostic)
 # ---------------------------------------------------------------------------
+
 
 class RBACMiddleware:
     """
@@ -240,9 +245,7 @@ class RBACMiddleware:
 
     @staticmethod
     def require(user_role: str, permission: str) -> None:
-        """
-        Raise PermissionError if the user's role does not grant the permission.
-        """
+        """Raise PermissionError if the user's role does not grant the permission."""
         if not has_permission(user_role, permission):
             raise PermissionError(
                 f"Role '{user_role}' does not have permission '{permission}'."
