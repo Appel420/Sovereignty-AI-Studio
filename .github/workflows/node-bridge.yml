@@ -2,11 +2,11 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [ "all" ]
+    branches: [Collaboration, main, dev]
     paths:
       - 'node-bridge/**'
   pull_request:
-    branches: [ "all" ]
+    branches: [Collaboration, main, dev]
     paths:
       - 'node-bridge/**'
   workflow_dispatch:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: self-hosted, linux arm64
+    runs-on: ['self-hosted', 'linux', 'arm64']
     steps:
       - uses: actions/checkout@v4
         with:
