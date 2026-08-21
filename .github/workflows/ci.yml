@@ -1,10 +1,10 @@
 name: CI
 
 on:
+  # Canonical portable CI runs on every branch. Specialized workflows retain
+  # their own branch/runner gates; this lane must not hide feature branches.
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 concurrency:
