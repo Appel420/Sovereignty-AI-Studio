@@ -2,10 +2,6 @@ name: Ara
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Collaboration, ara-hardened, main, dev, copilot/main]
-  pull_request:
-    branches: [Collaboration, ara-hardened, main, dev, copilot/main]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -15,7 +11,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
