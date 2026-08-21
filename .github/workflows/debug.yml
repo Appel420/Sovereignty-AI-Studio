@@ -13,8 +13,7 @@ concurrency:
 jobs:
   debug:
     name: GitHub Debug
-    runs-on: self-hosted, linux arm64
-    
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     steps:
       - name: Checkout code
@@ -22,6 +21,11 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Verify runner
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
