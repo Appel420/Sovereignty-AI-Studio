@@ -2,11 +2,12 @@ name: CI
 
 on:
   push:
-    branches: "[ all ]"
+    branches: ["**"]
   pull_request:
-    branches: "[ all ]"
+    branches: ["**"]
   workflow_dispatch:
 
+# Preserve every run. Do not let a later push replace a prior run.
 concurrency:
   group: github-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -17,7 +18,10 @@ permissions:
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ['self-hosted, linux arm64']
+    # These are three independent runner labels. The previous configuration
+    # supplied one literal label containing commas/spaces, so matching could
+    # never occur unless a runner had that exact custom label.
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -32,11 +36,11 @@ jobs:
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          test -n "${RUNNER_OS}"
-          test -n "${RUNNER_ARCH}"
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
           echo "CI controller: GitHub Actions"
-          echo "Execution mode: portable hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARM64}"
+          echo "Execution mode: sovereign self-hosted"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Runner name: ${RUNNER_NAME}"
           echo "Workflow: ${GITHUB_WORKFLOW}"
           echo "Run ID: ${GITHUB_RUN_ID}"
@@ -67,7 +71,6 @@ jobs:
           PY
 
       - name: Python lint diagnostics
-        continue-on-error: false
         shell: bash
         run: |
           set -Eeuo pipefail
