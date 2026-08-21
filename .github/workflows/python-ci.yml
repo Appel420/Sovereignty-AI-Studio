@@ -13,13 +13,16 @@ permissions:
 jobs:
   test:
     name: Python CI
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 10
+    # Python syntax/tests do not require the sovereign runner. Using a hosted
+    # runner prevents a burst of PR checks from queueing behind one ephemeral
+    # self-hosted agent.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
