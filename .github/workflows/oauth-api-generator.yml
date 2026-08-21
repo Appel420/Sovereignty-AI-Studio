@@ -12,7 +12,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: "[ all ]"
+    branches: [ all ]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -26,7 +26,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: "[ all ]"
+    branches: [ all ]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -44,7 +44,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: "oauth-api-generator-${ github.ref }"
+  group: oauth-api-generator-${{ github.ref }}
   cancel-in-progress: false
 
 permissions: {}
@@ -70,7 +70,7 @@ jobs:
       contents: read
     strategy:
       matrix:
-        python: [ '3.13+']
+        python: ['3.13']
 
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +134,7 @@ jobs:
   # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
   # =========================================================
   build-sign:
-    needs: "[build-test, node-check"
+    needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 30
@@ -187,7 +187,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: ['all']
+          platforms: linux/amd64,linux/arm64
           push: true
           sbom: true
           provenance: mode=max
@@ -210,7 +210,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: ['self-hosted, linux arm64'] 
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 10
     permissions:
       contents: read
@@ -219,8 +219,6 @@ jobs:
       - name: Dependency Review
         continue-on-error: true
         uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
 
   # =========================================================
   # SECURITY SCANNING
@@ -254,29 +252,3 @@ jobs:
           pip install pip-audit
           pip-audit -r requirements.txt || true
         continue-on-error: false
-
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
-# Compliance checks are advisory guards, not certification claims.
-
-Github.com/Appel420/Sovereignty-AI-Studio
-
-Organization Sovereignty One AI
-OAuth API Generator 	
