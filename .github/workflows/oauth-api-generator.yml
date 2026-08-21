@@ -1,51 +1,22 @@
 # OAUTH API GENERATOR – CI/CD PIPELINE
-
-#
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# CI/CD build, test, and security pipeline
-# for Sovereignty AI Studio
-# =========================================================
+# Visible, branch-independent validation for Sovereignty AI Studio.
 
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
+    branches: ['**']
   pull_request:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
+    branches: ['**']
   release:
     types: [published]
   workflow_dispatch:
 
+# Never cancel an already-running OAuth pipeline because another run arrived.
+# Every triggered run must remain visible in Actions until it completes.
 concurrency:
-  group: oauth-api-generator-${{ github.ref }}
-  cancel-in-progress: true
+  group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -59,21 +30,33 @@ env:
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-
   # =========================================================
-  # LINT + TEST (Python)
+  # LINT + TEST (Python) — ALWAYS VISIBLE
   # =========================================================
   build-test:
+    name: OAuth Python ${{ matrix.python }}
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 25
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         python: ['3.11', '3.12']
 
     steps:
-      - uses: actions/checkout@v6
+      - name: Start OAuth pipeline
+        run: |
+          echo "=== OAUTH-API-GENERATOR START ==="
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "runner=${RUNNER_NAME}"
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -99,20 +82,28 @@ jobs:
 
       - name: Dependency safety check
         run: |
-          safety check -r .github/workflows/Requirements.txt --output text || true
-          safety check -r requirements.txt --output text || true
-        continue-on-error: true
+          safety check -r .github/workflows/Requirements.txt --output text
+          safety check -r requirements.txt --output text
 
   # =========================================================
-  # NODE CHECK
+  # NODE CHECK — ALWAYS VISIBLE
   # =========================================================
   node-check:
+    name: OAuth Node validation
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Start Node validation
+        run: |
+          echo "=== OAUTH NODE CHECK START ==="
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -123,7 +114,7 @@ jobs:
           node-version: 25
 
       - name: Install Node dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund || npm install --ignore-scripts --no-audit --no-fund
+        run: npm ci --ignore-scripts --no-audit --no-fund
 
       - name: Node syntax check
         run: |
@@ -131,108 +122,29 @@ jobs:
           node -c node-bridge/server.js
 
   # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
-  build-sign:
-    needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ['self-hosted, linux arm64']
-    timeout-minutes: 30
-    permissions:
-      packages: write
-      contents: read
-      id-token: write
-
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Validate SHAMIR release-share secrets
-        if: github.event_name == 'release'
-        env:
-          SHAMIR_SHARE_1: ${{ secrets.SHAMIR_SHARE_1 }}
-          SHAMIR_SHARE_2: ${{ secrets.SHAMIR_SHARE_2 }}
-          SHAMIR_SHARE_3: ${{ secrets.SHAMIR_SHARE_3 }}
-        run: |
-          missing=0
-          for key in SHAMIR_SHARE_1 SHAMIR_SHARE_2 SHAMIR_SHARE_3; do
-            if [[ -z "${!key:-}" ]]; then
-              echo "::error::Missing required secret: $key"
-              missing=1
-            fi
-          done
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_1:-}"
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_2:-}"
-          printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
-
-      - name: Compute lowercase image name
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
-      - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          sbom: true
-          provenance: mode=max
-          tags: |
-            ${{ env.REGISTRY_LC }}:latest
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-
-      - name: Install cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: Sign Image (Keyless — Fulcio + Rekor)
-        run: |
-          cosign sign \
-            --yes \
-            --fulcio-url https://fulcio.sigstore.dev \
-            --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: 1
-
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ['self-hosted, linux arm64']
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Dependency Review
-        continue-on-error: true
-        uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
-
-  # =========================================================
-  # SECURITY SCANNING
+  # SECURITY SCANNING — ALWAYS VISIBLE
   # =========================================================
   security-scan:
+    name: OAuth security scan
     needs: [build-test, node-check]
+    if: ${{ always() }}
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 20
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Report dependency status
+        run: |
+          echo "=== OAUTH SECURITY SCAN START ==="
+          echo "build-test=${{ needs.build-test.result }}"
+          echo "node-check=${{ needs.node-check.result }}"
+          if [[ "${{ needs.build-test.result }}" != "success" || "${{ needs.node-check.result }}" != "success" ]]; then
+            echo "::error::Upstream OAuth validation failed; security scan is still starting visibly."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -246,36 +158,122 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: true
-          hide-progress: true
+          hide-progress: false
           exit-code: 1
 
       - name: OWASP dependency check
         run: |
           pip install pip-audit
-          pip-audit -r requirements.txt || true
-        continue-on-error: true
+          pip-audit -r requirements.txt
 
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
+  # =========================================================
+  # DEPENDENCY REVIEW — ALWAYS VISIBLE ON PULL REQUESTS
+  # =========================================================
+  dependency-review:
+    name: OAuth dependency review
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ['self-hosted, linux arm64']
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Start dependency review
+        run: |
+          echo "=== OAUTH DEPENDENCY REVIEW START ==="
+          echo "base=${GITHUB_BASE_REF}"
+          echo "head=${GITHUB_HEAD_REF}"
 
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
-# Compliance checks are advisory guards, not certification claims.
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
 
-# Repository: https://github.com/Appel420/Sovereignty-AI-Studio
-# Organization: Sovereignty One AI
-# Component: OAuth API Generator
+  # =========================================================
+  # BUILD/SIGN — JOB ALWAYS APPEARS; PUBLISHING IS EXPLICIT
+  # =========================================================
+  build-sign:
+    name: OAuth image build and publication
+    needs: [build-test, node-check]
+    if: ${{ always() }}
+    runs-on: ['self-hosted, linux arm64']
+    timeout-minutes: 30
+    permissions:
+      packages: write
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Start image workload
+        run: |
+          echo "=== OAUTH IMAGE WORKLOAD START ==="
+          echo "build-test=${{ needs.build-test.result }}"
+          echo "node-check=${{ needs.node-check.result }}"
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate required release credentials
+        if: ${{ github.event_name == 'release' }}
+        env:
+          SHAMIR_SHARE_1: ${{ secrets.SHAMIR_SHARE_1 }}
+          SHAMIR_SHARE_2: ${{ secrets.SHAMIR_SHARE_2 }}
+          SHAMIR_SHARE_3: ${{ secrets.SHAMIR_SHARE_3 }}
+        run: |
+          missing=0
+          for key in SHAMIR_SHARE_1 SHAMIR_SHARE_2 SHAMIR_SHARE_3; do
+            if [[ -z "${!key:-}" ]]; then
+              echo "::error::Missing required secret: $key"
+              missing=1
+            else
+              echo "Credential ${key}: present (value withheld)"
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: Set image name
+        run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - name: Prepare Docker tooling
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (no publication on non-release/non-main refs)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+          sbom: true
+          provenance: mode=max
+          tags: |
+            ${{ env.REGISTRY_LC }}:latest
+            ${{ env.REGISTRY_LC }}:${{ github.sha }}
+
+      - name: Report publication mode
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "release" || ("${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main") ]]; then
+            echo "Publication mode: enabled for this release/main execution."
+          else
+            echo "Publication mode: disabled for this validation execution."
+            echo "The image workload still ran and remains visible in Actions."
+          fi
+
+      - name: Install cosign for publish-capable execution
+        if: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign published image
+        if: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        run: |
+          cosign sign \
+            --yes \
+            --fulcio-url https://fulcio.sigstore.dev \
+            --rekor-url https://rekor.sigstore.dev \
+            "${REGISTRY_LC}:${GITHUB_SHA}"
+        env:
+          COSIGN_EXPERIMENTAL: 1
