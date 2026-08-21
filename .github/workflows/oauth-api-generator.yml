@@ -1,17 +1,14 @@
 # OAUTH API GENERATOR – CI/CD PIPELINE
 #
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# CI/CD build, test, and security pipeline
-# for Sovereignty AI Studio
-# =========================================================
+# Sovereignty AI Studio integration CI/CD.
+# Collaboration is the canonical integration branch for this repository.
+# Every triggered run remains observable; concurrency never cancels prior runs.
 
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
+    branches: [ Collaboration ]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -25,7 +22,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: [ main ]
+    branches: [ Collaboration ]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -43,8 +40,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: oauth-api-generator-${{ github.ref }}
-  cancel-in-progress: true
+  group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -58,55 +55,44 @@ env:
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-
-  # =========================================================
-  # LINT + TEST (Python)
-  # =========================================================
   build-test:
-    runs-on: ['self-hosted, linux arm64']
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         python: ['3.11', '3.12']
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
-
       - name: Install Python dependencies
         run: |
           pip install --upgrade pip
           pip install -r .github/workflows/Requirements.txt
           pip install flake8 safety
-
       - name: Lint with flake8
         run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
-
       - name: Run Python tests
         env:
           PYTHONPATH: .:./backend
         run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
-
       - name: Dependency safety check
         run: |
           safety check -r .github/workflows/Requirements.txt --output text || true
           safety check -r requirements.txt --output text || true
         continue-on-error: true
 
-  # =========================================================
-  # NODE CHECK
-  # =========================================================
   node-check:
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -115,48 +101,38 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 25
-
       - name: Install Node dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund || npm install --ignore-scripts --no-audit --no-fund
-
       - name: Node syntax check
         run: |
           npm run check
           node -c node-bridge/server.js
 
-  # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
   build-sign:
     needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: ['self-hosted, linux arm64']
+    if: github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     permissions:
       packages: write
       contents: read
       id-token: write
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
-
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Validate SHAMIR release-share secrets
         if: github.event_name == 'release'
         env:
@@ -174,16 +150,11 @@ jobs:
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_1:-}"
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_2:-}"
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
-
+          if [[ "$missing" -ne 0 ]]; then exit 1; fi
       - name: Compute lowercase image name
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
+        run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -193,14 +164,11 @@ jobs:
           tags: |
             ${{ env.REGISTRY_LC }}:latest
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
-
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
-
       - name: Sign Image (Keyless — Fulcio + Rekor)
         run: |
-          cosign sign \
-            --yes \
+          cosign sign --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
@@ -209,7 +177,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       contents: read
@@ -218,15 +186,10 @@ jobs:
       - name: Dependency Review
         continue-on-error: true
         uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
 
-  # =========================================================
-  # SECURITY SCANNING
-  # =========================================================
   security-scan:
     needs: [build-test, node-check]
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     permissions:
       contents: read
@@ -235,7 +198,6 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
@@ -247,30 +209,12 @@ jobs:
           ignore-unfixed: true
           hide-progress: true
           exit-code: 1
-
       - name: OWASP dependency check
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt || true
         continue-on-error: true
 
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
+# Security headers are enforced in nginx + FastAPI.
 # Compliance checks are advisory guards, not certification claims.
+# SHAMIR shares are checked for presence only; CI never reconstructs a master key.
