@@ -128,7 +128,7 @@ Stay on your assigned branch. Do not edit another agent’s branch. Do not push 
 Every first-party job in `.github/workflows.yml`:
 
 ```yaml
-runs-on: ['self-hosted, linux arm64']
+runs-on: self-hosted, linux arm64
 ```
 
 ## Rule 4 — Local / offline
