@@ -11,12 +11,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
-      - name: Run a one-line script
-        run: echo Hello, world!
-      - name: Run a multi-line script
+        with:
+          persist-credentials: false
+      - name: Verify runner
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          echo "Hosted ARM64 CI runner: ${RUNNER_NAME}"
+          test "${RUNNER_ARCH}" = "ARM64"
+      - name: Basic workflow execution
+        run: |
+          echo "Ara CI execution is live."
+          echo "Build/test/deploy stages may be added without requiring a sovereign runner."
