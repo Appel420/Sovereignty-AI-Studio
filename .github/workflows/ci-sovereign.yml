@@ -6,10 +6,6 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   conformance:
     name: Sovereign CI
@@ -21,7 +17,6 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Verify sovereign runner
         shell: bash
         run: |
@@ -33,7 +28,6 @@ jobs:
           echo "Execution mode: sovereign self-hosted online"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Commit: ${GITHUB_SHA}"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -42,7 +36,6 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements.txt
-
       - name: Install Python dependencies
         shell: bash
         run: |
@@ -51,12 +44,10 @@ jobs:
           python -m pip install -e '.[test,lint]'
           if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip check
-
       - name: Python tests
         env:
           PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
         run: python -m pytest -q tests
-
       - name: Phase 0 Rust tests
         run: |
           set -Eeuo pipefail
@@ -65,12 +56,10 @@ jobs:
           else
             echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
           fi
-
       - name: Node syntax check
         run: |
           set -Eeuo pipefail
           if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
-
       - name: Frontend ownership contract
         run: |
           set -Eeuo pipefail
