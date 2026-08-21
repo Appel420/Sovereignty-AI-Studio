@@ -1,0 +1,150 @@
+# OAUTH API GENERATOR – SOVEREIGN EXECUTION
+# Dispatched only by the hosted ignition controller after it finds an online,
+# idle self-hosted Linux ARM64 runner. Never attach this workflow directly to
+# public pull_request events.
+name: OAUTH-API-GENERATOR / Sovereign Execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Source commit selected by the ignition controller
+        required: true
+        type: string
+      source_run_id:
+        description: Ignition workflow run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  PYTHONPATH: .:./backend
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "1"
+
+jobs:
+  build-test:
+    name: Sovereign OAuth Python 3.13
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 10
+    steps:
+      - name: Runner identity
+        run: |
+          echo "=== SOVEREIGN OAUTH EXECUTION ==="
+          echo "source_sha=${{ inputs.source_sha }}"
+          echo "source_run_id=${{ inputs.source_run_id }}"
+          echo "runner=${RUNNER_NAME}"
+          echo "os=${RUNNER_OS}"
+          echo "arch=${RUNNER_ARCH}"
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r .github/workflows/Requirements.txt
+          pip install flake8 safety pytest pytest-cov
+      - name: Lint
+        run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Tests
+        run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
+      - name: Dependency safety
+        run: |
+          safety check -r .github/workflows/Requirements.txt --output text
+          safety check -r requirements.txt --output text
+
+  node-check:
+    name: Sovereign OAuth Node validation
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 25
+      - name: Install Node dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Node syntax check
+        run: |
+          npm run check
+          node -c node-bridge/server.js
+
+  security-scan:
+    name: Sovereign OAuth security scan
+    needs: [build-test, node-check]
+    if: ${{ always() }}
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 20
+    steps:
+      - name: Validate upstream
+        run: |
+          if [[ "${{ needs.build-test.result }}" != "success" || "${{ needs.node-check.result }}" != "success" ]]; then
+            echo "::error::Upstream sovereign OAuth validation failed."
+            exit 1
+          fi
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
+      - uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          skip-dirs: external,frontend
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          hide-progress: false
+          exit-code: 1
+      - name: pip-audit
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
+  build-sign:
+    name: Sovereign OAuth image build
+    needs: [build-test, node-check]
+    if: ${{ always() && needs.build-test.result == 'success' && needs.node-check.result == 'success' }}
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 1
+      - name: Set image name
+        run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/arm64
+          push: false
+          sbom: true
+          provenance: mode=max
+          tags: |
+            ${{ env.REGISTRY_LC }}:${{ inputs.source_sha }}
