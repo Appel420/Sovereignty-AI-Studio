@@ -1,28 +1,29 @@
-name: ara-hardened-unit-ci-local
+name: ara-hardened-unit-ci
 
-# Local validation lane. Canonical online CI is .github/workflows/ci.yml.
+# Online self-hosted validation lane. Canonical runner label is exact and shared
+# with the repository-wide CI contract.
 on:
   push:
-    branches: [ ara-hardened ]
+    branches: [ara-hardened]
   workflow_dispatch:
 
 concurrency:
-  group: ara-hardened-unit-ci-local-${{ github.ref }}
+  group: ara-hardened-unit-ci-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
-  CI_NAME: ara-hardened-unit-ci-local
-  CI_MODE: local
-  SG_NETWORK_MODE: offline
-  SG_LOCAL_ONLY: '1'
+  CI_NAME: ara-hardened-unit-ci
+  CI_MODE: online
+  SG_NETWORK_MODE: online
+  SG_LOCAL_ONLY: '0'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   light:
-    runs-on: self-hosted linux ARM64
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -31,11 +32,15 @@ jobs:
           persist-credentials: false
       - name: Announce CI identity
         run: |
+          set -Eeuo pipefail
           echo "CI:   $CI_NAME"
           echo "MODE: $CI_MODE"
-          echo "ROUTE: offline-safe"
+          echo "ROUTE: online"
           echo "BRANCH: ${{ github.ref_name }}"
           echo "COMMIT: ${{ github.sha }}"
+          echo "RUNNER: ${RUNNER_OS}/${RUNNER_ARCH}"
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -64,14 +69,14 @@ jobs:
           python - <<'PY'
           import json, time
           stamp = {
-              'ci_name': 'ara-hardened-unit-ci-local',
-              'ci_mode': 'local',
-              'route': 'offline-safe',
+              'ci_name': 'ara-hardened-unit-ci',
+              'ci_mode': 'online',
+              'route': 'online',
               'sha': '${{ github.sha }}',
               'ref': '${{ github.ref }}',
               'pqc_full_build': False,
               'oauth_generator': False,
-              'network_mode': 'offline',
+              'network_mode': 'online',
               'timestamp': int(time.time()),
           }
           with open('ara-hardened-ci-stamp.json', 'w', encoding='utf-8') as f:
@@ -82,7 +87,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: ara-hardened-unit-ci-local-${{ github.run_id }}
+          name: ara-hardened-unit-ci-${{ github.run_id }}
           path: ara-hardened-ci-stamp.json
           retention-days: 14
           if-no-files-found: error
