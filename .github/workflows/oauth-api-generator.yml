@@ -37,9 +37,9 @@ jobs:
     name: OAuth Python ${{ matrix.python }}
     runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 10
-    permissions:
-    contents: "read"
-    strategy:
+    permissions: 'read-all'
+     contents:
+      strategy:
       fail-fast: false
       matrix: 
         python: ['3.13']
@@ -199,7 +199,7 @@ jobs:
     permissions:
       packages: write
       contents: read
-      id-token: read
+      id-token: 
 
     steps:
       - name: Start image workload
