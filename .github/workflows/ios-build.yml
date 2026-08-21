@@ -2,6 +2,10 @@ name: iOS Build
 
 on:
   workflow_dispatch:
+  push:
+    branches: [Collaboration, main, dev]
+  pull_request:
+    branches: [Collaboration, main, dev]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -9,17 +13,24 @@ env:
 permissions:
   contents: read
 
+# Keep validation runs visible; a newer event must not silently replace an older run.
+concurrency:
+  group: ios-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Verify runner
+      - name: Record execution provenance
         run: |
-          set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Execution mode: Linux hosted source/package validation"
+          echo "Runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
       - name: Validate iOS source presence
         shell: bash
         run: |
