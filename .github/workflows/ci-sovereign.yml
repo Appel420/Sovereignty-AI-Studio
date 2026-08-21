@@ -2,9 +2,18 @@ name: CI — Sovereign Runner
 
 on:
   workflow_dispatch:
+  push:
+    branches: [Collaboration, main, dev]
+  pull_request:
+    branches: [Collaboration, main, dev]
 
 permissions:
   contents: read
+
+# Sovereign runs are intentionally separate evidence. Never replace a prior run.
+concurrency:
+  group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   conformance:
@@ -27,6 +36,9 @@ jobs:
           test "${RUNNER_ARCH}" = "ARM64"
           echo "Execution mode: sovereign self-hosted online"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Runner name: ${RUNNER_NAME}"
+          echo "Workflow: ${GITHUB_WORKFLOW}"
+          echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
       - name: Set up Python
         uses: actions/setup-python@v6
