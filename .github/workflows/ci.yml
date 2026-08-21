@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: "[ all ]"
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: "[ all ]"
   workflow_dispatch:
 
 concurrency:
@@ -17,14 +17,14 @@ permissions:
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ['self-hosted, linux arm64']
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify runner execution
         shell: bash
@@ -36,7 +36,7 @@ jobs:
           test -n "${RUNNER_ARCH}"
           echo "CI controller: GitHub Actions"
           echo "Execution mode: portable hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARM64}"
           echo "Runner name: ${RUNNER_NAME}"
           echo "Workflow: ${GITHUB_WORKFLOW}"
           echo "Run ID: ${GITHUB_RUN_ID}"
@@ -67,7 +67,7 @@ jobs:
           PY
 
       - name: Python lint diagnostics
-        continue-on-error: true
+        continue-on-error: false
         shell: bash
         run: |
           set -Eeuo pipefail
