@@ -2,7 +2,7 @@
 #
 # Sovereignty AI Studio integration CI/CD.
 # Collaboration is the canonical integration branch for this repository.
-# Every triggered run remains observable; concurrency never cancels prior runs.
+# Every triggered run remains independently observable.
 
 name: OAUTH-API-GENERATOR
 
@@ -39,9 +39,10 @@ on:
     types: [published]
   workflow_dispatch:
 
-concurrency:
-  group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+# Deliberately no workflow-level concurrency block.
+# GitHub concurrency can replace a pending run even when cancel-in-progress is false.
+# This pipeline must preserve the complete run history: queued, waiting, cancelled,
+# failed, successful, and manually dispatched runs remain individually observable.
 
 permissions: {}
 
@@ -114,7 +115,9 @@ jobs:
 
   build-sign:
     needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main'))
+    # Publishing remains restricted to an actual release or the protected main branch.
+    # Collaboration is validation/integration, not an automatic image-publishing target.
+    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     permissions:
