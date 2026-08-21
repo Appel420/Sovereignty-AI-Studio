@@ -26,9 +26,14 @@ concurrency:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: self-hosted, linux arm64
+    runs-on: ['self-hosted, linux arm64']
     steps:
       - uses: actions/checkout@v4
+      - name: Verify runner
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
       - name: Validate iOS source presence
         shell: bash
         run: |
