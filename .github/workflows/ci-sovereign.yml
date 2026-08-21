@@ -13,8 +13,7 @@ concurrency:
 jobs:
   conformance:
     name: Sovereign CI
-    # Explicitly requires the repository's self-hosted Linux ARM64 runner.
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -31,7 +30,7 @@ jobs:
           test -n "${GITHUB_SHA}"
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
-          echo "Execution mode: sovereign self-hosted"
+          echo "Execution mode: sovereign self-hosted online"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Commit: ${GITHUB_SHA}"
 
@@ -45,6 +44,7 @@ jobs:
             requirements.txt
 
       - name: Install Python dependencies
+        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
