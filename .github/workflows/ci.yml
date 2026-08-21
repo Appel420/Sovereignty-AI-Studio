@@ -17,7 +17,9 @@ permissions:
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ['self-hosted, linux arm64']
+    # Global/public CI must not depend on the owner's sovereign runner.
+    # Sovereign execution is isolated in ci-sovereign.yml and is opt-in.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -35,7 +37,7 @@ jobs:
           test -n "${RUNNER_OS}"
           test -n "${RUNNER_ARCH}"
           echo "CI controller: GitHub Actions"
-          echo "Execution mode: portable hosted"
+          echo "Execution mode: hosted ARM64"
           echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
           echo "Runner name: ${RUNNER_NAME}"
           echo "Workflow: ${GITHUB_WORKFLOW}"
@@ -57,9 +59,7 @@ jobs:
           set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
-          if [[ -f requirements.txt ]]; then
-            python -m pip install -r requirements.txt
-          fi
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip check
           python - <<'PY'
           import nacl
