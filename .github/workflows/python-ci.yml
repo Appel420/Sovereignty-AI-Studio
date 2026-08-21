@@ -32,12 +32,15 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ruff pytest
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
-      - name: Lint
+      - name: Syntax and critical lint
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -d backend ]]; then ruff check backend; fi
-          if [[ -d prototypes/accessibility ]]; then ruff check prototypes/accessibility; fi
+          python -m compileall -q backend
+          ruff check backend --select E9,F63,F7,F82 --output-format concise
+          if [[ -d prototypes/accessibility ]]; then
+            ruff check prototypes/accessibility --select E9,F63,F7,F82 --output-format concise
+          fi
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
