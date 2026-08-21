@@ -26,9 +26,11 @@ concurrency:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Validate iOS source presence
         shell: bash
         run: |
