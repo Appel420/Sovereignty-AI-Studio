@@ -16,10 +16,15 @@ permissions:
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    # This is a pure dependency check. Keep it on GitHub-hosted Linux so it
+    # cannot consume the single ephemeral sovereign runner and leave the rest
+    # of the PR checks queued.
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -28,16 +33,62 @@ jobs:
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
       - name: Run pip-audit
+        shell: bash
         run: |
-          python -m pip_audit -r requirements.txt --ignore-vuln PYSEC-2026-1325
-          echo "pip-audit completed; PYSEC-2026-1325 is explicitly tracked as an unpatched transitive advisory."
+          set -Eeuo pipefail
+          report="pip-audit.json"
+          set +e
+          python -m pip_audit -r requirements.txt --format json --output "$report"
+          audit_status=$?
+          set -e
+          python - "$report" "$audit_status" <<'PY'
+          import json
+          import sys
+
+          report_path = sys.argv[1]
+          audit_status = int(sys.argv[2])
+          allowed = {"PYSEC-2026-1325"}
+
+          with open(report_path, encoding="utf-8") as fh:
+              data = json.load(fh)
+
+          findings = []
+          for dependency in data.get("dependencies", []):
+              for vuln in dependency.get("vulns", []):
+                  findings.append((
+                      dependency.get("name", "unknown"),
+                      dependency.get("version", "unknown"),
+                      vuln.get("id", "unknown"),
+                  ))
+
+          unexpected = [finding for finding in findings if finding[2] not in allowed]
+          if unexpected:
+              print("Unexpected pip-audit findings:")
+              for finding in unexpected:
+                  print("  %s %s %s" % finding)
+              raise SystemExit(1)
+
+          tracked = [finding for finding in findings if finding[2] in allowed]
+          if tracked:
+              print("Tracked unresolved advisory (no upstream fixed release):")
+              for finding in tracked:
+                  print("  %s %s %s" % finding)
+
+          # A non-zero audit status is acceptable only when every finding is
+          # one of the explicitly tracked advisories above.
+          if audit_status and not tracked:
+              raise SystemExit(audit_status)
+          print("pip-audit gate passed; no untracked vulnerabilities remain.")
+          PY
 
   python-outdated:
     name: Python — requirements validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
@@ -47,10 +98,12 @@ jobs:
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -66,10 +119,12 @@ jobs:
 
   requirements-lint:
     name: Lint requirements files
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Validate requirements files
         run: |
           python3 - <<'PY'
