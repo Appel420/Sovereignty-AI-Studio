@@ -6,23 +6,20 @@ on:
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
-concurrency:
-  group: dep-health-${{ github.ref }}
-  cancel-in-progress: false
+permissions:
+  contents: read
 
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: '3.13'
           cache: pip
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
@@ -33,14 +30,12 @@ jobs:
     name: Python — requirements validation
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python 3.13
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: '3.13'
       - name: Validate requirements syntax
         run: python -m pip install --dry-run -r requirements.txt
 
@@ -48,14 +43,12 @@ jobs:
     name: Node.js — CVE audit (npm audit)
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: '22'
           cache: npm
           cache-dependency-path: node-bridge/package-lock.json
       - name: Install node-bridge dependencies
@@ -69,8 +62,6 @@ jobs:
     name: Lint requirements files
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 5
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Validate requirements files
