@@ -31,14 +31,14 @@ concurrency:
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 20
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -49,14 +49,14 @@ jobs:
 
   python-outdated:
     name: Python — outdated packages
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python 3.13
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - name: Validate requirements syntax
@@ -64,14 +64,14 @@ jobs:
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Node.js 25
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "25"
           cache: npm
@@ -85,12 +85,12 @@ jobs:
 
   requirements-lint:
     name: Lint requirements files
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 5
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate requirements files
         run: |
           python3 - <<'PY'

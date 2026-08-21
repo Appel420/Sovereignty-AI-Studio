@@ -16,16 +16,16 @@ permissions:
 
 jobs:
   build:
-    runs-on: ${{ vars.SOVEREIGN_CI_RUNNER || 'ubuntu-latest' }}
+    runs-on: ['self-hosted, linux arm64']
     strategy:
       matrix:
         python-version: ['3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip

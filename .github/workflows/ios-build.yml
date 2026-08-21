@@ -26,9 +26,9 @@ concurrency:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Validate iOS source presence
         shell: bash
         run: |

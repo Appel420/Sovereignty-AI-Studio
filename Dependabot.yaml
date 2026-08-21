@@ -1,35 +1,69 @@
-# Example configuration file that:
-#  - Has a private registry
-#  - Ignores lodash dependency
-#  - Disables version-updates
-#  - Defines a group by package name, for security updates for golang dependencies
-
+# Canonical dependency-update policy lives in .github/dependabot.yml.
+# This root-level mirror is intentionally active (not a disabled sample) so
+# dependency automation remains visible to local auditors and repo tooling.
 version: 2
-registries:
-  example:
-    type: npm-registry
-    url: https://example.com
-    token: ${{secrets.NPM_TOKEN}}
 updates:
-  - package-ecosystem: "npm"
-    directory: "/src/npm-project"
-    schedule:
-      interval: "daily"
-    # For Lodash, ignore all updates
-    ignore:
-      - dependency-name: "lodash"
-    # Disable version updates for npm dependencies
-    open-pull-requests-limit: 0
-    registries:
-      - example
-  - package-ecosystem: "gomod"
+  - package-ecosystem: "pip"
     directories:
-      - "**/*"
+      - "/"
+      - "/backend"
+      - "/scripts"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 0
-    groups:
-      golang:
-        applies-to: security-updates
-        patterns:
-          - "golang.org*"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "python"
+
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/node-bridge"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "javascript"
+
+  - package-ecosystem: "cargo"
+    directories:
+      - "/"
+      - "/crates/orchestrator"
+      - "/crates/policy-engine"
+      - "/crates/principal"
+      - "/phase0"
+      - "/resources/configs"
+      - "/rust/pqcrypto-ffi"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "rust"
+
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/backend"
+      - "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "docker"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "github-actions"

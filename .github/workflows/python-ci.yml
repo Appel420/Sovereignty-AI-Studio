@@ -19,15 +19,15 @@ jobs:
     name: Python CI
     # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
     # when a registered sovereign runner is available.
-    runs-on: "self-hosted, linux arm64" || "ubuntu-latest" 
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip

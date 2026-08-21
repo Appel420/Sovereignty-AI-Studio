@@ -1,49 +1,68 @@
-# Dependabot version updates — keeps Python, npm and GitHub Actions deps current.
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-# Limits are kept low to avoid cascading CI runs from many simultaneous PRs.
-
+# Dependabot version updates — visible, active coverage for all maintained
+# package manifests and GitHub Actions workflows in this repository.
 version: 2
 updates:
-  # ── Python (pip) ──────────────────────────────────────────────────────────
   - package-ecosystem: "pip"
-    directory: "/"
+    directories:
+      - "/"
+      - "/backend"
+      - "/scripts"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 6
     labels:
       - "dependencies"
       - "python"
 
-  # ── Node / npm — root package.json ────────────────────────────────────────
   - package-ecosystem: "npm"
-    directory: "/"
+    directories:
+      - "/"
+      - "/node-bridge"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 6
     labels:
       - "dependencies"
       - "javascript"
 
-  # ── Node / npm — node-bridge ───────────────────────────────────────────────
-  - package-ecosystem: "npm"
-    directory: "/node-bridge"
+  - package-ecosystem: "cargo"
+    directories:
+      - "/"
+      - "/crates/orchestrator"
+      - "/crates/policy-engine"
+      - "/crates/principal"
+      - "/phase0"
+      - "/resources/configs"
+      - "/rust/pqcrypto-ffi"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 2
+    open-pull-requests-limit: 6
     labels:
       - "dependencies"
-      - "javascript"
+      - "rust"
 
-  # ── GitHub Actions ────────────────────────────────────────────────────────
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/backend"
+      - "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 6
+    labels:
+      - "dependencies"
+      - "docker"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 3
+    open-pull-requests-limit: 6
     labels:
       - "dependencies"
       - "github-actions"

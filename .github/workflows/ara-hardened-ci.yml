@@ -22,10 +22,10 @@ env:
 
 jobs:
   light:
-    runs-on: self-hosted linux ARM64
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -37,7 +37,7 @@ jobs:
           echo "BRANCH: ${{ github.ref_name }}"
           echo "COMMIT: ${{ github.sha }}"
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip

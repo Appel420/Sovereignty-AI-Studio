@@ -15,11 +15,11 @@ jobs:
     name: Sovereign CI
     # Requires an explicitly configured self-hosted Linux arm64 runner.
     # This workflow is opt-in so a missing sovereign runner cannot block required global CI.
-    runs-on: ["self-hosted, Linux, arm64"]
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -37,7 +37,7 @@ jobs:
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: '3.13'
           cache: pip
