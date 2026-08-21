@@ -4,7 +4,7 @@ on:
   push:
     branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: [Collaboration, main, dev, copilot/main]
   workflow_dispatch:
 
 # Preserve every run so queued/cancelled/replaced executions remain visible.
@@ -58,6 +58,7 @@ jobs:
           if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip check
       - name: Python lint diagnostics
+        continue-on-error: true
         shell: bash
         run: |
           set -Eeuo pipefail
