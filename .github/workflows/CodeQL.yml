@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   analyze:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted, linux, arm64
     steps:
       - uses: actions/checkout@v4
       - name: Analyze with CodeQL
