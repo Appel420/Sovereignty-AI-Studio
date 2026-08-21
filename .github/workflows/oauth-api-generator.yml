@@ -1,6 +1,7 @@
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# Visible, branch-independent validation for Sovereignty AI Studio.
-
+# OAUTH API GENERATOR – HYBRID IGNITION PIPELINE
+# Public/global-safe: GitHub-hosted ARM64 is the ignition/fallback path.
+# When an authorized self-hosted Linux ARM64 runner is online, ignition dispatches
+# the sovereign execution workflow to it instead of leaving this run queued.
 name: OAUTH-API-GENERATOR
 
 on:
@@ -12,17 +13,11 @@ on:
     types: [published]
   workflow_dispatch:
 
-# Never cancel an already-running OAuth pipeline because another run arrived.
-# Every triggered run must remain visible in Actions until it completes.
 concurrency:
-  group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}-${{ github.run_id }}
+  group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions: {}
-
-defaults:
-  run:
-    shell: bash --noprofile --norc -euo pipefail {0}
 
 env:
   PYTHONPATH: .:./backend
@@ -30,126 +25,147 @@ env:
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-  # =========================================================
-  # LINT + TEST (Python) — ALWAYS VISIBLE
-  # =========================================================
-  build-test:
-    name: OAuth Python ${{ matrix.python }}
-    runs-on: ['self-hosted, linux arm64']
-    timeout-minutes: 10
-    permissions: 'read-all'
-     contents:
-      strategy:
-      fail-fast: false
-      matrix: 
-        python: ['3.13']
-
+  ignition:
+    name: OAuth ignition / runner selection
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    outputs:
+      self_hosted: ${{ steps.select.outputs.self_hosted }}
     steps:
-      - name: Start OAuth pipeline
+      - name: Select execution path
+        id: select
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          echo "=== OAUTH-API-GENERATOR START ==="
+          set -euo pipefail
+          echo "=== OAUTH HYBRID IGNITION ==="
           echo "event=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
           echo "sha=${GITHUB_SHA}"
-          echo "runner=${RUNNER_NAME}"
-          echo "runner_os=${RUNNER_OS}"
-          echo "runner_arch=${RUNNER_ARM64}"
+          self_hosted=false
 
-      - name: Checkout repository
-        uses: actions/checkout@v6
+          # Never expose a public/fork pull request to the owner's self-hosted runner.
+          trusted_event=false
+          if [[ "${GITHUB_EVENT_NAME}" == "push" || "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            trusted_event=true
+          fi
+
+          if [[ "$trusted_event" == true ]]; then
+            runners="$(curl -fsSL \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100")"
+
+            if echo "$runners" | jq -e '
+              any(.runners[]?;
+                .status == "online" and .busy == false and
+                (any(.labels[]?; (.name | ascii_downcase) == "self-hosted")) and
+                (any(.labels[]?; (.name | ascii_downcase) == "linux")) and
+                (any(.labels[]?; (.name | ascii_downcase) == "arm64"))
+              )
+            ' >/dev/null; then
+              echo "Matching idle self-hosted Linux ARM64 runner is online."
+              payload="$(jq -nc \
+                --arg ref "$GITHUB_REF_NAME" \
+                --arg sha "$GITHUB_SHA" \
+                --arg run_id "$GITHUB_RUN_ID" \
+                '{ref:$ref,inputs:{source_sha:$sha,source_run_id:$run_id}}')"
+              if curl -fsSL -X POST \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2026-03-10" \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/oauth-api-generator-self-hosted.yml/dispatches" \
+                -d "$payload"; then
+                self_hosted=true
+                echo "Self-hosted execution dispatched."
+              else
+                echo "::warning::Self-hosted dispatch failed; falling back to GitHub-hosted ARM64."
+              fi
+            else
+              echo "No matching idle self-hosted Linux ARM64 runner."
+              echo "GitHub-hosted ARM64 remains the execution path."
+            fi
+          else
+            echo "Untrusted/public event: self-hosted execution disabled."
+            echo "GitHub-hosted ARM64 remains the execution path."
+          fi
+
+          echo "self_hosted=${self_hosted}" >> "$GITHUB_OUTPUT"
+
+  build-test:
+    name: OAuth Python 3.13
+    needs: ignition
+    if: ${{ needs.ignition.outputs.self_hosted != 'true' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7
         with:
-          python-version: ${{ matrix.python }}
-
-      - name: Install Python dependencies
+          python-version: '3.13'
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r .github/workflows/Requirements.txt
-          pip install flake8 safety
-
-      - name: Lint with flake8
+          pip install flake8 safety pytest pytest-cov
+      - name: Lint
         run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
-
-      - name: Run Python tests
-        env:
-          PYTHONPATH: .:./backend
+      - name: Tests
         run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
-
-      - name: Dependency safety check
+      - name: Dependency safety
         run: |
           safety check -r .github/workflows/Requirements.txt --output text
           safety check -r requirements.txt --output text
 
-  # =========================================================
-  # NODE CHECK — ALWAYS VISIBLE
-  # =========================================================
   node-check:
     name: OAuth Node validation
-    runs-on: ['self-hosted, linux arm64']
+    needs: ignition
+    if: ${{ needs.ignition.outputs.self_hosted != 'true' }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - name: Start Node validation
-        run: |
-          echo "=== OAUTH NODE CHECK START ==="
-          echo "event=${GITHUB_EVENT_NAME}"
-          echo "ref=${GITHUB_REF}"
-          echo "sha=${GITHUB_SHA}"
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 25
-
       - name: Install Node dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
-
       - name: Node syntax check
         run: |
           npm run check
           node -c node-bridge/server.js
 
-  # =========================================================
-  # SECURITY SCANNING — ALWAYS VISIBLE
-  # =========================================================
   security-scan:
     name: OAuth security scan
-    needs: [build-test, node-check]
-    if: ${{ always() }}
-    runs-on: ['self-hosted, linux arm64']
+    needs: [ignition, build-test, node-check]
+    if: ${{ always() && needs.ignition.outputs.self_hosted != 'true' }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     permissions:
       contents: read
     steps:
-      - name: Report dependency status
-        run: |
-          echo "=== OAUTH SECURITY SCAN START ==="
-          echo "build-test=${{ needs.build-test.result }}"
-          echo "node-check=${{ needs.node-check.result }}"
-          if [[ "${{ needs.build-test.result }}" != "success" || "${{ needs.node-check.result }}" != "success" ]]; then
-            echo "::error::Upstream OAuth validation failed; security scan is still starting visibly."
-            exit 1
-          fi
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Run Trivy vulnerability scanner
+      - name: Validate upstream
+        run: |
+          if [[ "${{ needs.build-test.result }}" != "success" || "${{ needs.node-check.result }}" != "success" ]]; then
+            echo "::error::Upstream OAuth validation failed."
+            exit 1
+          fi
+      - name: Trivy
         uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: fs
@@ -160,63 +176,38 @@ jobs:
           ignore-unfixed: false
           hide-progress: false
           exit-code: 1
-
-      - name: OWASP dependency check
+      - name: pip-audit
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt
 
-  # =========================================================
-  # DEPENDENCY REVIEW — ALWAYS VISIBLE ON PULL REQUESTS
-  # =========================================================
   dependency-review:
     name: OAuth dependency review
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ['self-hosted, linux arm64']
+    needs: ignition
+    if: ${{ github.event_name == 'pull_request' && needs.ignition.outputs.self_hosted != 'true' }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
     steps:
-      - name: Start dependency review
-        run: |
-          echo "=== OAUTH DEPENDENCY REVIEW START ==="
-          echo "base=${GITHUB_BASE_REF}"
-          echo "head=${GITHUB_HEAD_REF}"
+      - uses: actions/dependency-review-action@v4
 
-      - name: Dependency Review
-        uses: actions/dependency-review-action@v4
-
-  # =========================================================
-  # BUILD/SIGN — JOB ALWAYS APPEARS; PUBLISHING IS EXPLICIT
-  # =========================================================
   build-sign:
     name: OAuth image build and publication
-    needs: [build-test, node-check]
-    if: ${{ always() }}
-    runs-on: ['self-hosted, linux arm64']
+    needs: [ignition, build-test, node-check]
+    if: ${{ always() && needs.ignition.outputs.self_hosted != 'true' }}
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     permissions:
       packages: write
       contents: read
-      id-token: 
-
+      id-token: write
     steps:
-      - name: Start image workload
-        run: |
-          echo "=== OAUTH IMAGE WORKLOAD START ==="
-          echo "build-test=${{ needs.build-test.result }}"
-          echo "node-check=${{ needs.node-check.result }}"
-          echo "event=${GITHUB_EVENT_NAME}"
-          echo "ref=${GITHUB_REF}"
-
-      - name: Checkout repository
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Validate required release credentials
+      - name: Validate release credentials
         if: ${{ github.event_name == 'release' }}
         env:
           SHAMIR_SHARE_1: ${{ secrets.SHAMIR_SHARE_1 }}
@@ -232,48 +223,30 @@ jobs:
               echo "Credential ${key}: present (value withheld)"
             fi
           done
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
-
+          [[ "$missing" -eq 0 ]]
       - name: Set image name
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
-      - name: Prepare Docker tooling
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build image (no publication on non-release/non-main refs)
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux arm64
+          platforms: linux/arm64
           push: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
           sbom: true
           provenance: mode=max
           tags: |
             ${{ env.REGISTRY_LC }}:latest
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
-
-      - name: Report publication mode
-        run: |
-          if [[ "${GITHUB_EVENT_NAME}" == "release" || ("${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/main") ]]; then
-            echo "Publication mode: enabled for this release/main execution."
-          else
-            echo "Publication mode: disabled for this validation execution."
-            echo "The image workload still ran and remains visible in Actions."
-          fi
-
-      - name: Install cosign for publish-capable execution
+      - name: Install cosign
         if: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         uses: sigstore/cosign-installer@v3
-
       - name: Sign published image
         if: ${{ github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        env:
+          COSIGN_EXPERIMENTAL: '1'
         run: |
-          cosign sign \
-            --yes \
+          cosign sign --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
             "${REGISTRY_LC}:${GITHUB_SHA}"
-        env:
-          COSIGN_EXPERIMENTAL: 1
