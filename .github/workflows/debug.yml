@@ -13,7 +13,7 @@ concurrency:
 jobs:
   debug:
     name: GitHub Debug
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 15
     steps:
       - name: Checkout code
