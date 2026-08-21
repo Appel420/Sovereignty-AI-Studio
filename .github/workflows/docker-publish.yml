@@ -16,11 +16,11 @@ permissions:
 
 concurrency:
   group: docker-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted, linux arm64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
