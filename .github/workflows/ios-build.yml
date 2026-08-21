@@ -1,16 +1,6 @@
 name: iOS Build
 
 on:
-  push:
-    branches: all
-    paths:
-      - 'ios/**'
-      - 'src/native/**'
-  pull_request:
-    branches: all
-    paths:
-      - 'ios/**'
-      - 'src/native/**'
   workflow_dispatch:
 
 env:
@@ -26,7 +16,7 @@ concurrency:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ['self-hosted', 'linux', 'arm64']
     steps:
       - uses: actions/checkout@v4
       - name: Verify runner
