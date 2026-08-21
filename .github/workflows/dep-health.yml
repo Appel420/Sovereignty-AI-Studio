@@ -30,7 +30,7 @@ concurrency:
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: [`self-hosted, linux arm64`]
+    runs-on: self-hosted, linux arm64, ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -48,7 +48,7 @@ jobs:
 
   python-outdated:
     name: Python — outdated packages
-    runs-on: [`self-hosted, linux arm64`] 
+    runs-on: self-hosted, linux arm64, ununtu-latest
     timeout-minutes: 10
     permissions:
       contents: read
