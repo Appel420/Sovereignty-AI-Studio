@@ -31,7 +31,7 @@ concurrency:
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     permissions:
       contents: read
@@ -49,7 +49,7 @@ jobs:
 
   python-outdated:
     name: Python — outdated packages
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -64,7 +64,7 @@ jobs:
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     permissions:
       contents: read
@@ -85,7 +85,7 @@ jobs:
 
   requirements-lint:
     name: Lint requirements files
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     permissions:
       contents: read
