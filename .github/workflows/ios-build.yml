@@ -9,10 +9,6 @@ env:
 permissions:
   contents: read
 
-concurrency:
-  group: ios-build-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   package-validation:
     name: iOS package validation
