@@ -64,8 +64,8 @@ jobs:
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: ['self-hosted, linux arm64'] 
-    timeout-minutes: 15
+    runs-on: self-hosted, linux arm64 
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -85,7 +85,7 @@ jobs:
 
   requirements-lint:
     name: Lint requirements files
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: self-hosted, linux arm64 
     timeout-minutes: 5
     permissions:
       contents: read
