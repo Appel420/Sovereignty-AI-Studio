@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  # Canonical portable CI runs on every branch. Specialized workflows retain
-  # their own branch/runner gates; this lane must not hide feature branches.
   push:
   pull_request:
   workflow_dispatch:
@@ -14,9 +12,13 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CI_EXECUTION_MODE: connected
+  SG_NETWORK_MODE: online
+
 jobs:
   conformance:
-    name: GitHub CI
+    name: GitHub CI — Connected Bridge
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,7 +28,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify runner execution
+      - name: Verify connected runner
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -34,10 +36,11 @@ jobs:
           test -n "${GITHUB_SHA}"
           test -n "${RUNNER_OS}"
           test -n "${RUNNER_ARCH}"
-          echo "CI controller: GitHub Actions"
-          echo "Execution mode: portable hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
-          echo "Runner name: ${RUNNER_NAME}"
+          test "${CI_EXECUTION_MODE}" = "connected"
+          test "${SG_NETWORK_MODE}" = "online"
+          echo "CI bridge: CONNECTED"
+          echo "Network mode: ${SG_NETWORK_MODE}"
+          echo "Runner: ${RUNNER_NAME} (${RUNNER_OS}/${RUNNER_ARCH})"
           echo "Workflow: ${GITHUB_WORKFLOW}"
           echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
