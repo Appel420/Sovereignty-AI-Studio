@@ -4,8 +4,9 @@
 # Connected CI/CD build, test, security, container, SBOM, and signing
 # pipeline for Sovereignty AI Studio.
 #
-# This workflow is NOT an offline-only lane. It is the connected CI bridge.
-# Offline/local execution belongs in the dedicated local CI workflows.
+# This workflow is the connected/portable CI bridge. It deliberately does
+# not source the offline local CI lane. Sovereign/local validation remains
+# isolated in its dedicated workflows.
 # =========================================================
 
 name: OAUTH-API-GENERATOR
@@ -28,16 +29,15 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 
 env:
+  CI_EXECUTION_MODE: connected
+  SG_NETWORK_MODE: online
   PYTHONPATH: .:./backend
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-  # =========================================================
-  # LINT + TEST (Python)
-  # =========================================================
   build-test:
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: read
@@ -60,17 +60,27 @@ jobs:
           echo "Architecture: ${RUNNER_ARCH}"
           echo "Branch/ref: ${GITHUB_REF}"
           echo "Commit: ${GITHUB_SHA}"
+          test "${CI_EXECUTION_MODE}" = "connected"
+          test "${SG_NETWORK_MODE}" = "online"
 
       - name: Set up Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+            .github/workflows/Requirements.txt
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
+          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip install -r .github/workflows/Requirements.txt
           python -m pip install flake8 safety
+          python -m pip check
 
       - name: Python flake8 Lint
         uses: py-actions/flake8@v2.3.0
@@ -96,13 +106,10 @@ jobs:
         continue-on-error: true
         run: |
           python -m safety check -r .github/workflows/Requirements.txt --output text || true
-          python -m safety check -r requirements.txt --output text || true
+          if [[ -f requirements.txt ]]; then python -m safety check -r requirements.txt --output text || true; fi
 
-  # =========================================================
-  # NODE CHECK
-  # =========================================================
   node-check:
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -116,12 +123,16 @@ jobs:
         run: |
           echo "CI bridge: connected"
           echo "Runner: ${RUNNER_NAME}"
+          echo "OS: ${RUNNER_OS}"
           echo "Architecture: ${RUNNER_ARCH}"
+          test "${CI_EXECUTION_MODE}" = "connected"
+          test "${SG_NETWORK_MODE}" = "online"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 25
+          cache: npm
 
       - name: Install Node dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund || npm install --ignore-scripts --no-audit --no-fund
@@ -131,13 +142,10 @@ jobs:
           npm run check
           node --check node-bridge/server.js
 
-  # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
   build-sign:
     needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       packages: write
@@ -150,10 +158,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
 
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -176,15 +184,13 @@ jobs:
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_1:-}"
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_2:-}"
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
-          if [[ "$missing" -ne 0 ]]; then
-            exit 1
-          fi
+          if [[ "$missing" -ne 0 ]]; then exit 1; fi
 
       - name: Compute lowercase image name
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -194,9 +200,11 @@ jobs:
           tags: |
             ${{ env.REGISTRY_LC }}:latest
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4.1.2
 
       - name: Sign Image (Keyless — Fulcio + Rekor)
         run: |
@@ -206,14 +214,11 @@ jobs:
             --rekor-url https://rekor.sigstore.dev \
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
         env:
-          COSIGN_EXPERIMENTAL: 1
+          COSIGN_EXPERIMENTAL: "1"
 
-  # =========================================================
-  # DEPENDENCY REVIEW
-  # =========================================================
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
@@ -223,17 +228,13 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Dependency Review
         continue-on-error: true
         uses: actions/dependency-review-action@v4
 
-  # =========================================================
-  # SECURITY SCANNING
-  # =========================================================
   security-scan:
     needs: [build-test, node-check]
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -243,8 +244,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Report connected security runner
+        run: |
+          echo "CI bridge: connected"
+          echo "Runner: ${RUNNER_NAME} (${RUNNER_OS}/${RUNNER_ARCH})"
+          test "${CI_EXECUTION_MODE}" = "connected"
+          test "${SG_NETWORK_MODE}" = "online"
+
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           scan-type: fs
           scan-ref: .
