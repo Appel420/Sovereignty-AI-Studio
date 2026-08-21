@@ -30,8 +30,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     permissions:
-      actions: read
-      contents: write
+      actions: write
     outputs:
       self_hosted: ${{ steps.select.outputs.self_hosted }}
     steps:
