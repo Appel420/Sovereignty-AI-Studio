@@ -5,8 +5,8 @@ Utilities for selecting and routing models across common families:
 - Claude (`claude-*`)
 - GPT (`gpt-*`)
 - Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
+- hybrid-Orchestrator (`DevAssist420-*`)
+- router (`Sovereignty AI-*`) 
 - DuckAI (`DuckAI-*`)
 
 This module is designed to work in "sovereign" mode: for on-device/self-hosted inference, it resolves model paths via environment variables and provides judge-model routing helpers for evaluation tasks.
@@ -19,8 +19,8 @@ List known models:
 python3 AI-LLM-Model-Claude (`claude-*`)
 - GPT (`gpt-*`)
 - Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
+- hybrid-Orchestrator (`DevAssist420-*`)
+- router (`Sovereignty AI-*`) 
 - DuckAI (`DuckAI-*Choosing/choose_model.py --list
 ```
 
