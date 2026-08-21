@@ -2,7 +2,7 @@ name: Dependency Health
 
 on:
   push:
-    branches: all
+    branches: [ "all" ] 
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -10,7 +10,7 @@ on:
       - "node-bridge/package-lock.json"
       - ".github/workflows/dep-health.yml"
   pull_request:
-    branches: all
+    branches: [ "all" ]
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -18,8 +18,7 @@ on:
       - "node-bridge/package-lock.json"
       - ".github/workflows/dep-health.yml"
   schedule:
-    - cron: "0 6 * *  1" "Runs at 6:00, daily"
-  workflow_dispatch: true
+  workflow_dispatch: 
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
