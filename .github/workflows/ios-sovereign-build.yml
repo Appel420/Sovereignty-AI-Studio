@@ -4,9 +4,9 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: ["all" ]
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: [ "all" ]
   workflow_dispatch:
 
 env:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   runner-preflight:
     name: Sovereign Runner Preflight
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: self-hosted, linux arm64
     timeout-minutes: 5
     outputs:
       available: ${{ steps.check.outputs.available }}
@@ -40,7 +40,7 @@ jobs:
           echo "Workflow: ${GITHUB_WORKFLOW}"
           echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
-          echo "Required runner labels: self-hosted + linux + ARM64"
+          echo "Required runner labels: self-hosted + linux + arm64"
 
           token="${RUNNER_INVENTORY_TOKEN:-${GH_TOKEN}}"
           if [[ -n "${RUNNER_INVENTORY_TOKEN:-}" ]]; then
@@ -71,15 +71,15 @@ jobs:
   lightweight-security:
     name: Sovereign Linux ARM64 Validation
     needs: runner-preflight
-    if: needs.runner-preflight.outputs.available == 'true'
-    runs-on: ['self-hosted, linux arm64']
+    if: needs.runner-preflight.outputs.available ==  true
+    runs-on: self-hosted, linux arm64
     timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -91,7 +91,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
+          test "${RUNNER_ARM64}" = "ARM64"
           echo "Execution mode: self-hosted-linux-arm64-validation"
           echo "Commit: ${GITHUB_SHA}"
           echo "Runner: ${RUNNER_NAME}"
@@ -116,7 +116,7 @@ jobs:
               'native_xcode_compile': False,
               'runner_name': os.environ.get('RUNNER_NAME'),
               'runner_os': os.environ.get('RUNNER_OS'),
-              'runner_arch': os.environ.get('RUNNER_ARCH'),
+              'runner_arm64': os.environ.get('RUNNER_ARM64'),
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
