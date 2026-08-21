@@ -2,7 +2,7 @@ name: Dependency Health
 
 on:
   push:
-    branches: "[ all ]"
+    branches: all
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -10,7 +10,7 @@ on:
       - "node-bridge/package-lock.json"
       - ".github/workflows/dep-health.yml"
   pull_request:
-    branches: "[ all ]"
+    branches: all
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -22,7 +22,7 @@ on:
   workflow_dispatch: true
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: "dep-health-${ github.ref }"
@@ -31,8 +31,8 @@ concurrency:
 jobs:
   python-audit:
     name: Python — CVE audit (pip-audit)
-    runs-on: ['self-hosted, linux arm64']
-    timeout-minutes: 20
+    runs-on: self-hosted, linux arm64
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -49,8 +49,8 @@ jobs:
 
   python-outdated:
     name: Python — outdated packages
-    runs-on: ['self-hosted, linux arm64'] 
-    timeout-minutes: 15
+    runs-on: self-hosted, linux arm64 
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
