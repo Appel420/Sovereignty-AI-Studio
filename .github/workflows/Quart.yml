@@ -17,8 +17,8 @@ concurrency:
 jobs:
   build-linux:
     name: Quart CI
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: [ 'self-hosted, linux, arm64' ]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
