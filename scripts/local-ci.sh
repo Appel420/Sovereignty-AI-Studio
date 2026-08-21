@@ -6,7 +6,8 @@ set -Eeuo pipefail
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Keep the canonical literal assignment visible to policy/conformance checks.
+# Local CI is intentionally offline. This is NOT the policy for GitHub's
+# portable/online CI lanes; those workflows do not source this script.
 SG_NETWORK_MODE="offline"
 export SG_NETWORK_MODE
 export SG_LOCAL_ONLY="${SG_LOCAL_ONLY:-1}"
