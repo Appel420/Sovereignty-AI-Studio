@@ -1,7 +1,11 @@
-name: Ara.yml
+name: Ara
 
 on:
   workflow_dispatch:
+  push:
+    branches: [Collaboration, ara-hardened, main, dev, copilot/main]
+  pull_request:
+    branches: [Collaboration, ara-hardened, main, dev, copilot/main]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -11,12 +15,22 @@ permissions:
 
 jobs:
   build:
-    runs-on: self-hosted, linux arm64
+    runs-on: ['self-hosted, linux arm64']
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run a one-line script
-        run: echo Hello, world!
-      - name: Run a multi-line script
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify runner
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Ara CI runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Run validation
+        run: |
+          set -Eeuo pipefail
+          echo "Ara validation active"
+          python3 --version
+          git status --short
