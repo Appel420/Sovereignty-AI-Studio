@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: ["all"]
   pull_request:
-    branches: ["**"]
+    branches: ["all"]
   workflow_dispatch:
 
 # Preserve every run. Do not let a later push replace a prior run.
@@ -21,7 +21,7 @@ jobs:
     # These are three independent runner labels. The previous configuration
     # supplied one literal label containing commas/spaces, so matching could
     # never occur unless a runner had that exact custom label.
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: self-hosted, linux arm64
     timeout-minutes: 10
     steps:
       - name: Checkout repository
