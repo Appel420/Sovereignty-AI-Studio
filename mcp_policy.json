@@ -9,8 +9,8 @@
     "require_attestation": true
   },
   "provider_policy": {
-    "allow": ["openai", "anthropic", "xai", "github_copilot", "qwen"],
-    "deny": ["llama", "gemini", "firebase", "vertexai", "meta"],
+    "allow": ["openai", "anthropic", "xai", "github_copilot"],
+    "deny": ["qwen", "llama", "gemini", "firebase", "vertexai", "meta", "huggingface"],
     "unknown_provider": "DENY"
   },
   "routing_policy": {
