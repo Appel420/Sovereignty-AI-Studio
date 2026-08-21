@@ -17,9 +17,8 @@ permissions:
 jobs:
   test:
     name: Python CI
-    # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
-    # when a registered sovereign runner is available.
-    runs-on: ['self-hosted, linux arm64']
+    # Global/public CI must not wait for a private sovereign runner.
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
