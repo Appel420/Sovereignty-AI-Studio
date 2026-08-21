@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Deterministic local CI runner.
-# Local mode is offline-only and fails closed. Delete nothing.
+# Local mode is intentionally offline-only. Connected GitHub CI is separate.
 set -Eeuo pipefail
 
 ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Local CI is intentionally offline. This is NOT the policy for GitHub's
-# portable/online CI lanes; those workflows do not source this script.
+# Local CI policy: offline and fail closed. This does not govern GitHub's
+# connected/portable CI workflows.
 SG_NETWORK_MODE="offline"
 export SG_NETWORK_MODE
 export SG_LOCAL_ONLY="${SG_LOCAL_ONLY:-1}"
@@ -22,7 +22,7 @@ export npm_config_fund="${npm_config_fund:-false}"
 export NO_PROXY="${NO_PROXY:-*}"
 export no_proxy="${no_proxy:-*}"
 
-# Canonical local OAuth contract checks. These references are intentional CI policy invariants.
+# Canonical local OAuth contract checks.
 python3 scripts/validate-local-oauth.py
 python3 -m pytest -q tests/test_oauth_local_generator.py
 
