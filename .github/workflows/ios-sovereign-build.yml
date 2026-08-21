@@ -4,9 +4,9 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [Collaboration, main, dev, ara-hardened]
+    branches: ["Collaboration, main, dev, ara-hardened"]
   pull_request:
-    branches: [Collaboration, main, dev, ara-hardened]
+    branches: ["Collaboration, main, dev, ara-hardened"]
   workflow_dispatch:
 
 env:
@@ -19,7 +19,7 @@ permissions:
 jobs:
   lightweight-security:
     name: Sovereign Linux ARM64 Validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: self-hosted linux arm64
     timeout-minutes: 15
     steps:
       - name: Checkout repository
