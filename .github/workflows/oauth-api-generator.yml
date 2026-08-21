@@ -1,51 +1,25 @@
+# =========================================================
 # OAUTH API GENERATOR – CI/CD PIPELINE
-
+# =========================================================
+# Connected CI/CD build, test, security, container, SBOM, and signing
+# pipeline for Sovereignty AI Studio.
 #
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# CI/CD build, test, and security pipeline
-# for Sovereignty AI Studio
+# This workflow is NOT an offline-only lane. It is the connected CI bridge.
+# Offline/local execution belongs in the dedicated local CI workflows.
 # =========================================================
 
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
   pull_request:
-    branches: [ main ]
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
   release:
     types: [published]
   workflow_dispatch:
 
 concurrency:
   group: oauth-api-generator-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -59,16 +33,19 @@ env:
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-
   # =========================================================
   # LINT + TEST (Python)
   # =========================================================
   build-test:
-    runs-on: self-hosted Linux arm64
+    # IMPORTANT: these are three runner labels, not one combined label.
+    # The previous `self-hosted Linux arm64` value requested a single label
+    # named exactly "self-hosted Linux arm64", which can leave the job queued.
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 25
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
         python: ['3.11', '3.12']
 
@@ -78,6 +55,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Report connected runner
+        run: |
+          echo "CI bridge: connected"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "OS: ${RUNNER_OS}"
+          echo "Architecture: ${RUNNER_ARCH}"
+          echo "Branch/ref: ${GITHUB_REF}"
+          echo "Commit: ${GITHUB_SHA}"
+
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v5
         with:
@@ -85,29 +71,29 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
-          pip install flake8 safety
+          python -m pip install --upgrade pip
+          python -m pip install -r .github/workflows/Requirements.txt
+          python -m pip install flake8 safety
 
       - name: Lint with flake8
-        run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
+        run: python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run Python tests
         env:
           PYTHONPATH: .:./backend
-        run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
+        run: python -m pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
 
       - name: Dependency safety check
-        run: |
-          safety check -r .github/workflows/Requirements.txt --output text || true
-          safety check -r requirements.txt --output text || true
         continue-on-error: true
+        run: |
+          python -m safety check -r .github/workflows/Requirements.txt --output text || true
+          python -m safety check -r requirements.txt --output text || true
 
   # =========================================================
   # NODE CHECK
   # =========================================================
   node-check:
-    runs-on: self-hosted Linux arm64
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 15
     permissions:
       contents: read
@@ -116,6 +102,12 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Report connected runner
+        run: |
+          echo "CI bridge: connected"
+          echo "Runner: ${RUNNER_NAME}"
+          echo "Architecture: ${RUNNER_ARCH}"
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -128,7 +120,7 @@ jobs:
       - name: Node syntax check
         run: |
           npm run check
-          node -c node-bridge/server.js
+          node --check node-bridge/server.js
 
   # =========================================================
   # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
@@ -136,7 +128,7 @@ jobs:
   build-sign:
     needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-    runs-on: self-hosted Linux arm64
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 30
     permissions:
       packages: write
@@ -180,8 +172,7 @@ jobs:
           fi
 
       - name: Compute lowercase image name
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+        run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build Multi-Arch Image
         uses: docker/build-push-action@v5
@@ -208,26 +199,32 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: 1
 
+  # =========================================================
+  # DEPENDENCY REVIEW
+  # =========================================================
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: self-hosted Linux arm64
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Dependency Review
         continue-on-error: true
         uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
 
   # =========================================================
   # SECURITY SCANNING
   # =========================================================
   security-scan:
     needs: [build-test, node-check]
-    runs-on: self-hosted Linux arm64
+    runs-on: [self-hosted, linux, arm64]
     timeout-minutes: 20
     permissions:
       contents: read
@@ -250,36 +247,7 @@ jobs:
           exit-code: 1
 
       - name: OWASP dependency check
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt || true
         continue-on-error: true
-
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
-# Compliance checks are advisory guards, not certification claims.
-
-Github.com/Appel420/Sovereignty-AI-Studio
-
-Organization Sovereignty One AI
-OAuth API Generator 	
-	
-
-￼
+        run: |
+          python -m pip install pip-audit
+          python -m pip_audit -r requirements.txt || true
