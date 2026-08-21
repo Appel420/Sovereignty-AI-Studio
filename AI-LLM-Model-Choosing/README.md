@@ -1,48 +1,53 @@
 # AI-LLM-Model-Choosing
 
-Utilities for selecting and routing models across common families:
+Utilities for selecting and routing model identifiers across the supported model families.
+
+Supported families in `ai_core.model_selection`:
 
 - Claude (`claude-*`)
 - GPT (`gpt-*`)
 - Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
-- DuckAI (`DuckAI-*`)
+- Qwen (`qwen-*`, normally local/self-hosted)
+- SGH judge (`sgh-judge`)
 
-This module is designed to work in "sovereign" mode: for on-device/self-hosted inference, it resolves model paths via environment variables and provides judge-model routing helpers for evaluation tasks.
+The selector provides model-family/backend hints and optional local model-path resolution. It is a selection helper, not an authorization boundary. Policy and capability enforcement remain downstream.
 
 ## Quickstart
 
-List known models:
+List known model IDs:
 
 ```bash
-python3 AI-LLM-Model-Claude (`claude-*`)
-- GPT (`gpt-*`)
-- Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
-- DuckAI (`DuckAI-*Choosing/choose_model.py --list
+python3 AI-LLM-Model-Choosing/choose_model.py --list
 ```
 
-Select a model (shows routing hints):
+Select a model for chat:
 
 ```bash
-python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-File-Storage/Model-Router, llm-vlm-grok-
-python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task chat
-python3 AI-LLM-VZlM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task judge
+python3 AI-LLM-Model-Choosing/choose_model.py --model grok-4-3 --task chat
 ```
 
-### On-device model paths
-
-You can provide a single model path:
+Select the configured judge model:
 
 ```bash
-export SOVEREIGN_MODEL_PATH=/models/De.gguf
+python3 AI-LLM-Model-Choosing/choose_model.py --model grok-4-3 --task judge
 ```
 
-Or per-model paths:
+## On-device model paths
+
+A single default local path can be supplied with:
 
 ```bash
-export SOVEREIGN_MODEL_PATH_llm-grok=/models/llm-vlm-grok-7b.gguf-
+export SOVEREIGN_MODEL_PATH=/models/model.gguf
 ```
 
+A per-model path uses the sanitized model ID as the environment-variable suffix. For example:
+
+```bash
+export SOVEREIGN_MODEL_PATH_QWEN_7B=/models/qwen-7b.gguf
+```
+
+Only local/self-hosted model families resolve a local path. Cloud-family identifiers receive routing metadata and do not implicitly become local.
+
+## Contract
+
+`choose_model.py` calls `ai_core.model_selection.select_model()`. Unknown identifiers fail closed with `UnknownModelError`; the selector does not silently substitute an unrecognized provider or model.
