@@ -17,13 +17,18 @@ concurrency:
 jobs:
   build-linux:
     name: Quart CI
-    runs-on: [ 'self-hosted, linux, arm64' ]
+    runs-on: ['self-hosted, linux arm64']
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Verify runner
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
