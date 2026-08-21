@@ -3,15 +3,15 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: ["Collaboration, main, dev, copilot/main"]
   pull_request:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: ["Collaboration, main, dev, copilot/main"]
 
 permissions:
   contents: read
 
 concurrency:
-  group: quart-${{ github.workflow }}-${{ github.ref }}
+  group: "quart-${{ github.workflow }}-${{ github.ref }}"
   cancel-in-progress: false
 
 jobs:
