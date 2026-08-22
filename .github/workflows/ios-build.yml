@@ -12,7 +12,7 @@ permissions:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: 'self-hosted', 'ubuntu-latest'
     steps:
       - uses: actions/checkout@v4
       - name: Verify runner
@@ -32,5 +32,3 @@ jobs:
           if [ -d src/native ]; then
             find src/native -maxdepth 2 -type f | head -100
           fi
-      - name: Record compile limitation explicitly
-        run: echo "Native Xcode/xcodebuild compilation requires a macOS runner; this Linux CI job performs source/package validation only."
