@@ -7,13 +7,13 @@ on:
   pull_request:
     branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
 
-permissions:
+permissions: 
   contents: read
 
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: Ubuntu-latest
+    runs-on: 'self-hosted, ubuntu-latest'
     timeout-minutes: 5
     steps:
       - name: Checkout repository
@@ -25,7 +25,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
+          test "${GITHUB_ACTIONS}" = true
           test -n "${GITHUB_SHA}"
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
