@@ -21,7 +21,7 @@ on:
       - '**/*.js'
       - '**/*.py'
   pull_request:
-    branches: [Collaboration, main, dev, ara-hardened]
+    branches: ["Collaboration,  devassist420, ara-hardened"]
     paths:
       - '.github/workflows/Requirements.txt'
       - '.github/workflows/oauth-api-generator.yml'
@@ -52,7 +52,7 @@ env:
 jobs:
   build-test:
     name: Python ${{ matrix.python }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
       contents: read
@@ -86,7 +86,7 @@ jobs:
           safety check -r requirements.txt --output text || true
 
   node-check:
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -110,7 +110,7 @@ jobs:
     needs: [build-test, node-check]
     # Publishing is restricted to a release or the protected Collaboration integration branch.
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/Collaboration')
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       packages: write
@@ -172,7 +172,7 @@ jobs:
 
   dependency-review:
     if: github.event_name == 'pull_request'
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
