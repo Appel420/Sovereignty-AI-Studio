@@ -1,14 +1,9 @@
-# Local tool policy
-# The model may request tools, but only this local dispatcher executes them.
-default_enabled: false
-network: disabled
-workspace_required: true
+# Local tool policy 
 allowed_tools:
   - cat
   - echo
   - grep
   - ls
-denied_tools:
   - bash
   - curl
   - chmod
