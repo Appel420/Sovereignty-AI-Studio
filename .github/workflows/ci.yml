@@ -1,7 +1,4 @@
 name: CI
-
-# PR runs PAUSED — workflow file kept. Full PQC install is not for every PR.
-# Re-enable pull_request only with owner approval.
 on:
   push:
     branches: [ dev, main ]
@@ -9,15 +6,16 @@ on:
       - 'README.md'
       - '.github/workflows/readme-implementation-sync.yml'
   workflow_dispatch:
-  # pull_request: paused
+    
+  
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
