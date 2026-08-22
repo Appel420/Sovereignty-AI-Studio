@@ -3,8 +3,8 @@ name: README Implementation Sync
 on:
   workflow_dispatch:
     inputs:
-      branch:
-        description: 'Branch to sync README on (leave empty for current branch)'
+      branch: ['**']
+      description: 'Branch to sync README on (leave empty for current branch)'
         required: false
         default: ''
 
@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   sync-readme:
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, linux arm64'] 
     steps:
       - name: Determine target branch
         id: target-branch
