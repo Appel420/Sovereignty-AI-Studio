@@ -12,7 +12,7 @@ permissions:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: 'self-hosted', 'ubuntu-latest'
+    runs-on: 'self-hosted''ubuntu-latest'
     steps:
       - uses: actions/checkout@v4
       - name: Verify runner
@@ -27,8 +27,4 @@ jobs:
           if [ -d ios ]; then
             find ios -maxdepth 2 -type f | head -100
           else
-            echo "ios/ not present on this branch; native macOS compilation is not claimed."
-          fi
-          if [ -d src/native ]; then
-            find src/native -maxdepth 2 -type f | head -100
           fi
