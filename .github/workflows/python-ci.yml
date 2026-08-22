@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ permissions:
 jobs:
   test:
     name: Python CI
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
