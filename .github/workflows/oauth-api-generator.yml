@@ -7,7 +7,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [Collaboration, main, dev, ara-hardened]
+    branches: ["Collaboration, main, dev, ara-hardened"]
     paths:
       - '.github/workflows/Requirements.txt'
       - '.github/workflows/oauth-api-generator.yml'
@@ -35,7 +35,7 @@ on:
       - '**/*.js'
       - '**/*.py'
   release:
-    types: [published]
+    types: ["published"]
   workflow_dispatch:
 
 permissions: {}
@@ -53,12 +53,12 @@ jobs:
   build-test:
     name: Python ${{ matrix.python }}
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     permissions:
       contents: read
     strategy:
       fail-fast: false
-      matrix:
+      matrix: 
         python: ['3.11', '3.12']
     steps:
       - uses: actions/checkout@v4
@@ -173,7 +173,7 @@ jobs:
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 7
     permissions:
       contents: read
       pull-requests: read
@@ -184,15 +184,15 @@ jobs:
 
   security-scan:
     needs: [build-test, node-check]
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 20
+    runs-on: self-hosted 
+    timeout-minutes: 7
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
         with:
