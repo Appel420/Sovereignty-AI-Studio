@@ -5,11 +5,10 @@ on:
 
 permissions:
   contents: read
-
 jobs:
   conformance:
     name: GitHub CI
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: self-hosted, ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -53,7 +52,7 @@ jobs:
           print('PyNaCl:', nacl.__version__)
           PY
       - name: Python lint diagnostics
-        continue-on-error: true
+        continue-on-error: false
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -74,7 +73,7 @@ jobs:
             command -v cargo >/dev/null 2>&1
             cargo test --manifest-path phase0/Cargo.toml
           else
-            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+
           fi
       - name: Node syntax check
         shell: bash
