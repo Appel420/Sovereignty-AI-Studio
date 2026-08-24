@@ -1,33 +1,13 @@
 {
   "schema": "sovereignty.system.component/v1",
   "system": "Sovereignty-AI-Studio",
-  "contract_version": 2,
+  "contract_version": 3,
   "authority": "human-owner",
   "default_mode": "local-first",
   "runtime_modes": {
-    "local": {
-      "network": "offline",
-      "local_only": true,
-      "external_feeds": "disabled",
-      "cloud_first": false,
-      "automatic_provider_calls": false
-    },
-    "hybrid": {
-      "network": "hybrid",
-      "local_only": false,
-      "external_feeds": "explicit-only",
-      "cloud_first": false,
-      "automatic_provider_calls": false,
-      "requires": ["owner_confirmation", "destination", "scope", "why"]
-    },
-    "online": {
-      "network": "online",
-      "local_only": false,
-      "external_feeds": "allowlisted",
-      "cloud_first": false,
-      "automatic_provider_calls": false,
-      "requires": ["owner_confirmation", "destination", "scope", "why"]
-    }
+    "local": {"network":"offline","local_only":true,"external_feeds":"disabled","cloud_first":false,"automatic_provider_calls":false},
+    "hybrid": {"network":"hybrid","local_only":false,"external_feeds":"explicit-only","cloud_first":false,"automatic_provider_calls":false,"requires":["owner_confirmation","destination","scope","why"]},
+    "online": {"network":"online","local_only":false,"external_feeds":"allowlisted","cloud_first":false,"automatic_provider_calls":false,"requires":["owner_confirmation","destination","scope","why"]}
   },
   "authority_invariants": [
     "Human owner remains the authority in every runtime mode.",
@@ -36,7 +16,8 @@
     "Hybrid mode is local-first and may cross a network boundary only after explicit owner authorization.",
     "Online mode is an explicitly authorized allowlisted route; it never becomes the default because a network exists.",
     "A runtime mode change is policy state and must be observable in SCAR/REPMHL evidence.",
-    "CI transport mode must not silently redefine device runtime mode."
+    "CI transport mode must not silently redefine device runtime mode.",
+    "Optional capability failure must isolate or degrade without collapsing unrelated paths."
   ],
   "components": [
     {"id":"sovereignty-ai-gate","repository":"Appel420/Sovereignty-AI-Gate","role":"authority","default_branch":"main","failure":"isolate"},
@@ -45,19 +26,31 @@
     {"id":"familyguard","repository":"Appel420/FamilyGuard","role":"family-policy","default_branch":"main","failure":"degrade"},
     {"id":"every-cloud-for-everyone","repository":"Appel420/every-cloud-for-everyone","role":"privacy-policy-enforcement","default_branch":"main","failure":"degrade"},
     {"id":"piper","repository":"Appel420/piper","role":"voice-tts","default_branch":"master","failure":"degrade"},
+    {"id":"sovereign-piper-voice","repository":"Appel420/Sovereign-piper1-gpl-Voice","role":"voice-tts-hardened","default_branch":"main","failure":"degrade"},
     {"id":"esp-csi","repository":"Appel420/esp-csi","role":"wifi-csi-sensing","default_branch":"master","failure":"degrade"},
+    {"id":"bluetooth-numbers-database","repository":"Appel420/bluetooth-numbers-database","role":"bluetooth-registry","default_branch":"master","failure":"degrade"},
+    {"id":"ios-nrf-device-manager","repository":"Appel420/IOS-nRF-Connect-Device-Manager","role":"ble-device-manager","default_branch":"master","failure":"degrade"},
+    {"id":"ios-nrf-toolbox-tzng","repository":"Appel420/IOS-nRF-Toolbox-TZNG","role":"ble-device-tooling","default_branch":"main","failure":"degrade"},
     {"id":"ios-system","repository":"Appel420/ios_system","role":"ios-runtime","default_branch":"master","failure":"degrade"},
     {"id":"libimobiledevice","repository":"Appel420/libimobiledevice","role":"device-transport","default_branch":"master","failure":"degrade"},
     {"id":"nvm","repository":"Appel420/nvm","role":"node-runtime-manager","default_branch":"master","failure":"degrade"},
     {"id":"ish","repository":"Appel420/ish","role":"ios-shell","default_branch":"master","failure":"degrade"},
+    {"id":"sovereign-a-shell","repository":"Appel420/Sovereign-a-shell","role":"ios-shell","default_branch":"main","failure":"degrade"},
+    {"id":"carthage","repository":"Appel420/carthage","role":"ios-build-infrastructure","default_branch":"master","failure":"degrade"},
+    {"id":"swift-markdown-ui","repository":"Appel420/swift-markdown-ui","role":"swiftui-markdown","default_branch":"main","failure":"degrade"},
     {"id":"sovereignty-airplane-mode","repository":"Appel420/Sovereignty_airplane-mode","role":"connectivity-policy","default_branch":"main","failure":"isolate"},
     {"id":"blake3-qresist","repository":"Appel420/BLAKE3-QResist","role":"integrity-hashing","default_branch":"main","failure":"block-dependent-operation"},
+    {"id":"sovereignty-manifest-writer","repository":"Appel420/Sovereignty-manifest-writer-","role":"manifest-integrity","default_branch":"master","failure":"block-dependent-operation"},
     {"id":"quantum-eeg-net","repository":"Appel420/Sovereignty-QuantumEEGNet","role":"experimental-sensing","default_branch":"main","failure":"isolate"},
+    {"id":"sovereignty-medical-ai","repository":"Appel420/Sovereignty_medicalAI","role":"specialized-medical-intelligence","default_branch":"master","failure":"isolate"},
+    {"id":"sovereignty-color-palette","repository":"Appel420/Sovereignty-color-palette-generator","role":"experience-ui","default_branch":"master","failure":"degrade"},
+    {"id":"sovereignty-yamg","repository":"Appel420/Sovereignty-yamg","role":"experimental-ai-generation","default_branch":"master","failure":"isolate"},
+    {"id":"userscripts","repository":"Appel420/userscripts","role":"interface-automation","default_branch":"main","failure":"isolate"},
+    {"id":"sk-administrator","repository":"Appel420/sk-administrator","role":"administration-ui","default_branch":"main","failure":"degrade"},
+    {"id":"copilot-cli","repository":"Appel420/copilot-cli","role":"development-agent-adapter","default_branch":"main","failure":"degrade"},
     {"id":"sovereignty-ai-nist-certified","repository":"Appel420/Sovereignty-AI-NIST-Certified","role":"assurance","default_branch":"main","failure":"isolate"},
-    {"id":"sovereign-a-shell","repository":"Appel420/Sovereign-a-shell","role":"ios-shell","default_branch":"main","failure":"degrade"},
-    {"id":"ios-nrf-device-manager","repository":"Appel420/IOS-nRF-Connect-Device-Manager","role":"ble-device-manager","default_branch":"master","failure":"degrade"},
-    {"id":"ios-nrf-toolbox-tzng","repository":"Appel420/IOS-nRF-Toolbox-TZNG","role":"ble-device-tooling","default_branch":"main","failure":"degrade"},
     {"id":"nodejs","repository":"Appel420/Node.js","role":"runtime-source","default_branch":"master","failure":"quarantine"},
+    {"id":"supergrok-heavy","repository":"Sovereignty-One/SuperGrok-Heavy-4-2-Skeleton","role":"heavy-model-adapter","default_branch":"main","failure":"degrade"},
     {"id":"sovereignty-ai-studio","repository":"Appel420/Sovereignty-AI-Studio","role":"integration-control-plane","default_branch":"Collaboration","failure":"preserve-last-known-good"}
   ],
   "rules": [
@@ -68,7 +61,8 @@
     "Experimental components are isolated from authority and execution paths.",
     "Every cross-component operation emits a contract identifier and outcome.",
     "Recovery restores last-known-good state before attempting mutation.",
-    "CI transport state is separate from device runtime state."
+    "CI transport state is separate from device runtime state.",
+    "No component may silently acquire authority through capability integration."
   ],
   "edges": [
     {"from":"sovereignty-ai-gate","to":"devassist420","contract":"authority.execution/v1","mode":"authorize"},
@@ -78,9 +72,21 @@
     {"from":"sovereignty-ai-studio","to":"familyguard","contract":"family.policy/v1","mode":"query"},
     {"from":"sovereignty-ai-studio","to":"every-cloud-for-everyone","contract":"privacy.policy/v1","mode":"query"},
     {"from":"sovereignty-ai-studio","to":"piper","contract":"voice.tts/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"sovereign-piper-voice","contract":"voice.tts.hardened/v1","mode":"optional"},
     {"from":"sovereignty-ai-studio","to":"esp-csi","contract":"sensor.csi/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"bluetooth-numbers-database","contract":"bluetooth.registry/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"ios-nrf-device-manager","contract":"ble.device/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"ios-nrf-toolbox-tzng","contract":"ble.tooling/v1","mode":"optional"},
     {"from":"sovereignty-ai-studio","to":"libimobiledevice","contract":"device.transport/v1","mode":"optional"},
     {"from":"sovereignty-ai-studio","to":"sovereignty-airplane-mode","contract":"connectivity.policy/v1","mode":"enforce"},
-    {"from":"sovereignty-ai-studio","to":"blake3-qresist","contract":"integrity.hash/v1","mode":"verify"}
+    {"from":"sovereignty-ai-studio","to":"blake3-qresist","contract":"integrity.hash/v1","mode":"verify"},
+    {"from":"sovereignty-ai-studio","to":"sovereignty-manifest-writer","contract":"manifest.integrity/v1","mode":"verify"},
+    {"from":"sovereignty-ai-studio","to":"swift-markdown-ui","contract":"experience.markdown/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"copilot-cli","contract":"development.agent/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"supergrok-heavy","contract":"model.adapter/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"quantum-eeg-net","contract":"experimental.signal/v1","mode":"isolated"},
+    {"from":"sovereignty-ai-studio","to":"sovereignty-medical-ai","contract":"medical.ai/v1","mode":"isolated"},
+    {"from":"sovereignty-ai-studio","to":"sovereignty-yamg","contract":"experimental.generation/v1","mode":"isolated"},
+    {"from":"sovereignty-ai-studio","to":"userscripts","contract":"interface.automation/v1","mode":"isolated"}
   ]
 }
