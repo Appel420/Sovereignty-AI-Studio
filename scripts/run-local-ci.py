@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Named local CI runner with explicit runtime governance metadata."""
+"""Named CI runner with explicit local, hybrid, and online governance."""
 from __future__ import annotations
 
 import argparse
@@ -50,18 +50,41 @@ def validate_external_metadata(*, mode: str, confirm_mode: str, destination: str
     return missing
 
 
-def local_env() -> dict[str, str]:
+def execution_env(mode: str) -> dict[str, str]:
+    """Return mode-specific environment without silently changing the route."""
     env = dict(os.environ)
-    env.update({
-        "SG_NETWORK_MODE": "offline",
-        "SG_LOCAL_ONLY": "1",
-        "SG_EXTERNAL_FEEDS": "disabled",
-        "CLOUD_FIRST": "false",
-        "PIP_NO_INDEX": "1",
-        "npm_config_offline": "true",
-        "NO_PROXY": "*",
-        "no_proxy": "*",
-    })
+    if mode == "local":
+        env.update({
+            "SG_NETWORK_MODE": "offline",
+            "SG_LOCAL_ONLY": "1",
+            "SG_EXTERNAL_FEEDS": "disabled",
+            "CLOUD_FIRST": "false",
+            "PIP_NO_INDEX": "1",
+            "npm_config_offline": "true",
+            "NO_PROXY": "*",
+            "no_proxy": "*",
+        })
+    elif mode == "hybrid":
+        env.update({
+            "SG_NETWORK_MODE": "hybrid",
+            "SG_LOCAL_ONLY": "0",
+            "SG_EXTERNAL_FEEDS": "explicit-only",
+            "CLOUD_FIRST": "false",
+            "PIP_NO_INDEX": "0",
+            "npm_config_offline": "false",
+        })
+    elif mode == "online":
+        env.update({
+            "SG_NETWORK_MODE": "online",
+            "SG_LOCAL_ONLY": "0",
+            "SG_EXTERNAL_FEEDS": "allowlisted",
+            "CLOUD_FIRST": "false",
+            "PIP_NO_INDEX": "0",
+            "npm_config_offline": "false",
+        })
+    else:
+        raise ValueError(f"unsupported mode: {mode}")
+
     pythonpath = [str(ROOT / "prototypes"), str(ROOT)]
     existing = env.get("PYTHONPATH")
     if existing:
@@ -70,9 +93,15 @@ def local_env() -> dict[str, str]:
     return env
 
 
+def local_env() -> dict[str, str]:
+    """Backward-compatible local-only environment helper."""
+    return execution_env("local")
+
+
 def build_stamp(*, ci_name: str, mode: str, why: str, action: str, destination: str, scope: str,
                 started: datetime, results: list[dict], isolation: str) -> dict:
     failed = any(result.get("exit", 1) != 0 for result in results)
+    external_authorized = mode != "local"
     return {
         "ci_name": ci_name,
         "ci_mode": mode,
@@ -90,7 +119,8 @@ def build_stamp(*, ci_name: str, mode: str, why: str, action: str, destination: 
         "scope": scope,
         "results": results,
         "status": "FAIL" if failed else "PASS",
-        "external_execution": mode != "local",
+        "external_execution": False,
+        "external_authorized": external_authorized,
         "isolation": isolation,
         "scar": {
             "event_type": "LOCAL_CI_COMPLETED" if mode == "local" else "ROUTE_SELECTED",
@@ -100,14 +130,36 @@ def build_stamp(*, ci_name: str, mode: str, why: str, action: str, destination: 
                 "network": "isolated" if mode == "local" else mode,
                 "package_install": "disabled" if mode == "local" else "explicit",
                 "provider_calls": "disabled" if mode == "local" else "explicit",
-                "external_execution": mode != "local",
+                "external_execution": False,
+                "external_authorized": external_authorized,
             },
         },
     }
 
 
+def run_validation(env: dict[str, str], *, mode: str, ci_name: str) -> list[dict]:
+    results: list[dict] = []
+    if "accessibility" in ci_name:
+        command = [sys.executable, "-m", "pytest", "-q", str(ROOT / "prototypes/accessibility/tests/test_accessibility_control.py")]
+        proc = subprocess.run(command, cwd=ROOT, env=env)
+        results.append({"suite": "accessibility", "exit": proc.returncode})
+        return results
+
+    code = subprocess.run(
+        [sys.executable, "-c", "from backend.coordination import BranchRegistry; r=BranchRegistry(); assert r.is_writable('ara-hardened'); print('coordination OK')"],
+        cwd=ROOT, env=env,
+    ).returncode
+    results.append({"suite": "coordination", "exit": code, "tests": 1, "mode": mode})
+
+    acc = ROOT / "prototypes/accessibility/tests/test_accessibility_control.py"
+    if acc.exists():
+        proc = subprocess.run([sys.executable, "-m", "pytest", "-q", str(acc)], cwd=ROOT, env=env)
+        results.append({"suite": "accessibility", "exit": proc.returncode, "mode": mode})
+    return results
+
+
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Named local CI with governance stamp")
+    parser = argparse.ArgumentParser(description="Named CI with explicit local/hybrid/online governance")
     parser.add_argument("--ci-name", default="ara-hardened-unit-ci-local")
     parser.add_argument("--confirm-mode", default="")
     parser.add_argument("--destination", default="")
@@ -128,33 +180,15 @@ def main() -> int:
     if missing:
         print(f"BLOCKED: missing authorization metadata: {', '.join(missing)}", file=sys.stderr)
         return 2
-    if mode != "local":
-        print("Non-local execution is not implemented in this runner.", file=sys.stderr)
-        return 3
 
     started = datetime.now(timezone.utc)
-    env = local_env()
-    results: list[dict] = []
-
-    if "accessibility" in args.ci_name:
-        command = [sys.executable, "-m", "pytest", "-q", str(ROOT / "prototypes/accessibility/tests/test_accessibility_control.py")]
-        proc = subprocess.run(command, cwd=ROOT, env=env)
-        results.append({"suite": "accessibility", "exit": proc.returncode})
-    else:
-        code = subprocess.run(
-            [sys.executable, "-c", "from backend.coordination import BranchRegistry; r=BranchRegistry(); assert r.is_writable('ara-hardened'); print('coordination OK')"],
-            cwd=ROOT, env=env,
-        ).returncode
-        results.append({"suite": "coordination", "exit": code, "tests": 1})
-        acc = ROOT / "prototypes/accessibility/tests/test_accessibility_control.py"
-        if acc.exists():
-            proc = subprocess.run([sys.executable, "-m", "pytest", "-q", str(acc)], cwd=ROOT, env=env)
-            results.append({"suite": "accessibility", "exit": proc.returncode})
+    env = execution_env(mode)
+    results = run_validation(env, mode=mode, ci_name=args.ci_name)
 
     stamp = build_stamp(
-        ci_name=args.ci_name, mode=mode, why=args.why, action="local-validation",
+        ci_name=args.ci_name, mode=mode, why=args.why, action="validation",
         destination=args.destination, scope=args.scope, started=started,
-        results=results, isolation="network-namespace",
+        results=results, isolation="network-namespace" if mode == "local" else "governed-route",
     )
     out = ROOT / "reports"
     out.mkdir(exist_ok=True)
