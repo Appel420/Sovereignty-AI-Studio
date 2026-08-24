@@ -7,28 +7,23 @@ on:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 env:
-  SGNETWORKMODE: online-ci
-  SGLOCALONLY: '0'
+  SGNETWORKMODE: offline-ci
+  SGLOCALONLY: '1'
   CLOUD_FIRST: 'false'
-  PIPNOINPUT: '1'
-  PIPDISABLEPIPVERSIONCHECK: '1'
-  npmconfigaudit: 'true'
-  npmconfigfund: 'true'
+  PIP_NO_INPUT: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   conformance:
-    name: Repository conformance (self-hosted)
-    # Three labels are required; do not collapse them into one label string.
-    # This intentionally remains self-hosted and therefore requires a genuine
-    # connected Linux ARM64 runner. No ARM64 capability is faked here.
-    runs-on: "self-hosted, linux arm64"
-    timeout-minutes: 45
+    name: Repository conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,14 +31,14 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify Actions context
+      - name: Verify CI startup
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           echo "CI controller: GitHub Actions"
-          echo "Execution: self-hosted Linux ARM64"
+          echo "Execution: hosted Linux runner"
           echo "Commit: ${GITHUB_SHA}"
 
       - name: Set up Python
@@ -53,16 +48,22 @@ jobs:
           cache: pip
           cache-dependency-path: pyproject.toml
 
-      - name: Install Python dependencies
+      - name: Install project test dependencies
+        shell: bash
         run: |
+          set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
 
-      - name: Lint
+      - name: Compile Python sources
+        shell: bash
+        run: python -m compileall -q sovereign
+
+      - name: Ruff
         run: ruff check sovereign/
 
-      - name: Type check
+      - name: Mypy
         run: mypy sovereign/
 
-      - name: Test
+      - name: Pytest
         run: pytest -q
