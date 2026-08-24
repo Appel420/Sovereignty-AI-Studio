@@ -55,12 +55,8 @@ jobs:
             while read -r key url; do
               normalized="${url,,}"
               case "$normalized" in
-                https://github.com/appel420/*|git@github.com:appel420/*)
-                  ;;
-                *)
-                  echo "ERROR: unapproved submodule URL: $url"
-                  exit 1
-                  ;;
+                https://github.com/appel420/*|git@github.com:appel420/*) ;;
+                *) echo "ERROR: unapproved submodule URL: $url"; exit 1 ;;
               esac
             done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.url$' || true)
           fi
@@ -83,14 +79,10 @@ jobs:
       - name: Compile first-party Python
         run: |
           set -Eeuo pipefail
-          mapfile -t files < <(git ls-files '*.py' ':!:external/**' ':!:.git/**')
-          if (( ${#files[@]} == 0 )); then
-            echo 'No first-party Python sources; lane passed.'
-            exit 0
-          fi
-          for f in "${files[@]}"; do
+          while IFS= read -r -d '' f; do
             python -m py_compile "$f"
-          done
+          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
+          echo 'First-party Python compilation completed.'
       - name: Test Python when a suite exists
         run: |
           set -Eeuo pipefail
