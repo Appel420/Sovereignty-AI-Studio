@@ -21,8 +21,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
+          git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Install Pylint
         run: python -m pip install --upgrade pip pylint
@@ -30,9 +31,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          files=$(git ls-files '*.py')
-          if [[ -z "$files" ]]; then
-            echo 'No Python files; lane passed.'
+          while IFS= read -r -d '' f; do
+            files+=("$f")
+          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
+          if (( ${#files[@]} == 0 )); then
+            echo 'No first-party Python files; lane passed.'
             exit 0
           fi
-          pylint $files
+          pylint "${files[@]}"
