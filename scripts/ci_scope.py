@@ -41,7 +41,7 @@ FULL_PATHS = {
     "build/",
     "dist/",
     "downloads/",
-)
+}
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
 NODE_SUFFIXES = {".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx"}
