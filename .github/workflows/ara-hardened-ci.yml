@@ -21,10 +21,16 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Announce CI identity
         run: |
           set -Eeuo pipefail
@@ -36,11 +42,8 @@ jobs:
           echo "RUNNER: ${RUNNER_OS}/${RUNNER_ARCH}"
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
+      - name: Verify Python runtime
+        run: python --version
       - name: Install minimal test tools
         run: python -m pip install --upgrade pip pytest
       - name: Coordination unit import check
@@ -77,12 +80,3 @@ jobs:
           with open('ara-hardened-ci-stamp.json', 'w', encoding='utf-8') as f:
               json.dump(stamp, f, indent=2)
           print(json.dumps(stamp, indent=2))
-          PY
-      - name: Upload stamp
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ara-hardened-unit-ci-${{ github.run_id }}
-          path: ara-hardened-ci-stamp.json
-          retention-days: 14
-          if-no-files-found: error
