@@ -1,19 +1,22 @@
 #!/usr/bin/env python3
 """Loop-safe sovereign AI assistant with explicit session authorization.
 
-A conversation session is application state, not an authority credential.
-Callers must provide a locally issued, signed session proof containing the
-identity and the ``ai.inference`` capability before this assistant can route an
-AI request or persist session memory.
+The assistant is deliberately fail-closed: a session must carry the locally
+issued ``ai.inference`` capability, the HTTP fallback must remain loopback-only,
+and infrastructure failures are exceptions rather than assistant messages.
+Conversation persistence is also treated as a runtime invariant when the
+memory subsystem is present.
 """
 from __future__ import annotations
 
 import asyncio
 import difflib
+import ipaddress
 import json
 import logging
 import os
 import sys
+import urllib.parse
 import urllib.request
 from typing import Any
 
@@ -39,6 +42,29 @@ SUMMARY_LOOKBACK = int(os.environ.get("SUMMARY_LOOKBACK", "6"))
 MAX_IN_MEMORY_TURNS = int(os.environ.get("MAX_IN_MEMORY_TURNS", "100"))
 REFRAME_PREVIEW_LENGTH = 300
 AI_INFERENCE_CAPABILITY = "ai.inference"
+_ALLOWED_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def _validate_configuration() -> None:
+    """Reject malformed or non-loopback fallback endpoints before startup."""
+    if not 0 < LOOP_SIMILARITY_THRESHOLD <= 1:
+        raise ValueError("LOOP_SIMILARITY_THRESHOLD must be in (0, 1]")
+    if LOOP_LOOKBACK < 1 or SUMMARY_LOOKBACK < 1 or MAX_IN_MEMORY_TURNS < 1:
+        raise ValueError("loop, summary, and memory limits must be positive")
+
+    parsed = urllib.parse.urlparse(SOVEREIGN_API_URL)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        raise ValueError("SOVEREIGN_API_URL must be an HTTP(S) URL")
+    host = parsed.hostname.lower().rstrip(".")
+    if host not in _ALLOWED_LOOPBACK_HOSTS:
+        try:
+            if not ipaddress.ip_address(host).is_loopback:
+                raise ValueError("SOVEREIGN_API_URL must resolve to loopback")
+        except ValueError as exc:
+            raise ValueError("SOVEREIGN_API_URL must use a loopback host") from exc
+
+
+_validate_configuration()
 
 
 def _try_import_memory():
@@ -62,11 +88,9 @@ def _chat_sovereign_sync(
 
     try:
         from ai_core.sovereign_bridge import SovereignBridge
-
-        bridge = SovereignBridge()
-        return bridge.chat(messages)
+        return SovereignBridge().chat(messages)
     except Exception as exc:  # noqa: BLE001
-        log.warning("SovereignBridge failed, using authorized HTTP fallback: %s", exc)
+        log.warning("SovereignBridge failed; using loopback HTTP fallback: %s", exc)
 
     body = json.dumps(
         {
@@ -79,7 +103,7 @@ def _chat_sovereign_sync(
                 "mode": authorization.mode,
             },
         }
-    ).encode()
+    ).encode("utf-8")
     req = urllib.request.Request(
         f"{SOVEREIGN_API_URL}/chat",
         data=body,
@@ -93,15 +117,18 @@ def _chat_sovereign_sync(
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
             data = json.loads(response.read())
-            return (
-                data.get("text")
-                or data.get("response")
-                or data.get("choices", [{}])[0].get("message", {}).get("content", "")
-                or "[no response]"
-            )
     except Exception as exc:  # noqa: BLE001
-        log.error("Authorized sovereign HTTP API error: %s", exc)
-        return f"[Sovereign bridge error: {exc}]"
+        log.error("Sovereign HTTP API failed: %s", exc)
+        raise RuntimeError("sovereign AI execution failed") from exc
+
+    text = (
+        data.get("text")
+        or data.get("response")
+        or data.get("choices", [{}])[0].get("message", {}).get("content", "")
+    )
+    if not isinstance(text, str) or not text.strip():
+        raise RuntimeError("sovereign AI returned no response")
+    return text
 
 
 async def _chat_sovereign(
@@ -109,13 +136,8 @@ async def _chat_sovereign(
     agent: str,
     authorization: SessionAuthorization,
 ) -> str:
-    loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
-        None,
-        _chat_sovereign_sync,
-        messages,
-        agent,
-        authorization,
+    return await asyncio.get_running_loop().run_in_executor(
+        None, _chat_sovereign_sync, messages, agent, authorization
     )
 
 
@@ -139,6 +161,7 @@ class AIAssistant:
         self.agent = agent
         self._history: list[tuple[str, str]] = []
         self.context_summary = ""
+        self._memory_ready = False
 
         store_cls, hydrator_cls = _try_import_memory()
         self._store = store_cls() if store_cls else None
@@ -156,44 +179,55 @@ class AIAssistant:
             raise SessionAuthorizationError("session authorization failed") from exc
 
     async def init(self) -> None:
-        if self._store:
-            try:
-                await self._store.init()
-                log.info("MemoryStore initialised for authorized session=%s", self.session)
-            except Exception as exc:
-                log.warning("MemoryStore init failed: %s", exc)
+        """Initialize mandatory persistence before accepting conversation turns."""
+        if not self._store or not self._hydrator:
+            raise RuntimeError("MemoryStore/Mem​oryHydrator unavailable; startup denied")
+        try:
+            await self._store.init()
+        except Exception as exc:  # noqa: BLE001
+            log.error("MemoryStore initialization failed")
+            raise RuntimeError("memory subsystem initialization failed") from exc
+        self._memory_ready = True
+        log.info("MemoryStore initialized for authorized session=%s", self.session)
 
     async def process_user_input(self, user_input: str) -> str:
         if not self.authorization.allows(AI_INFERENCE_CAPABILITY):
             raise SessionAuthorizationError("session is not authorized for AI inference")
+        if not self._memory_ready:
+            raise RuntimeError("assistant is not initialized")
+        if not isinstance(user_input, str) or not user_input.strip():
+            raise ValueError("user_input must be a non-empty string")
 
-        self._update_context_summary(user_input)
-        messages = self._build_messages(user_input)
-        ai_response = await _chat_sovereign(messages, self.agent, self.authorization)
+        self._update_context_summary()
+        ai_response = await _chat_sovereign(
+            self._build_messages(user_input), self.agent, self.authorization
+        )
 
         if self._detect_loop(ai_response):
             log.info("Loop detected; reframing prompt for session=%s", self.session)
-            reframed_messages = self._build_messages(
-                user_input, reframe=True, previous_response=ai_response
-            )
             ai_response = await _chat_sovereign(
-                reframed_messages, self.agent, self.authorization
+                self._build_messages(
+                    user_input, reframe=True, previous_response=ai_response
+                ),
+                self.agent,
+                self.authorization,
             )
-
-        self._history.append((user_input, ai_response))
-        if len(self._history) > MAX_IN_MEMORY_TURNS:
-            self._history = self._history[-MAX_IN_MEMORY_TURNS:]
+            if self._detect_loop(ai_response):
+                raise RuntimeError("sovereign AI remained repetitive after one reframe")
 
         await self._persist(user_input, ai_response)
+        self._history.append((user_input, ai_response))
+        if len(self._history) > MAX_IN_MEMORY_TURNS:
+            del self._history[:-MAX_IN_MEMORY_TURNS]
         return ai_response
 
-    def _update_context_summary(self, incoming_user_input: str) -> None:
-        del incoming_user_input
+    def _update_context_summary(self) -> None:
         recent = self._history[-SUMMARY_LOOKBACK:]
-        lines = [f"User: {user}\nAI: {answer}" for user, answer in recent]
         self.context_summary = (
-            "Recent conversation:\n" + "\n---\n".join(lines)
-            if lines
+            "Recent conversation:\n" + "\n---\n".join(
+                f"User: {user}\nAI: {answer}" for user, answer in recent
+            )
+            if recent
             else "(No prior conversation in this session.)"
         )
 
@@ -207,35 +241,33 @@ class AIAssistant:
         system_parts = [
             "You are a sovereign AI assistant running entirely on self-hosted infrastructure. "
             "No data leaves the network. Be precise, production-ready, and never fabricate data.",
-            "",
             self.context_summary,
-            "",
             f"Authorized identity: {self.authorization.identity_id}",
             f"Authorized runtime mode: {self.authorization.mode}",
         ]
         if reframe:
-            system_parts += [
-                "",
-                "IMPORTANT: Your previous response may have been repetitive. "
-                "Approach this from a completely different angle. "
-                f"Previous attempt: {previous_response[:REFRAME_PREVIEW_LENGTH]}",
-            ]
+            system_parts.extend(
+                [
+                    "IMPORTANT: Your previous response was repetitive. Approach this from a "
+                    "completely different angle.",
+                    f"Previous attempt: {previous_response[:REFRAME_PREVIEW_LENGTH]}",
+                ]
+            )
         return [
-            {"role": "system", "content": "\n".join(system_parts).strip()},
+            {"role": "system", "content": "\n\n".join(system_parts).strip()},
             {"role": "user", "content": user_input},
         ]
 
     def _detect_loop(self, response: str) -> bool:
-        for _, previous in self._history[-LOOP_LOOKBACK:]:
-            ratio = difflib.SequenceMatcher(None, previous, response).ratio()
-            if ratio >= LOOP_SIMILARITY_THRESHOLD:
-                log.debug("Loop similarity ratio=%.2f detected", ratio)
-                return True
-        return False
+        return any(
+            difflib.SequenceMatcher(None, previous, response).ratio()
+            >= LOOP_SIMILARITY_THRESHOLD
+            for _, previous in self._history[-LOOP_LOOKBACK:]
+        )
 
     async def _persist(self, user_input: str, ai_response: str) -> None:
         if not self._hydrator:
-            return
+            raise RuntimeError("memory persistence is unavailable")
         try:
             await self._hydrator.persist_message(
                 self.session, "user", user_input, self.agent
@@ -243,30 +275,29 @@ class AIAssistant:
             await self._hydrator.persist_message(
                 self.session, "assistant", ai_response, self.agent
             )
-        except Exception as exc:
-            log.warning("Memory persist failed (non-fatal): %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            log.error("Memory persistence failed")
+            raise RuntimeError("conversation persistence failed") from exc
 
     async def get_history(self, limit: int = 50) -> list[dict[str, Any]]:
+        if limit < 1:
+            raise ValueError("limit must be positive")
         if self._store:
             try:
                 return await self._store.get_history(self.session, limit=limit)
-            except Exception as exc:
-                log.warning("Could not fetch history from store: %s", exc)
-        return [
-            {"role": role, "content": message, "agent": self.agent, "ts": 0}
-            for user, assistant in self._history
-            for role, message in (("user", user), ("assistant", assistant))
-        ]
+            except Exception as exc:  # noqa: BLE001
+                raise RuntimeError("could not fetch conversation history") from exc
+        return []
 
     async def clear_history(self) -> None:
         self._history.clear()
         self.context_summary = ""
-        if self._store:
-            try:
-                await self._store.clear_history(self.session)
-                log.info("History cleared for authorized session=%s", self.session)
-            except Exception as exc:
-                log.warning("Could not clear store history: %s", exc)
+        if not self._store:
+            raise RuntimeError("memory persistence is unavailable")
+        try:
+            await self._store.clear_history(self.session)
+        except Exception as exc:  # noqa: BLE001
+            raise RuntimeError("could not clear conversation history") from exc
 
 
 async def _run_cli() -> None:
