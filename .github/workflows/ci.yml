@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+env:
+  SOVEREIGN_CI_TRANSPORT: github-actions
+  SOVEREIGN_DEVICE_RUNTIME: local-first
+  SOVEREIGN_NETWORK_POLICY: explicit-mode
+
 concurrency:
   group: sovereignty-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -20,17 +25,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
+      - name: Fetch exact repository revision
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Validate manifest
+      - name: Validate runtime mode contract
         run: |
           set -Eeuo pipefail
           python -m json.tool system/component-manifest.json >/dev/null
@@ -40,13 +46,21 @@ jobs:
           d=json.loads(Path('system/component-manifest.json').read_text())
           assert d['schema']=='sovereignty.system.component/v1'
           assert d['authority']=='human-owner'
+          assert d['default_mode']=='local-first'
+          modes=d['runtime_modes']
+          assert set(modes)=={'local','hybrid','online'}
+          assert modes['local']['network']=='offline'
+          assert modes['local']['local_only'] is True
+          assert modes['hybrid']['network']=='hybrid'
+          assert modes['online']['network']=='online'
+          assert all(modes[m]['automatic_provider_calls'] is False for m in modes)
           ids=[c['id'] for c in d['components']]
           repos=[c['repository'] for c in d['components']]
           assert len(ids)==len(set(ids)), 'duplicate component id'
           assert len(repos)==len(set(repos)), 'duplicate repository mapping'
           for e in d['edges']:
               assert e['from'] in ids and e['to'] in ids
-          print(f"contract OK: {len(ids)} components, {len(d['edges'])} edges")
+          print(f"contract OK: {len(ids)} components, {len(d['edges'])} edges, modes={','.join(modes)}")
           PY
       - name: Validate submodule policy
         run: |
@@ -62,15 +76,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
+      - name: Fetch exact repository revision
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Compile Python
         run: |
@@ -94,15 +109,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
+      - name: Fetch exact repository revision
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Node
         run: |
@@ -118,15 +134,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
+      - name: Fetch exact repository revision
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Rust
         run: |
@@ -148,6 +165,9 @@ jobs:
           NODE: ${{ needs.node.result }}
           RUST: ${{ needs.rust.result }}
         run: |
+          echo "CI transport=${SOVEREIGN_CI_TRANSPORT}"
+          echo "device runtime=${SOVEREIGN_DEVICE_RUNTIME}"
+          echo "network policy=${SOVEREIGN_NETWORK_POLICY}"
           echo "contract=$CONTRACT"
           echo "python=$PYTHON"
           echo "node=$NODE"
