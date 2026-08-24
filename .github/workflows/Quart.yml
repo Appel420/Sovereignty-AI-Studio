@@ -12,20 +12,23 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Verify runner
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
+      - name: Verify Python runtime
+        run: python --version
       - name: Install dependencies
         shell: bash
         run: |
