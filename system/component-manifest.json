@@ -23,7 +23,7 @@
     {"id":"sovereign-a-shell","repository":"Appel420/Sovereign-a-shell","role":"ios-shell","default_branch":"main","failure":"degrade"},
     {"id":"ios-nrf-device-manager","repository":"Appel420/IOS-nRF-Connect-Device-Manager","role":"ble-device-manager","default_branch":"master","failure":"degrade"},
     {"id":"ios-nrf-toolbox-tzng","repository":"Appel420/IOS-nRF-Toolbox-TZNG","role":"ble-device-tooling","default_branch":"main","failure":"degrade"},
-    {"id":"nodejs","repository":"Appel420/Node.js","role":"runtime-source","default_branch":"+master+master+master+","failure":"quarantine"},
+    {"id":"nodejs","repository":"Appel420/Node.js","role":"runtime-source","default_branch":"master","failure":"quarantine"},
     {"id":"sovereignty-ai-studio","repository":"Appel420/Sovereignty-AI-Studio","role":"integration-control-plane","default_branch":"Collaboration","failure":"preserve-last-known-good"}
   ],
   "rules": [
