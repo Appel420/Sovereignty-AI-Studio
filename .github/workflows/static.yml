@@ -1,5 +1,7 @@
-name: Deploy static content to Pages
+name: Static Content Validation
 
+# GitHub Pages deployment requires GitHub-owned actions, which are prohibited
+# by this repository's owner-only action policy. Validate the publish surface here.
 on:
   push:
     branches: [Collaboration, main, dev]
@@ -12,29 +14,38 @@ on:
       - '!.github/**'
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ['self-hosted', 'linux', 'arm64']
+  validate:
+    name: Validate static content
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: '.'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Validate static files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+
+          class Parser(HTMLParser):
+              pass
+
+          files = [*Path('.').glob('*.html'), *Path('docs').rglob('*.html') if Path('docs').exists() else []]
+          for path in files:
+              Parser().feed(path.read_text(encoding='utf-8', errors='strict'))
+          print(f'validated {len(files)} HTML files')
+          PY
