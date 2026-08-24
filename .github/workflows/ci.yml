@@ -27,8 +27,8 @@ jobs:
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate manifest
         run: |
@@ -53,7 +53,15 @@ jobs:
           set -Eeuo pipefail
           if [[ -f .gitmodules ]]; then
             while read -r key url; do
-              [[ "$url" == https://github.com/Appel420/* ]] || { echo "ERROR: unapproved submodule URL: $url"; exit 1; }
+              normalized="${url,,}"
+              case "$normalized" in
+                https://github.com/appel420/*|git@github.com:appel420/*)
+                  ;;
+                *)
+                  echo "ERROR: unapproved submodule URL: $url"
+                  exit 1
+                  ;;
+              esac
             done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.url$' || true)
           fi
 
@@ -69,15 +77,20 @@ jobs:
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Compile Python
+      - name: Compile first-party Python
         run: |
           set -Eeuo pipefail
-          files=$(find . -type f -name '*.py' -not -path './.git/*' -not -path './.venv/*')
-          if [[ -z "$files" ]]; then echo 'No Python sources; lane passed.'; exit 0; fi
-          while IFS= read -r f; do python -m py_compile "$f"; done <<< "$files"
+          mapfile -t files < <(git ls-files '*.py' ':!:external/**' ':!:.git/**')
+          if (( ${#files[@]} == 0 )); then
+            echo 'No first-party Python sources; lane passed.'
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            python -m py_compile "$f"
+          done
       - name: Test Python when a suite exists
         run: |
           set -Eeuo pipefail
@@ -101,8 +114,8 @@ jobs:
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Node
         run: |
@@ -125,8 +138,8 @@ jobs:
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead false
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Rust
         run: |
@@ -152,8 +165,10 @@ jobs:
           echo "python=$PYTHON"
           echo "node=$NODE"
           echo "rust=$RUST"
-          if [[ "$CONTRACT" == failure || "$CONTRACT" == cancelled ]]; then
-            echo 'Contract gate failed; integration result is not authoritative.'
-            exit 1
-          fi
-          echo 'Independent lanes completed without dependency cascade.'
+          for result in "$CONTRACT" "$PYTHON" "$NODE" "$RUST"; do
+            if [[ "$result" != success ]]; then
+              echo 'One or more independent lanes did not succeed.'
+              exit 1
+            fi
+          done
+          echo 'All independent lanes completed successfully.'
