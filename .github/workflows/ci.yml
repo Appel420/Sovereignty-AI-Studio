@@ -94,10 +94,17 @@ jobs:
               'build', 'dist', 'downloads', 'eggs', '.eggs',
               'site-packages', '__pycache__',
           }
-          tracked = subprocess.run(
+
+          # git -z emits NUL-delimited paths. Split on the actual NUL byte;
+          # using b'\\0' leaves the NUL inside the filename and causes
+          # subprocess.Popen to raise ValueError: embedded null byte.
+          output = subprocess.run(
               ['git', 'ls-files', '-z', '--', '*.py'],
-              check=True, capture_output=True, text=False,
-          ).stdout.split(b'\\0')
+              check=True,
+              capture_output=True,
+          ).stdout
+          tracked = output.split(b'\0')
+
           files = []
           for raw in tracked:
               if not raw:
@@ -111,7 +118,8 @@ jobs:
           for path in files:
               proc = subprocess.run(
                   [sys.executable, '-m', 'py_compile', str(path)],
-                  text=True, capture_output=True,
+                  text=True,
+                  capture_output=True,
               )
               if proc.returncode:
                   failures.append((str(path), proc.stdout, proc.stderr))
@@ -119,7 +127,7 @@ jobs:
           print(f'first-party Python files checked: {len(files)}')
           if failures:
               for path, stdout, stderr in failures:
-                  print(f'\\n--- PYTHON SYNTAX FAILURE: {path} ---')
+                  print(f'\n--- PYTHON SYNTAX FAILURE: {path} ---')
                   if stdout:
                       print(stdout, end='')
                   if stderr:
