@@ -33,7 +33,7 @@ jobs:
           git init .
           git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' \
             fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate runtime mode contract
@@ -67,7 +67,11 @@ jobs:
           set -Eeuo pipefail
           if [[ -f .gitmodules ]]; then
             while read -r key url; do
-              [[ "$url" == https://github.com/Appel420/* ]] || { echo "ERROR: unapproved submodule URL: $url"; exit 1; }
+              normalized="$(printf '%s' "$url" | tr '[:upper:]' '[:lower:]')"
+              case "$normalized" in
+                https://github.com/appel420/*) ;;
+                *) echo "ERROR: unapproved submodule URL: $url"; exit 1 ;;
+              esac
             done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.url$' || true)
           fi
 
@@ -84,7 +88,7 @@ jobs:
           git init .
           git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' \
             fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Compile Python
@@ -117,7 +121,7 @@ jobs:
           git init .
           git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' \
             fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Node
@@ -142,7 +146,7 @@ jobs:
           git init .
           git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GH_TOKEN"; }; f' \
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' \
             fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Rust
