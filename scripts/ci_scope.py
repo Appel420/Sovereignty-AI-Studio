@@ -33,10 +33,6 @@ FULL_PATHS = {
     "rust-toolchain",
     "rust-toolchain.toml",
     ".gitmodules",
-    "Makefile",
-}
-
-EXCLUDED_PREFIXES = (
     "external/",
     "vendor/",
     "node_modules/",
