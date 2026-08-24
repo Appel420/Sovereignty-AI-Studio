@@ -17,46 +17,49 @@ permissions:
 jobs:
   build:
     runs-on: ['self-hosted', 'linux', 'arm64']
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Verify runner
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify runner and Docker
+        shell: bash
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
-      - name: Install cosign
+          docker version
+      - name: Build image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_REF_NAME}"
+          docker build --tag "$TAG" .
+          echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Log into GHCR and push
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6
-        with:
-          cosign-release: 'v2.2.4'
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f95db51fddba0c2d1ec667646a06c2ce06100226
-      - name: Log into registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Extract Docker metadata
-        id: meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-      - name: Build and push Docker image
-        id: build-and-push
-        uses: docker/build-push-action@0565240e2d4ab88bba5387d719585280857ece09
-        with:
-          context: .
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      - name: Sign the published Docker image
-        if: ${{ github.event_name != 'pull_request' }}
         env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" -u "${GITHUB_ACTOR}" --password-stdin
+          docker push "$IMAGE_TAG"
+      - name: Sign published image when cosign is installed
+        if: github.event_name != 'pull_request'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if command -v cosign >/dev/null 2>&1; then
+            cosign sign --yes "$IMAGE_TAG"
+          else
+            echo 'cosign not installed on runner; image remains unsigned and publication is rejected.'
+            exit 1
+          fi
