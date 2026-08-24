@@ -14,6 +14,10 @@ concurrency:
   group: sovereignty-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
 jobs:
   contract:
     name: Contract Gate
@@ -76,12 +80,53 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Compile first-party Python
+      - name: Compile first-party Python only
         run: |
           set -Eeuo pipefail
-          while IFS= read -r -d '' f; do
-            python -m py_compile "$f"
-          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
+          python - <<'PY'
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          excluded = {
+              '.git', '.venv', 'venv', 'env', 'ENV',
+              'external', 'vendor', 'node_modules',
+              'build', 'dist', 'downloads', 'eggs', '.eggs',
+              'site-packages', '__pycache__',
+          }
+          tracked = subprocess.run(
+              ['git', 'ls-files', '-z', '--', '*.py'],
+              check=True, capture_output=True, text=False,
+          ).stdout.split(b'\\0')
+          files = []
+          for raw in tracked:
+              if not raw:
+                  continue
+              path = Path(raw.decode('utf-8'))
+              if any(part in excluded for part in path.parts):
+                  continue
+              files.append(path)
+
+          failures = []
+          for path in files:
+              proc = subprocess.run(
+                  [sys.executable, '-m', 'py_compile', str(path)],
+                  text=True, capture_output=True,
+              )
+              if proc.returncode:
+                  failures.append((str(path), proc.stdout, proc.stderr))
+
+          print(f'first-party Python files checked: {len(files)}')
+          if failures:
+              for path, stdout, stderr in failures:
+                  print(f'\\n--- PYTHON SYNTAX FAILURE: {path} ---')
+                  if stdout:
+                      print(stdout, end='')
+                  if stderr:
+                      print(stderr, end='')
+              raise SystemExit(f'{len(failures)} Python file(s) failed compilation')
+          print('Python compilation OK')
+          PY
       - name: Test Python when a suite exists
         run: |
           set -Eeuo pipefail
@@ -152,6 +197,7 @@ jobs:
           NODE: ${{ needs.node.result }}
           RUST: ${{ needs.rust.result }}
         run: |
+          set -Eeuo pipefail
           echo "contract=$CONTRACT"
           echo "python=$PYTHON"
           echo "node=$NODE"
