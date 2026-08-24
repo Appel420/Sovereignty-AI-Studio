@@ -12,7 +12,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
+    branches: ["**"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -26,7 +26,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: [ main ]
+    branches: ["**"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -40,12 +40,12 @@ on:
       - "**/*.js"
       - "**/*.py"
   release:
-    types: [published]
+    types: ["published"]
   workflow_dispatch:
 
 concurrency:
   group: oauth-api-generator-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -65,18 +65,18 @@ jobs:
   # =========================================================
   build-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     permissions:
       contents: read
     strategy:
       matrix:
-        python: ['3.11', '3.12']
+        python: ['3.11', '3.12', '3.13']
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v5
@@ -101,21 +101,21 @@ jobs:
         run: |
           safety check -r .github/workflows/Requirements.txt --output text || true
           safety check -r requirements.txt --output text || true
-        continue-on-error: true
+        continue-on-error: false
 
   # =========================================================
   # NODE CHECK
   # =========================================================
   node-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -137,7 +137,7 @@ jobs:
     needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     permissions:
       packages: write
       contents: read
@@ -147,7 +147,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -217,7 +217,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Dependency Review
-        continue-on-error: true
+        continue-on-error: false
         uses: actions/dependency-review-action@v4
         # Advisory only: some repositories do not have dependency graph / GHAS
         # enabled, so this should not block regulated-use CI execution.
@@ -228,14 +228,14 @@ jobs:
   security-scan:
     needs: [build-test, node-check]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
@@ -245,15 +245,15 @@ jobs:
           skip-dirs: external,frontend
           format: table
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          hide-progress: true
+          ignore-unfixed: false
+          hide-progress: false
           exit-code: 1
 
       - name: OWASP dependency check
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt || true
-        continue-on-error: true
+        continue-on-error: false
 
 # =========================================================
 # SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
