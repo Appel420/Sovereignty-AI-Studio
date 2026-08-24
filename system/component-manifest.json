@@ -1,9 +1,43 @@
 {
   "schema": "sovereignty.system.component/v1",
   "system": "Sovereignty-AI-Studio",
-  "contract_version": 1,
+  "contract_version": 2,
   "authority": "human-owner",
   "default_mode": "local-first",
+  "runtime_modes": {
+    "local": {
+      "network": "offline",
+      "local_only": true,
+      "external_feeds": "disabled",
+      "cloud_first": false,
+      "automatic_provider_calls": false
+    },
+    "hybrid": {
+      "network": "hybrid",
+      "local_only": false,
+      "external_feeds": "explicit-only",
+      "cloud_first": false,
+      "automatic_provider_calls": false,
+      "requires": ["owner_confirmation", "destination", "scope", "why"]
+    },
+    "online": {
+      "network": "online",
+      "local_only": false,
+      "external_feeds": "allowlisted",
+      "cloud_first": false,
+      "automatic_provider_calls": false,
+      "requires": ["owner_confirmation", "destination", "scope", "why"]
+    }
+  },
+  "authority_invariants": [
+    "Human owner remains the authority in every runtime mode.",
+    "Network availability is a capability, not a prerequisite for local operation.",
+    "Offline/local mode must remain fully functional without network access.",
+    "Hybrid mode is local-first and may cross a network boundary only after explicit owner authorization.",
+    "Online mode is an explicitly authorized allowlisted route; it never becomes the default because a network exists.",
+    "A runtime mode change is policy state and must be observable in SCAR/REPMHL evidence.",
+    "CI transport mode must not silently redefine device runtime mode."
+  ],
   "components": [
     {"id":"sovereignty-ai-gate","repository":"Appel420/Sovereignty-AI-Gate","role":"authority","default_branch":"main","failure":"isolate"},
     {"id":"sovereign-self-fixer","repository":"Appel420/sovereign-self-fixer","role":"repair","default_branch":"main","failure":"isolate"},
@@ -33,7 +67,8 @@
     "Network availability is a capability, not a prerequisite for local operation.",
     "Experimental components are isolated from authority and execution paths.",
     "Every cross-component operation emits a contract identifier and outcome.",
-    "Recovery restores last-known-good state before attempting mutation."
+    "Recovery restores last-known-good state before attempting mutation.",
+    "CI transport state is separate from device runtime state."
   ],
   "edges": [
     {"from":"sovereignty-ai-gate","to":"devassist420","contract":"authority.execution/v1","mode":"authorize"},
