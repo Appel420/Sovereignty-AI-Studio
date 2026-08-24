@@ -15,42 +15,57 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git config --local advice.detachedHead false
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Install pip-audit
-        run: python -m pip install --upgrade pip pip-audit
+        run: python3 -m pip install --user --upgrade pip pip-audit
       - name: Run pip-audit
-        run: pip-audit -r requirements.txt
+        run: python3 -m pip_audit -r requirements.txt
 
   python-outdated:
     name: Python — requirements validation
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git config --local advice.detachedHead false
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate requirements syntax
-        run: python -m pip install --dry-run -r requirements.txt
+        run: python3 -m pip install --dry-run -r requirements.txt
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: node-bridge/package-lock.json
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git config --local advice.detachedHead false
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Install node-bridge dependencies
         working-directory: node-bridge
         run: npm ci
@@ -63,9 +78,20 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'arm64']
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git config --local advice.detachedHead false
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate requirements files
         run: |
+          set -Eeuo pipefail
           python3 - <<'PY'
           import pathlib
           for name in ('requirements.txt', '.github/workflows/Requirements.txt'):
