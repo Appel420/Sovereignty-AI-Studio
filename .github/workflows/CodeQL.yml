@@ -1,7 +1,5 @@
 name: CodeQL Scan
 
-# Repository policy forbids actions outside Appel420-owned repositories.
-# Keep this as a manual security gate without third-party GitHub Actions.
 on:
   workflow_dispatch:
 
@@ -11,9 +9,9 @@ permissions:
 jobs:
   analyze:
     name: Local Security Gate
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 20
-    steps:
+    runs-on: 'self-hosted, ubuntu-latest'
+    timeout-minutes: 10
+   steps:
       - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
