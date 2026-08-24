@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Compute an offline, incremental local-CI scope from Git changes.
+"""Compute deterministic offline CI scope from repository changes.
 
-This module never installs dependencies and never contacts package registries.
-Full validation is selected only for dependency/build/workflow changes or an
-explicit FULL_CI=1 request. The local CI runner decides how to execute checks.
+The module is intentionally dependency-free. It is imported directly by the
+CI contract tests, so this file is a canonical runtime dependency and must not
+be treated as generated output.
 """
 from __future__ import annotations
 
@@ -32,10 +32,13 @@ FULL_MARKERS = (
 
 
 def runtime_files(names: set[str]) -> set[str]:
-    """Return runtime paths, excluding external vendor/reference content."""
+    """Return repository runtime paths, excluding vendor/reference trees."""
+    excluded = ("external/", "vendor/", "vendors/", "node_modules/")
     return {
-        name for name in names
-        if name and name != "external" and not name.startswith("external/")
+        name
+        for name in names
+        if name and name not in {"external", "vendor", "vendors", "node_modules"}
+        and not name.startswith(excluded)
     }
 
 
@@ -71,6 +74,7 @@ def changed_files() -> set[str]:
 
 
 def scope(names: set[str]) -> dict[str, object]:
+    """Classify changes into full, Python, Node, shell, test, and frontend scope."""
     names = runtime_files(names)
     full = bool(os.environ.get("FULL_CI")) or any(
         name == marker or name.startswith(marker)
@@ -99,8 +103,7 @@ def scope(names: set[str]) -> dict[str, object]:
 
 
 def main() -> int:
-    names = changed_files()
-    result = scope(names)
+    result = scope(changed_files())
     if len(sys.argv) == 1 or sys.argv[1] == "--json":
         import json
         print(json.dumps(result, indent=2, sort_keys=True))
