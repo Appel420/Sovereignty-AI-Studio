@@ -21,6 +21,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
+          git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
@@ -42,8 +43,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if grep -RInE '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' . \
-            --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules; then
+          if grep -RInE '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' . --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules; then
             echo 'ERROR: probable credential/private-key material detected.'
             exit 1
           fi
@@ -52,6 +52,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          mapfile -t files < <(git ls-files '*.py' ':!:external/**' ':!:.git/**')
-          for f in "${files[@]}"; do python -m py_compile "$f"; done
+          while IFS= read -r -d '' f; do
+            python -m py_compile "$f"
+          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
           echo 'First-party Python syntax/security preflight: PASS'
