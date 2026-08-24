@@ -169,6 +169,7 @@ jobs:
           NODE: ${{ needs.node.result }}
           RUST: ${{ needs.rust.result }}
         run: |
+          set -Eeuo pipefail
           echo "CI transport=${SOVEREIGN_CI_TRANSPORT}"
           echo "device runtime=${SOVEREIGN_DEVICE_RUNTIME}"
           echo "network policy=${SOVEREIGN_NETWORK_POLICY}"
@@ -180,4 +181,10 @@ jobs:
             echo 'Contract gate failed; integration result is not authoritative.'
             exit 1
           fi
-          echo 'Independent lanes completed without dependency cascade.'
+          for result in "$PYTHON" "$NODE" "$RUST"; do
+            if [[ "$result" == failure || "$result" == cancelled ]]; then
+              echo 'One or more independent validation lanes failed; integration result is FAILED.'
+              exit 1
+            fi
+          done
+          echo 'Independent lanes completed successfully without dependency cascade.'
