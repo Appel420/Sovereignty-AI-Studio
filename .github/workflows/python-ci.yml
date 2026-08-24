@@ -33,46 +33,21 @@ jobs:
           git checkout --detach FETCH_HEAD
       - name: Verify Python runtime
         run: python --version
-      - name: Install test tools
+      - name: Install test tools and project dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install pytest
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test]' || python -m pip install -e .; fi
       - name: Python syntax gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          python - <<'PY'
-          import subprocess
-          import sys
-          from pathlib import Path
-
-          excluded = {'.git', '.venv', 'venv', 'env', 'ENV', 'external', 'vendor', 'node_modules', 'build', 'dist', 'downloads', 'eggs', '.eggs', 'site-packages', '__pycache__'}
-          output = subprocess.run(['git', 'ls-files', '-z', '--', '*.py'], check=True, capture_output=True).stdout
-          files = []
-          for raw in output.split(b'\0'):
-              if not raw:
-                  continue
-              path = Path(raw.decode('utf-8'))
-              if not any(part in excluded for part in path.parts):
-                  files.append(path)
-
-          failures = []
-          for path in files:
-              proc = subprocess.run([sys.executable, '-m', 'py_compile', str(path)], text=True, capture_output=True)
-              if proc.returncode:
-                  failures.append((str(path), proc.stderr))
-
-          print(f'first-party Python files checked: {len(files)}')
-          if failures:
-              for path, stderr in failures:
-                  print(f'\n--- PYTHON SYNTAX FAILURE: {path} ---')
-                  print(stderr, end='')
-              raise SystemExit(f'{len(failures)} Python file(s) failed compilation')
-          print('Python syntax gate OK')
-          PY
+          while IFS= read -r -d '' f; do
+            python -m py_compile "$f"
+          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
