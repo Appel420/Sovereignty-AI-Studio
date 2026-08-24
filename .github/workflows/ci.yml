@@ -82,7 +82,6 @@ jobs:
           while IFS= read -r -d '' f; do
             python -m py_compile "$f"
           done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
-          echo 'First-party Python compilation completed.'
       - name: Test Python when a suite exists
         run: |
           set -Eeuo pipefail
