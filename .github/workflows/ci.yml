@@ -20,9 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate manifest
         run: |
           set -Eeuo pipefail
@@ -55,7 +61,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Compile Python
         run: |
           set -Eeuo pipefail
@@ -78,7 +92,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate Node
         run: |
           set -Eeuo pipefail
@@ -93,7 +115,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate Rust
         run: |
           set -Eeuo pipefail
