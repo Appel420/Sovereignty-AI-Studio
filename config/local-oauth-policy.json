@@ -1,6 +1,6 @@
 {
-  "external_oauth": "disabled",
-  "generator": "scripts/oauth_local_generator.py",
   "issuer": "local",
-  "network_access": false
+  "generator": "scripts/oauth_local_generator.py",
+  "network_access": false,
+  "external_oauth": "disabled"
 }
