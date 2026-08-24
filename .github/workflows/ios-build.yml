@@ -3,23 +3,25 @@ name: iOS Build
 on:
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 permissions:
   contents: read
 
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: 'self-hosted''ubuntu-latest'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Verify runner
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
       - name: Validate iOS source presence
         shell: bash
         run: |
@@ -27,4 +29,5 @@ jobs:
           if [ -d ios ]; then
             find ios -maxdepth 2 -type f | head -100
           else
+            echo 'ios directory not present; package-presence validation skipped.'
           fi
