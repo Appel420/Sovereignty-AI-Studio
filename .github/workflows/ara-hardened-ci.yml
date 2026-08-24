@@ -1,14 +1,13 @@
 name: ara-hardened-unit-ci-local
 
-# Local validation lane. Canonical online CI is .github/workflows/ci.yml.
+# Retained as an explicit lightweight compatibility lane. The authoritative
+# repository gate is .github/workflows/ci.yml.
 on:
-  push:
-    branches: [ all ]
   workflow_dispatch:
 
 concurrency:
   group: ara-hardened-unit-ci-local-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -28,14 +27,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-      - name: Announce CI identity
+          persist-credentials: false
+      - name: Startup verification
         run: |
-          echo "CI:   $CI_NAME"
-          echo "MODE: $CI_MODE"
-          echo "ROUTE: offline-safe"
-          echo "BRANCH: ${{ github.ref_name }}"
-          echo "COMMIT: ${{ github.sha }}"
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -43,7 +40,7 @@ jobs:
           cache: pip
       - name: Install minimal test tools
         run: python -m pip install --upgrade pip pytest
-      - name: Coordination unit import check
+      - name: Coordination import check
         run: |
           python - <<'PY'
           import sys
@@ -59,30 +56,3 @@ jobs:
         env:
           PYTHONPATH: prototypes
         run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
-      - name: Write mode stamp
-        run: |
-          python - <<'PY'
-          import json, time
-          stamp = {
-              'ci_name': 'ara-hardened-unit-ci-local',
-              'ci_mode': 'local',
-              'route': 'offline-safe',
-              'sha': '${{ github.sha }}',
-              'ref': '${{ github.ref }}',
-              'pqc_full_build': False,
-              'oauth_generator': False,
-              'network_mode': 'offline',
-              'timestamp': int(time.time()),
-          }
-          with open('ara-hardened-ci-stamp.json', 'w', encoding='utf-8') as f:
-              json.dump(stamp, f, indent=2)
-          print(json.dumps(stamp, indent=2))
-          PY
-      - name: Upload stamp
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ara-hardened-unit-ci-local-${{ github.run_id }}
-          path: ara-hardened-ci-stamp.json
-          retention-days: 14
-          if-no-files-found: error
