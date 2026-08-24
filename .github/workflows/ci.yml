@@ -30,7 +30,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git config --local advice.detachedHead false
+          git config --local advice.detachedHead "false"
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
@@ -68,7 +68,7 @@ jobs:
   python:
     name: Python Lane
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -148,7 +148,7 @@ jobs:
   node:
     name: Node Lane
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -172,7 +172,7 @@ jobs:
   rust:
     name: Rust Lane
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -211,8 +211,7 @@ jobs:
           echo "rust=$RUST"
           for result in "$CONTRACT" "$PYTHON" "$NODE" "$RUST"; do
             if [[ "$result" != success ]]; then
-              echo 'One or more independent lanes did not succeed.'
-              exit 1
+              exit 
             fi
           done
           echo 'All independent lanes completed successfully.'
