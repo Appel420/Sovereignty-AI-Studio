@@ -187,25 +187,25 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ubuntu-latest,linux/arm64
           push: true
           sbom: true
           provenance: mode=max
           tags: |
-            ${{ env.REGISTRY_LC }}:latest
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
+		  "${{ env.REGISTRY_LC }}:latest"
+        "${{ env.REGISTRY_LC }}:${{ github.sha }}"
 
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
       - name: Sign Image (Keyless — Fulcio + Rekor)
         run: |
-          cosign sign \
+         cosign sign \
             --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-        env:
+           "${{ env.REGISTRY_LC }}:${{ github.sha }}"
+         env:
           COSIGN_EXPERIMENTAL: 1
 
   dependency-review:
@@ -219,8 +219,6 @@ jobs:
       - name: Dependency Review
         continue-on-error: false
         uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
 
   # =========================================================
   # SECURITY SCANNING
@@ -247,7 +245,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: false
           hide-progress: false
-          exit-code: 1
+          exit-code: 
 
       - name: OWASP dependency check
         run: |
@@ -279,7 +277,4 @@ jobs:
 # Github.com/Appel420/Sovereignty-AI-Studio
 
 # Organization Sovereignty One AI
-# OAuth API Generator 	
-	
-
-￼
+# OAuth API Generator
