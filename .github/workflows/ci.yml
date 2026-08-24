@@ -96,11 +96,12 @@ jobs:
           print("Ed25519 signing primitive OK")
           PY
       - name: Compile first-party Python only
+        shell: bash
         run: |
           set -Eeuo pipefail
           python - <<'PY'
+          import py_compile
           import subprocess
-          import sys
           from pathlib import Path
 
           excluded = {
@@ -110,40 +111,28 @@ jobs:
               'site-packages', '__pycache__',
           }
 
-          output = subprocess.run(
-              ['git', 'ls-files', '-z', '--', '*.py'],
-              check=True,
-              capture_output=True,
-          ).stdout
-          tracked = output.split(b'\0')
-
+          raw = subprocess.check_output(['git', 'ls-files', '-z', '--', '*.py'])
           files = []
-          for raw in tracked:
-              if not raw:
+          for item in raw.split(b'\0'):
+              if not item:
                   continue
-              path = Path(raw.decode('utf-8'))
+              path = Path(item.decode('utf-8'))
               if any(part in excluded for part in path.parts):
                   continue
               files.append(path)
 
           failures = []
           for path in files:
-              proc = subprocess.run(
-                  [sys.executable, '-m', 'py_compile', str(path)],
-                  text=True,
-                  capture_output=True,
-              )
-              if proc.returncode:
-                  failures.append((str(path), proc.stdout, proc.stderr))
+              try:
+                  py_compile.compile(str(path), doraise=True)
+              except py_compile.PyCompileError as exc:
+                  failures.append((str(path), str(exc)))
 
           print(f'first-party Python files checked: {len(files)}')
           if failures:
-              for path, stdout, stderr in failures:
+              for path, error in failures:
                   print(f'\n--- PYTHON SYNTAX FAILURE: {path} ---')
-                  if stdout:
-                      print(stdout, end='')
-                  if stderr:
-                      print(stderr, end='')
+                  print(error)
               raise SystemExit(f'{len(failures)} Python file(s) failed compilation')
           print('Python compilation OK')
           PY
