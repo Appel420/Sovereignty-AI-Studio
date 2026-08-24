@@ -1,0 +1,51 @@
+{
+  "schema": "sovereignty.system.component/v1",
+  "system": "Sovereignty-AI-Studio",
+  "contract_version": 1,
+  "authority": "human-owner",
+  "default_mode": "local-first",
+  "components": [
+    {"id":"sovereignty-ai-gate","repository":"Appel420/Sovereignty-AI-Gate","role":"authority","default_branch":"main","failure":"isolate"},
+    {"id":"sovereign-self-fixer","repository":"Appel420/sovereign-self-fixer","role":"repair","default_branch":"main","failure":"isolate"},
+    {"id":"devassist420","repository":"Appel420/DevAssist420","role":"developer-agent","default_branch":"main","failure":"degrade"},
+    {"id":"familyguard","repository":"Appel420/FamilyGuard","role":"family-policy","default_branch":"main","failure":"degrade"},
+    {"id":"every-cloud-for-everyone","repository":"Appel420/every-cloud-for-everyone","role":"privacy-policy-enforcement","default_branch":"main","failure":"degrade"},
+    {"id":"piper","repository":"Appel420/piper","role":"voice-tts","default_branch":"master","failure":"degrade"},
+    {"id":"esp-csi","repository":"Appel420/esp-csi","role":"wifi-csi-sensing","default_branch":"master","failure":"degrade"},
+    {"id":"ios-system","repository":"Appel420/ios_system","role":"ios-runtime","default_branch":"master","failure":"degrade"},
+    {"id":"libimobiledevice","repository":"Appel420/libimobiledevice","role":"device-transport","default_branch":"master","failure":"degrade"},
+    {"id":"nvm","repository":"Appel420/nvm","role":"node-runtime-manager","default_branch":"master","failure":"degrade"},
+    {"id":"ish","repository":"Appel420/ish","role":"ios-shell","default_branch":"master","failure":"degrade"},
+    {"id":"sovereignty-airplane-mode","repository":"Appel420/Sovereignty_airplane-mode","role":"connectivity-policy","default_branch":"main","failure":"isolate"},
+    {"id":"blake3-qresist","repository":"Appel420/BLAKE3-QResist","role":"integrity-hashing","default_branch":"main","failure":"block-dependent-operation"},
+    {"id":"quantum-eeg-net","repository":"Appel420/Sovereignty-QuantumEEGNet","role":"experimental-sensing","default_branch":"main","failure":"isolate"},
+    {"id":"sovereignty-ai-nist-certified","repository":"Appel420/Sovereignty-AI-NIST-Certified","role":"assurance","default_branch":"main","failure":"isolate"},
+    {"id":"sovereign-a-shell","repository":"Appel420/Sovereign-a-shell","role":"ios-shell","default_branch":"main","failure":"degrade"},
+    {"id":"ios-nrf-device-manager","repository":"Appel420/IOS-nRF-Connect-Device-Manager","role":"ble-device-manager","default_branch":"master","failure":"degrade"},
+    {"id":"ios-nrf-toolbox-tzng","repository":"Appel420/IOS-nRF-Toolbox-TZNG","role":"ble-device-tooling","default_branch":"main","failure":"degrade"},
+    {"id":"nodejs","repository":"Appel420/Node.js","role":"runtime-source","default_branch":"+master+master+master+","failure":"quarantine"},
+    {"id":"sovereignty-ai-studio","repository":"Appel420/Sovereignty-AI-Studio","role":"integration-control-plane","default_branch":"Collaboration","failure":"preserve-last-known-good"}
+  ],
+  "rules": [
+    "A component never becomes an authority merely because another component is unavailable.",
+    "A failed optional component must not fail unrelated capabilities.",
+    "A dependency must declare its contract role before integration.",
+    "Network availability is a capability, not a prerequisite for local operation.",
+    "Experimental components are isolated from authority and execution paths.",
+    "Every cross-component operation emits a contract identifier and outcome.",
+    "Recovery restores last-known-good state before attempting mutation."
+  ],
+  "edges": [
+    {"from":"sovereignty-ai-gate","to":"devassist420","contract":"authority.execution/v1","mode":"authorize"},
+    {"from":"sovereignty-ai-gate","to":"sovereign-self-fixer","contract":"repair.request/v1","mode":"authorize"},
+    {"from":"sovereignty-ai-studio","to":"sovereignty-ai-gate","contract":"authority.status/v1","mode":"observe"},
+    {"from":"sovereignty-ai-studio","to":"devassist420","contract":"execution.receipt/v1","mode":"delegate"},
+    {"from":"sovereignty-ai-studio","to":"familyguard","contract":"family.policy/v1","mode":"query"},
+    {"from":"sovereignty-ai-studio","to":"every-cloud-for-everyone","contract":"privacy.policy/v1","mode":"query"},
+    {"from":"sovereignty-ai-studio","to":"piper","contract":"voice.tts/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"esp-csi","contract":"sensor.csi/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"libimobiledevice","contract":"device.transport/v1","mode":"optional"},
+    {"from":"sovereignty-ai-studio","to":"sovereignty-airplane-mode","contract":"connectivity.policy/v1","mode":"enforce"},
+    {"from":"sovereignty-ai-studio","to":"blake3-qresist","contract":"integrity.hash/v1","mode":"verify"}
+  ]
+}
