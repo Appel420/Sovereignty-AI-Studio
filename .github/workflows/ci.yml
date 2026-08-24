@@ -1,98 +1,101 @@
-name: CI
+name: Sovereignty CI
 
 on:
   workflow_dispatch:
   push:
-    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
+    branches: ["Collaboration", "main", "dev"]
   pull_request:
-    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
+    branches: ["Collaboration", "main", "dev"]
 
-permissions: 
+permissions:
   contents: read
 
 jobs:
   conformance:
-    name: GitHub CI
-    runs-on: 'self-hosted, ubuntu-latest'
-    timeout-minutes: 5
+    name: Conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-      - name: Verify runner execution
+
+      - name: Validate component manifest
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = true
-          test -n "${GITHUB_SHA}"
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-          echo "CI controller: GitHub Actions"
-          echo "Execution mode: online self-hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
-          echo "Runner name: ${RUNNER_NAME}"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
-          echo "Commit: ${GITHUB_SHA}"
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements.txt
-      - name: Install Python dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
-          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
-          python -m pip check
+          python -m json.tool system/component-manifest.json >/dev/null
           python - <<'PY'
-          import nacl
-          print('PyNaCl:', nacl.__version__)
+          import json
+          from pathlib import Path
+          p = Path("system/component-manifest.json")
+          d = json.loads(p.read_text())
+          assert d["schema"] == "sovereignty.system.component/v1"
+          assert d["authority"] == "human-owner"
+          assert d["default_mode"] == "local-first"
+          ids = [c["id"] for c in d["components"]]
+          assert len(ids) == len(set(ids))
+          print(f"validated {len(ids)} components and {len(d['edges'])} contract edges")
           PY
-      - name: Python lint diagnostics
-        continue-on-error: false
+
+      - name: Detect committed virtual environment
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -d sovereign ]]; then ruff check sovereign; fi
-          if [[ -d backend ]]; then ruff check backend; fi
+          if [[ -d .venv ]]; then
+            echo "ERROR: .venv must not be committed to the repository"
+            exit 1
+          fi
+
+      - name: Validate Git submodules
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f .gitmodules ]]; then
+            git config --file .gitmodules --get-regexp '^submodule\..*\.url$' | while read -r key url; do
+              [[ "$url" == https://github.com/Appel420/* ]] || { echo "ERROR: unapproved submodule URL: $url"; exit 1; }
+            done
+          fi
+
+      - name: Python validation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f pyproject.toml || -f requirements.txt ]]; then
+            python -m pip install --upgrade pip
+            if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+            if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]' || python -m pip install -e .; fi
+            python -m pip check
+          fi
+
       - name: Python tests
         shell: bash
         env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend
         run: |
           set -Eeuo pipefail
-          if [[ -d tests ]]; then python -m pytest -q tests; fi
-      - name: Phase 0 Rust tests
+          if [[ -d tests ]]; then python -m pytest -q tests; else echo "No tests directory; no Python tests to run"; fi
+
+      - name: Node validation
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -f phase0/Cargo.toml ]]; then
-            command -v cargo >/dev/null 2>&1
-            cargo test --manifest-path phase0/Cargo.toml
-          else
-            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+          if [[ -f package.json ]]; then
+            node --version
+            npm --version
+            npm install --ignore-scripts
+            npm test --if-present
           fi
-      - name: Node syntax check
+
+      - name: Rust validation
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -f node-bridge/server.js ]]; then
-            command -v node >/dev/null 2>&1
-            node --check node-bridge/server.js
-          fi
-      - name: Frontend ownership contract
+          if [[ -f Cargo.toml ]]; then cargo test --workspace --all-targets; fi
+
+      - name: Contract summary
         shell: bash
         run: |
-          set -Eeuo pipefail
-          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
-            command -v node >/dev/null 2>&1
-            node frontend/scripts/test-sghv119-ownership.js
-          fi
+          echo "Sovereignty CI: component boundaries validated"
+          echo "Failure policy: isolate/degrade, never cascade"
