@@ -80,6 +80,21 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+      - name: Install test dependencies deterministically
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install --disable-pip-version-check 'PyNaCl==1.5.0' pytest
+          if [[ -f requirements.txt ]]; then
+            python -m pip install --disable-pip-version-check -r requirements.txt
+          fi
+          python - <<'PY'
+          import nacl
+          from nacl.signing import SigningKey
+          print(f"PyNaCl import OK: {nacl.__version__}")
+          SigningKey.generate()
+          print("Ed25519 signing primitive OK")
+          PY
       - name: Compile first-party Python only
         run: |
           set -Eeuo pipefail
@@ -95,9 +110,6 @@ jobs:
               'site-packages', '__pycache__',
           }
 
-          # git -z emits NUL-delimited paths. Split on the actual NUL byte;
-          # using b'\\0' leaves the NUL inside the filename and causes
-          # subprocess.Popen to raise ValueError: embedded null byte.
           output = subprocess.run(
               ['git', 'ls-files', '-z', '--', '*.py'],
               check=True,
@@ -138,12 +150,10 @@ jobs:
       - name: Test Python when a suite exists
         run: |
           set -Eeuo pipefail
-          if [[ -d tests && ( -f requirements.txt || -f pyproject.toml ) ]]; then
-            python -m pip install -q pytest
-            [[ ! -f requirements.txt ]] || python -m pip install -q -r requirements.txt
+          if [[ -d tests ]]; then
             python -m pytest -q tests
           else
-            echo 'No dependency-backed Python suite; compile result retained.'
+            echo 'No Python test suite; compilation result retained.'
           fi
 
   node:
