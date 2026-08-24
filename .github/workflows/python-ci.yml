@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   pull_request:
-    branches: ["ara-hardened, Collaboration, main, dev, copilot/main"]
+    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
 
 permissions:
   contents: read
@@ -14,17 +14,20 @@ jobs:
   test:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: true
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify Python runtime
+        run: python --version
       - name: Install test/lint tools
         shell: bash
         run: |
