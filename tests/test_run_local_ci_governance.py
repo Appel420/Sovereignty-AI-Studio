@@ -49,7 +49,7 @@ def test_local_mode_requires_no_external_metadata() -> None:
 
 
 def test_local_environment_disables_external_execution_defaults() -> None:
-    env = MODULE.local_env()
+    env = MODULE.execution_env("local")
     assert env["SG_NETWORK_MODE"] == "offline"
     assert env["SG_LOCAL_ONLY"] == "1"
     assert env["SG_EXTERNAL_FEEDS"] == "disabled"
@@ -59,6 +59,24 @@ def test_local_environment_disables_external_execution_defaults() -> None:
     assert env["NO_PROXY"] == "*"
     assert env["no_proxy"] == "*"
     assert str(Path(MODULE.ROOT)) in env["PYTHONPATH"].split(":")
+
+
+def test_hybrid_environment_is_local_first_but_not_forced_offline() -> None:
+    env = MODULE.execution_env("hybrid")
+    assert env["SG_NETWORK_MODE"] == "hybrid"
+    assert env["SG_LOCAL_ONLY"] == "0"
+    assert env["SG_EXTERNAL_FEEDS"] == "explicit-only"
+    assert env["CLOUD_FIRST"] == "false"
+    assert env["PIP_NO_INDEX"] == "0"
+    assert env["npm_config_offline"] == "false"
+
+
+def test_online_environment_is_explicitly_allowlisted() -> None:
+    env = MODULE.execution_env("online")
+    assert env["SG_NETWORK_MODE"] == "online"
+    assert env["SG_LOCAL_ONLY"] == "0"
+    assert env["SG_EXTERNAL_FEEDS"] == "allowlisted"
+    assert env["CLOUD_FIRST"] == "false"
 
 
 def test_build_stamp_contains_governance_metadata() -> None:
@@ -82,6 +100,7 @@ def test_build_stamp_contains_governance_metadata() -> None:
     assert stamp["why"] == "focused governance validation"
     assert stamp["status"] == "PASS"
     assert stamp["external_execution"] is False
+    assert stamp["external_authorized"] is False
     assert stamp["scar"]["event_type"] == "LOCAL_CI_COMPLETED"
     assert stamp["scar"]["event_class"] == "verification"
     assert stamp["scar"]["metadata"]["mode"] == "local"
@@ -89,6 +108,24 @@ def test_build_stamp_contains_governance_metadata() -> None:
     assert stamp["scar"]["metadata"]["package_install"] == "disabled"
     assert stamp["scar"]["metadata"]["provider_calls"] == "disabled"
     assert stamp["scar"]["metadata"]["external_execution"] is False
+
+
+def test_build_stamp_marks_non_local_route_authorized_without_claiming_execution() -> None:
+    stamp = MODULE.build_stamp(
+        ci_name="coordination-unit-ci-hybrid",
+        mode="hybrid",
+        why="owner-approved validation",
+        action="validation",
+        destination="approved-destination",
+        scope="coordination",
+        started=datetime.now(timezone.utc),
+        results=[{"suite": "coordination", "exit": 0, "tests": 1}],
+        isolation="governed-route",
+    )
+    assert stamp["status"] == "PASS"
+    assert stamp["external_authorized"] is True
+    assert stamp["external_execution"] is False
+    assert stamp["scar"]["metadata"]["mode"] == "hybrid"
 
 
 def test_build_stamp_fails_when_any_suite_fails() -> None:
