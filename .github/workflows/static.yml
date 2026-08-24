@@ -44,7 +44,10 @@ jobs:
           class Parser(HTMLParser):
               pass
 
-          files = [*Path('.').glob('*.html'), *Path('docs').rglob('*.html') if Path('docs').exists() else []]
+          files = list(Path('.').glob('*.html'))
+          docs = Path('docs')
+          if docs.exists():
+              files.extend(docs.rglob('*.html'))
           for path in files:
               Parser().feed(path.read_text(encoding='utf-8', errors='strict'))
           print(f'validated {len(files)} HTML files')
