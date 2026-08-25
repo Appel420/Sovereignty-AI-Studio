@@ -33,15 +33,16 @@ FULL_PATHS = {
     "rust-toolchain",
     "rust-toolchain.toml",
     ".gitmodules",
-    "external/",
-    "vendor/",
     "node_modules/",
     ".venv/",
     "venv/",
     "build/",
     "dist/",
     "downloads/",
-)
+    EXCLUDED_PATHS =
+    "external/",
+    "vendor/",
+}
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
 NODE_SUFFIXES = {".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx"}
