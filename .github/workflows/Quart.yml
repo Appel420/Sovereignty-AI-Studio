@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout repository without external actions
+name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -21,20 +21,20 @@ jobs:
           set -Eeuo pipefail
           git init .
           git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GHTOKEN}" fetch --no-tags --depth=1 origin "${GITHUBSHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Verify runner
+name: Verify runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
 
-      - name: Verify Python runtime
+name: Verify Python runtime
         shell: bash
         run: python --version
 
-      - name: Install dependencies
+name: Install dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -47,12 +47,12 @@ jobs:
           fi
           python -m pip install pytest hypercorn
 
-      - name: Test with pytest
+name: Test with pytest
         env:
           PYTHONPATH: .:./backend:./src:./prototypes
         run: python -m pytest -q
 
-      - name: Quart smoke test
+name: Quart smoke test
         shell: bash
         run: |
           set -Eeuo pipefail
