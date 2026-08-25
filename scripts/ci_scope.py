@@ -1,17 +1,9 @@
 #!/usr/bin/env python3
-"""Determine the minimal deterministic CI scope for a set of changed paths.
-
-This module is deliberately read-only: it only classifies paths supplied by the
-caller.  It does not invoke Git, modify the repository, install dependencies,
-or access the network.
-"""
-from __future__ import annotations
+from future import annotations
 
 from pathlib import PurePosixPath
 from typing import Iterable
 
-# Changes to these files/directories can alter the CI contract or dependency
-# graph and therefore require the complete validation set.
 FULL_PATHS = {
     ".github/workflows/",
     ".github/actions/",
@@ -33,45 +25,38 @@ FULL_PATHS = {
     "rust-toolchain",
     "rust-toolchain.toml",
     ".gitmodules",
-    "external/",
-    "vendor/",
     "node_modules/",
     ".venv/",
     "venv/",
     "build/",
     "dist/",
     "downloads/",
-)
+}
+
+EXCLUDED_PREFIXES = {
+    "external/",
+    "vendor/",
+}
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
 NODE_SUFFIXES = {".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx"}
 RUST_SUFFIXES = {".rs"}
 
-
 def _normalize(path: str) -> str:
     value = str(path).replace("\\", "/").lstrip("./")
     return str(PurePosixPath(value))
 
-
-def _is_excluded(path: str) -> bool:
+def _isexcluded(path: str) -> bool:
     return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in EXCLUDED_PREFIXES)
 
-
-def _requires_full(path: str) -> bool:
+def _requiresfull(path: str) -> bool:
     if path in FULL_PATHS:
         return True
     return any(path.startswith(prefix) for prefix in FULL_PATHS if prefix.endswith("/"))
 
-
 def scope(changed_paths: Iterable[str]) -> dict[str, object]:
-    """Return deterministic CI lanes for *changed_paths*.
-
-    The returned lists contain normalized repository-relative paths. Vendor and
-    generated/external trees are excluded before lane selection. Any dependency,
-    workflow, or build-contract change sets ``full`` to True.
-    """
-    normalized = sorted({_normalize(path) for path in changed_paths if str(path).strip()})
-    changed = [path for path in normalized if not _is_excluded(path)]
+    normalized = sorted({normalize(path) for path in changedpaths if str(path).strip()})
+    changed = [path for path in normalized if not _isexcluded(path)]
 
     result: dict[str, object] = {
         "changed": changed,
@@ -86,7 +71,7 @@ def scope(changed_paths: Iterable[str]) -> dict[str, object]:
     rust: list[str] = []
 
     for path in changed:
-        if _requires_full(path):
+        if _requiresfull(path):
             result["full"] = True
 
         suffix = PurePosixPath(path).suffix.lower()
@@ -102,13 +87,12 @@ def scope(changed_paths: Iterable[str]) -> dict[str, object]:
     result["rust"] = rust
     return result
 
-
-if __name__ == "__main__":
+if name == "Collaboration":
     import argparse
+    import json
 
     parser = argparse.ArgumentParser(description="Classify changed files into CI lanes")
     parser.add_argument("paths", nargs="*", help="repository-relative changed paths")
     args = parser.parse_args()
 
-    import json
     print(json.dumps(scope(args.paths), indent=2, sort_keys=True))
