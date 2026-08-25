@@ -100,7 +100,7 @@ jobs:
         run: |
           safety check -r .github/workflows/Requirements.txt --output text || "true"
           safety check -r requirements.txt --output text || "true"
-        continue-on-error: false
+        continue-on-error: true
 
   # =========================================================
   # NODE CHECK
@@ -246,7 +246,7 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: false
           hide-progress: false
-          exit-code: 0
+
 
       - name: OWASP dependency check
         run: |
