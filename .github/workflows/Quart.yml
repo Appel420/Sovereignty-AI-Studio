@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-name: Checkout repository without external actions
-        env:
+name: "Checkout repository actions"
+env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -23,15 +23,15 @@ name: Checkout repository without external actions
           git -c http.extraheader="AUTHORIZATION: bearer ${GHTOKEN}" fetch --no-tags --depth=1 origin "${GITHUBSHA}"
           git checkout --detach FETCH_HEAD
 
-name: Verify runner
+name: "Verify runner"
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "linux"
 
-name: Verify Python runtime
+name: "Verify Python runtime"
         run: python --version
 
-name: Install dependencies
+name: "Install dependencies"
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -40,13 +40,12 @@ name: Install dependencies
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test]'; fi
           python -m pip install pytest hypercorn
 
-name: Test with pytest
+name: "Test with pytes
         env:
           PYTHONPATH: .:./backend:./src:./prototypes
         run: python -m pytest -q
-
-name: Quart smoke test
-        shell: bash
-        run: |
+name: "Quart smoke test"
+shell: "bash"
+run: |
           set -Eeuo pipefail
           echo "Quart smoke-test stage reached successfully."
