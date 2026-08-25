@@ -8,10 +8,9 @@ on:
     paths:
       - ".github/workflows/ios-sovereign-build.yml"
       - "ios/**"
-
-permissions:
+      permissions:
   contents: read
-
+show: test run
 concurrency:
   group: ios-sovereign-build-${{ github.ref }}
   cancel-in-progress: false
