@@ -1,8 +1,8 @@
-name: OAUTH-API-GENERATOR
+name: 'OAUTH-API-GENERATOR'
 
 on:
   push:
-    branches: ["**"]
+    branches: ["Collaboration"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -16,7 +16,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: ["**"]
+    branches: ["Collaboration"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -50,13 +50,13 @@ env:
 
 jobs:
   build-test:
-    name: Python CI
+    name: 'Python CI'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - name: Checkout repository without external actions
+      - name: 'Checkout repository'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -66,24 +66,24 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Install Python dependencies
+      - name: 'Install Python dependencies'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r .github/workflows/Requirements.txt
           python -m pip install flake8 pytest-cov safety
 
-      - name: Python syntax check
+      - name: 'Python syntax check'
         run: python -m compileall -q scripts backend apps tests
 
-      - name: Lint
+      - name: 'Lint'
         run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Run Python tests
+      - name: 'Run Python tests'
         env:
           PYTHONPATH: .:./backend
         run: python -m pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
 
-      - name: Dependency safety scan
+      - name: 'Dependency safety scan'
         run: |
           python -m safety scan -r .github/workflows/Requirements.txt --output text
           if [[ -f requirements.txt ]]; then
@@ -91,13 +91,13 @@ jobs:
           fi
 
   node-check:
-    name: Node CI
+    name: 'Node CI'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - name: Checkout repository without external actions
+      - name: 'Checkout repository'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -107,7 +107,7 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Install Node dependencies
+      - name: 'Install Node dependencies'
         run: |
           if [[ -f package-lock.json ]]; then
             npm ci --ignore-scripts --no-audit --no-fund
@@ -115,7 +115,7 @@ jobs:
             npm install --ignore-scripts --no-audit --no-fund
           fi
 
-      - name: Node syntax check
+      - name: 'Node syntax check'
         run: |
           if [[ -f package.json ]]; then
             npm run check --if-present
@@ -125,17 +125,17 @@ jobs:
           fi
 
   build-sign:
-    name: Build and sign release image
+    name: 'Build and sign release image'
     needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/Collaboration')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     permissions:
       packages: write
       contents: read
       id-token: write
     steps:
-      - name: Checkout repository without external actions
+      - name: 'Checkout repository without external actions'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -145,13 +145,13 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Log in to GHCR
+      - name: 'Log in to GHCR'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
 
-      - name: Validate SHAMIR release-share secrets
+      - name: 'Validate SHAMIR release-share secrets'
         if: github.event_name == 'release'
         env:
           SHAMIR_SHARE_1: ${{ secrets.SHAMIR_SHARE_1 }}
@@ -170,10 +170,10 @@ jobs:
           printf '::add-mask::%s\n' "${SHAMIR_SHARE_3:-}"
           if [[ "$missing" -ne 0 ]]; then exit 1; fi
 
-      - name: Compute image name
+      - name: 'rCompute image name'
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
-      - name: Build multi-architecture image
+      - name: 'Build multi-architecture image'
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
@@ -184,14 +184,14 @@ jobs:
             --tag "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" \
             .
 
-      - name: Install cosign
+      - name: 'Install cosign'
         run: |
           COSIGN_VERSION="v3.0.2"
           curl -fsSL "https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64" -o /tmp/cosign
           install -m 0755 /tmp/cosign /usr/local/bin/cosign
           cosign version
 
-      - name: Sign image
+      - name: 'Sign image'
         env:
           COSIGN_EXPERIMENTAL: "1"
         run: |
@@ -201,14 +201,14 @@ jobs:
             "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
 
   dependency-review:
-    name: Dependency audit
+    name: 'Dependency audit'
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - name: Checkout repository without external actions
+      - name: 'Checkout repository'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -218,24 +218,24 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Python dependency audit
+      - name: 'Python dependency audit'
         run: |
           python -m pip install --upgrade pip pip-audit
           if [[ -f requirements.txt ]]; then pip-audit -r requirements.txt; fi
 
-      - name: Node dependency audit
+      - name: 'Node dependency audit'
         if: hashFiles('package-lock.json') != ''
         run: npm audit --audit-level=high
 
   security-scan:
-    name: Security Scan
+    name: 'Security Scan'
     needs: [build-test, node-check]
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - name: Checkout repository without external actions
+      - name: 'Checkout repository'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -245,14 +245,14 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Run Trivy vulnerability scanner
+      - name: 'Run Trivy vulnerability scanner'
         run: |
           curl -fsSL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
           trivy fs . --skip-dirs external --skip-dirs frontend --severity CRITICAL,HIGH --ignore-unfixed=false --exit-code 1
 
-      - name: Install pip-audit
+      - name: 'Install pip-audit'
         run: python -m pip install --upgrade pip pip-audit
 
-      - name: Run pip-audit
+      - name: 'Run pip-audit'
         if: hashFiles('requirements.txt') != ''
         run: pip-audit -r requirements.txt
