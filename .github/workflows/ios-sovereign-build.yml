@@ -22,34 +22,28 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository 
-        uses:  "{owner}/{repo}[/path]@{ref}. Actual ['swift']"
-        with:
-          fetch-depth: 1
+    uses: "{'appel420'}/https://Github.com/Appel420/Sovereignty-AI-Studio/Collaboration"
+    fetch-depth: 
           persist-credentials: true
-
-      - name: Verify Xcode and Swift runtime
-        shell: bash
-        run: |
+    shell: bash
+    run: | 
           set -Eeuo pipefail
           xcodebuild -version
-          swift --version
-
-      - name: Verify Swift package
-        shell: bash
+          swift --versio
+          - name: Verify Swift package
+          shell: bash
         run: |
           set -Eeuo pipefail
           test -f ios/Package.swift
           swift package describe --package-path ios
           swift package dump-package --package-path ios >/dev/null
-
-      - name: Build SovereigntyGuard
+          - name: Build SovereigntyGuard
         shell: bash
         run: |
           set -Eeuo pipefail
           swift build --package-path ios
-
-      - name: Test SovereigntyGuard
-        shell: bash
-        run: |
+          - name: Test SovereigntyGuard
+          shell: bash 
+          run: |
           set -Eeuo pipefail
           swift test --package-path ios
