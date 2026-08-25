@@ -3,7 +3,7 @@ name: iOS Sovereign Build
 on:
   workflow_dispatch:
   push:
-    branches: ["Collaboration"]
+    branches: ["**"]
     paths:
       - ".github/workflows/ios-sovereign-build.yml"
       - "ios/**"
@@ -13,19 +13,19 @@ permissions:
 
 concurrency:
   group: ios-sovereign-build-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-ios:
     name: iOS Sovereign Build
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Checkout repository 
+        uses:  "{owner}/{repo}[/path]@{ref}. Actual ['swift']"
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify Xcode and Swift runtime
         shell: bash
