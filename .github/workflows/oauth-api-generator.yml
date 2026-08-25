@@ -1,13 +1,3 @@
-# OAUTH API GENERATOR – CI/CD PIPELINE
-
-#
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# CI/CD build, test, and security pipeline
-# for Sovereignty AI Studio
-# =========================================================
-
 name: OAUTH-API-GENERATOR
 
 on:
@@ -59,95 +49,107 @@ env:
   PIP_NO_CACHE_DIR: "1"
 
 jobs:
-
-  # =========================================================
-  # LINT + TEST (Python)
-  # =========================================================
   build-test:
+    name: Python CI (${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     strategy:
+      fail-fast: false
       matrix:
-        python: ['3.11', '3.12', '3.13'] 
+        python: ["3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Set up Python ${{ matrix.python }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
+          cache: pip
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
-          pip install flake8 safety
+          python -m pip install --upgrade pip
+          python -m pip install -r .github/workflows/Requirements.txt
+          python -m pip install flake8 safety pytest-cov
 
-      - name: Lint with flake8
+      - name: Python syntax check
+        run: python -m compileall -q scripts backend apps tests
+
+      - name: Lint
         run: flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
 
       - name: Run Python tests
         env:
           PYTHONPATH: .:./backend
-        run: pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
+        run: python -m pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
 
       - name: Dependency safety check
         run: |
-          safety check -r .github/workflows/Requirements.txt --output text || "true"
-          safety check -r requirements.txt --output text || "true"
-        continue-on-error: true
+          python -m safety check -r .github/workflows/Requirements.txt --output text
+          if [[ -f requirements.txt ]]; then
+            python -m safety check -r requirements.txt --output text
+          fi
 
-  # =========================================================
-  # NODE CHECK
-  # =========================================================
   node-check:
+    name: Node CI
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 25
+          node-version: "22"
+          cache: npm
 
       - name: Install Node dependencies
-        run: npm ci --ignore-scripts --no-audit --no-fund || npm install --ignore-scripts --no-audit --no-fund
+        run: |
+          if [[ -f package-lock.json ]]; then
+            npm ci --ignore-scripts --no-audit --no-fund
+          elif [[ -f package.json ]]; then
+            npm install --ignore-scripts --no-audit --no-fund
+          fi
 
       - name: Node syntax check
         run: |
-          npm run check
-          node -c node-bridge/server.js
+          if [[ -f package.json ]]; then
+            npm run check --if-present
+          fi
+          if [[ -f node-bridge/server.js ]]; then
+            node --check node-bridge/server.js
+          fi
 
-  # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
   build-sign:
+    name: Build and sign release image
     needs: [build-test, node-check]
     if: github.event_name == 'release' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       packages: write
       contents: read
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
@@ -180,11 +182,10 @@ jobs:
           fi
 
       - name: Compute lowercase image name
-        run: |
-          echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+        run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           platforms: linux/amd64,linux/arm64
@@ -198,15 +199,15 @@ jobs:
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
 
-      - name: Sign Image (Keyless — Fulcio + Rekor)
+      - name: Sign Image
+        env:
+          COSIGN_EXPERIMENTAL: "1"
         run: |
           cosign sign \
             --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-            ${{ env.REGISTRY_LC }}:${{ github.sha }}
-        env:
-          COSIGN_EXPERIMENTAL: 1
+            "${REGISTRY_LC}:${GITHUB_SHA}"
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -217,25 +218,21 @@ jobs:
       pull-requests: read
     steps:
       - name: Dependency Review
-        continue-on-error: false
         uses: actions/dependency-review-action@v4
-        # Advisory only: some repositories do not have dependency graph / GHAS
-        # enabled, so this should not block regulated-use CI execution.
 
-  # =========================================================
-  # SECURITY SCANNING
-  # =========================================================
   security-scan:
+    name: Security Scan
     needs: [build-test, node-check]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: tre
+          persist-credentials: false
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
@@ -249,34 +246,9 @@ jobs:
           hide-progress: false
           exit-code: 1
 
-      - name: OWASP dependency check
-        run: |
-          pip install pip-audit
-          pip-audit -r requirements.txt || "true"
-        continue-on-error: false
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
 
-# =========================================================
-# SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
-# =========================================================
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# X-XSS-Protection: 1; mode=block
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
-# =========================================================
-# COMPLIANCE NOTICE (MEDICAL / REGULATED USE)
-# =========================================================
-# This pipeline adds technical guardrails (linting, tests, dependency review,
-# vulnerability scanning, SBOM/provenance generation, and image signing).
-# governance, and legal/compliance review for the deployed environment.
-# For key custody, use SHAMIR secret-sharing operationally; CI only checks that
-# release-share secret inputs are configured and never reconstructs master keys.
-# Compliance checks are advisory guards, not certification claims.
-
-# Github.com/Appel420/Sovereignty-AI-Studio
-
-# Organization Sovereignty One AI
-# OAuth API Generator
+      - name: Run pip-audit
+        if: hashFiles('requirements.txt') != ''
+        run: pip-audit -r requirements.txt
