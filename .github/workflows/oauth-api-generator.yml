@@ -48,17 +48,6 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_NO_CACHE_DIR: "1"
 
-default_checkout: &checkout
-  env:
-    GH_TOKEN: ${{ github.token }}
-  run: |
-    set -Eeuo pipefail
-    git init .
-    git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-    git fetch --depth=1 origin "${GITHUB_SHA}"
-    git checkout --detach FETCH_HEAD
-    git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
-
 jobs:
   build-test:
     name: Python CI
@@ -67,22 +56,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r .github/workflows/Requirements.txt
-          python -m pip install flake8 pytest-cov
+          python -m pip install flake8 pytest-cov safety
 
       - name: Python syntax check
         run: python -m compileall -q scripts backend apps tests
@@ -109,16 +97,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Install Node dependencies
         run: |
@@ -148,16 +135,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Log in to GHCR
         env:
@@ -194,8 +180,8 @@ jobs:
             --push \
             --sbom=true \
             --provenance=mode=max \
-            --tag "${REGISTRY_LC}:latest" \
-            --tag "${REGISTRY_LC}:${GITHUB_SHA}" \
+            --tag "ghcr.io/${GITHUB_REPOSITORY,,}:latest" \
+            --tag "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}" \
             .
 
       - name: Install cosign
@@ -212,7 +198,7 @@ jobs:
           cosign sign --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-            "${REGISTRY_LC}:${GITHUB_SHA}"
+            "ghcr.io/${GITHUB_REPOSITORY,,}:${GITHUB_SHA}"
 
   dependency-review:
     name: Dependency audit
@@ -222,16 +208,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Python dependency audit
         run: |
@@ -250,16 +235,15 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
       - name: Run Trivy vulnerability scanner
         run: |
