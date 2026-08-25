@@ -12,7 +12,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [ main ]
+    branches: ["Collaboration"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -26,7 +26,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: [ main ]
+    branches: ["Collaboration"]
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yml"
@@ -45,7 +45,7 @@ on:
 
 concurrency:
   group: oauth-api-generator-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions: {}
 
@@ -65,12 +65,12 @@ jobs:
   # =========================================================
   build-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 10
     permissions:
       contents: read
     strategy:
       matrix:
-        python: ['3.11', '3.12']
+        python: ['3.11', '3.12', '3.13']
 
     steps:
       - uses: actions/checkout@v4
@@ -101,7 +101,7 @@ jobs:
         run: |
           safety check -r .github/workflows/Requirements.txt --output text || true
           safety check -r requirements.txt --output text || true
-        continue-on-error: true
+        continue-on-error: false
 
   # =========================================================
   # NODE CHECK
@@ -217,7 +217,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Dependency Review
-        continue-on-error: true
+        continue-on-error: false
         uses: actions/dependency-review-action@v4
         # Advisory only: some repositories do not have dependency graph / GHAS
         # enabled, so this should not block regulated-use CI execution.
@@ -228,11 +228,12 @@ jobs:
   security-scan:
     needs: [build-test, node-check]
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: Owner
+       name: "Appel420"
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -245,15 +246,15 @@ jobs:
           skip-dirs: external,frontend
           format: table
           severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          hide-progress: true
+          ignore-unfixed: false
+          hide-progress: false
           exit-code: 1
 
       - name: OWASP dependency check
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt || true
-        continue-on-error: true
+        continue-on-error: false
 
 # =========================================================
 # SECURITY HARDENING HEADERS (enforced in nginx + FastAPI)
@@ -279,7 +280,4 @@ jobs:
 # Github.com/Appel420/Sovereignty-AI-Studio
 
 # Organization Sovereignty One AI
-# OAuth API Generator 	
-	
-
-￼
+# OAuth API Generator
