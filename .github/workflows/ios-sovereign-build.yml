@@ -2,27 +2,30 @@ name: iOS Sovereign Build
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["Collaboration"]
+    paths:
+      - ".github/workflows/ios-sovereign-build.yml"
+      - "ios/**"
 
 permissions:
   contents: read
+
+concurrency:
+  group: ios-sovereign-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-ios:
     name: iOS Sovereign Build
     runs-on: macos-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository 
-        env:
-          GH_TOKEN: '${{ github.token }}'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git -c init.defaultBranch=Collaboration remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
       - name: Verify Xcode and Swift runtime
         shell: bash
@@ -31,24 +34,22 @@ jobs:
           xcodebuild -version
           swift --version
 
-      - name: Validate Swift package
-        working-directory: ios
+      - name: Verify Swift package
         shell: bash
         run: |
           set -Eeuo pipefail
-          swift package describe
-          swift package dump-package >/dev/null
+          test -f ios/Package.swift
+          swift package describe --package-path ios
+          swift package dump-package --package-path ios >/dev/null
 
       - name: Build SovereigntyGuard
-        working-directory: ios
         shell: bash
         run: |
           set -Eeuo pipefail
-          swift build
+          swift build --package-path ios
 
       - name: Test SovereigntyGuard
-        working-directory: ios
         shell: bash
         run: |
           set -Eeuo pipefail
-          swift test
+          swift test --package-path ios
