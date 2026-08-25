@@ -48,6 +48,17 @@ env:
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_NO_CACHE_DIR: "1"
 
+default_checkout: &checkout
+  env:
+    GH_TOKEN: ${{ github.token }}
+  run: |
+    set -Eeuo pipefail
+    git init .
+    git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+    git fetch --depth=1 origin "${GITHUB_SHA}"
+    git checkout --detach FETCH_HEAD
+    git remote set-url origin "https://github.com/${GITHUB_REPOSITORY}.git"
+
 jobs:
   build-test:
     name: Python CI
@@ -60,6 +71,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "${GITHUB_SHA}"
@@ -70,7 +82,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r .github/workflows/Requirements.txt
-          python -m pip install flake8 safety pytest-cov
+          python -m pip install flake8 pytest-cov
 
       - name: Python syntax check
         run: python -m compileall -q scripts backend apps tests
@@ -83,11 +95,11 @@ jobs:
           PYTHONPATH: .:./backend
         run: python -m pytest --cov=apps --cov=backend --cov=src --cov-report=term --strict-markers -x --tb=short
 
-      - name: Dependency safety check
+      - name: Dependency safety scan
         run: |
-          python -m safety check -r .github/workflows/Requirements.txt --output text
+          python -m safety scan -r .github/workflows/Requirements.txt --output text
           if [[ -f requirements.txt ]]; then
-            python -m safety check -r requirements.txt --output text
+            python -m safety scan -r requirements.txt --output text
           fi
 
   node-check:
@@ -101,6 +113,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "${GITHUB_SHA}"
@@ -139,6 +152,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "${GITHUB_SHA}"
@@ -212,6 +226,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "${GITHUB_SHA}"
@@ -239,6 +254,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           git init .
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git fetch --depth=1 origin "${GITHUB_SHA}"
