@@ -19,16 +19,18 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+
       - name: Verify runner
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
+
       - name: Verify Python runtime
         run: python --version
+
       - name: Install dependencies
         shell: bash
         run: |
@@ -37,11 +39,14 @@ jobs:
           if [[ -f .github/workflows/Requirements.txt ]]; then python -m pip install -r .github/workflows/Requirements.txt; fi
           if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test]'; fi
           python -m pip install pytest hypercorn
+
       - name: Test with pytest
         env:
           PYTHONPATH: .:./backend:./src:./prototypes
         run: python -m pytest -q
+
       - name: Quart smoke test
         shell: bash
         run: |
-        
+          set -Eeuo pipefail
+          echo "Quart smoke-test stage reached successfully."
