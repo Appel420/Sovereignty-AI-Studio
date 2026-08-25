@@ -9,10 +9,10 @@ permissions:
 jobs:
   package-validation:
     name: iOS package validation
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
+      - name: Checkout repository
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
