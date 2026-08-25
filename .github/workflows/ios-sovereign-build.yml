@@ -4,7 +4,7 @@ name: iOS Sovereign Build (local-first)
 # macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [ ara-hardened, Collaboration ]
+    branches: [ara-hardened, Collaboration]
   workflow_dispatch:
 
 env:
@@ -22,15 +22,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
       - name: Validate source and generate manifest
         run: |
+          set -Eeuo pipefail
           python -m compileall -q backend
           python3 - <<'PY'
-          import json, time
+          import json
+          import time
           payload = {
               'node_id': 'ios-build-${{ github.run_id }}',
               'timestamp': int(time.time()),
@@ -41,10 +50,10 @@ jobs:
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
+          print(json.dumps(payload, indent=2))
           PY
-      - name: Upload validation manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-sovereign-build-artifacts-${{ github.run_id }}
-          path: ios-build-manifest.json
-          if-no-files-found: error
+
+      - name: Verify validation manifest
+        run: |
+          test -s ios-build-manifest.json
+          python3 -m json.tool ios-build-manifest.json >/dev/null
