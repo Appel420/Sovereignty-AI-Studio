@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
-from future import annotations
+from __future__ import annotations
 
+import argparse
+import json
 from pathlib import PurePosixPath
 from typing import Iterable
 
@@ -42,21 +44,39 @@ PYTHON_SUFFIXES = {".py", ".pyi"}
 NODE_SUFFIXES = {".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx"}
 RUST_SUFFIXES = {".rs"}
 
+
 def _normalize(path: str) -> str:
     value = str(path).replace("\\", "/").lstrip("./")
     return str(PurePosixPath(value))
 
-def _isexcluded(path: str) -> bool:
-    return any(path == prefix.rstrip("/") or path.startswith(prefix) for prefix in EXCLUDED_PREFIXES)
 
-def _requiresfull(path: str) -> bool:
+def _is_excluded(path: str) -> bool:
+    return any(
+        path == prefix.rstrip("/") or path.startswith(prefix)
+        for prefix in EXCLUDED_PREFIXES
+    )
+
+
+def _requires_full(path: str) -> bool:
     if path in FULL_PATHS:
         return True
-    return any(path.startswith(prefix) for prefix in FULL_PATHS if prefix.endswith("/"))
+    return any(
+        path.startswith(prefix)
+        for prefix in FULL_PATHS
+        if prefix.endswith("/")
+    )
+
 
 def scope(changed_paths: Iterable[str]) -> dict[str, object]:
-    normalized = sorted({normalize(path) for path in changedpaths if str(path).strip()})
-    changed = [path for path in normalized if not _isexcluded(path)]
+    normalized = sorted(
+        {
+            _normalize(path)
+            for path in changed_paths
+            if str(path).strip()
+        }
+    )
+
+    changed = [path for path in normalized if not _is_excluded(path)]
 
     result: dict[str, object] = {
         "changed": changed,
@@ -71,10 +91,11 @@ def scope(changed_paths: Iterable[str]) -> dict[str, object]:
     rust: list[str] = []
 
     for path in changed:
-        if _requiresfull(path):
+        if _requires_full(path):
             result["full"] = True
 
         suffix = PurePosixPath(path).suffix.lower()
+
         if suffix in PYTHON_SUFFIXES:
             python.append(path)
         elif suffix in NODE_SUFFIXES:
@@ -85,14 +106,32 @@ def scope(changed_paths: Iterable[str]) -> dict[str, object]:
     result["python"] = python
     result["node"] = node
     result["rust"] = rust
+
     return result
 
-if name == "Collaboration":
-    import argparse
-    import json
 
-    parser = argparse.ArgumentParser(description="Classify changed files into CI lanes")
-    parser.add_argument("paths", nargs="*", help="repository-relative changed paths")
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Classify changed files into CI lanes"
+    )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        help="repository-relative changed paths",
+    )
+
     args = parser.parse_args()
 
-    print(json.dumps(scope(args.paths), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            scope(args.paths),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
