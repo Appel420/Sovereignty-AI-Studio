@@ -3,10 +3,11 @@ name: iOS Sovereign Build
 on:
   workflow_dispatch:
   push:
-    branches: ["**"]
+    branches:
+      - "**"
     paths:
-".github/workflows/ios-sovereign-build.yml"
-"ios/**"
+      - ".github/workflows/ios-sovereign-build.yml"
+      - "ios/**"
 
 permissions:
   contents: read
@@ -20,20 +21,21 @@ jobs:
     name: iOS Sovereign Build
     runs-on: macos-latest
     timeout-minutes: 10
+
     steps:
-name: Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-name: Verify Xcode and Swift
+      - name: Verify Xcode and Swift
         shell: bash
         run: |
           set -Eeuo pipefail
           xcodebuild -version
           swift --version
 
-name: Verify Swift package
+      - name: Verify Swift package
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -41,13 +43,13 @@ name: Verify Swift package
           swift package describe --package-path ios
           swift package --package-path ios >/dev/null
 
-name: Build SovereigntyGuard
+      - name: Build SovereigntyGuard
         shell: bash
         run: |
           set -Eeuo pipefail
           swift build --package-path ios
 
-name: Test SovereigntyGuard
+      - name: Test SovereigntyGuard
         shell: bash
         run: |
           set -Eeuo pipefail
