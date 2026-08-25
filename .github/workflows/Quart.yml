@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  build-linux:
+  build: 
     name: Quart CI
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -20,7 +20,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c init.defaultBranch=Collaboration remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
