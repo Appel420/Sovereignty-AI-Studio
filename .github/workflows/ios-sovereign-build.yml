@@ -15,12 +15,12 @@ jobs:
     steps:
       - name: Checkout repository 
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: '${{ github.token }}'
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
-          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c init.defaultBranch=Collaboration remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
