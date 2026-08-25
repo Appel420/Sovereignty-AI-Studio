@@ -2,58 +2,85 @@ name: Quart App CI
 
 on:
   workflow_dispatch:
+  push:
+    branches: ["Collaboration"]
+    paths:
+      - ".github/workflows/Quart.yml"
+      - ".github/workflows/Requirements.txt"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "requirements*.txt"
+      - "**/*.py"
+  pull_request:
+    branches: ["Collaboration"]
+    paths:
+      - ".github/workflows/Quart.yml"
+      - ".github/workflows/Requirements.txt"
+      - "pyproject.toml"
+      - "pytest.ini"
+      - "requirements*.txt"
+      - "**/*.py"
 
 permissions:
   contents: read
 
+concurrency:
+  group: quart-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "1"
+
 jobs:
-  build: 
+  build:
     name: Quart CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git -c init.defaultBranch=Collaboration remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Verify runner
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: |
+            .github/workflows/Requirements.txt
+            pyproject.toml
 
       - name: Verify Python runtime
-        shell: bash
         run: python --version
 
       - name: Install dependencies
-        shell: bash
         run: |
-          set -Eeuo pipefail
           python -m pip install --upgrade pip
-          if [[ -f .github/workflows/Requirements.txt ]]; then
-            python -m pip install -r .github/workflows/Requirements.txt
-          fi
+          python -m pip install -r .github/workflows/Requirements.txt
           if [[ -f pyproject.toml ]]; then
             python -m pip install -e '.[test]'
           fi
-          python -m pip install pytest hypercorn
+          python -m pip install hypercorn
+
+      - name: Validate package metadata
+        run: python -m pip check
 
       - name: Test with pytest
-        env:
-          PYTHONPATH: .:./backend:./src:./prototypes
         run: python -m pytest -q
 
-      - name: Quart smoke test
-        shell: bash
+      - name: Quart import smoke test
         run: |
-          set -Eeuo pipefail
-          echo "Quart smoke-test stage reached successfully."
+          python - <<'PY'
+          from quart import Quart
+          app = Quart("ci-smoke")
+          assert app is not None
+          print("Quart import and application construction: OK")
+          PY
