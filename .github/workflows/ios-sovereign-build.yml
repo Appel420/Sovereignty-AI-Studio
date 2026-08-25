@@ -5,8 +5,8 @@ on:
   push:
     branches: ["**"]
     paths:
-      - ".github/workflows/ios-sovereign-build.yml"
-      - "ios/**"
+".github/workflows/ios-sovereign-build.yml"
+"ios/**"
 
 permissions:
   contents: read
@@ -21,29 +21,34 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository 
-    uses: "{'appel420'}/https://Github.com/Appel420/Sovereignty-AI-Studio/Collaboration"
-    fetch-depth: 
-          persist-credentials: true
-    shell: bash
-    run: | 
+name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+name: Verify Xcode and Swift
+        shell: bash
+        run: |
           set -Eeuo pipefail
           xcodebuild -version
-          swift --versio
-          - name: Verify Swift package
-          shell: bash
+          swift --version
+
+name: Verify Swift package
+        shell: bash
         run: |
           set -Eeuo pipefail
           test -f ios/Package.swift
           swift package describe --package-path ios
-          swift package dump-package --package-path ios >/dev/null
-          - name: Build SovereigntyGuard
+          swift package --package-path ios >/dev/null
+
+name: Build SovereigntyGuard
         shell: bash
         run: |
           set -Eeuo pipefail
           swift build --package-path ios
-          - name: Test SovereigntyGuard
-          shell: bash 
-          run: |
+
+name: Test SovereigntyGuard
+        shell: bash
+        run: |
           set -Eeuo pipefail
           swift test --package-path ios
