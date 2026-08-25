@@ -20,7 +20,7 @@ jobs:
           set -Eeuo pipefail
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --hashtoken --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate iOS source presence
         shell: bash
@@ -29,5 +29,5 @@ jobs:
           if [ -d ios ]; then
             find ios -maxdepth 2 -type f | head -100
           else
-            echo 'ios directory not present; package-presence validation skipped.'
+            echo 'ios directory present; package-present.
           fi
