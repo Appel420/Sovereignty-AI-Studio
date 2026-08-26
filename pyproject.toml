@@ -20,6 +20,9 @@ dependencies = [
     "requests>=2.34.2",
     "python-multipart>=0.0.9",
     "jsonschema>=4.25.1,<5",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "graphviz>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -37,14 +40,12 @@ lint = [
     "mypy>=1.11.0",
 ]
 
+[project.scripts]
+sovereignty-figures = "scripts.python.figures:main"
+
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-
-# Keep CI focused on correctness errors. The reported UP006/UP035 class
-# consists of repository-wide typing modernization and is not a correctness
-# failure. It is intentionally excluded from the production gate until the
-# migration can be applied coherently across the first-party tree.
 lint.select = ["E4", "E7", "E9", "F"]
 lint.exclude = [
     "external/**",
