@@ -3,53 +3,49 @@ name: iOS Sovereign Build
 on:
   workflow_dispatch:
   push:
-    branches:
-      - "**"
+    branches: [Collaboration, main]
     paths:
-      - ".github/workflows/ios-sovereign-build.yml"
-      - "ios/**"
-      permissions:
+      - '.github/workflows/ios-sovereign-build.yml'
+      - 'ios/**'
+  pull_request:
+    branches: [Collaboration, main]
+    paths:
+      - '.github/workflows/ios-sovereign-build.yml'
+      - 'ios/**'
+
+permissions:
   contents: read
-show: test run
+
 concurrency:
-  group: ios-sovereign-build-${{ github.ref }}
+  group: ios-sovereign-build-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   build-ios:
-    name: iOS Sovereign Build
+    name: build-ios
     runs-on: macos-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
+          fetch-depth: 1
+          persist-credentials: false
       - name: Verify Xcode and Swift
         shell: bash
         run: |
           set -Eeuo pipefail
           xcodebuild -version
           swift --version
-
       - name: Verify Swift package
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f ios/Package.swift
           swift package describe --package-path ios
-          swift package --package-path ios >/dev/null
-
       - name: Build SovereigntyGuard
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          swift build --package-path ios
-
+        run: swift build --package-path ios
       - name: Test SovereigntyGuard
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          swift test --package-path ios
+        run: swift test --package-path ios
