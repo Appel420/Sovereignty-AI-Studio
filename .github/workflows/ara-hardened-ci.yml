@@ -1,52 +1,56 @@
-name: ara-hardened-unit-ci
+name: ara-hardened-unit-ci-local
 
-# Online self-hosted validation lane. Every dispatch/push is independently visible.
+# Retained as an explicit lightweight compatibility lane. The authoritative
+# repository gate is .github/workflows/ci.yml.
+# Job is always visible; no job-level event hide.
 on:
+  workflow_dispatch:
   push:
     branches: [ara-hardened]
-  workflow_dispatch:
+  pull_request:
+    branches: [Collaboration]
+
+concurrency:
+  group: ara-hardened-unit-ci-local-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  CI_NAME: ara-hardened-unit-ci
-  CI_MODE: online
-  SG_NETWORK_MODE: online
-  SG_LOCAL_ONLY: '0'
+  CI_NAME: ara-hardened-unit-ci-local
+  CI_MODE: local
+  SG_NETWORK_MODE: local
+  SG_LOCAL_ONLY: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   light:
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    name: ara-hardened light checks
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Startup verification (visible to owner)
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Announce CI identity
-        run: |
-          set -Eeuo pipefail
-          echo "CI:   $CI_NAME"
-          echo "MODE: $CI_MODE"
-          echo "ROUTE: online"
-          echo "BRANCH: ${{ github.ref_name }}"
-          echo "COMMIT: ${{ github.sha }}"
-          echo "RUNNER: ${RUNNER_OS}/${RUNNER_ARCH}"
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-      - name: Verify Python runtime
-        run: python --version
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "STARTUP=PASS"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
       - name: Install minimal test tools
         run: python -m pip install --upgrade pip pytest
-      - name: Coordination unit import check
+      - name: Coordination import check
         run: |
           python - <<'PY'
           import sys
@@ -62,21 +66,3 @@ jobs:
         env:
           PYTHONPATH: prototypes
         run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
-      - name: Write mode stamp
-        run: |
-          python - <<'PY'
-          import json, time
-          stamp = {
-              'ci_name': 'ara-hardened-unit-ci',
-              'ci_mode': 'online',
-              'route': 'online',
-              'sha': '${{ github.sha }}',
-              'ref': '${{ github.ref }}',
-              'pqc_full_build': False,
-              'oauth_generator': False,
-              'network_mode': 'online',
-              'timestamp': int(time.time()),
-          }
-          with open('ara-hardened-ci-stamp.json', 'w', encoding='utf-8') as f:
-              json.dump(stamp, f, indent=2)
-          print(json.dumps(stamp, indent=2))
