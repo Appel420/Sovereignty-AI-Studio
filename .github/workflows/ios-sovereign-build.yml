@@ -5,7 +5,7 @@ on:
   push:
     branches: [Collaboration, main]
     paths:
-      - '.github/workflows/ios-sovereign-build.yml'
+      - '.github/workflows/ios-sovereign-build.yaml'
       - 'ios/**'
   pull_request:
     branches: [Collaboration, main]
