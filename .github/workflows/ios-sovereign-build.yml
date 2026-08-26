@@ -2,8 +2,11 @@ name: iOS Sovereign Build (local-first)
 
 # Device-independent validation. Native Xcode compilation remains a separate
 # macOS capability; this workflow never claims a Linux build is an iOS build.
+# Job always visible. cancel-in-progress: false.
 on:
   push:
+    branches: ["Collaboration", "ara-hardened"]
+  pull_request:
     branches: ["Collaboration"]
   workflow_dispatch:
 
@@ -19,24 +22,27 @@ concurrency:
 
 jobs:
   lightweight-security:
+    name: iOS source validation (visible)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Startup (always visible to owner)
         run: |
-          set -Eeuo pipefail
-          git init .
-          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "STARTUP=PASS"
 
       - name: Validate source and generate manifest
         run: |
           set -Eeuo pipefail
-          python -m compileall -q backend
+          python -m compileall -q backend || python -m compileall -q .
           python3 - <<'PY'
           import json
           import time
@@ -46,7 +52,7 @@ jobs:
               'build_ref': '${{ github.sha }}',
               'platform': 'iOS',
               'execution': 'github-hosted-validation',
-              'native_xcode_compile': true,
+              'native_xcode_compile': False,
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)

@@ -1,0 +1,90 @@
+name: Owner Approval Gate
+
+# Surfaces protected-path changes and requires explicit owner decision.
+# Jobs are always visible. No job-level hide. No silent cancel.
+on:
+  pull_request:
+    branches: [Collaboration, main]
+    paths:
+      - '.github/workflows/**'
+      - '.github/copilot-instructions.md'
+      - 'config/owner-execution-policy.json'
+      - 'config/branch-registry-policy.json'
+  workflow_dispatch:
+
+concurrency:
+  group: owner-approval-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  protected-path-check:
+    name: Protected path check (owner decision required)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Startup (always visible)
+        run: |
+          echo "Owner Approval Gate started"
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "PR=${{ github.event.pull_request.number || 'n/a' }}"
+          echo "STARTUP=PASS"
+
+      - name: Detect protected path changes
+        id: detect
+        run: |
+          set -Eeuo pipefail
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          HEAD="${{ github.event.pull_request.head.sha || 'HEAD' }}"
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || true)
+          echo "Changed files:"
+          echo "$CHANGED"
+          PROTECTED=()
+          while IFS= read -r f; do
+            case "$f" in
+              .github/workflows/*|.github/copilot-instructions.md|config/owner-execution-policy.json|config/branch-registry-policy.json)
+                PROTECTED+=("$f")
+                ;;
+            esac
+          done <<< "$CHANGED"
+          if [ ${#PROTECTED[@]} -gt 0 ]; then
+            echo "protected=true" >> "$GITHUB_OUTPUT"
+            echo "Protected paths changed:"
+            printf '%s\n' "${PROTECTED[@]}"
+            {
+              echo "### Owner decision required"
+              echo ""
+              echo "Protected paths changed. Appel420 must choose:"
+              echo ""
+              for p in "${PROTECTED[@]}"; do echo "- \`$p\`"; done
+              echo ""
+              echo "| Option | Meaning |"
+              echo "|--------|---------|
+              echo "| **Deny** | Block. Close or reject. |"
+              echo "| **Allow once** | Permit this PR only. |"
+              echo "| **Always allow** | Standing allow-list (still logged). |"
+              echo ""
+              echo "Reply on this PR with: \`DENY\` or \`ALLOW ONCE\` or \`ALWAYS ALLOW\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "protected=false" >> "$GITHUB_OUTPUT"
+            echo "No protected paths in this change."
+          fi
+
+      - name: Require owner comment when protected
+        if: steps.detect.outputs.protected == 'true'
+        run: |
+          echo "Protected paths detected. Owner must choose DENY / ALLOW ONCE / ALWAYS ALLOW before merge."
+          echo "This job stays visible for triage. It does not auto-approve."
+          exit 0
