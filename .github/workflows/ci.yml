@@ -1,218 +1,72 @@
-name: Sovereignty CI
+name: CI
 
 on:
-  workflow_dispatch:
   push:
-    branches: "Collaboration"
   pull_request:
-    branches: "Collaboration"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: "sovereignty-ci-${{ github.workflow }}-${{ github.ref }}"
-  cancel-in-progress: false
-
 env:
-  PYTHONDONTWRITEBYTECODE: '1'
+  SGNETWORKMODE: offline-ci
+  SGLOCALONLY: '1'
+  CLOUD_FIRST: 'false'
+  PIP_NO_INPUT: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
-  contract:
-    name: Contract Gate
+  conformance:
+    name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Validate manifest
-        run: |
-          set -Eeuo pipefail
-          python -m json.tool system/component-manifest.json >/dev/null
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          d=json.loads(Path('system/component-manifest.json').read_text())
-          assert d['schema']=='sovereignty.system.component/v1'
-          assert d['authority']=='human-owner'
-          ids=[c['id'] for c in d['components']]
-          repos=[c['repository'] for c in d['components']]
-          assert len(ids)==len(set(ids)), 'duplicate component id'
-          assert len(repos)==len(set(repos)), 'duplicate repository mapping'
-          for e in d['edges']:
-              assert e['from'] in ids and e['to'] in ids
-          print(f"contract OK: {len(ids)} components, {len(d['edges'])} edges")
-          PY
-      - name: Validate submodule policy
-        run: |
-          set -Eeuo pipefail
-          if [[ -f .gitmodules ]]; then
-            while read -r key url; do
-              normalized="${url,,}"
-              case "$normalized" in
-                https://github.com/appel420/*|git@github.com:appel420/*) ;;
-                *) echo "ERROR: unapproved submodule URL: $url"; exit 1 ;;
-              esac
-            done < <(git config --file .gitmodules --get-regexp '^submodule\..*\.url$' || true)
-          fi
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
 
-  python:
-    name: Python Lane
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Install test dependencies deterministically
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check 'PyNaCl==1.5.0' pytest
-          if [[ -f requirements.txt ]]; then
-            python -m pip install --disable-pip-version-check -r requirements.txt
-          fi
-          python - <<'PY'
-          import nacl
-          from nacl.signing import SigningKey
-          print(f"PyNaCl import OK: {nacl.__version__}")
-          SigningKey.generate()
-          print("Ed25519 signing primitive OK")
-          PY
-      - name: Compile first-party Python only
+      - name: Verify CI startup (always visible)
         shell: bash
         run: |
           set -Eeuo pipefail
-          python - <<'PY'
-          import py_compile
-          import subprocess
-          from pathlib import Path
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "CI controller: GitHub Actions"
+          echo "Execution: hosted Linux runner"
+          echo "Event: ${GITHUB_EVENT_NAME}"
+          echo "Ref: ${GITHUB_REF}"
+          echo "Commit: ${GITHUB_SHA}"
+          echo "STARTUP=PASS — owner can see this run"
 
-          excluded = {
-              '.git', '.venv', 'venv', 'env', 'ENV',
-              'external', 'vendor', 'node_modules',
-              'build', 'dist', 'downloads', 'eggs', '.eggs',
-              'site-packages', '__pycache__',
-          }
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
-          raw = subprocess.check_output(['git', 'ls-files', '-z', '--', '*.py'])
-          files = []
-          for item in raw.split(b'\0'):
-              if not item:
-                  continue
-              path = Path(item.decode('utf-8'))
-              if any(part in excluded for part in path.parts):
-                  continue
-              files.append(path)
-
-          failures = []
-          for path in files:
-              try:
-                  py_compile.compile(str(path), doraise=True)
-              except py_compile.PyCompileError as exc:
-                  failures.append((str(path), str(exc)))
-
-          print(f'first-party Python files checked: {len(files)}')
-          if failures:
-              for path, error in failures:
-                  print(f'\n--- PYTHON SYNTAX FAILURE: {path} ---')
-                  print(error)
-              raise SystemExit(f'{len(failures)} Python file(s) failed compilation')
-          print('Python compilation OK')
-          PY
-      - name: Test Python when a suite exists
+      - name: Install project test dependencies
+        shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -d tests ]]; then
-            python -m pytest -q tests
-          else
-            echo 'No Python test suite; compilation result retained.'
-          fi
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test,lint]'
 
-  node:
-    name: Node Lane
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Validate Node
-        run: |
-          set -Eeuo pipefail
-          if [[ ! -f package.json ]]; then echo 'No package.json; lane passed.'; exit 0; fi
-          node --version
-          npm --version
-          npm install --ignore-scripts --no-audit --no-fund
-          npm test --if-present
+      - name: Compile Python sources
+        shell: bash
+        run: python -m compileall -q sovereign
 
-  rust:
-    name: Rust Lane
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Validate Rust
-        run: |
-          set -Eeuo pipefail
-          if [[ ! -f Cargo.toml ]]; then echo 'No Cargo.toml; lane passed.'; exit 0; fi
-          cargo test --workspace --all-targets
+      - name: Ruff
+        run: ruff check sovereign/
 
-  integration:
-    name: Integration Result
-    if: ${{ always() }}
-    needs: [contract, python, node, rust]
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Report independent lanes
-        env:
-          CONTRACT: ${{ needs.contract.result }}
-          PYTHON: ${{ needs.python.result }}
-          NODE: ${{ needs.node.result }}
-          RUST: ${{ needs.rust.result }}
-        run: |
-          set -Eeuo pipefail
-          echo "contract=$CONTRACT"
-          echo "python=$PYTHON"
-          echo "node=$NODE"
-          echo "rust=$RUST"
-          for result in "$CONTRACT" "$PYTHON" "$NODE" "$RUST"; do
-            if [[ "$result" != success ]]; then
-              echo 'One or more independent lanes did not succeed.'
-              exit 1
-            fi
-          done
-          echo 'All independent lanes completed successfully.'
+      - name: Mypy
+        run: mypy sovereign/
+
+      - name: Pytest
+        run: pytest -q
