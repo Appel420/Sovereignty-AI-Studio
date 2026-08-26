@@ -3,9 +3,9 @@ name: Sovereignty CI
 on:
   workflow_dispatch:
   push:
-    branches: ["**"]
+    branches: "Collaboration"
   pull_request:
-    branches: ["**"]
+    branches: "Collaboration"
 
 permissions:
   contents: read
@@ -148,7 +148,7 @@ jobs:
   node:
     name: Node Lane
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -172,7 +172,7 @@ jobs:
   rust:
     name: Rust Lane
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
