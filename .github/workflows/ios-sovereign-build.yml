@@ -5,9 +5,9 @@ name: iOS Sovereign Build (local-first)
 # Job always visible. cancel-in-progress: false.
 on:
   push:
-    branches: Collaboration
+    branches: [Collaboration]
   pull_request:
-    branches: Collaboration
+    branches: [Collaboration]
   workflow_dispatch:
 
 env:
@@ -23,7 +23,7 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible)
-    runs-on: self-hosted macos-latest-xlarge
+    runs-on: macos-latest-xlarge
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
@@ -34,37 +34,68 @@ jobs:
           set -Eeuo pipefail
           git init .
           git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Startup (always visible to owner)
         run: |
+          set -Eeuo pipefail
           echo "event=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
           echo "sha=${GITHUB_SHA}"
+          echo "runner_os=${RUNNER_OS}"
+          echo "runner_arch=${RUNNER_ARCH}"
           echo "STARTUP=PASS"
 
       - name: Validate source and generate manifest
         run: |
           set -Eeuo pipefail
-          python -m compileall -q backend
+          python3 -m compileall -q backend
           python3 - <<'PY'
           import json
+          import os
           import time
+
           payload = {
-              'node_id': 'ios-build-${{ github.run_id }}',
-              'timestamp': int(time.time()),
-              'build_ref': '${{ github.sha }}',
-              'platform': 'iOS',
-              'execution': 'github-hosted-validation',
-              'native_xcode_compile': true,
+              "node_id": f"ios-build-{os.environ['GITHUB_RUN_ID']}",
+              "timestamp": int(time.time()),
+              "build_ref": os.environ["GITHUB_SHA"],
+              "platform": "iOS",
+              "execution": "github-hosted-validation",
+              "native_xcode_compile": False,
           }
-          with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(payload, fh, indent=2)
-          print(json.dumps(payload, indent=2))
+
+          with open("ios-build-manifest.json", "w", encoding="utf-8") as fh:
+              json.dump(payload, fh, indent=2, sort_keys=True)
+              fh.write("\n")
+
+          print(json.dumps(payload, indent=2, sort_keys=True))
           PY
 
       - name: Verify validation manifest
         run: |
+          set -Eeuo pipefail
           test -s ios-build-manifest.json
           python3 -m json.tool ios-build-manifest.json
+          python3 - <<'PY'
+          import json
+
+          with open("ios-build-manifest.json", encoding="utf-8") as fh:
+              manifest = json.load(fh)
+
+          required = {
+              "node_id",
+              "timestamp",
+              "build_ref",
+              "platform",
+              "execution",
+              "native_xcode_compile",
+          }
+          missing = required - manifest.keys()
+          if missing:
+              raise SystemExit(f"Missing manifest fields: {sorted(missing)}")
+          if manifest["platform"] != "iOS":
+              raise SystemExit("Manifest platform must be iOS")
+          if manifest["native_xcode_compile"] is not False:
+              raise SystemExit("Validation workflow must not claim native Xcode compilation")
+          PY
