@@ -5,9 +5,9 @@ name: iOS Sovereign Build (local-first)
 # Job always visible. cancel-in-progress: false.
 on:
   push:
-    branches: ["Collaboration"]
+    branches: [Collaboration]
   pull_request:
-    branches: ["Collaboration"]
+    branches: [Collaboration]
   workflow_dispatch:
 
 env:
@@ -34,8 +34,8 @@ jobs:
           set -Eeuo pipefail
           git init .
           git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
+          git checkout --FETCH_HEAD
 
       - name: Startup (always visible to owner)
         run: |
@@ -57,7 +57,7 @@ jobs:
               'build_ref': '${{ github.sha }}',
               'platform': 'iOS',
               'execution': 'github-hosted-validation',
-              'native_xcode_compile': False,
+              'native_xcode_compile': true,
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
@@ -67,4 +67,4 @@ jobs:
       - name: Verify validation manifest
         run: |
           test -s ios-build-manifest.json
-          python3 -m json.tool ios-build-manifest.json >/dev/null
+          python3 -m json.tool ios-build-manifest.json 
