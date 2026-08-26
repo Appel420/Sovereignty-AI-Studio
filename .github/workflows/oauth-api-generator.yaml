@@ -1,49 +1,37 @@
-# =========================================================
-# OAUTH API GENERATOR – CI/CD PIPELINE
-# =========================================================
-# Production-oriented validation, container build, signing,
-# SBOM generation, and security scanning for Sovereignty AI Studio.
-# Every top-level job is intentionally visible in Actions.
-# =========================================================
 name: OAUTH-API-GENERATOR
 
 on:
+  workflow_dispatch:
   push:
-    branches: "Collaboration"
+    branches: [Collaboration, main]
     paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yaml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
+      - '.github/workflows/oauth-api-generator.yaml'
+      - '.github/workflows/Requirements.txt'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - 'package-lock.json'
+      - 'package.json'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - 'requirements*.txt'
+      - '**/*.js'
+      - '**/*.py'
   pull_request:
-    branches: "Collaboration"
+    branches: [Collaboration, main]
     paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yaml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
-       
-    branches: "Collaboration"
-  pull_request:
-    branches: "Collaboration"
-        
+      - '.github/workflows/oauth-api-generator.yaml'
+      - '.github/workflows/Requirements.txt'
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - 'package-lock.json'
+      - 'package.json'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - 'requirements*.txt'
+      - '**/*.js'
+      - '**/*.py'
   release:
     types: [published]
-  workflow_dispatch:
 
 permissions: {}
 
@@ -57,17 +45,9 @@ concurrency:
 
 defaults:
   run:
-        
-    shell: bash  -euo pipefail {0}
-    PYTHONPATH: .:./backend:./src:./prototypes
-
     shell: bash -euo pipefail {0}
 
-        
 jobs:
-  # =========================================================
-  # RUN / STARTUP MANIFEST — ALWAYS VISIBLE
-  # =========================================================
   run:
     name: Run — startup manifest
     runs-on: ubuntu-latest
@@ -75,46 +55,33 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Show complete OAuth job plan
+          persist-credentials: false
+      - name: Show complete job graph
         run: |
-          echo '========================================================='
           echo 'OAUTH-API-GENERATOR STARTUP'
-          echo '========================================================='
           echo "event=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
-          echo "sha=${GITHUB_SHA}"
-          echo
           echo 'VISIBLE JOBS:'
-          echo '  1. run — startup manifest'
-          echo '  2. build-test — Python 3.11'
-          echo '  3. build-test — Python 3.12'
-          echo '  4. node-check — Node.js validation'
-          echo '  5. build-sign — Build and sign container'
-          echo '  6. supply-chain — Generate and attest SBOM'
-          echo '  7. dependency-review — PR/manual dependency review'
-          echo '  8. security-scan — Security scan'
-          echo
-          echo 'No hidden startup service, runner, or background job is required by this workflow.'
-          echo 'Downstream jobs are intentionally independent of this manifest so a startup failure is visible.'
-
-      - name: Verify workflow entrypoint files
+          echo '  run — startup manifest'
+          echo '  build-test (3.11)'
+          echo '  build-test (3.12)'
+          echo '  node-check'
+          echo '  build-sign'
+          echo '  supply-chain'
+          echo '  dependency-review'
+          echo '  security-scan'
+      - name: Verify required files
         run: |
-          test -f .github/workflows/oauth-api-generator.yaml
           test -f package.json
           test -f Dockerfile
-          echo 'Startup manifest checks: PASS'
+          test -f .github/workflows/oauth-api-generator.yaml
+          echo 'Startup manifest: PASS'
 
-  # =========================================================
-  # LINT + TEST — PYTHON
-  # =========================================================
   build-test:
-    name: Python ${{ matrix.python }}
+    name: build-test (${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -122,17 +89,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.12", "3.13"]
         python: ['3.11', '3.12']
-
     steps:
-      - name: Checkout repository
-        uses: ubuntu
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Set up Python ${{ matrix.python }}
+          persist-credentials: false
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
@@ -140,126 +103,85 @@ jobs:
           cache-dependency-path: |
             .github/workflows/Requirements.txt
             requirements.txt
-
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r .github/workflows/Requirements.txt
-          if [[ -f requirements.txt ]]; then
-            python -m pip install -r requirements.txt
-          fi
-
-      - name: Lint with flake8
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+      - name: Lint
+        run: python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Test
         run: |
-          python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
-
-      - name: Run Python tests
+          python -m pytest --cov=apps --cov=backend --cov=src --cov-report=xml --cov-report=term --strict-markers -x --tb=short
+      - name: Dependency audit
         run: |
-          python -m pytest \
-            --cov=apps \
-            --cov=backend \
-            --cov=src \
-            --cov-report=xml \
-            --cov-report=term \
-            --strict-markers \
-            -x \
-            --tb=short
-
-      - name: Dependency safety check
-        run: |
-          if [[ -f requirements.txt ]]; then
-            python -m pip_audit -r requirements.txt
-          fi
+          python -m pip install pip-audit
           python -m pip_audit -r .github/workflows/Requirements.txt
-
+          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; fi
       - name: Upload coverage
-        if: matrix.python == '3.13' && always()
+        if: ${{ always() && matrix.python == '3.12' }}
         uses: actions/upload-artifact@v4
         with:
           name: python-coverage
           path: coverage.xml
-          if-no-files-found: error
+          if-no-files-found: ignore
 
-  # =========================================================
-  # LINT + TEST — NODE
-  # =========================================================
   node-check:
     name: Node.js validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
+          persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-
       - name: Install Node dependencies
-        
-        run: npm ci 
-
         run: npm ci --ignore-scripts
-         Collaboration
-      - name: Node syntax and project checks
+      - name: Node checks
         run: |
           npm run check
           node --check node-bridge/server.js
-          if [[ -f unified_server.js ]]; then
-            node --check unified_server.js
-          fi
-
-      - name: Node memory-vault tests
+          if [[ -f unified_server.js ]]; then node --check unified_server.js; fi
+      - name: Memory vault tests
         if: ${{ hashFiles('tests/test_sovereign_memory_vault.js') != '' }}
         run: npm run test:memory-vault
 
-  # =========================================================
-  # DOCKER BUILD + MULTI-ARCH + COSIGN SIGNING
-  # =========================================================
   build-sign:
-    name: Build and sign container
+    name: build-sign
     needs: [build-test, node-check]
-    if: ${{ always() && (github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch') && needs.build-test.result == 'success' && needs.node-check.result == 'success' }}
+    if: ${{ (github.event_name == 'release' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main'))) && needs.build-test.result == 'success' && needs.node-check.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
       packages: write
       id-token: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Compute lowercase image name
+          persist-credentials: false
+      - name: Compute image
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build multi-architecture image
-        uses: docker/build-push-action@v5
+      - name: Build and push multi-arch image
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -272,54 +194,37 @@ jobs:
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
-
-      - name: Sign image — keyless Fulcio/Rekor
+      - name: Sign image
         env:
           COSIGN_EXPERIMENTAL: '1'
-        run: |
-          cosign sign --yes \
-            --fulcio-url https://fulcio.sigstore.dev \
-            --rekor-url https://rekor.sigstore.dev \
-        
-            "${{ env.REGISTRY_LC }}":"${{ github.sha }}"
+        run: cosign sign --yes --fulcio-url https://fulcio.sigstore.dev --rekor-url https://rekor.sigstore.dev "${REGISTRY_LC}:${GITHUB_SHA}"
 
-            "${REGISTRY_LC}:${GITHUB_SHA}"
-
-  # =========================================================
-  # SBOM + ATTESTATION
-  # =========================================================
   supply-chain:
-    name: Generate and attest SBOM
+    name: supply-chain
     needs: build-sign
-    if: ${{ always() && needs.build-sign.result == 'success' && (github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch') }}
+    if: ${{ needs.build-sign.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       packages: write
       id-token: write
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Compute lowercase image name
+          persist-credentials: false
+      - name: Compute image
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-
-      - name: Log in to GitHub Container Registry
+      - name: Login GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate CycloneDX SBOM
+      - name: Generate SBOM
         uses: anchore/sbom-action@v0.24.0
         with:
           image: ${{ env.REGISTRY_LC }}:${{ github.sha }}
@@ -328,68 +233,48 @@ jobs:
           output-file: sbom-sovereignty-ai.json
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
-
       - name: Attest SBOM
         env:
           COSIGN_EXPERIMENTAL: '1'
-        run: |
-          cosign attest --yes \
-            --predicate sbom-sovereignty-ai.json \
-            --type cyclonedx \
-            "${REGISTRY_LC}:${GITHUB_SHA}"
-
+        run: cosign attest --yes --predicate sbom-sovereignty-ai.json --type cyclonedx "${REGISTRY_LC}:${GITHUB_SHA}"
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ github.sha }}
           path: sbom-sovereignty-ai.json
-          if-no-files-found: error
-        
 
-  # =========================================================
-  # PULL REQUEST / MANUAL DEPENDENCY REVIEW
-  # =========================================================
   dependency-review:
-    name: Dependency review
+    name: dependency-review
     if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: read
-
     steps:
       - name: Dependency Review
         uses: actions/dependency-review-action@v4
 
-  # =========================================================
-  # FILESYSTEM SECURITY SCAN — ALWAYS RUNS
-  # =========================================================
   security-scan:
-    name: Security scan
+    name: security-scan
     needs: [build-test, node-check]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Record upstream job state
+          persist-credentials: false
+      - name: Report upstream results
         run: |
           echo "build-test=${{ needs.build-test.result }}"
           echo "node-check=${{ needs.node-check.result }}"
-
-      - name: Run Trivy vulnerability scanner
+      - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.35.0
         with:
           scan-type: fs
@@ -398,27 +283,8 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: false
-          
-          hide-progress: false
-          exit-code: 0
-
           exit-code: 1
-        
-
-      - name: Audit root requirements when present
+      - name: Python dependency audit
         run: |
-          python -m pip install --upgrade pip-audit
-          if [[ -f requirements.txt ]]; then
-            python -m pip_audit -r requirements.txt
-          else
-            echo 'No root requirements.txt; dependency audit ran in build-test.'
-          fi
-
-# =========================================================
-# SECURITY HEADER REFERENCE
-# =========================================================
-# Enforce at the actual nginx/FastAPI boundary; comments do not configure it.
-# =========================================================
-# CRYPTO / COMPLIANCE STATUS
-# =========================================================
-# Keep implementation status separate from CI claims.
+          python -m pip install pip-audit
+          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; fi
