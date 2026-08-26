@@ -5,13 +5,11 @@
 # SBOM generation, and security scanning for Sovereignty AI Studio.
 # Every top-level job is intentionally visible in Actions.
 # =========================================================
-
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-        Appel420-patch-25
-    branches: "**"
+    branches: "Collaboration"
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yaml"
@@ -25,7 +23,7 @@ on:
       - "**/*.js"
       - "**/*.py"
   pull_request:
-    branches: "**"
+    branches: "Collaboration"
     paths:
       - ".github/workflows/Requirements.txt"
       - ".github/workflows/oauth-api-generator.yaml"
@@ -39,10 +37,10 @@ on:
       - "**/*.js"
       - "**/*.py"
        
-    branches: [Collaboration, main]
+    branches: "Collaboration"
   pull_request:
-    branches: [Collaboration, main]
-        Collaboration
+    branches: "Collaboration"
+        
   release:
     types: [published]
   workflow_dispatch:
@@ -59,15 +57,13 @@ concurrency:
 
 defaults:
   run:
-        Appel420-patch-25
+        
     shell: bash  -euo pipefail {0}
-
-env:
-  PYTHONPATH: .:./backend:./src:./prototypes
+    PYTHONPATH: .:./backend:./src:./prototypes
 
     shell: bash -euo pipefail {0}
 
-        Collaboration
+        
 jobs:
   # =========================================================
   # RUN / STARTUP MANIFEST — ALWAYS VISIBLE
@@ -83,7 +79,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Show complete OAuth job plan
         run: |
@@ -177,12 +173,12 @@ jobs:
           python -m pip_audit -r .github/workflows/Requirements.txt
 
       - name: Upload coverage
-        if: matrix.python == '3.11' && always()
+        if: matrix.python == '3.13' && always()
         uses: actions/upload-artifact@v4
         with:
           name: python-coverage
           path: coverage.xml
-          if-no-files-found: ignore
+          if-no-files-found: error
 
   # =========================================================
   # LINT + TEST — NODE
@@ -199,7 +195,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -208,7 +204,7 @@ jobs:
           cache: npm
 
       - name: Install Node dependencies
-        Appel420-patch-25
+        
         run: npm ci 
 
         run: npm ci --ignore-scripts
@@ -287,7 +283,7 @@ jobs:
           cosign sign --yes \
             --fulcio-url https://fulcio.sigstore.dev \
             --rekor-url https://rekor.sigstore.dev \
-        Appel420-patch-25
+        
             "${{ env.REGISTRY_LC }}":"${{ github.sha }}"
 
             "${REGISTRY_LC}:${GITHUB_SHA}"
@@ -311,7 +307,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Compute lowercase image name
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -351,7 +347,7 @@ jobs:
           name: sbom-${{ github.sha }}
           path: sbom-sovereignty-ai.json
           if-no-files-found: error
-        Collaboration
+        
 
   # =========================================================
   # PULL REQUEST / MANUAL DEPENDENCY REVIEW
@@ -402,12 +398,12 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           ignore-unfixed: false
-          Appel420-patch-25
+          
           hide-progress: false
           exit-code: 0
 
           exit-code: 1
-        Collaboration
+        
 
       - name: Audit root requirements when present
         run: |
