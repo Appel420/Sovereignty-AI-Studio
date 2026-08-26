@@ -3,22 +3,21 @@
 # =========================================================
 # Production-oriented validation, container build, signing,
 # SBOM generation, and security scanning for Sovereignty AI Studio.
+# Every top-level job is intentionally visible in Actions.
 # =========================================================
 
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches:
-      - Collaboration
-      - main
+    branches: [Collaboration, main]
   pull_request:
-    branches:
-      - Collaboration
-      - main
+    branches: [Collaboration, main]
   release:
     types: [published]
   workflow_dispatch:
+
+permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
@@ -28,13 +27,56 @@ concurrency:
   group: oauth-api-generator-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
-permissions: {}
-
 defaults:
   run:
     shell: bash -euo pipefail {0}
 
 jobs:
+  # =========================================================
+  # RUN / STARTUP MANIFEST — ALWAYS VISIBLE
+  # =========================================================
+  run:
+    name: Run — startup manifest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Show complete OAuth job plan
+        run: |
+          echo '========================================================='
+          echo 'OAUTH-API-GENERATOR STARTUP'
+          echo '========================================================='
+          echo "event=${GITHUB_EVENT_NAME}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo
+          echo 'VISIBLE JOBS:'
+          echo '  1. run — startup manifest'
+          echo '  2. build-test — Python 3.11'
+          echo '  3. build-test — Python 3.12'
+          echo '  4. node-check — Node.js validation'
+          echo '  5. build-sign — Build and sign container'
+          echo '  6. supply-chain — Generate and attest SBOM'
+          echo '  7. dependency-review — PR/manual dependency review'
+          echo '  8. security-scan — Security scan'
+          echo
+          echo 'No hidden startup service, runner, or background job is required by this workflow.'
+          echo 'Downstream jobs are intentionally independent of this manifest so a startup failure is visible.'
+
+      - name: Verify workflow entrypoint files
+        run: |
+          test -f .github/workflows/oauth-api-generator.yaml
+          test -f package.json
+          test -f Dockerfile
+          echo 'Startup manifest checks: PASS'
+
   # =========================================================
   # LINT + TEST — PYTHON
   # =========================================================
@@ -93,8 +135,6 @@ jobs:
         run: |
           if [[ -f requirements.txt ]]; then
             python -m pip_audit -r requirements.txt
-          else
-            echo 'No root requirements.txt; auditing CI requirements instead.'
           fi
           python -m pip_audit -r .github/workflows/Requirements.txt
 
@@ -150,7 +190,7 @@ jobs:
   build-sign:
     name: Build and sign container
     needs: [build-test, node-check]
-    if: github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch'
+    if: ${{ always() && (github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch') && needs.build-test.result == 'success' && needs.node-check.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -214,7 +254,7 @@ jobs:
   supply-chain:
     name: Generate and attest SBOM
     needs: build-sign
-    if: github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch'
+    if: ${{ always() && needs.build-sign.result == 'success' && (github.event_name == 'release' || (github.event_name == 'push' && (github.ref == 'refs/heads/Collaboration' || github.ref == 'refs/heads/main')) || github.event_name == 'workflow_dispatch') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -269,11 +309,11 @@ jobs:
           if-no-files-found: error
 
   # =========================================================
-  # PULL REQUEST DEPENDENCY REVIEW
+  # PULL REQUEST / MANUAL DEPENDENCY REVIEW
   # =========================================================
   dependency-review:
     name: Dependency review
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -285,11 +325,12 @@ jobs:
         uses: actions/dependency-review-action@v4
 
   # =========================================================
-  # FILESYSTEM SECURITY SCAN
+  # FILESYSTEM SECURITY SCAN — ALWAYS RUNS
   # =========================================================
   security-scan:
     name: Security scan
     needs: [build-test, node-check]
+    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -301,6 +342,11 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Record upstream job state
+        run: |
+          echo "build-test=${{ needs.build-test.result }}"
+          echo "node-check=${{ needs.node-check.result }}"
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.35.0
@@ -319,23 +365,14 @@ jobs:
           if [[ -f requirements.txt ]]; then
             python -m pip_audit -r requirements.txt
           else
-            echo 'No root requirements.txt; Python dependency audit already ran in build-test.'
+            echo 'No root requirements.txt; dependency audit ran in build-test.'
           fi
 
 # =========================================================
 # SECURITY HEADER REFERENCE
 # =========================================================
-# Enforce at the actual nginx/FastAPI boundary; these comments do not
-# themselves configure the server:
-# Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
-# Content-Security-Policy: default-src 'self'; script-src 'self'
-# X-Content-Type-Options: nosniff
-# X-Frame-Options: DENY
-# Referrer-Policy: strict-origin-when-cross-origin
-# Permissions-Policy: camera=(), microphone=(), geolocation=()
-
+# Enforce at the actual nginx/FastAPI boundary; comments do not configure it.
 # =========================================================
 # CRYPTO / COMPLIANCE STATUS
 # =========================================================
-# Keep implementation status separate from CI claims. Planned primitives
-# must not be described as implemented merely because this workflow runs.
+# Keep implementation status separate from CI claims.
