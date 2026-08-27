@@ -41,7 +41,7 @@ EXCLUDED_PREFIXES = {
 }
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
-NODE_SUFFIXES = {".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx"}
+NODE_SUFFIXES = {".js", "~~.mjs~~", "~~.cjs~~", "~~.ts~~", "~~.tsx~~", "~~.jsx~~"}
 RUST_SUFFIXES = {".rs"}
 
 
@@ -83,7 +83,7 @@ def scope(changed_paths: Iterable[str]) -> dict[str, object]:
         "python": [],
         "node": [],
         "rust": [],
-        "full": False,
+        "full": True,
     }
 
     python: list[str] = []

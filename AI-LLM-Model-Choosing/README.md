@@ -29,7 +29,7 @@ Select a model (shows routing hints):
 ```bash
 python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-File-Storage/Model-Router, llm-vlm-grok-
 python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task chat
-python3 AI-LLM-VZlM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task judge
+python3 AI-LLM-VlM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task judge
 ```
 
 ### On-device model paths

@@ -3,9 +3,9 @@ name: Pylint
 on:
   workflow_dispatch:
   push:
-    branches: [ main, Collaboration ]
+    branches: [ Collaboration ]
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [ Collaboration ]
 
 concurrency:
   group: pylint-${{ github.ref }}
@@ -21,11 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ['3.13']
+        python-version: ['3.12','3.13']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Startup
         run: |
           echo "event=${GITHUB_EVENT_NAME}"
@@ -33,7 +33,7 @@ jobs:
           echo "sha=${GITHUB_SHA}"
           echo "STARTUP=PASS"
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v3
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip

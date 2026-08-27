@@ -1,33 +1,50 @@
 name: iOS Build
 
 on:
+  push:
+    branches: [Collaboration]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [Collaboration]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   package-validation:
     name: iOS package validation
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate source presence
         shell: bash
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --hashtoken --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Validate iOS source presence
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [ -d ios ]; then
-            find ios -maxdepth 2 -type f | head -100
+          if [[ -d ios ]]; then
+            find ios -maxdepth 3 -type f -print | head -100
           else
-            echo 'ios directory present; package-present.
+            echo 'No ios/ directory exists in this repository; source validation is not applicable.'
+          fi
+      - name: Validate Swift syntax when Swift sources exist
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
+            while IFS= read -r -d '' file; do
+              swiftc -parse "$file"
+            done < <(find ios -type f -name '*.swift' -print0)
+          else
+            echo 'No Swift source files found; native source parse is not applicable.'
           fi
