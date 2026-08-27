@@ -7,8 +7,7 @@ ROOT_DIR="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 # Canonical local mode contract. These literals are intentional governance invariants.
-SG_NETWORK_MODE="offline"
-export SG_NETWORK_MODE
+export SG_NETWORK_MODE=local
 export SG_LOCAL_ONLY="1"
 export SG_EXTERNAL_FEEDS="disabled"
 export CLOUD_FIRST="false"
