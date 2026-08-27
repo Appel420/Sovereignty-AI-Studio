@@ -1,32 +1,18 @@
-name: iOS Sovereign Build (local-first)
+name: iOS Sovereign Build
 
-# Device-independent validation. Native Xcode compilation remains a separate
-# macOS capability; this workflow never claims a Linux build is an iOS build.
-# No third-party GitHub Actions are used. Checkout and validation are performed
-# directly by the runner shell.
-# Job always visible. cancel-in-progress: false.
 on:
   push:
-
-    branches:
-      - "**"
-    paths:
-      - ".github/workflows/ios-sovereign-build.yml"
-      - "ios/**"
-      permissions:
-
     branches: [Collaboration]
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios-sovereign-build.yml'
   pull_request:
     branches: [Collaboration]
   workflow_dispatch:
 
-env:
-  PYTHONPATH: .:./backend
-
 permissions:
-
   contents: read
-show: test run
+
 concurrency:
   group: ios-sovereign-${{ github.ref }}
   cancel-in-progress: false
@@ -34,23 +20,15 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible)
-    runs-on: macos-latest-xlarge
-    timeout-minutes: 10
-
+    runs-on: macos-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm -rf .git
-          git init -q .
-          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach --quiet FETCH_HEAD
-
-      - name: Startup (always visible to owner)
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Startup
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -60,43 +38,37 @@ jobs:
           echo "runner_os=${RUNNER_OS}"
           echo "runner_arch=${RUNNER_ARCH}"
           echo "STARTUP=PASS"
-
-      - name: Validate source and generate manifest
+      - name: Validate backend Python sources
+        run: python3 -m compileall -q backend
+      - name: Validate Swift sources
         shell: bash
         run: |
           set -Eeuo pipefail
-          command -v python3 >/dev/null
-          python3 -m compileall -q backend
+          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
+            while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
+          else
+            echo 'No Swift sources found; native source parse is not applicable.'
+          fi
+      - name: Generate validation manifest
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           python3 - <<'PY'
-          import json
-          import os
-          import platform
-          import time
-
+          import json, os, platform, time
           payload = {
-              "node_id": f"ios-build-{os.environ['GITHUB_RUN_ID']}",
-              "timestamp": int(time.time()),
-              "build_ref": os.environ["GITHUB_SHA"],
-              "platform": "iOS",
-              "execution": "github-hosted-validation",
-              "native_xcode_compile": False,
-              "runner_os": os.environ.get("RUNNER_OS", "unknown"),
-              "runner_arch": os.environ.get("RUNNER_ARCH", platform.machine()),
+              'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}",
+              'timestamp': int(time.time()),
+              'build_ref': os.environ['GITHUB_SHA'],
+              'platform': 'iOS',
+              'execution': 'github-hosted-validation',
+              'native_xcode_compile': False,
+              'runner_os': os.environ.get('RUNNER_OS', 'unknown'),
+              'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
           }
-
-          with open("ios-build-manifest.json", "w", encoding="utf-8") as fh:
+          with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2, sort_keys=True)
-              fh.write("\n")
-
+              fh.write('\n')
           print(json.dumps(payload, indent=2, sort_keys=True))
           PY
-
-      - name: Verify validation manifest
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -s ios-build-manifest.json
-          python3 -m json.tool ios-build-manifest.json >/dev/null
-          grep -q '"build_ref": "' ios-build-manifest.json
-          grep -q '"platform": "iOS"' ios-build-manifest.json
-          echo "VALIDATION=PASS"
+      - name: Verify manifest
+        run: python3 -m json.tool ios-build-manifest.json >/dev/null
