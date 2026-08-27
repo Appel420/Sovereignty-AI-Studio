@@ -24,14 +24,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
+      - name: Checkout repository actions
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
-          git config --local advice.detachedHead "false"
+          git config --local advice.detachedHead "true"
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
