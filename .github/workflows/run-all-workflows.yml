@@ -13,28 +13,30 @@ permissions:
 
 jobs:
   dispatch-all:
-    name: Dispatch every workflow
+    name: Dispatch existing workflows individually
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - name: Enumerate workflows
+      - name: Enumerate active workflows
         id: workflows
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          gh workflow list --all --limit 100 --json name,path,state > workflows.json
+          gh workflow list --repo "$GH_REPO" --all --limit 100 --json name,path,state > workflows.json
           python - <<'PY'
           import json
-          data=json.load(open('workflows.json', encoding='utf-8'))
+          data = json.load(open('workflows.json', encoding='utf-8'))
           print(f'workflows discovered: {len(data)}')
           for item in data:
               print(f"{item['state']:10} {item['path']}")
           PY
-      - name: Dispatch every workflow that exposes workflow_dispatch
+      - name: Dispatch each existing workflow separately
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           REF: ${{ github.ref_name }}
         shell: bash
         run: |
@@ -42,24 +44,21 @@ jobs:
           failed=0
           while IFS= read -r path; do
             [[ -z "$path" ]] && continue
-            if [[ "$path" == ".github/workflows/run-all-workflows.yml" ]]; then
-              continue
-            fi
-            echo "=== DISPATCH $path @ $REF ==="
-            if gh workflow run "$path" --ref "$REF"; then
+            [[ "$path" == ".github/workflows/run-all-workflows.yml" ]] && continue
+            echo "=== DISPATCHING INDIVIDUAL WORKFLOW: $path @ $REF ==="
+            if gh workflow run "$path" --repo "$GH_REPO" --ref "$REF"; then
               echo "DISPATCH=PASS $path"
             else
-              echo "DISPATCH=SKIP_OR_FAIL $path"
+              echo "DISPATCH=FAIL $path"
               failed=1
             fi
-          done < <(python - <<'PY'
-          import json
-          for item in json.load(open('workflows.json', encoding='utf-8')):
-              if item.get('state') == 'active':
-                  print(item['path'])
-          PY
+          done < <(
+            python - <<'PY'
+            import json
+            for item in json.load(open('workflows.json', encoding='utf-8')):
+                if item.get('state') == 'active':
+                    print(item['path'])
+            PY
           )
-          echo "dispatch_failures=$failed"
-          # A workflow without workflow_dispatch cannot be started through the
-          # Actions dispatch API. Keep the inventory visible instead of hiding it.
-          exit 0
+          echo "individual_dispatch_failures=$failed"
+          exit "$failed"
