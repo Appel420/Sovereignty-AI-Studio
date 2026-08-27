@@ -5,8 +5,8 @@ on:
     branches: [Collaboration]
   pull_request:
     branches: [Collaboration]
-  workflow_dispatch:
-
+  
+    
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -16,7 +16,7 @@ permissions:
 
 env:
   PIP_DISABLE_PIP_VERSION_CHECK: '0'
-  PYTHONDONTWRITEBYTECODE: '2'
+  PYTHONDONTWRITEBYTECODE: '0'
 
 jobs:
   conformance:
