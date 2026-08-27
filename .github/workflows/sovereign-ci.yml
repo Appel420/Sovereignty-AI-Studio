@@ -1,0 +1,270 @@
+name: Sovereign CI
+
+on:
+  push:
+    branches: [main, Collaboration, GPT/Codex]
+  pull_request:
+    branches: [main, Collaboration, GPT/Codex]
+  workflow_dispatch:
+
+# Canonical CI intentionally uses no third-party GitHub Actions.
+# Repository checkout is performed with git over HTTPS using GITHUB_TOKEN.
+# Runtime services must use TLS (HTTPS/WSS); CI itself does not expose a service.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "1"
+
+jobs:
+  python:
+    name: Python validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - name: Checkout over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf ./* ./.??* 2>/dev/null || true
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Verify execution boundary
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_SERVER_URL}" = "https://github.com"
+          test "${GITHUB_REPOSITORY_OWNER}" = "Appel420"
+          echo "Repository: ${GITHUB_REPOSITORY}"
+          echo "Commit: ${GITHUB_SHA}"
+          echo "Transport: HTTPS"
+
+      - name: Select Python
+        run: |
+          set -Eeuo pipefail
+          command -v python${{ matrix.python }} || true
+          python --version
+          python -m pip --version
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then python -m pip install -e .; fi
+          python -m pip install pytest
+
+      - name: Compile Python
+        run: python -m compileall -q backend src apps prototypes 2>/dev/null || python -m compileall -q .
+
+      - name: Run tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -d tests ]]; then
+            python -m pytest -q
+          else
+            echo "No tests/ directory; compile validation completed."
+          fi
+
+  node:
+    name: Node validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf ./* ./.??* 2>/dev/null || true
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Verify Node toolchain
+        run: |
+          set -Eeuo pipefail
+          node --version
+          npm --version
+
+      - name: Install Node dependencies
+        if: hashFiles('package-lock.json') != ''
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Validate package scripts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f package.json ]]; then
+            node -e 'const p=require("./package.json"); console.log(JSON.stringify(p.scripts||{}, null, 2))'
+            if npm run | grep -qE '^  check$'; then npm run check; fi
+          else
+            echo "No package.json; Node validation not required."
+          fi
+
+      - name: Syntax-check bridge
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
+
+  quart:
+    name: Quart validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: python
+    steps:
+      - name: Checkout over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf ./* ./.??* 2>/dev/null || true
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Install Quart dependencies when declared
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then python -m pip install -e .; fi
+          python -m pip install quart hypercorn
+
+      - name: Validate Quart imports
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          import importlib.util
+          for name in ("quart", "hypercorn"):
+              assert importlib.util.find_spec(name), name
+          print("Quart toolchain OK")
+          PY
+
+      - name: Run Python tests
+        run: |
+          if [[ -d tests ]]; then python -m pytest -q; else echo "No tests/ directory."; fi
+
+  oauth:
+    name: OAuth generator validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: python
+    steps:
+      - name: Checkout over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf ./* ./.??* 2>/dev/null || true
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Validate OAuth generator entrypoints
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          found=0
+          while IFS= read -r -d '' f; do
+            found=1
+            python -m py_compile "${f}"
+          done < <(find . -type f -iname '*oauth*' -name '*.py' -print0)
+          if [[ "${found}" -eq 0 ]]; then
+            echo "No OAuth Python entrypoint found; repository-wide compile gate remains authoritative."
+          fi
+
+  ios:
+    name: iOS sovereign source validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout over HTTPS
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf ./* ./.??* 2>/dev/null || true
+          git init
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Validate iOS source presence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          swift_files=$(find . -type f -name '*.swift' | wc -l | tr -d ' ')
+          xcode_projects=$(find . -type d \( -name '*.xcodeproj' -o -name '*.xcworkspace' \) | wc -l | tr -d ' ')
+          echo "Swift files: ${swift_files}"
+          echo "Xcode projects/workspaces: ${xcode_projects}"
+          if [[ "${swift_files}" -eq 0 && "${xcode_projects}" -eq 0 ]]; then
+            echo "No native iOS source in this repository; source validation is a no-op."
+          fi
+
+      - name: Reject insecure production transport literals
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          violations=0
+          while IFS= read -r -d '' f; do
+            case "${f}" in
+              ./.git/*|./.github/*|./docs/*|./tests/*|./test/*) continue ;;
+            esac
+            if grep -nE '(^|[^[:alnum:]_])(http://|ws://)' "${f}" >/dev/null 2>&1; then
+              echo "Potential insecure transport literal: ${f}"
+              grep -nE '(^|[^[:alnum:]_])(http://|ws://)' "${f}" || true
+              violations=1
+            fi
+          done < <(find . -type f \( -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.swift' -o -name '*.m' -o -name '*.mm' -o -name '*.plist' \) -print0)
+          if [[ "${violations}" -ne 0 ]]; then
+            echo "Production source must use HTTPS/WSS transport."
+            exit 1
+          fi
+
+  canonical:
+    name: Canonical green gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [python, node, quart, oauth, ios]
+    steps:
+      - name: Require all lanes green
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          results=("${{ needs.python.result }}" "${{ needs.node.result }}" "${{ needs.quart.result }}" "${{ needs.oauth.result }}" "${{ needs.ios.result }}")
+          for result in "${results[@]}"; do
+            if [[ "${result}" != "success" ]]; then
+              echo "CI lane failed or was skipped: ${result}"
+              exit 1
+            fi
+          done
+          echo "CANONICAL_CI=GREEN"
