@@ -23,7 +23,7 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible)
-    runs-on: macos-latest-xlarge
+    runs-on: self-hosted macos-latest-xlarge
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
@@ -33,8 +33,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git -c init.defaultBranch=main remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git -c init.defaultBranch=main remote add origin "https://Github.com/Appel420/Sovereignty-AI-Studio.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Startup (always visible to owner)
@@ -62,7 +62,7 @@ jobs:
               "build_ref": os.environ["GITHUB_SHA"],
               "platform": "iOS",
               "execution": "github-hosted-validation",
-              "native_xcode_compile": False,
+              "native_xcode_compile": true,
           }
 
           with open("ios-build-manifest.json", "w", encoding="utf-8") as fh:
