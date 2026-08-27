@@ -1,0 +1,46 @@
+name: Lint Autofix Recovery
+
+on:
+  push:
+    branches:
+      - gpt-codex/ci-recovery
+
+permissions:
+  contents: write
+
+jobs:
+  ruff-safe-autofix:
+    name: Ruff Safe Autofix
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact commit without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Apply Ruff safe fixes only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ruff check . --fix
+      - name: Commit safe fixes back to recovery branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if git diff --quiet; then
+            echo "No Ruff safe fixes were required."
+            exit 0
+          fi
+          git add -A
+          git commit -m "fix: apply Ruff safe autofixes"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' push origin HEAD:gpt-codex/ci-recovery
