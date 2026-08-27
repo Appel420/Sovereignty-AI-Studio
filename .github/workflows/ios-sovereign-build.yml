@@ -1,7 +1,5 @@
 name: iOS Sovereign Build (local-first)
 
-# Device-independent validation. Native Xcode compilation remains a separate
-# macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
     branches: [main, Collaboration, GPT/Codex]
@@ -9,82 +7,58 @@ on:
     branches: [main, Collaboration, GPT/Codex]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   PYTHONPATH: .:./backend
 
-permissions:
-  contents: read
-  actions: read
-
 concurrency:
-  group: ios-sovereign-${{ github.workflow }}-${{ github.ref }}
+  group: ios-sovereign-${{ github.ref }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
 jobs:
-  runner-preflight:
-    name: Sovereign Runner Preflight
-    runs-on: [ubuntu-latest]
-    timeout-minutes: 5
-    outputs:
-      available: ${{ steps.check.outputs.available }}
+  swift-validation:
+    name: Sovereign iOS Swift Validation
+    runs-on: macos-latest
+    timeout-minutes: 20
     steps:
-      - name: Check workflow controller
-        id: check
-        shell: bash
+      - name: Checkout repository without third-party Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -Eeuo pipefail
-          echo "CI controller: GitHub Actions"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
-          echo "Commit: ${GITHUB_SHA}"
-          echo "Connected scheduler: available"
-          echo "available=true" >> "${GITHUB_OUTPUT}"
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
 
-  lightweight-security:
-    name: Sovereign Linux ARM64 Validation
-    needs: runner-preflight
-    if: needs.runner-preflight.outputs.available == 'true'
-    runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 15
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-
-      - name: Verify sovereign runner
-        shell: bash
+      - name: Verify Swift toolchain
         run: |
-          set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-          echo "Execution mode: self-hosted-linux-arm64-validation"
-          echo "Commit: ${GITHUB_SHA}"
-          echo "Runner: ${RUNNER_NAME}"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
+          swift --version
+          xcodebuild -version
 
-      - name: Validate source and generate manifest
+      - name: Build Swift package
+        working-directory: ios
+        run: swift build
+
+      - name: Run Swift tests
+        working-directory: ios
+        run: swift test
+
+      - name: Generate validation manifest
         run: |
-          set -Eeuo pipefail
-          python -m compileall -q backend
           python3 - <<'PY'
-          import json
-          import os
-          import time
-
+          import json, os, time
           payload = {
               'node_id': 'ios-build-' + os.environ['GITHUB_RUN_ID'],
               'timestamp': int(time.time()),
               'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
-              'execution': 'self-hosted-linux-arm64-validation',
+              'execution': 'macos-swift-package-validation',
               'native_xcode_compile': False,
               'runner_name': os.environ.get('RUNNER_NAME'),
               'runner_os': os.environ.get('RUNNER_OS'),
@@ -93,10 +67,3 @@ jobs:
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2)
           PY
-
-      - name: Upload validation manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-sovereign-build-artifacts-${{ github.run_id }}
-          path: ios-build-manifest.json
-          if-no-files-found: error
