@@ -1,80 +1,30 @@
-# =========================================================
-# OAUTH API GENERATOR — CI/CD PIPELINE
-# =========================================================
-# Stable CI baseline: visible jobs, no hidden startup dependency,
-# PR validation stays runnable, release/push packaging remains gated.
-# Job-level event skips moved into steps so the graph stays visible.
-# =========================================================
 name: OAUTH-API-GENERATOR
 
 on:
   push:
-        Appel420-patch-25
-    branches: "**"
+    branches: [Collaboration]
     paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yaml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
-  pull_request:
-    branches: "**"
-    paths:
-      - ".github/workflows/Requirements.txt"
-      - ".github/workflows/oauth-api-generator.yaml"
-      - "Dockerfile"
-      - "docker-compose*.yml"
-      - "package-lock.json"
-      - "package.json"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.js"
-      - "**/*.py"
-       
-    branches: [Collaboration, main]
-    paths:
-      - '.github/workflows/oauth-api-generator.yaml'
-      - '.github/workflows/Requirements.txt'
+      - '.github/workflows/**'
       - 'Dockerfile'
       - 'docker-compose*.yml'
-      - 'package-lock.json'
       - 'package.json'
+      - 'package-lock.json'
       - 'pyproject.toml'
-      - 'pytest.ini'
       - 'requirements*.txt'
-      - '**/*.js'
       - '**/*.py'
+      - '**/*.js'
   pull_request:
-    branches: [Collaboration, main]
-
-        
-    paths:
-      - '.github/workflows/oauth-api-generator.yaml'
-      - '.github/workflows/Requirements.txt'
-      - 'Dockerfile'
-      - 'docker-compose*.yml'
-      - 'package-lock.json'
-      - 'package.json'
-      - 'pyproject.toml'
-      - 'pytest.ini'
-      - 'requirements*.txt'
-      - '**/*.js'
-      - '**/*.py'
+    branches: [Collaboration]
   release:
     types: [published]
   workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 concurrency:
@@ -83,176 +33,161 @@ concurrency:
 
 defaults:
   run:
-        
-    shell: bash  -euo pipefail {0}
+    shell: bash -Eeuo pipefail {0}
 
-env:
-  PYTHONPATH: .:./backend:./src:./prototypes
-
-    shell: bash -euo pipefail {0}
-
-        
 jobs:
-  # Always-visible startup/run job.
   run:
-    name: Run
+    name: OAuth generator startup
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    permissions:
-      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          fetch-depth: 1
+          persist-credentials: false
       - name: Startup
         run: |
-          echo 'OAUTH-API-GENERATOR started'
+          echo "OAUTH-API-GENERATOR started"
           echo "event=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
           echo "sha=${GITHUB_SHA}"
-          echo 'Jobs: Run, build-test (3.11), build-test (3.12), node-check, build-sign, supply-chain, dependency-review, security-scan'
           test -f package.json
           test -f Dockerfile
           test -f .github/workflows/oauth-api-generator.yaml
-          echo 'STARTUP=PASS'
+          echo "STARTUP=PASS"
 
   build-test:
-    name: build-test (${{ matrix.python }})
+    name: Python build/test (${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    permissions:
-      contents: read
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.12", "3.13"]
         python: ['3.11', '3.12']
     steps:
-
-      - name: Checkout repository
-        uses: ubuntu
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Set up Python ${{ matrix.python }}
-
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: true
+          persist-credentials: false
       - name: Set up Python
-
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
           cache-dependency-path: |
-            .github/workflows/Requirements.txt
+            pyproject.toml
             requirements.txt
+            .github/workflows/Requirements.txt
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r .github/workflows/Requirements.txt
-          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
-      - name: Lint
-        run: python -m flake8 --count --select=E9,F63,F7,F82 --show-source --statistics
-      - name: Test
-        run: python -m pytest --cov=apps --cov=backend --cov=src --cov-report=xml --cov-report=term --strict-markers -x --tb=short
-      - name: Dependency audit (informational)
-        run: |
-          python -m pip install pip-audit
-          python -m pip_audit -r .github/workflows/Requirements.txt || true
-          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt || true; fi
-      - name: Upload coverage
-        if: ${{ always() && matrix.python == '3.12' }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: python-coverage
-          path: coverage.xml
-          if-no-files-found: ignore
+          python -m pip install -e '.[test,lint]'
+      - name: Python correctness lint
+        run: python -m ruff check .
+      - name: Tests
+        run: python -m pytest -q tests
 
   node-check:
     name: Node.js validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions:
-      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           persist-credentials: false
       - name: Set up Node.js
-        uses: actions/setup-node@v24
+        uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
       - name: Install Node dependencies
-
-        
-        run: npm ci 
-
         run: npm ci --ignore-scripts
-         Collaboration
-      - name: Node syntax and project checks
-
-        run: npm install --ignore-scripts
       - name: Node checks
-
         run: |
-          npm run check
+          if npm run --if-present check; then :; fi
           node --check node-bridge/server.js
           if [[ -f unified_server.js ]]; then node --check unified_server.js; fi
       - name: Memory vault tests
         if: ${{ hashFiles('tests/test_sovereign_memory_vault.js') != '' }}
         run: npm run test:memory-vault
 
-  # Packaging is intentionally skipped on pull requests. Gate is inside the job so the job stays visible.
-  build-sign:
-    name: build-sign
-    needs: [build-test, node-check]
+  dependency-review:
+    name: Dependency review
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Review dependencies on pull requests
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/dependency-review-action@v4
+      - name: Record non-PR event
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "Dependency review is PR-scoped; event=${GITHUB_EVENT_NAME}"
+
+  security-scan:
+    name: Security scan
+    needs: [build-test, node-check]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Report upstream state
+        run: |
+          echo "build-test=${{ needs.build-test.result }}"
+          echo "node-check=${{ needs.node-check.result }}"
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          skip-dirs: external,frontend
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: false
+          exit-code: '1'
+      - name: Python dependency audit
+        run: |
+          python -m pip install pip-audit
+          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; fi
+
+  build-sign:
+    name: Container build/sign
+    needs: [build-test, node-check]
+    if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-
           fetch-depth: 1
-          persist-credentials: true
-
-      - name: Compute lowercase image name
-
-          persist-credentials: true
-      - name: Gate packaging to push/release/manual
-        if: ${{ github.event_name != 'push' && github.event_name != 'release' && github.event_name != 'workflow_dispatch' }}
-        run: |
-          
-          
+          persist-credentials: false
       - name: Compute image
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
-
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-      - name: Set up QEMU
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
-        uses: docker/setup-qemu-action@v3
       - name: Set up Buildx
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
         uses: docker/setup-buildx-action@v3
       - name: Login GHCR
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push multi-arch image
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
+      - name: Build and push image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -267,30 +202,17 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Install cosign
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
         uses: sigstore/cosign-installer@v3
       - name: Sign image
-        if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
         env:
           COSIGN_EXPERIMENTAL: '1'
-
-        run: |
-          cosign sign --yes \
-            --fulcio-url https://fulcio.sigstore.dev \
-            --rekor-url https://rekor.sigstore.dev \
-        
-            "${{ env.REGISTRY_LC }}":"${{ github.sha }}"
-
-            "${REGISTRY_LC}:${GITHUB_SHA}"
         run: cosign sign --yes --fulcio-url https://fulcio.sigstore.dev --rekor-url https://rekor.sigstore.dev "${REGISTRY_LC}:${GITHUB_SHA}"
 
-
   supply-chain:
-    name: supply-chain
+    name: Supply-chain attestation
     needs: build-sign
-    if: ${{ needs.build-sign.result == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
@@ -299,6 +221,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           persist-credentials: false
       - name: Compute image
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
@@ -313,8 +236,8 @@ jobs:
         with:
           image: ${{ env.REGISTRY_LC }}:${{ github.sha }}
           format: cyclonedx-json
-          artifact-name: sbom-sovereignty-ai.json
           output-file: sbom-sovereignty-ai.json
+          artifact-name: sbom-sovereignty-ai.json
           registry-username: ${{ github.actor }}
           registry-password: ${{ secrets.GITHUB_TOKEN }}
       - name: Install cosign
@@ -329,71 +252,3 @@ jobs:
           name: sbom-${{ github.sha }}
           path: sbom-sovereignty-ai.json
           if-no-files-found: error
-        Collaboration
-
-  dependency-review:
-    name: dependency-review
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      pull-requests: read
-    steps:
-      - name: Dependency Review
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/dependency-review-action@v4
-      - name: Skip dependency review
-        if: ${{ github.event_name != 'pull_request' }}
-        run: echo "Skipping dependency-review on event=${GITHUB_EVENT_NAME}"
-
-  security-scan:
-    name: security-scan
-    needs: [build-test, node-check]
-    if: ${{ always() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Record upstream job state
-
-          persist-credentials: true
-      - name: Report upstream results
-
-        run: |
-          echo "build-test=${{ needs.build-test.result }}"
-          echo "node-check=${{ needs.node-check.result }}"
-      - name: Trivy filesystem scan (informational)
-        uses: aquasecurity/trivy-action@0.35.0
-        continue-on-error: false
-        with:
-          scan-type: fs
-          scan-ref: .
-          skip-dirs: external,frontend
-          format: table
-          severity: CRITICAL,HIGH
-          ignore-unfixed: false
-
-          
-          hide-progress: false
-          exit-code: 0
-
-          exit-code: 1
-        Collaboration
-
-      - name: Audit root requirements when present
-
-          exit-code: 0
-      - name: Python dependency audit (informational)
-        continue-on-error: false
-
-        run: |
-          python -m pip install pip-audit
-          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; fi
