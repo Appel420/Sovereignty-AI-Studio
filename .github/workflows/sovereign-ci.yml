@@ -25,7 +25,7 @@ env:
 
 jobs:
   python:
-    name: Python validation
+    name: Python validation (${{ matrix.python }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -55,31 +55,39 @@ jobs:
           echo "Commit: ${GITHUB_SHA}"
           echo "Transport: HTTPS"
 
-      - name: Select Python
+      - name: Select Python ${{ matrix.python }}
+        shell: bash
         run: |
           set -Eeuo pipefail
-          command -v python${{ matrix.python }} || true
-          python --version
-          python -m pip --version
+          PYTHON_BIN="python${{ matrix.python }}"
+          command -v "${PYTHON_BIN}"
+          "${PYTHON_BIN}" --version
+          "${PYTHON_BIN}" -m pip --version
 
       - name: Install test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
-          if [[ -f pyproject.toml ]]; then python -m pip install -e .; fi
-          python -m pip install pytest
+          PYTHON_BIN="python${{ matrix.python }}"
+          "${PYTHON_BIN}" -m pip install --upgrade pip
+          if [[ -f requirements.txt ]]; then "${PYTHON_BIN}" -m pip install -r requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then "${PYTHON_BIN}" -m pip install -e .; fi
+          "${PYTHON_BIN}" -m pip install pytest
 
       - name: Compile Python
-        run: python -m compileall -q backend src apps prototypes 2>/dev/null || python -m compileall -q .
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          PYTHON_BIN="python${{ matrix.python }}"
+          "${PYTHON_BIN}" -m compileall -q backend src apps prototypes 2>/dev/null || "${PYTHON_BIN}" -m compileall -q .
 
       - name: Run tests
         shell: bash
         run: |
           set -Eeuo pipefail
+          PYTHON_BIN="python${{ matrix.python }}"
           if [[ -d tests ]]; then
-            python -m pytest -q
+            "${PYTHON_BIN}" -m pytest -q
           else
             echo "No tests/ directory; compile validation completed."
           fi
