@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: "Collaboration"
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: "Collaboration"
 
 permissions:
   contents: read
@@ -16,7 +16,7 @@ concurrency:
 
 env:
   PYTHONDONTWRITEBYTECODE: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '0'
 
 jobs:
   test:
@@ -31,9 +31,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git config --local advice.detachedHead "false"
+          git remote add origin "https://github.com/Appel420/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Verify Python runtime
         run: python --version
@@ -42,9 +42,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check 'PyNaCl==1.5.0' pytest
-          if [[ -f requirements.txt ]]; then python -m pip install --disable-pip-version-check -r requirements.txt; fi
-          if [[ -f pyproject.toml ]]; then python -m pip install --disable-pip-version-check -e '.[test]' || python -m pip install --disable-pip-version-check -e .; fi
+          python -m pip install --pip-version-check 'PyNaCl==1.5.0' pytest
+          if [[ -f requirements.txt ]]; then python -m pip install --pip-version-check -r requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then python -m pip install --pip-version-check -e '.[test]' || python -m pip install --pip-version-check -e .; fi
           python - <<'PY'
           import nacl
           from nacl.signing import SigningKey
