@@ -1,15 +1,16 @@
 /*
- * Single local transport boundary for SGHV119 and related local UI surfaces.
- * External network access is never implied by a transport URL.
+ * Single sovereign transport boundary.
+ * Production transport is TLS-only: HTTPS for HTTP APIs and WSS for sockets.
+ * Plain HTTP/WS is rejected rather than silently downgraded.
  */
 (function (global) {
   'use strict';
 
   var DEFAULTS = {
     mode: 'offline',
-    httpOrigin: 'http://127.0.0.1:9897',
-    nodeOrigin: 'http://127.0.0.1:9899',
-    wsOrigin: 'ws://127.0.0.1:9899'
+    httpOrigin: 'https://127.0.0.1:9897',
+    nodeOrigin: 'https://127.0.0.1:9899',
+    wsOrigin: 'wss://127.0.0.1:9899'
   };
 
   function mode(value) {
@@ -21,13 +22,17 @@
   function config(overrides) {
     var input = overrides || {};
     var selected = mode(input.mode || DEFAULTS.mode);
-    return {
+    var result = {
       mode: selected,
       localOnly: selected === 'local' || selected === 'offline',
       httpOrigin: input.httpOrigin || DEFAULTS.httpOrigin,
       nodeOrigin: input.nodeOrigin || DEFAULTS.nodeOrigin,
       wsOrigin: input.wsOrigin || DEFAULTS.wsOrigin
     };
+    assertSecureTransport(result.httpOrigin, 'HTTPS');
+    assertSecureTransport(result.nodeOrigin, 'HTTPS');
+    assertSecureTransport(result.wsOrigin, 'WSS');
+    return result;
   }
 
   function isLoopback(url) {
@@ -37,6 +42,16 @@
     } catch (error) {
       return false;
     }
+  }
+
+  function assertSecureTransport(url, expected) {
+    var parsed = new URL(url);
+    var protocol = parsed.protocol.toLowerCase();
+    var required = expected === 'WSS' ? 'wss:' : 'https:';
+    if (protocol !== required) {
+      throw new Error('Insecure transport rejected: expected ' + expected + ', got ' + protocol);
+    }
+    return true;
   }
 
   function assertAllowed(url, runtime) {
@@ -52,6 +67,7 @@
     var suffix = String(path || '');
     if (suffix.charAt(0) !== '/') suffix = '/' + suffix;
     var url = current.httpOrigin + suffix;
+    assertSecureTransport(url, 'HTTPS');
     assertAllowed(url, current);
     return url;
   }
@@ -61,6 +77,7 @@
     var suffix = String(path || '');
     if (suffix.charAt(0) !== '/') suffix = '/' + suffix;
     var url = current.nodeOrigin + suffix;
+    assertSecureTransport(url, 'HTTPS');
     assertAllowed(url, current);
     return url;
   }
@@ -70,7 +87,8 @@
     var suffix = String(path || '');
     if (suffix.charAt(0) !== '/') suffix = '/' + suffix;
     var url = current.wsOrigin + suffix;
-    assertAllowed(url.replace(/^ws(s?):/, 'http$1:'), current);
+    assertSecureTransport(url, 'WSS');
+    assertAllowed(url.replace(/^wss:/, 'https:'), current);
     return url;
   }
 
@@ -79,7 +97,7 @@
     return {
       mode: current.mode,
       network: current.localOnly ? 'loopback-only' : 'policy-gated',
-      transport: current.wsOrigin.indexOf('wss://') === 0 ? 'HTTPS/WSS' : 'HTTP/WS',
+      transport: 'HTTPS/WSS',
       status: 'not_checked'
     };
   }
@@ -88,6 +106,7 @@
     defaults: DEFAULTS,
     config: config,
     isLoopback: isLoopback,
+    assertSecureTransport: assertSecureTransport,
     assertAllowed: assertAllowed,
     endpoint: endpoint,
     nodeEndpoint: nodeEndpoint,
