@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: "Collaboration"
+    branches: ["Collaboration"]
   pull_request:
-    branches: "Collaboration"
+    branches: ["Collaboration"]
 
 permissions:
   contents: read
@@ -16,7 +16,7 @@ concurrency:
 
 env:
   PYTHONDONTWRITEBYTECODE: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '0'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   test:
@@ -32,7 +32,7 @@ jobs:
           set -Eeuo pipefail
           git init .
           git config --local advice.detachedHead "false"
-          git remote add origin "https://github.com/Appel420/${GITHUB_REPOSITORY}.git"
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --hashfile --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Verify Python runtime
