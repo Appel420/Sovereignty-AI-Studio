@@ -20,22 +20,22 @@ from pydantic import BaseModel, Field
 from fixers.config_fixer import ConfigFixer
 
 try:
-    import oqs  # type: ignore
-except ImportError:  # pragma: no cover - optional dependency
+    import oqs  
+except ImportError:  
     oqs = None
 
 try:
     from core.security.tpm_attestation import TPMAttester
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:  
 
-    class TPMAttester:  # type: ignore[override]
+    class TPMAttester: 
         def attest(self):
             return type("AttestationResult", (), {"verified": False, "details": {"status": "not_available"}})()
 
 
 try:
     from sovereign_vault import SovereignVault
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:  
 
     class SovereignVault:
         def log_event(self, event: str, data: dict[str, Any]) -> None:
@@ -44,7 +44,7 @@ except ImportError:  # pragma: no cover - optional dependency
 
 try:
     from scar_log import ScarLog
-except ImportError:  # pragma: no cover - optional dependency
+except ImportError:  
 
     class ScarLog:
         def __init__(self, path: Path):
@@ -142,7 +142,7 @@ def _tpm_verified(quote: Optional[dict[str, Any]], nonce: str) -> bool:
         return True
     try:
         return bool(TPMAttester().attest().verified)
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:  
         log.warning("TPM attestation failed: %s", exc)
         return False
 
@@ -198,7 +198,7 @@ async def verify_attestation(token: AttestationToken):
         )
     except HTTPException:
         raise
-    except Exception as exc:  # pragma: no cover - defensive
+    except Exception as exc:  
         _log_attestation("attestation_error", None, {"error": str(exc)})
         return AttestationResponse(valid=False, reason=str(exc))
 
