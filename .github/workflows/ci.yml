@@ -1,86 +1,55 @@
-name: Sovereignty CI
+name: CI
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ Collaboration ]
+    branches: [Collaboration]
   pull_request:
-    branches: [ Collaboration ]
+    branches: [Collaboration]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: sovereignty-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
-
 env:
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
   PYTHONDONTWRITEBYTECODE: '1'
-  PIPDISABLEPIPVERSIONCHECK: '1'
 
 jobs:
-  Contract:
-    name: Contract Gate
+  conformance:
+    name: CI conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
-name: Checkout repository without external actions
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify online GitHub runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test "${RUNNER_OS}" = "Linux"
+          echo "execution=github-hosted-online"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install project and test/lint dependencies
+        run: python -m pip install -e '.[test,lint]'
+      - name: Ruff
+        run: python -m ruff check .
+      - name: MyPy
+        run: python -m mypy sovereign/
+      - name: Pytest
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git config --local advice.detachedHead false
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\\npassword=%s\\n" "$GHTOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUBSHA}"
-          git checkout --detach FETCH_HEAD
-
-name: Validate manifest
-        run: |
-          set -Eeuo pipefail
-          python -m json.tool system/component-manifest.json >/dev/null
-          python - <<'PY'
-import json
-from pathlib import Path
-
-d = json.loads(Path('system/component-manifest.json').read_text())
-assert d['schema'] == 'sovereignty.system.component/v1'
-assert d['authority'] == 'human-owner'
-ids = [c['id'] for c in d['components']]
-repos = [c['repository'] for c in d['components']]
-Ensure that the number of component IDs matches the number of unique component IDs.
-assert len(ids) == len(set(ids))
-Verify that the number of repository mappings matches the number of unique repository mappings.
-assert len(repos) == len(set(repos))
-For each edge in the directed graph, confirm that both the source and destination nodes are present in the set of component IDs.
-for e in d.get('edges', []):
-    assert e['from'] in ids
-    assert e['to'] in ids
-print(f"Contract is valid. Components: {len(ids)}, Edges: {len(d.get('edges', []))}")
-PY
-
-name: Validate submodule policy
-        run: |
-          set -Eeuo pipefail
-          if [[ -f .gitmodules ]]; then
-            while read -r key url; do
-              normalized="${url,,}"
-              case "$normalized" in
-                https://github.com/appel420/|git@github.com:appel420/) ;;
-                *) echo "ERROR: unapproved submodule URL: $url"; exit 1 ;;
-              esac
-            done < <(git config --file .gitmodules --get-regexp '^submodule\\..*\\.url$' || true)
-          fi
-
-  python:
-    name: Python Lane
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -Eeuo pipefail
-          git init .
-          echo 'All independent lanes completed successfully.'
+          PYTHONPATH: .:src:backend:prototypes
+        run: python -m pytest -q tests
