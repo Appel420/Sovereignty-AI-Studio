@@ -1,57 +1,60 @@
-name: Quart App CI
+name: Quart Sovereign Build
 
 on:
-  workflow_dispatch:
   push:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [Collaboration, main, GPT/Codex]
   pull_request:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [Collaboration, main, GPT/Codex]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: quart-${{ github.workflow }}-${{ github.ref }}
+  group: quart-${{ github.ref }}
   cancel-in-progress: false
 
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
 jobs:
-  build-linux:
+  quart:
     name: Quart CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
-      - name: Install dependencies
-        shell: bash
+      - name: Checkout repository without third-party Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          if [[ -f .github/workflows/Requirements.txt ]]; then python -m pip install -r .github/workflows/Requirements.txt; fi
-          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test]'; fi
-          python -m pip install pytest hypercorn
-      - name: Test with pytest
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          if [[ -f .github/workflows/Requirements.txt ]]; then python3 -m pip install -r .github/workflows/Requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then python3 -m pip install -e '.[test]' || python3 -m pip install -e .; fi
+          python3 -m pip install pytest hypercorn
+          python3 -m pip check
+
+      - name: Run pytest
         env:
           PYTHONPATH: .:./backend:./src:./prototypes
-        run: python -m pytest -q
+        run: python3 -m pytest -q
+
       - name: Quart smoke test
-        shell: bash
         run: |
-          set -Eeuo pipefail
           if [[ -f weather_dashboard.py ]]; then
             hypercorn weather_dashboard:app --bind 127.0.0.1:8001 &
             APP_PID=$!
             trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
             sleep 5
             kill -0 "$APP_PID"
-            curl -f 'http://127.0.0.1:8001/api/weather?city=London'
+            curl --fail --silent --show-error 'http://127.0.0.1:8001/api/weather?city=London'
           else
-            echo 'weather_dashboard.py not present; skipping Quart smoke test'
+            echo 'weather_dashboard.py not present; Quart application smoke test not applicable'
           fi
