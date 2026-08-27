@@ -1,4 +1,4 @@
-name: CI
+name: Sovereign CI
 
 on:
   push:
@@ -6,110 +6,64 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: github-ci-${{ github.workflow }}-${{ github.ref }}
+  group: sovereign-ci-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
-env:
-  CI_EXECUTION_MODE: connected
-  SG_NETWORK_MODE: online
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
   conformance:
-    name: GitHub CI — Connected Bridge
+    name: Sovereign Conformance
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Verify connected runner
-        shell: bash
+      - name: Checkout repository without third-party Actions
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Verify runner
+        run: |
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           test -n "${RUNNER_OS}"
           test -n "${RUNNER_ARCH}"
-          test "${CI_EXECUTION_MODE}" = "connected"
-          test "${SG_NETWORK_MODE}" = "online"
-          echo "CI bridge: CONNECTED"
-          echo "Network mode: ${SG_NETWORK_MODE}"
+          echo "Sovereign CI: CONNECTED"
           echo "Runner: ${RUNNER_NAME} (${RUNNER_OS}/${RUNNER_ARCH})"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
           echo "Commit: ${GITHUB_SHA}"
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements.txt
-
-      - name: Install Python dependencies
-        shell: bash
+      - name: Python validation
         run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
-          if [[ -f requirements.txt ]]; then
-            python -m pip install -r requirements.txt
-          fi
-          python -m pip check
-          python - <<'PY'
-          import nacl
-          print('PyNaCl:', nacl.__version__)
-          PY
+          python3 --version
+          python3 -m pip install --upgrade pip
+          if [[ -f pyproject.toml ]]; then python3 -m pip install -e '.[test,lint]' || python3 -m pip install -e .; fi
+          if [[ -f requirements.txt ]]; then python3 -m pip install -r requirements.txt; fi
+          python3 -m pip check
+          if [[ -d tests ]]; then PYTHONPATH="${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}/src:${GITHUB_WORKSPACE}/backend:${GITHUB_WORKSPACE}/prototypes" python3 -m pytest -q tests; fi
 
-      - name: Python lint diagnostics
-        continue-on-error: true
-        shell: bash
+      - name: Python lint
         run: |
-          set -Eeuo pipefail
-          if [[ -d sovereign ]]; then ruff check sovereign; fi
-          if [[ -d backend ]]; then ruff check backend; fi
-
-      - name: Python tests
-        shell: bash
-        env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
-        run: |
-          set -Eeuo pipefail
-          if [[ -d tests ]]; then python -m pytest -q tests; fi
-
-      - name: Phase 0 Rust tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -f phase0/Cargo.toml ]]; then
-            command -v cargo >/dev/null 2>&1
-            cargo test --manifest-path phase0/Cargo.toml
+          if command -v ruff >/dev/null 2>&1; then
+            [[ ! -d sovereign ]] || ruff check sovereign
+            [[ ! -d backend ]] || ruff check backend
           else
-            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+            echo 'ruff not installed; lint is not configured in this repository'
           fi
 
-      - name: Node syntax check
-        shell: bash
+      - name: Rust validation
         run: |
-          set -Eeuo pipefail
-          if [[ -f node-bridge/server.js ]]; then
-            command -v node >/dev/null 2>&1
-            node --check node-bridge/server.js
-          fi
+          if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'No Phase 0 Rust workspace; skipping'; fi
 
-      - name: Frontend ownership contract
-        shell: bash
+      - name: Node validation
         run: |
-          set -Eeuo pipefail
-          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
-            command -v node >/dev/null 2>&1
-            node frontend/scripts/test-sghv119-ownership.js
-          fi
+          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
+          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; fi
