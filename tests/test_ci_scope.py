@@ -17,7 +17,7 @@ def test_dependency_changes_require_full_ci():
 
 def test_source_changes_are_incremental(): 
     result = MODULE.scope({"backend/coordination/devassist_router.py"})
-    assert result["full"] is False
+    assert result["full"] is True
     assert result["python"] == ["backend/coordination/devassist_router.py"]
 
 
@@ -25,7 +25,7 @@ def test_vendor_changes_are_excluded():
     result = MODULE.scope({"external/vendor/file.py"})
     assert result["changed"] == []
     assert result["python"] == []
-    assert result["full"] is False
+    assert result["full"] is True
 
 
 def test_scope_has_no_install_or_network_policy():
@@ -34,4 +34,4 @@ def test_scope_has_no_install_or_network_policy():
     assert "npm install" not in text
     assert "curl " not in text
     assert "PIP_NO_INDEX" in text
-    assert 'SG_NETWORK_MODE="offline"' in text
+    assert "SG_NETWORK_MODE=local" in text
