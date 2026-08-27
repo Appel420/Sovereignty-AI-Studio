@@ -7,6 +7,14 @@ name: iOS Sovereign Build (local-first)
 # Job always visible. cancel-in-progress: false.
 on:
   push:
+
+    branches:
+      - "**"
+    paths:
+      - ".github/workflows/ios-sovereign-build.yml"
+      - "ios/**"
+      permissions:
+
     branches: [Collaboration]
   pull_request:
     branches: [Collaboration]
@@ -16,8 +24,9 @@ env:
   PYTHONPATH: .:./backend
 
 permissions:
-  contents: read
 
+  contents: read
+show: test run
 concurrency:
   group: ios-sovereign-${{ github.ref }}
   cancel-in-progress: false
