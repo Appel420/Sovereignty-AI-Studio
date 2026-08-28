@@ -49,7 +49,7 @@ jobs:
           git init .
           git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN\n"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Verify required project structure
         run: |
@@ -153,12 +153,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          markers = (
-              'BEGIN OPENSSH PRIVATE KEY',
-              'BEGIN RSA PRIVATE KEY',
-              'BEGIN EC PRIVATE KEY',
-              'BEGIN PRIVATE KEY',
-          )
+          markers = ('BEGIN OPENSSH PRIVATE KEY','BEGIN RSA PRIVATE KEY','BEGIN EC PRIVATE KEY','BEGIN PRIVATE KEY')
           hits = []
           for p in Path('.').rglob('*'):
               if not p.is_file() or '.git' in p.parts or 'node_modules' in p.parts:
