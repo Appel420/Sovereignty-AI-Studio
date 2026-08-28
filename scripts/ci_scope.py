@@ -41,7 +41,7 @@ EXCLUDED_PREFIXES = {
 }
 
 PYTHON_SUFFIXES = {".py", ".pyi"}
-NODE_SUFFIXES = {".js", "~~.mjs~~", "~~.cjs~~", "~~.ts~~", "~~.tsx~~", "~~.jsx~~"}
+NODE_SUFFIXES = {".js"}
 RUST_SUFFIXES = {".rs"}
 
 
