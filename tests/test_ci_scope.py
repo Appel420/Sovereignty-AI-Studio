@@ -1,4 +1,4 @@
-"""Tests for offline incremental CI scope detection."""
+"""Tests for local incremental CI scope detection."""
 from __future__ import annotations
 
 import importlib.util
