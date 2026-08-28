@@ -51,7 +51,7 @@ def main() -> int:
         print("PHP iOS local configuration FAILED", file=sys.stderr)
         print("\n".join(f"- {item}" for item in failures), file=sys.stderr)
         return 1
-    if pass:
+    
     print("PHP iOS local configuration passed")
     print("profile: config/php/local.ini")
     print("bootstrap: scripts/php_local_bootstrap.php")
