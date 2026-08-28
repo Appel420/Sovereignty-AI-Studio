@@ -20,22 +20,26 @@ env:
 jobs:
   oauth-contract:
     name: OAUTH — local contract
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
       - name: Checkout repository
+        shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Verify ARM64 device
         run: |
-          test "${RUNNER_OS}" = ubuntu
+          test "${RUNNER_OS}" = Linux
           test "${RUNNER_ARCH}" = ARM64
       - name: Validate canonical local OAuth
         run: python3 scripts/validate-local-oauth.py
@@ -44,16 +48,20 @@ jobs:
 
   python-tests:
     name: Python CI
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
       - name: Checkout repository
+        shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
@@ -62,16 +70,20 @@ jobs:
 
   node-check:
     name: Node validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
       - name: Checkout repository
+        shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
@@ -82,16 +94,20 @@ jobs:
 
   security-scan:
     name: Security scan
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
       - name: Checkout repository
+        shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
