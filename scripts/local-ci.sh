@@ -21,4 +21,11 @@ export npm_config_fund=false
 export NO_PROXY="*"
 export no_proxy="*"
 
+# Keep the canonical OAuth contract explicitly visible to local CI. This is a
+# validation reference only; the validator itself remains network-free.
+"${PYTHON:-python3}" scripts/validate-local-oauth.py
+
+# Keep the OAuth generator contract independently visible as a local test.
+"${PYTHON:-python3}" -m pytest -q tests/test_oauth_local_generator.py
+
 exec "${PYTHON:-python3}" scripts/run-local-ci.py --ci-name "${SG_CI_NAME:-ara-hardened-unit-ci-local}" "$@"
