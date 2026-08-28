@@ -1,0 +1,63 @@
+name: RUN ALL WORKFLOWS
+
+on:
+  pull_request:
+    branches: ["Collaboration"]
+  push:
+    branches: ["gpt-codex/ci-recovery"]
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  enumerate-and-dispatch:
+    name: DISPATCH ALL CI LANES
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Enumerate every workflow
+        id: inventory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh workflow list --all --limit 100 --json name,path,state > workflows.json
+          echo '=== ALL WORKFLOWS ==='
+          cat workflows.json
+          echo '=== DISPATCHABLE WORKFLOWS ==='
+          python - <<'PY'
+          import json
+          for w in json.load(open('workflows.json', encoding='utf-8')):
+              if w.get('state') == 'active':
+                  print(w['path'])
+          PY
+      - name: Dispatch every active workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -Eeuo pipefail
+          while IFS= read -r path; do
+            [ -n "$path" ] || continue
+            [ "$path" = ".github/workflows/run-all-workflows.yml" ] && continue
+            echo "=== DISPATCHING: $path ==="
+            if gh workflow run "$path" --ref "$REF"; then
+              echo "STARTED: $path"
+            else
+              echo "NOT-DISPATCHABLE: $path"
+            fi
+          done < <(python - <<'PY'
+          import json
+          for w in json.load(open('workflows.json', encoding='utf-8')):
+              if w.get('state') == 'active':
+                  print(w['path'])
+          PY
+          )
+      - name: Show resulting runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 5
+          gh run list --limit 100 --json name,status,conclusion,headBranch,event,url
