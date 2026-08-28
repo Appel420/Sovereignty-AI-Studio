@@ -21,13 +21,13 @@ jobs:
   lightweight-security:
     name: iOS source validation (visible)
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
       - name: Startup
         shell: bash
         run: |
