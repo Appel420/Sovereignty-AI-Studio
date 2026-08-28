@@ -19,12 +19,12 @@ on:
     types: [published]
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_DISABLE_PIP_VERSION_CHECK: '0'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_CACHE_DIR: '1'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 concurrency:
@@ -33,46 +33,51 @@ concurrency:
 
 defaults:
   run:
-    shell: bash -Eeuo pipefail {0}
+    shell: bash --noprofile --norc -Eeuo pipefail {0}
 
 jobs:
-  run:
-    name: OAuth generator startup
+  startup:
+    name: Startup / repository integrity
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-      - name: Startup
+          persist-credentials: false
+      - name: Verify required project structure
         run: |
+          test -f package.json
+          test -f Dockerfile
+          test -f .github/workflows/oauth-api-generator.yaml
           echo "OAUTH-API-GENERATOR started"
           echo "event=${GITHUB_EVENT_NAME}"
           echo "ref=${GITHUB_REF}"
           echo "sha=${GITHUB_SHA}"
-          test -f package.json
-          test -f Dockerfile
-          test -f .github/workflows/oauth-api-generator.yaml
           echo "STARTUP=PASS"
 
   build-test:
     name: Python build/test (${{ matrix.python }})
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    needs: startup
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.12','3.13']
+        python: ['3.12', '3.13']
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          persist-credentials: true
+          fetch-depth: 1
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python }}
           cache: pip
@@ -80,22 +85,25 @@ jobs:
             pyproject.toml
             requirements.txt
             .github/workflows/Requirements.txt
-      - name: Install dependencies
+      - name: Install project and test/lint dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
       - name: Python correctness lint
-        run: python -m ruff check
-      - name: Tests
+        run: python -m ruff check .
+      - name: Python tests
         run: python -m pytest -q tests
 
   node-check:
     name: Node.js validation
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: startup
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -105,10 +113,10 @@ jobs:
           node-version: 24
           cache: npm
       - name: Install Node dependencies
-        run: npm ci --ignore-scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Node checks
         run: |
-          if npm run --if-present check; then :; fi
+          npm run --if-present check
           node --check node-bridge/server.js
           if [[ -f unified_server.js ]]; then node --check unified_server.js; fi
       - name: Memory vault tests
@@ -119,33 +127,35 @@ jobs:
     name: Dependency review
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    if: ${{ github.event_name == 'pull_request' }}
     permissions:
       contents: read
       pull-requests: read
     steps:
-      - name: Review dependencies on pull requests
-        if: ${{ github.event_name == 'pull_request' }}
+      - name: Review dependencies
         uses: actions/dependency-review-action@v4
-      - name: Record non-PR event
-        if: ${{ github.event_name != 'pull_request' }}
-        run: echo "Dependency review is PR-scoped; event=${GITHUB_EVENT_NAME}"
 
   security-scan:
     name: Security scan
-    needs: [build-test, node-check]
-    if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [build-test, node-check]
+    if: ${{ always() }}
+    permissions:
+      contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
       - name: Report upstream state
         run: |
           echo "build-test=${{ needs.build-test.result }}"
           echo "node-check=${{ needs.node-check.result }}"
+          if [[ "${{ needs.build-test.result }}" != "success" || "${{ needs.node-check.result }}" != "success" ]]; then
+            echo "Upstream correctness gate failed. Security scan is diagnostic only for this run."
+          fi
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@0.35.0
         with:
@@ -154,19 +164,21 @@ jobs:
           skip-dirs: external,frontend
           format: table
           severity: CRITICAL,HIGH
-          ignore-unfixed: false
-          exit-code: '0'
+          ignore-unfixed: true
+          exit-code: '1'
+          hide-progress: true
       - name: Python dependency audit
+        if: ${{ hashFiles('requirements.txt') != '' }}
         run: |
-          python -m pip install pip-audit
-          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; fi
+          python -m pip install --disable-pip-version-check pip-audit
+          python -m pip_audit -r requirements.txt
 
   build-sign:
     name: Container build/sign
     needs: [build-test, node-check]
     if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -176,18 +188,20 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-      - name: Compute image
+          persist-credentials: false
+      - name: Compute image name
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Login GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push image
+      - name: Build and push multi-arch image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -197,16 +211,25 @@ jobs:
           sbom: true
           provenance: mode=max
           tags: |
-          ${{ env.REGISTRY_LC }}:latest"
-          ${{ env.REGISTRY_LC }}:${{ github.sha }}
+            ${{ env.REGISTRY_LC }}:latest
+            ${{ env.REGISTRY_LC }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Install cosign
         uses: sigstore/cosign-installer@v3
       - name: Sign image
-        
+        env:
+          COSIGN_EXPERIMENTAL: '1'
+        run: |
+          cosign sign --yes \
+            --fulcio-url https://fulcio.sigstore.dev \
+            --rekor-url https://rekor.sigstore.dev \
+            "${REGISTRY_LC}:${GITHUB_SHA}"
+
+  supply-chain:
     name: Supply-chain attestation
     needs: build-sign
+    if: ${{ github.event_name == 'push' || github.event_name == 'release' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -215,13 +238,13 @@ jobs:
       id-token: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
-      - name: Compute image
+          persist-credentials: false
+      - name: Compute image name
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-      - name: Login GHCR
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -241,9 +264,13 @@ jobs:
       - name: Attest SBOM
         env:
           COSIGN_EXPERIMENTAL: '1'
-        run: cosign attest --yes --predicate sbom-sovereignty-ai.json --type cyclonedx "${REGISTRY_LC}:${GITHUB_SHA}"
+        run: |
+          cosign attest --yes \
+            --predicate sbom-sovereignty-ai.json \
+            --type cyclonedx \
+            "${REGISTRY_LC}:${GITHUB_SHA}"
       - name: Upload SBOM
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ github.sha }}
           path: sbom-sovereignty-ai.json
