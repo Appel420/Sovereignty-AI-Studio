@@ -20,7 +20,7 @@ env:
 jobs:
   oauth-contract:
     name: OAUTH — local contract
-    runs-on: self-hosted, Linux ARM64
+    runs-on: self-hosted, ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -39,7 +39,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Verify ARM64 device
         run: |
-          test "${RUNNER_OS}" = Linux
+          test "${RUNNER_OS}" = ubuntu
           test "${RUNNER_ARCH}" = ARM64
       - name: Validate canonical local OAuth
         run: python3 scripts/validate-local-oauth.py
@@ -48,7 +48,7 @@ jobs:
 
   python-tests:
     name: Python CI
-    runs-on: self-hosted, Linux ARM64
+    runs-on: self-hosted, ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -70,7 +70,7 @@ jobs:
 
   node-check:
     name: Node validation
-    runs-on: self-hosted, Linux ARM64
+    runs-on: self-hosted, ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -94,7 +94,7 @@ jobs:
 
   security-scan:
     name: Security scan
-    runs-on: self-hosted, Linux ARM64
+    runs-on: self-hosted, ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
