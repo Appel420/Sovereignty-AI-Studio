@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: [ara-hardened, Collaboration,GPT/Codex, DevAssist420, copilot/main]
   pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
+    branches: [ara-hardened, Collaboration, GPT/Codex, DevAssist420, copilot/main]
 
 permissions:
   contents: read
