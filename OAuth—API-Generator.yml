@@ -2,7 +2,7 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [main]
+    branches: [cllaboration]
     paths:
       - "**/*.py"
       - "**/*.js"
@@ -12,7 +12,7 @@ on:
       - "!**/*.md"
     tags: ["v*.*.*"]
   pull_request:
-    branches: [main]
+    branches: [collaboration]
     paths:
       - "**/*.py"
       - "**/*.js"
@@ -26,14 +26,14 @@ on:
 
 env:
   PYTHONPATH: .:./backend
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
 
 concurrency:
   group: oauth-api-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build-test:
@@ -42,12 +42,12 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v6
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v3
         with:
-          python-version: "3.11"
+          python-version: "3.13"
 
       - name: Install Python dependencies
         run: |
@@ -65,7 +65,7 @@ jobs:
         run: pytest --tb=short -q
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: 24
 
@@ -87,11 +87,11 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-qemu-action@v4
-      - uses: docker/setup-buildx-action@v4
+      - uses: actions/checkout@v3
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
 
-      - uses: docker/login-action@v4.1.0
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -102,10 +102,10 @@ jobs:
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Build Multi-Arch Image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@v3
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ubuntu,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY_LC }}:latest
@@ -114,7 +114,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Install cosign
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@v3
 
       - name: Sign Image (Keyless — Fulcio + Rekor)
         run: |
@@ -136,14 +136,14 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Compute lowercase image name
         shell: bash
         run: echo "REGISTRY_LC=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4.1.0
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -171,7 +171,7 @@ jobs:
             ${{ env.REGISTRY_LC }}:${{ github.sha }}
         env:
           COSIGN_EXPERIMENTAL: "1"
-        continue-on-error: true
+        continue-on-error: false
 
   security-scan:
     needs: build-test
@@ -180,7 +180,7 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
@@ -195,7 +195,7 @@ jobs:
         run: |
           pip install pip-audit
           pip-audit -r requirements.txt || true
-        continue-on-error: true
+        continue-on-error: false
 
       - name: Security headers reference
         run: |
