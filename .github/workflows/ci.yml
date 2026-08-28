@@ -1,4 +1,4 @@
-name: CI.yml
+name: CI
 
 on:
   push:
@@ -19,12 +19,11 @@ env:
   PYTHONDONTWRITEBYTECODE: '1'
 
 jobs:
-  conformance:
-    name: CI conformance
+  startup:
+    name: CI startup
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout repository https://Github.com/Appel420/Sovereignty-AI-Studio.git 
+      - name: Checkout
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -32,25 +31,53 @@ jobs:
           set -Eeuo pipefail
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "appel420=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Verify online GitHub runner
-        shell: bash
+      - name: Verify GitHub-hosted runtime
         run: |
-          set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
-          test "${RUNNER_OS}" = "ubuntu"
+          test "${RUNNER_OS}" = "Linux"
+          python --version
           echo "execution=github-hosted-online"
           echo "ref=${GITHUB_REF}"
           echo "sha=${GITHUB_SHA}"
-      - name: Verify Python runtime
-        run: python --version 3.13
-      - name: Install project and test/lint dependencies
-        run: python -m pip install -e '.[test,lint]'
+
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install lint dependencies
+        run: python -m pip install -e '.[lint]'
       - name: Ruff
-        run: python -m ruff check 
+        run: python -m ruff check .
+
+  mypy:
+    name: MyPy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install lint dependencies
+        run: python -m pip install -e '.[lint]'
       - name: MyPy
         run: python -m mypy sovereign/
+
+  pytest:
+    name: Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install test dependencies
+        run: python -m pip install -e '.[test]'
       - name: Pytest
         env:
           PYTHONPATH: .:src:backend:prototypes
