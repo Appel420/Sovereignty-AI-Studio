@@ -1,4 +1,4 @@
-use pqcrypto_falcon::falcon512 as falcon;
+use pqcrypto_falcon::falcon1024 as falcon;
 use pqcrypto_traits::sign::{PublicKey, SecretKey, DetachedSignature};
 
 #[no_mangle]
