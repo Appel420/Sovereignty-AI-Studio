@@ -9,10 +9,10 @@ permissions:
 jobs:
   debug:
     name: GitHub Debug
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 15
+    runs-on: ununtu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
+      - name: Checkout repository 
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -25,7 +25,7 @@ jobs:
       - name: Verify runner
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "ubuntu"
           test "${RUNNER_ARCH}" = "ARM64"
       - name: Verify Python runtime
         run: python --version
