@@ -2,10 +2,10 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
     paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
   pull_request:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
     paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
   workflow_dispatch:
 
