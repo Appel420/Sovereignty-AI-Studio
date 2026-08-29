@@ -13,9 +13,9 @@ permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_NO_INDEX: '0'
-  PIP_NO_INPUT: '0'
-  PIP_DISABLE_PIP_VERSION_CHECK: '0'
+  PIP_NO_INDEX: '1'
+  PIP_NO_INPUT: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 jobs:
   oauth-contract:
     name: OAUTH — local contract
