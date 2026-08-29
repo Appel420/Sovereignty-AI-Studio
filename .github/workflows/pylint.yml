@@ -3,9 +3,9 @@ name: Pylint
 on:
   workflow_dispatch:
   push:
-    branches: [ main, Collaboration ]
+    branches: [ main, Collaboration, ara-hardened ]
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [ main, Collaboration, ara-hardened ]
 
 concurrency:
   group: pylint-${{ github.ref }}
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ['3.13']
