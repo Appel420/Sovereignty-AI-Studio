@@ -3,9 +3,23 @@ name: Pylint
 on:
   workflow_dispatch:
   push:
-    branches: [ main, Collaboration ]
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - 'backend/**'
+      - 'src/utils/cli.py'
+      - 'src/utils/subtools.py'
+      - 'workflows/**'
+      - 'Makefile'
+      - '.github/workflows/pylint.yml'
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - 'backend/**'
+      - 'src/utils/cli.py'
+      - 'src/utils/subtools.py'
+      - 'workflows/**'
+      - 'Makefile'
+      - '.github/workflows/pylint.yml'
 
 concurrency:
   group: pylint-${{ github.ref }}
@@ -16,7 +30,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: self-hosted, linux, arm64
     strategy:
       matrix:
         python-version: ['3.13']
