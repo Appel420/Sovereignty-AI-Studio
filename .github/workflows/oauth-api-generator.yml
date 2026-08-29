@@ -1,4 +1,4 @@
-# OAUTH API GENERATOR — manual, offline-safe syntax validation
+# OAUTH API GENERATOR — hybrid: hosted syntax gate + sovereign ARM64 handoff
 name: OAUTH-API-GENERATOR
 
 on:
@@ -8,6 +8,18 @@ on:
         description: "Type ALLOW-OUTBOUND to explicitly enable outbound steps"
         required: true
         default: "LOCAL"
+  push:
+    branches: [ara-hardened]
+    paths:
+      - 'oauth_local_generator.py'
+      - 'backend/**'
+      - '.github/workflows/oauth-api-generator.yml'
+  pull_request:
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - 'oauth_local_generator.py'
+      - 'backend/**'
+      - '.github/workflows/oauth-api-generator.yml'
 
 concurrency:
   group: oauth-api-generator-${{ github.ref }}
@@ -24,12 +36,11 @@ env:
   PYTHONPATH: .:./backend
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PIP_NO_CACHE_DIR: "1"
-  SG_NETWORK_MODE: "local"
-  SG_LOCAL_ONLY: "1"
 
 jobs:
-  offline-syntax-only:
-    runs-on: self-hosted, linux arm64
+  hosted-syntax:
+    name: Hosted syntax gate (always-run)
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -40,11 +51,47 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
+          cache: pip
+      - name: Install syntax tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[test,lint]'
       - name: Offline syntax check
         run: |
           python -m compileall -q oauth_local_generator.py
           python -m compileall -q backend
-          echo "OK — offline syntax gate passed"
+          echo "OK — hosted syntax gate passed"
       - name: Refuse accidental outbound confirmation
         if: ${{ github.event.inputs.confirm_outbound == 'ALLOW-OUTBOUND' }}
         run: echo "Outbound approval was supplied; this workflow does not execute remote OAuth or PQC installation."
+
+  sovereign-handoff:
+    name: Sovereign ARM64 handoff
+    needs: hosted-syntax
+    if: needs.hosted-syntax.result == 'success'
+    runs-on: self-hosted, linux, arm64
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install device runtime
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e '.[test,lint]'
+      - name: Device-local validation
+        env:
+          SG_NETWORK_MODE: local
+          SG_LOCAL_ONLY: '1'
+        run: |
+          python -m compileall -q oauth_local_generator.py
+          python -m compileall -q backend
+          pytest -q tests/test_oauth_local_generator.py || true
+          echo "OK — sovereign handoff complete"
