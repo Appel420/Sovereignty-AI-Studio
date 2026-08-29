@@ -2,13 +2,15 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [ main, Collaboration ]
+    branches: [ara-hardened, Collaboration]
     paths:
       - 'node-bridge/**'
+      - '.github/workflows/node-bridge.yml'
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [ara-hardened, Collaboration]
     paths:
       - 'node-bridge/**'
+      - '.github/workflows/node-bridge.yml'
   workflow_dispatch:
 
 env:
@@ -19,7 +21,7 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted, linux, arm64
     steps:
       - uses: actions/checkout@v4
         with:
