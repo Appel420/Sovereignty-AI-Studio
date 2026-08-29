@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
+    branches: [ara-hardened, Collaboration]
   pull_request:
+    branches: [ara-hardened, Collaboration]
   workflow_dispatch:
 
 concurrency:
@@ -11,13 +13,6 @@ concurrency:
 
 permissions:
   contents: read
-
-env:
-  SGNETWORKMODE: offline-ci
-  SGLOCALONLY: '1'
-  CLOUD_FIRST: 'false'
-  PIP_NO_INPUT: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   conformance:
@@ -63,10 +58,10 @@ jobs:
         run: python -m compileall -q sovereign || python -m compileall -q .
 
       - name: Ruff
-        run: ruff check sovereign/ || ruff check . || true
+        run: ruff check sovereign/ || ruff check .
 
       - name: Mypy
-        run: mypy sovereign/ || true
+        run: mypy sovereign/
 
       - name: Pytest
-        run: pytest -q || true
+        run: pytest -q
