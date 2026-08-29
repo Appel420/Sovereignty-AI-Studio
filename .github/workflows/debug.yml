@@ -2,6 +2,14 @@ name: Debug Workflow
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ara-hardened]
+    paths:
+      - '.github/workflows/debug.yml'
+  pull_request:
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - '.github/workflows/debug.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -11,10 +19,12 @@ permissions:
 
 jobs:
   debug:
-    runs-on: self-hosted
+    runs-on: self-hosted, linux, arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -24,6 +34,7 @@ jobs:
           python3 --version
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m pip install pytest flake8
       - name: Run debug tests
         run: |
           pytest
