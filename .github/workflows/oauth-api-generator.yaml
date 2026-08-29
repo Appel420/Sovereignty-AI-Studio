@@ -3,10 +3,10 @@ name: OAUTH-API-GENERATOR
 on:
   push:
     branches: [Collaboration]
-    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', 'requirements.txt']
   pull_request:
     branches: [Collaboration]
-    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', 'requirements.txt']
   workflow_dispatch:
 
 permissions: {}
@@ -45,7 +45,7 @@ jobs:
   python-tests:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions: {contents: read}
     steps:
       - name: Checkout repository
@@ -62,7 +62,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Install test dependencies
-        run: python3 -m pip install --upgrade pip pytest
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -e '.[test,lint]'
       - name: Test
         run: python3 -m pytest -q
 
@@ -110,7 +114,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Install test dependencies
-        run: python3 -m pip install --upgrade pip pytest
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -e '.[test,lint]'
       - name: Security policy contract
         run: |
           test -f scripts/security_policy_scan.py
