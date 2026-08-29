@@ -2,7 +2,7 @@ name: Dependency Health
 
 on:
   push:
-    branches: [main, Collaboration]
+    branches: [main, Collaboration, ara-hardened]
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -10,7 +10,7 @@ on:
       - "node-bridge/package-lock.json"
       - ".github/workflows/dep-health.yml"
   pull_request:
-    branches: [main, Collaboration]
+    branches: [main, Collaboration, ara-hardened]
     paths:
       - "requirements.txt"
       - "requirements-extra.txt"
@@ -49,7 +49,7 @@ jobs:
 
   python-outdated:
     name: Python — outdated packages
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
@@ -64,7 +64,7 @@ jobs:
 
   node-audit:
     name: Node.js — CVE audit (npm audit)
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
