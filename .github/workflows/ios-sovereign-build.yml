@@ -5,9 +5,9 @@ name: iOS Sovereign Build (local-first)
 # Job always visible. cancel-in-progress: false.
 on:
   push:
-    branches: ["Collaboration", "ara-hardened"]
+    branches: ["ara-hardened", "Collaboration"]
   pull_request:
-    branches: ["Collaboration"]
+    branches: ["ara-hardened", "Collaboration"]
   workflow_dispatch:
 
 env:
