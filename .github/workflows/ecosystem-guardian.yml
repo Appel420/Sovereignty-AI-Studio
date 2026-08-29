@@ -1,0 +1,45 @@
+name: Ecosystem Guardian
+
+# Cost-aware: runs on schedule + workflow_dispatch only.
+# Not every second. Not every push. Ignition when necessary.
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: read
+
+concurrency:
+  group: ecosystem-guardian
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    name: Scan registered repos for critical/high issues
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout guardian config
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml requests
+      - name: Run guardian scan
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GUARDIAN_EMAIL: Appel420@tutamail.com
+        run: python scripts/ecosystem_guardian.py
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-report-${{ github.run_id }}
+          path: guardian-report.json
+          retention-days: 30
+          if-no-files-found: ignore
