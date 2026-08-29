@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
+    branches: [ara-hardened, Collaboration]
   pull_request:
+    branches: [ara-hardened, Collaboration]
   workflow_dispatch:
 
 concurrency:
