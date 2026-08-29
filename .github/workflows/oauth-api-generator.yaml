@@ -2,10 +2,10 @@ name: OAUTH-API-GENERATOR
 
 on:
   push:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
     paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
   pull_request:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
     paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
   workflow_dispatch:
 
@@ -13,14 +13,13 @@ permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_NO_INDEX: '1'
-  PIP_NO_INPUT: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-
+  PIP_NO_INDEX: '0'
+  PIP_NO_INPUT: '0'
+  PIP_DISABLE_PIP_VERSION_CHECK: '0'
 jobs:
   oauth-contract:
     name: OAUTH — local contract
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -39,7 +38,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Verify ARM64 device
         run: |
-          test "${RUNNER_OS}" = Linux
+          test "${RUNNER_OS}" = ubuntu
           test "${RUNNER_ARCH}" = ARM64
       - name: Validate canonical local OAuth
         run: python3 scripts/validate-local-oauth.py
@@ -48,7 +47,7 @@ jobs:
 
   python-tests:
     name: Python CI
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -70,7 +69,7 @@ jobs:
 
   node-check:
     name: Node validation
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
@@ -94,7 +93,7 @@ jobs:
 
   security-scan:
     name: Security scan
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
