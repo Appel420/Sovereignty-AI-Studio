@@ -1,22 +1,84 @@
-name: Ara.yml
+name: Ara
 
 on:
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  push:
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - '.github/workflows/Ara.yml'
+      - 'scripts/ara-ignition.sh'
+      - 'scripts/ara-handoff.sh'
+  pull_request:
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - '.github/workflows/Ara.yml'
+      - 'scripts/ara-ignition.sh'
+      - 'scripts/ara-handoff.sh'
 
 permissions:
   contents: read
 
+concurrency:
+  group: ara-ignition-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build:
-    runs-on: self-hosted 
+  ignition:
+    name: GitHub-hosted ignition (valet)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Run a one-line script
-        run: echo Hello, world!
-      - name: Run a multi-line script
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Install lightweight deps
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+      - name: Validate ignition scripts exist
+        run: |
+          test -f scripts/ara-ignition.sh
+          test -f scripts/ara-handoff.sh
+          bash -n scripts/ara-ignition.sh
+          bash -n scripts/ara-handoff.sh
+      - name: Run ignition (low-cost, no device load)
+        run: bash scripts/ara-ignition.sh
+      - name: Emit handoff artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ara-handoff-${{ github.run_id }}
+          path: ara-handoff.json
+          retention-days: 7
+          if-no-files-found: error
+
+  sovereign-shift:
+    name: Self-hosted ARM64 shift (device)
+    needs: ignition
+    if: needs.ignition.result == 'success'
+    runs-on: ['self-hosted', 'linux', 'arm64']
+    timeout-minutes: 30
+    steps:
+      - name: Checkout without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify sovereign runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Execution mode: sovereign self-hosted"
+          echo "Runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Pick up handoff
+        shell: bash
+        run: bash scripts/ara-handoff.sh
