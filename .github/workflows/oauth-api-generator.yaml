@@ -13,9 +13,8 @@ permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_NO_INDEX: '1'
-  PIP_NO_INPUT: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
 jobs:
   oauth-contract:
     name: OAUTH — local contract
@@ -34,15 +33,12 @@ jobs:
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git fetch
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: Verify ARM64 device
-        run: |
-          test "${RUNNER_OS}" = ubuntu
-          test "${RUNNER_ARCH}" = ARM64
       - name: Validate canonical local OAuth
         run: python3 scripts/validate-local-oauth.py
+      - name: Install test dependencies
+        run: python3 -m pip install --upgrade pip pytest
       - name: OAuth generator contract tests
         run: python3 -m pytest -q tests/test_oauth_local_generator.py
 
@@ -65,6 +61,8 @@ jobs:
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Install test dependencies
+        run: python3 -m pip install --upgrade pip pytest
       - name: Test
         run: python3 -m pytest -q
 
@@ -111,7 +109,72 @@ jobs:
           git checkout --detach FETCH_HEAD
         env:
           GH_TOKEN: ${{ github.token }}
+      - name: Install test dependencies
+        run: python3 -m pip install --upgrade pip pytest
       - name: Security policy contract
         run: |
           test -f scripts/security_policy_scan.py
           python3 -m pytest -q tests/contracts/security/test_security_policy_scan.py
+
+  sovereign-handoff:
+    name: Sovereign handoff
+    needs: [oauth-contract, python-tests, node-check, security-scan]
+    if: success()
+    runs-on: ['self-hosted', 'linux', 'arm64']
+    timeout-minutes: 30
+    permissions: {contents: read}
+    steps:
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify sovereign runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          echo "Execution mode: sovereign self-hosted online"
+          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "Commit: ${GITHUB_SHA}"
+      - name: Verify Python runtime
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python --version
+          python -m pip --version
+      - name: Install Python dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install -e '.[test,lint]'
+          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
+          python -m pip check
+      - name: Python tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
+        run: python -m pytest -q tests
+      - name: Phase 0 Rust tests
+        run: |
+          set -Eeuo pipefail
+          if [[ -f phase0/Cargo.toml ]]; then
+            cargo test --manifest-path phase0/Cargo.toml
+          else
+            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
+          fi
+      - name: Node syntax check
+        run: |
+          set -Eeuo pipefail
+          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
+      - name: Frontend ownership contract
+        run: |
+          set -Eeuo pipefail
+          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; fi
