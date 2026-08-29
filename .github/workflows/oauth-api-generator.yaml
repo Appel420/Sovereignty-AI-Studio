@@ -34,6 +34,7 @@ jobs:
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git fetch
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Verify ARM64 device
