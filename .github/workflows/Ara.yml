@@ -2,6 +2,14 @@ name: Ara.yml
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ara-hardened]
+    paths:
+      - '.github/workflows/Ara.yml'
+  pull_request:
+    branches: [ara-hardened, Collaboration]
+    paths:
+      - '.github/workflows/Ara.yml'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
@@ -11,9 +19,11 @@ permissions:
 
 jobs:
   build:
-    runs-on: self-hosted 
+    runs-on: self-hosted, linux, arm64
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Run a one-line script
         run: echo Hello, world!
       - name: Run a multi-line script
