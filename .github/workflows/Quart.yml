@@ -3,9 +3,9 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [all]
+    branches: [ara-hardened, Collaboration]
   pull_request:
-    branches: [all]
+    branches: [ara-hardened, Collaboration]
 
 permissions:
   contents: read
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build-linux:
-    runs-on: self-hosted, linux arm64
+    runs-on: [self-hosted, linux, arm64]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -39,9 +39,9 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          hypercorn weather_dashboard:app --bind 127.0.0.1:8001 &
+          hypercorn weather_dashboard:app --bind 127.0.0.1:8000 &
           APP_PID=$!
           trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
           sleep 5
           kill -0 "$APP_PID"
-          curl -f http://127.0.0.1:[*]/api/weather?city=London
+          curl -f http://127.0.0.1:8000/api/weather?city=London
