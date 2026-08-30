@@ -7,8 +7,6 @@ on:
     branches: [Collaboration]
   workflow_dispatch:
 
-# Never cancel an in-flight validation run. A later push must not strand the
-# previous run in an ambiguous state; both runs remain observable.
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -17,16 +15,24 @@ permissions:
   contents: read
   actions: read
 
+env:
+  PYTHONPATH: .:./backend
+
 jobs:
-  # Independent gates run in parallel. A failure is evidence, not permission
-  # to silently skip the remaining independent validation surfaces.
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
 
       - name: Startup attestation
         run: |
@@ -69,7 +75,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
       - name: Enumerate workflow surface
         shell: bash
         run: |
@@ -82,13 +96,25 @@ jobs:
           if test -f ci.yml; then
             echo 'WARNING: root ci.yml exists; root YAML is not a GitHub Actions workflow.'
           fi
+          if grep -RInE '^[[:space:]]*uses:[[:space:]]+actions/checkout@' .github/workflows; then
+            echo 'ERROR: prohibited checkout action remains in workflow surface'
+            exit 1
+          fi
 
   coordination-surface:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
       - name: Python environment
         run: python --version
       - name: Coordination import
@@ -96,16 +122,21 @@ jobs:
       - name: Coordination tests
         run: pytest -q backend/coordination
 
-  # Explicitly observable recovery lane. It does not mutate code automatically;
-  # it produces deterministic failure evidence for the owner instead of hiding
-  # a broken state behind a cancelled/skipped job.
   recovery-observer:
     name: Recovery observer
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
       - name: Publish execution state
         run: |
           set -Eeuo pipefail
