@@ -1,7 +1,7 @@
 name: CD — Sovereign Release
 
-# CD is fail-closed. A release artifact is deployable only after the
-# executable I-008 gate and independent PQC SCAR attestation pass.
+# CD is fail-closed. Build, I-008, PQC SCAR, and local deployment occur in
+# one controlled runner so the deployed artifact is the artifact that passed.
 on:
   push:
     branches: [Collaboration]
@@ -9,19 +9,19 @@ on:
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
   group: sovereign-cd-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  verify-and-attest:
-    name: Verify + PQC SCAR
+  release:
+    name: Verify + PQC SCAR + Deploy
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 45
+    environment: production
+    timeout-minutes: 60
     steps:
-      - name: Checkout exact commit
+      - name: Checkout exact commit without external actions
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -53,6 +53,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install --disable-pip-version-check -r requirements.txt
           python -m pip install --disable-pip-version-check -e '.[test,lint,pqc]'
+          python -m pip install --disable-pip-version-check build==1.6.0
           python -m pip check
 
       - name: I-008 executable gate
@@ -70,7 +71,7 @@ jobs:
         shell: bash
         run: python -m pytest -q tests
 
-      - name: Build release artifact
+      - name: Build exact release artifact
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -90,52 +91,19 @@ jobs:
           grep -q '"verified": true' "${SCAR_PQC_OUTPUT}"
           grep -q 'ML-DSA-87' "${SCAR_PQC_OUTPUT}"
 
-      - name: Publish release artifact metadata
+      - name: Deploy exact verified artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash ./scripts/deploy-sovereign.sh "${GITHUB_SHA}"
+          test -f /var/lib/sovereignty/scar/deployment-receipt.json
+
+      - name: Final release proof
         shell: bash
         run: |
           set -Eeuo pipefail
           sha256sum dist/*
           printf 'SOVEREIGN_CD_VERIFY=PASS\n'
           printf 'SOVEREIGN_SCAR_PQC=PASS\n'
-          printf 'SOVEREIGN_RELEASE_COMMIT=%s\n' "${GITHUB_SHA}"
-
-  deploy:
-    name: Sovereign Deployment
-    needs: verify-and-attest
-    runs-on: [self-hosted, Linux, ARM64]
-    environment: production
-    timeout-minutes: 30
-    steps:
-      - name: Checkout exact verified commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
-      - name: Require explicit deployment adapter
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -x ./scripts/deploy-sovereign.sh
-
-      - name: Deploy
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ./scripts/deploy-sovereign.sh "${GITHUB_SHA}"
-
-      - name: Deployment receipt
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -f /var/lib/sovereignty/scar/deployment-receipt.json
           printf 'SOVEREIGN_CD_DEPLOYMENT=PASS\n'
+          printf 'SOVEREIGN_RELEASE_COMMIT=%s\n' "${GITHUB_SHA}"
