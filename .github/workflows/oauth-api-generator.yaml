@@ -48,12 +48,11 @@ jobs:
         run: |
           python3 - <<'PY'
           from importlib.metadata import version
-          import fastapi, nacl, pydantic, jose, quart, pytest, pytest_asyncio
+          import fastapi, nacl, pydantic, quart, pytest, pytest_asyncio
           expected = {
               'fastapi': '0.139.2',
               'PyNaCl': '1.6.2',
               'pydantic': '2.13.4',
-              'python-jose': '3.5.0',
               'quart': '0.20.0',
           }
           for package, required in expected.items():
