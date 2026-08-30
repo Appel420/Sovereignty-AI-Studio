@@ -6,7 +6,7 @@ on:
     paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', '.github/workflows/Requirements.txt']
   pull_request:
     branches: [Collaboration]
-    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', '.github/workflows/Requirements.txt']
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', '.github/workflows/Requirements.txt', 'node-bridge/**']
   workflow_dispatch:
 
 permissions: {}
@@ -83,6 +83,8 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Install Node bridge dependencies
+        run: npm --prefix node-bridge ci
       - name: Node checks
         run: |
           test -f package.json
