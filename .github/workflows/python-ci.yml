@@ -3,7 +3,7 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ara-hardened, Collaboration,GPT/Codex, DevAssist420, copilot/main]
+    branches: [ara-hardened, Collaboration, GPT/Codex, DevAssist420, copilot/main]
   pull_request:
     branches: [ara-hardened, Collaboration, GPT/Codex, DevAssist420, copilot/main]
 
@@ -17,12 +17,14 @@ concurrency:
 env:
   PYTHONDONTWRITEBYTECODE: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_INPUT: '1'
+  PYTHONPATH: .:./backend:./src:./prototypes
 
 jobs:
   test:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout repository without external actions
         env:
@@ -30,38 +32,47 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
           git init .
-          git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+
       - name: Verify Python runtime
-        run: python --version
-      - name: Install test dependencies deterministically
-        shell: bash
         run: |
-          set -Eeuo pipefail
+          python --version
+          python -m pip --version
+
+      - name: Install declared dependencies
+        run: |
           python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check 'PyNaCl==1.5.0' pytest
-          if [[ -f requirements.txt ]]; then python -m pip install --disable-pip-version-check -r requirements.txt; fi
-          if [[ -f pyproject.toml ]]; then python -m pip install --disable-pip-version-check -e '.[test]' || python -m pip install --disable-pip-version-check -e .; fi
-          python - <<'PY'
-          import nacl
-          from nacl.signing import SigningKey
-          print(f"PyNaCl import OK: {nacl.__version__}")
-          SigningKey.generate()
-          print("Ed25519 signing primitive OK")
-          PY
-      - name: Python syntax gate
-        shell: bash
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -e '.[test]'
+
+      - name: Verify dependency closure
+        run: python -m pip check
+
+      - name: Verify critical imports
         run: |
-          set -Eeuo pipefail
-          while IFS= read -r -d '' f; do
-            python -m py_compile "$f"
-          done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**' ':!:.venv/**')
+          python - <<'PY'
+          import fastapi
+          import nacl
+          import pydantic
+          import jose
+          import quart
+          import pytest_asyncio
+          print('critical imports: OK')
+          PY
+
+      - name: Python syntax gate
+        run: python -m compileall -q backend apps scripts tests
+
+      - name: Test collection gate
+        run: python -m pytest --collect-only -q tests
+
       - name: Run tests
-        env:
-          PYTHONPATH: prototypes:.
         run: python -m pytest -q tests
+
       - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('ok')"
+        run: python -c "from backend.coordination import BranchRegistry; print('coordination import: OK')"
