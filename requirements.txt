@@ -1,6 +1,4 @@
-# ──────────────────────────────────────────────────────────────────────────────
-# Sovereignty AI Studio — Python Dependencies (self-hosted stack)
-# ──────────────────────────────────────────────────────────────────────────────
+# Sovereignty AI Studio — pinned self-hosted runtime dependencies
 
 # Core / Crypto
 argon2-cffi==25.1.0
@@ -14,6 +12,7 @@ passlib[bcrypt]==1.7.4
 # Async HTTP
 httpx==0.28.1
 requests==2.34.2
+aiohttp==3.14.3
 
 # Database
 psycopg2-binary==2.9.12
@@ -45,7 +44,6 @@ websockets==16.1.1
 python-dotenv==1.2.2
 pydantic[email]==2.13.4
 pydantic-settings==2.14.2
-aiohttp==3.14.3
 email-validator==2.3.0
 
 # Testing
