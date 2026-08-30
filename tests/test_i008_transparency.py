@@ -42,7 +42,9 @@ def declaration(decision="ALLOW"):
 
 def sinks():
     events = []
-    return events, events.append, events.append, events.append, events.append
+    incidents = []
+    alerts = []
+    return events, events.append, incidents.append, alerts.append, incidents, alerts
 
 
 def test_option_set_contract_accepts_complete_option():
@@ -69,10 +71,10 @@ def test_declaration_requires_valid_decision_class():
 
 
 def test_authorization_requires_option_set_and_records_pre_action_evidence():
-    events, evidence, incident, alert, _ = sinks()
+    events, evidence, incident, alert, _, _ = sinks()
     authorize_action(
-        declaration=declaration(), option_set=valid_options(), option_schema=SCHEMA,
-        selected_option_id="deploy", owner_decision="ALLOW", pre_action_evidence=evidence,
+        declaration=declaration(), option_set=valid_options(), selected_option_id="deploy",
+        option_schema=SCHEMA, owner_decision="ALLOW", pre_action_evidence=evidence,
         incident=incident, owner_alert=alert,
     )
     assert events[0]["invariant"] == "I-008"
@@ -80,7 +82,7 @@ def test_authorization_requires_option_set_and_records_pre_action_evidence():
 
 
 def test_authorization_fails_closed_without_declaration():
-    _, evidence, incident, alert, _ = sinks()
+    _, evidence, incident, alert, _, _ = sinks()
     with pytest.raises(I008Violation):
         authorize_action(
             declaration=None, option_set=valid_options(), selected_option_id="deploy",
@@ -90,7 +92,7 @@ def test_authorization_fails_closed_without_declaration():
 
 
 def test_authorization_fails_closed_without_option_set():
-    _, evidence, incident, alert, _ = sinks()
+    _, evidence, incident, alert, _, _ = sinks()
     with pytest.raises(I008Violation):
         authorize_action(
             declaration=declaration(), option_set=None, selected_option_id="deploy",
@@ -100,7 +102,7 @@ def test_authorization_fails_closed_without_option_set():
 
 
 def test_authorization_fails_closed_when_evidence_write_fails():
-    _, _, incident, alert, _ = sinks()
+    _, _, incident, alert, _, _ = sinks()
 
     def fail(_):
         raise RuntimeError("ledger unavailable")
@@ -114,7 +116,7 @@ def test_authorization_fails_closed_when_evidence_write_fails():
 
 
 def test_deny_never_executes():
-    _, evidence, incident, alert, _ = sinks()
+    _, evidence, incident, alert, incidents, alerts = sinks()
     executed = []
     result = execute_authorized_action(
         declaration=declaration("DENY"), option_set=valid_options(), selected_option_id="deploy",
@@ -124,7 +126,8 @@ def test_deny_never_executes():
     )
     assert result is None
     assert executed == []
-    assert not incident if False else True
+    assert incidents == []
+    assert alerts == []
 
 
 def test_action_and_receipt_are_ordered_after_allow():
