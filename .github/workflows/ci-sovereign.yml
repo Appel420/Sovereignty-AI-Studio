@@ -1,25 +1,26 @@
-name: CI — Sovereign Runner
+name: CI — Sovereign Device Validation
 
+# This workflow is the device-local sovereign validation lane.
+# It MUST NOT gate the live online repository CI. The owner's device owns
+# LOCAL / OFFLINE / HYBRID execution; GitHub-hosted CI owns the live ONLINE
+# repository health signal.
 on:
-  push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Do not cancel an in-flight owner-requested verification run.
+# A device validation run is never canceled by a newer dispatch.
 concurrency:
-  group: sovereign-ci-${{ github.ref }}
+  group: sovereign-device-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   conformance:
-    name: Sovereign CI
-    # The workflow attests an ARM64 sovereign runner, so schedule onto the
-    # corresponding self-hosted runner instead of a generic hosted runner.
+    name: Sovereign Device Validation
+    # Explicitly target the owner's registered sovereign ARM64 device runner.
+    # This lane is manual/device validation and is intentionally independent
+    # from the online CI required to keep the repository continuously green.
     runs-on: [self-hosted, Linux, ARM64]
     timeout-minutes: 30
     steps:
@@ -38,7 +39,7 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
 
-      - name: Diagnose and attest sovereign runner
+      - name: Diagnose and attest sovereign device runner
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -52,14 +53,12 @@ jobs:
           printf 'uname -m=%q\n' "${kernel_arch}"
           printf 'RUNNER_NAME=%q\n' "${RUNNER_NAME:-}"
           printf 'RUNNER_LABELS=%q\n' "${RUNNER_LABELS:-<not-exposed>}"
-          printf 'RUNNER_TEMP=%q\n' "${RUNNER_TEMP:-}"
-          printf 'runner_hostname=%q\n' "$(hostname)"
           test "${GITHUB_ACTIONS:-}" = "true" || { echo 'FAIL: not executing inside GitHub Actions'; exit 1; }
           test -n "${GITHUB_SHA:-}" || { echo 'FAIL: GITHUB_SHA is empty'; exit 1; }
           test "${actual_os}" = "Linux" || { echo "FAIL: expected Linux, got ${actual_os}"; exit 1; }
           test "${actual_arch}" = "ARM64" || { echo "FAIL: runner architecture mismatch: ${actual_arch}; expected ARM64"; exit 1; }
           test "${kernel_arch}" = "aarch64" || { echo "FAIL: kernel architecture=${kernel_arch}; expected aarch64"; exit 1; }
-          echo 'SOVEREIGN_RUNNER_ATTESTATION=PASS'
+          echo 'SOVEREIGN_DEVICE_RUNNER_ATTESTATION=PASS'
           echo "Actual runner: ${actual_os}/${actual_arch} (${kernel_arch})"
           echo "Commit: ${GITHUB_SHA}"
 
@@ -124,5 +123,5 @@ jobs:
 
       - name: Sovereign certification marker
         run: |
-          echo 'SOVEREIGN_CI_CERTIFICATION=PASS'
-          echo "Certified commit: ${GITHUB_SHA}"
+          echo 'SOVEREIGN_DEVICE_VALIDATION=PASS'
+          echo "Validated commit: ${GITHUB_SHA}"
