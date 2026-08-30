@@ -50,8 +50,30 @@ jobs:
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request)
+              fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge"
+              ;;
+            push|workflow_dispatch)
+              fetch_ref="${GITHUB_SHA}"
+              ;;
+            *)
+              echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"
+              exit 1
+              ;;
+          esac
+
+          echo "Checkout event: ${GITHUB_EVENT_NAME}"
+          echo "Checkout ref: ${fetch_ref}"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${fetch_ref}"
           git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}" || {
+            echo "FAIL: checked-out commit does not match GITHUB_SHA"
+            echo "expected=${GITHUB_SHA}"
+            echo "actual=$(git rev-parse HEAD)"
+            exit 1
+          }
 
       - name: Verify Python runtime
         run: |
@@ -60,6 +82,7 @@ jobs:
 
       - name: Create isolated environment
         run: |
+          rm -rf .ci-venv
           python -m venv .ci-venv
           source .ci-venv/bin/activate
           python -m pip install --upgrade pip
