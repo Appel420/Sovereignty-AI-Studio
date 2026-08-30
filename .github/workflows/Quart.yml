@@ -71,17 +71,19 @@ jobs:
       - name: Verify required imports before pytest
         run: |
           python - <<'PY'
+          from importlib.metadata import version
           import fastapi
           import nacl
           import pydantic
           import jose
           import quart
           import pytest_asyncio
-          print('fastapi', fastapi.__version__)
-          print('nacl', nacl.__version__)
-          print('pydantic', pydantic.__version__)
-          print('quart', quart.__version__)
-          print('pytest-asyncio import: OK')
+          print('fastapi', version('fastapi'))
+          print('nacl', version('PyNaCl'))
+          print('pydantic', version('pydantic'))
+          print('python-jose', version('python-jose'))
+          print('quart', version('quart'))
+          print('pytest-asyncio', version('pytest-asyncio'))
           print('required dependency closure: OK')
           PY
 
