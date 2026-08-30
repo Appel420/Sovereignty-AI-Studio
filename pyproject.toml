@@ -10,7 +10,7 @@ dependencies = [
     "pydantic>=2.13.4",
     "pydantic-settings>=2.14.2",
     "email-validator>=2.3.0",
-    "cryptography>=50.0.0",
+    "cryptography==49.0.0",
     "blake3>=1.0.9",
     "argon2-cffi>=23.1.0",
     "python-jose[cryptography]>=3.5.0",
@@ -40,11 +40,6 @@ lint = [
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-
-# Keep CI focused on correctness errors. The reported UP006/UP035 class
-# consists of repository-wide typing modernization and is not a correctness
-# failure. It is intentionally excluded from the production gate until the
-# migration can be applied coherently across the first-party tree.
 lint.select = ["E4", "E7", "E9", "F"]
 lint.exclude = [
     "external/**",
