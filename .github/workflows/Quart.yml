@@ -42,8 +42,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
 
       - name: Verify Python runtime
         run: |
@@ -64,14 +72,12 @@ jobs:
           source .ci-venv/bin/activate
           python - <<'PY'
           from importlib.metadata import version
-
           import fastapi
           import nacl
           import pydantic
           import jose
           import quart
           import pytest_asyncio
-
           print('fastapi', version('fastapi'))
           print('nacl', version('PyNaCl'))
           print('pydantic', version('pydantic'))
@@ -101,6 +107,7 @@ jobs:
           source .ci-venv/bin/activate
           python - <<'PY'
           from apps.dashboards.weather_dashboard import app
+          import asyncio
 
           async def main():
               client = app.test_client()
@@ -110,6 +117,5 @@ jobs:
               assert payload['city'] == 'London'
               print('Quart application smoke test: OK')
 
-          import asyncio
           asyncio.run(main())
           PY
