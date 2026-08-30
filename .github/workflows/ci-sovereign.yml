@@ -10,6 +10,7 @@ on:
 permissions:
   contents: read
 
+# Do not cancel an in-flight owner-requested verification run.
 concurrency:
   group: sovereign-ci-${{ github.ref }}
   cancel-in-progress: false
@@ -17,8 +18,10 @@ concurrency:
 jobs:
   conformance:
     name: Sovereign CI
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # The workflow attests an ARM64 sovereign runner, so schedule onto the
+    # corresponding self-hosted runner instead of a generic hosted runner.
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 30
     steps:
       - name: Checkout repository without external actions
         env:
