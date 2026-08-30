@@ -18,7 +18,7 @@ jobs:
   conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout repository without external actions
         env:
@@ -58,7 +58,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]' || python -m pip install pytest ruff mypy
+          python -m pip install -e '.[test,lint]' || python -m pip install pytest ruff mypy jsonschema
+
+      - name: Verify I-008 executable contract
+        shell: bash
+        run: python scripts/verify_i008_contract.py
 
       - name: Compile Python sources
         shell: bash
