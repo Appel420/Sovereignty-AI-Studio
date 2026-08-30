@@ -40,12 +40,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: 
-        with:
+      - uses: actions/checkout@v3
+        with: 
           fetch-depth: 1
           persist-credentials: true
       - name: Set up Python
-        uses: 
+        uses: actions/setup-python@v3
         with:
           python-version: '3.13'
           cache: pip
@@ -69,12 +69,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v3
         with:
           python-version: '3.13'
           cache: pip
