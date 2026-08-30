@@ -1,27 +1,26 @@
 """I-008 deterministic transparency enforcement.
 
-This module is deliberately fail-closed. Schema validation alone cannot enforce
-ordering, so execution must enter through ``authorize_action`` only after the
-pre-action declaration has been validated and recorded by the supplied evidence
-sink.
+Fail-closed execution boundary. Schema validation is structural only; this
+module enforces declaration, option-set, pre-action evidence, explicit owner
+ALLOW, action execution, and post-action receipt sequencing.
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence, TypeVar
 
 from jsonschema import Draft202012Validator
 
-
 DECISION_CLASSES = frozenset({"ALLOW", "DENY", "REQUIRE_APPROVAL"})
+OwnerSink = Callable[[Mapping[str, Any]], None]
+T = TypeVar("T")
 
 
 class I008Violation(ValueError):
-    """Raised whenever a required I-008 pre-action condition is absent."""
+    """Raised whenever an I-008 hard gate is violated."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ActionDeclaration:
     decision_class: str
     side_effects: tuple[str, ...]
@@ -56,15 +55,8 @@ def validate_option_set(option_set: Mapping[str, Any], schema: Mapping[str, Any]
         raise I008Violation(f"I-008 option-set invalid at {path}: {errors[0].message}")
 
 
-def declare_action(
-    *,
-    decision_class: str,
-    side_effects: Sequence[str],
-    data_egress: Sequence[str],
-    persistence: Sequence[str],
-    provider_or_technology: Sequence[str],
-) -> ActionDeclaration:
-    """Construct a complete, auditable pre-action declaration."""
+def declare_action(*, decision_class: str, side_effects: Sequence[str], data_egress: Sequence[str], persistence: Sequence[str], provider_or_technology: Sequence[str]) -> ActionDeclaration:
+    """Construct the complete pre-action declaration."""
     if decision_class not in DECISION_CLASSES:
         raise I008Violation(f"I-008: invalid decision class: {decision_class!r}")
     return ActionDeclaration(
@@ -76,34 +68,61 @@ def declare_action(
     )
 
 
-def authorize_action(
-    *,
-    declaration: ActionDeclaration | None,
-    owner_decision: str,
-    pre_action_evidence: Callable[[Mapping[str, Any]], None],
-) -> None:
-    """Fail closed unless I-008 preconditions have been satisfied.
+def _reject(message: str, *, incident: OwnerSink, owner_alert: OwnerSink, context: Mapping[str, Any]) -> None:
+    """Record the deterministic I-008 failure path before raising."""
+    payload = {"invariant": "I-008", "event": "incident", "violation": message, **context}
+    incident(payload)
+    owner_alert(payload)
+    raise I008Violation(message)
 
-    ``pre_action_evidence`` MUST durably record the declaration before this
-    function returns. The action itself must execute only after this function.
-    """
+
+def authorize_action(*, declaration: ActionDeclaration | None, option_set: Mapping[str, Any] | None, option_schema: Mapping[str, Any], owner_decision: str, pre_action_evidence: OwnerSink, incident: OwnerSink, owner_alert: OwnerSink) -> None:
+    """Enforce declaration -> option set -> pre-action evidence -> ALLOW."""
+    context = {"owner_decision": owner_decision}
     if declaration is None:
-        raise I008Violation("I-008: action declaration is required before execution")
+        _reject("I-008: action declaration is required before execution", incident=incident, owner_alert=owner_alert, context=context)
+    if option_set is None:
+        _reject("I-008: valid option set is required before selection", incident=incident, owner_alert=owner_alert, context=context)
+    try:
+        validate_option_set(option_set, option_schema)
+    except I008Violation as exc:
+        _reject(str(exc), incident=incident, owner_alert=owner_alert, context=context)
     if owner_decision not in {"ALLOW", "DENY"}:
-        raise I008Violation("I-008: owner decision must be ALLOW or DENY")
-
+        _reject("I-008: owner decision must be explicit ALLOW or DENY", incident=incident, owner_alert=owner_alert, context=context)
     event = {
         "invariant": "I-008",
         "event": "pre_action_declaration",
         "declaration": declaration.as_dict(),
+        "option_set": dict(option_set),
         "owner_decision": owner_decision,
     }
     try:
         pre_action_evidence(event)
-    except Exception as exc:  # evidence failure must prevent execution
-        raise I008Violation("I-008: pre-action evidence could not be recorded") from exc
-
+    except Exception as exc:
+        _reject("I-008: pre-action SCAR evidence could not be recorded", incident=incident, owner_alert=owner_alert, context=context)
     if owner_decision != "ALLOW":
-        raise I008Violation("I-008: action denied; execution is prohibited")
+        _reject("I-008: action denied; execution is prohibited", incident=incident, owner_alert=owner_alert, context=context)
     if declaration.decision_class != "ALLOW":
-        raise I008Violation("I-008: declaration does not authorize execution")
+        _reject("I-008: declaration does not authorize execution", incident=incident, owner_alert=owner_alert, context=context)
+
+
+def execute_authorized_action(*, declaration: ActionDeclaration | None, option_set: Mapping[str, Any] | None, option_schema: Mapping[str, Any], owner_decision: str, pre_action_evidence: OwnerSink, incident: OwnerSink, owner_alert: OwnerSink, action: Callable[[], T], post_action_receipt: OwnerSink) -> T:
+    """Only supported I-008 action entry point; emits mandatory receipt."""
+    authorize_action(
+        declaration=declaration,
+        option_set=option_set,
+        option_schema=option_schema,
+        owner_decision=owner_decision,
+        pre_action_evidence=pre_action_evidence,
+        incident=incident,
+        owner_alert=owner_alert,
+    )
+    result = action()
+    receipt = {"invariant": "I-008", "event": "post_action_receipt", "status": "COMPLETED", "result_type": type(result).__name__}
+    try:
+        post_action_receipt(receipt)
+    except Exception as exc:
+        incident({"invariant": "I-008", "event": "incident", "violation": "post-action receipt could not be recorded"})
+        owner_alert({"invariant": "I-008", "event": "incident", "violation": "post-action receipt could not be recorded"})
+        raise I008Violation("I-008: post-action receipt could not be recorded") from exc
+    return result
