@@ -3,66 +3,72 @@ name: OAUTH-API-GENERATOR
 on:
   push:
     branches: [Collaboration]
-    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', '.github/workflows/Requirements.txt']
   pull_request:
     branches: [Collaboration]
-    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml', '.github/workflows/Requirements.txt']
   workflow_dispatch:
 
 permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
 
 jobs:
   oauth-contract:
-    name: OAUTH — local contract
+    name: OAUTH — hosted contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify hosted runner
         run: |
-          set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-        env:
-          GH_TOKEN: ${{ github.token }}
+          test "${RUNNER_OS}" = Linux
+          test -n "${GITHUB_SHA}"
+      - name: Install project test dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r .github/workflows/Requirements.txt
+          python3 -m pip install -e '.[test]'
+          python3 -m pip check
       - name: Validate canonical local OAuth
         run: python3 scripts/validate-local-oauth.py
-      - name: Install test dependencies
-        run: python3 -m pip install --upgrade pip pytest
       - name: OAuth generator contract tests
         run: python3 -m pytest -q tests/test_oauth_local_generator.py
 
   python-tests:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install project test dependencies
         run: |
-          set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Install test dependencies
-        run: python3 -m pip install --upgrade pip pytest
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r .github/workflows/Requirements.txt
+          python3 -m pip install -e '.[test]'
+          python3 -m pip check
+      - name: Verify required imports
+        run: |
+          python3 - <<'PY'
+          import fastapi
+          import jose
+          import nacl
+          import pydantic
+          import quart
+          import pytest_asyncio
+          print('Required Python imports: PASS')
+          PY
       - name: Test
         run: python3 -m pytest -q
 
@@ -73,22 +79,15 @@ jobs:
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-        env:
-          GH_TOKEN: ${{ github.token }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
       - name: Node checks
         run: |
           test -f package.json
           node --check node-bridge/server.js
+          npm --prefix node-bridge test
 
   security-scan:
     name: Security scan
@@ -97,20 +96,16 @@ jobs:
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Install project test dependencies
         run: |
-          set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Install test dependencies
-        run: python3 -m pip install --upgrade pip pytest
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r .github/workflows/Requirements.txt
+          python3 -m pip install -e '.[test]'
+          python3 -m pip check
       - name: Security policy contract
         run: |
           test -f scripts/security_policy_scan.py
