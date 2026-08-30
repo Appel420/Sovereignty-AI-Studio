@@ -18,57 +18,70 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  lightweight-security:
-    name: iOS source validation (visible)
+  native-swift-package:
+    name: iOS Swift package build and test
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Startup
+
+      - name: Verify toolchain
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "event=${GITHUB_EVENT_NAME}"
-          echo "ref=${GITHUB_REF}"
-          echo "sha=${GITHUB_SHA}"
-          echo "runner_os=${RUNNER_OS}"
-          echo "runner_arch=${RUNNER_ARCH}"
-          echo "STARTUP=PASS"
-      - name: Validate backend Python sources
-        run: python3 -m compileall -q backend
-      - name: Validate Swift sources
+          swift --version
+          xcodebuild -version
+          test -f ios/Package.swift
+
+      - name: Validate package manifest
+        working-directory: ios
+        run: swift package dump-package >/dev/null
+
+      - name: Build Swift package
+        working-directory: ios
+        run: swift build -v
+
+      - name: Run Swift package tests
+        working-directory: ios
+        run: swift test -v
+
+      - name: Parse standalone Swift sources
         shell: bash
         run: |
           set -Eeuo pipefail
-          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
-            while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
-          else
-            echo 'No Swift sources found; native source parse is not applicable.'
-          fi
-      - name: Generate validation manifest
+          while IFS= read -r -d '' file; do
+            swiftc -parse "$file"
+          done < <(find ios -maxdepth 1 -type f -name '*.swift' -print0)
+
+      - name: Generate verified build manifest
         shell: bash
         run: |
           set -Eeuo pipefail
           python3 - <<'PY'
-          import json, os, platform, time
+          import json, os, platform, subprocess, time
+          swift_version = subprocess.check_output(['swift', '--version'], text=True).splitlines()[0]
           payload = {
               'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}",
               'timestamp': int(time.time()),
               'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
-              'execution': 'github-hosted-validation',
-              'native_xcode_compile': False,
+              'execution': 'github-hosted-native-swift-package',
+              'swift_package_build': True,
+              'swift_package_tests': True,
+              'native_xcode_archive': False,
               'runner_os': os.environ.get('RUNNER_OS', 'unknown'),
               'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
+              'swift_version': swift_version,
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
               json.dump(payload, fh, indent=2, sort_keys=True)
               fh.write('\n')
           print(json.dumps(payload, indent=2, sort_keys=True))
           PY
+
       - name: Verify manifest
         run: python3 -m json.tool ios-build-manifest.json >/dev/null
