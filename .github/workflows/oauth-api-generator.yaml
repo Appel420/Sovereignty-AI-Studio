@@ -83,6 +83,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Node checks
         run: |
           test -f package.json
@@ -104,6 +105,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install test dependencies
         run: python3 -m pip install --upgrade pip pytest
       - name: Security policy contract
@@ -111,66 +113,5 @@ jobs:
           test -f scripts/security_policy_scan.py
           python3 -m pytest -q tests/contracts/security/test_security_policy_scan.py
 
-  sovereign-handoff:
-    name: Sovereign handoff
-    needs: [oauth-contract, node-check, security-scan]
-    if: success()
-    runs-on: ['self-hosted', 'linux', 'ARM64']
-    timeout-minutes: 30
-    permissions: {contents: read}
-    steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all credential.helper 2>/dev/null || true
-      - name: Verify sovereign runner
-        run: |
-          actual_os="${RUNNER_OS:-}"
-          actual_arch="${RUNNER_ARCH:-}"
-          kernel_arch="$(uname -m)"
-          printf 'GITHUB_ACTIONS=%q\n' "${GITHUB_ACTIONS:-}"
-          printf 'GITHUB_SHA=%q\n' "${GITHUB_SHA:-}"
-          printf 'RUNNER_OS=%q\n' "${actual_os}"
-          printf 'RUNNER_ARCH=%q\n' "${actual_arch}"
-          printf 'uname -m=%q\n' "${kernel_arch}"
-          printf 'RUNNER_NAME=%q\n' "${RUNNER_NAME:-}"
-          printf 'RUNNER_LABELS=%q\n' "${RUNNER_LABELS:-<not-exposed>}"
-          test "${GITHUB_ACTIONS:-}" = "true"
-          test -n "${GITHUB_SHA:-}"
-          test "${actual_os}" = "Linux"
-          test "${actual_arch}" = "ARM64"
-          test "${kernel_arch}" = "aarch64"
-          echo 'SOVEREIGN_RUNNER_ATTESTATION=PASS'
-      - name: Verify canonical Python runtime
-        run: |
-          python --version
-          python -m pip --version
-      - name: Install canonical repository dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -e '.[test,lint]'
-          python -m pip check
-      - name: Verify canonical imports
-        run: |
-          python - <<'PY'
-          import fastapi, nacl, pydantic, jose, quart, pytest, pytest_asyncio
-          print('canonical imports: PASS')
-          PY
-      - name: Python tests
-        run: python -m pytest -q tests
-      - name: Phase 0 Rust tests
-        run: |
-          if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
-      - name: Node syntax check
-        run: |
-          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
-      - name: Frontend ownership contract
-        run: |
-          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; else echo 'Frontend ownership contract: NOT APPLICABLE'; fi
+  # Sovereign ARM64 execution is centralized in ci-sovereign.yml.
+  # No duplicate self-hosted handoff is permitted here.
