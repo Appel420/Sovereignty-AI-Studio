@@ -120,7 +120,7 @@ jobs:
     name: Sovereign handoff
     needs: [oauth-contract, python-tests, node-check, security-scan]
     if: success()
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ['self-hosted', 'linux', 'ARM64']
     timeout-minutes: 30
     permissions: {contents: read}
     steps:
@@ -130,20 +130,39 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all credential.helper || true
       - name: Verify sovereign runner
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          test -n "${GITHUB_SHA}"
-          test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-          echo "Execution mode: sovereign self-hosted online"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
+
+          actual_os="${RUNNER_OS:-}"
+          actual_arch="${RUNNER_ARCH:-}"
+          kernel_arch="$(uname -m)"
+
+          printf 'GITHUB_ACTIONS=%q\n' "${GITHUB_ACTIONS:-}"
+          printf 'GITHUB_SHA=%q\n' "${GITHUB_SHA:-}"
+          printf 'RUNNER_OS=%q\n' "${actual_os}"
+          printf 'RUNNER_ARCH=%q\n' "${actual_arch}"
+          printf 'uname -m=%q\n' "${kernel_arch}"
+          printf 'RUNNER_NAME=%q\n' "${RUNNER_NAME:-}"
+          printf 'RUNNER_LABELS=%q\n' "${RUNNER_LABELS:-<not-exposed>}"
+
+          test "${GITHUB_ACTIONS:-}" = "true" || { echo 'FAIL: not executing inside GitHub Actions'; exit 1; }
+          test -n "${GITHUB_SHA:-}" || { echo 'FAIL: GITHUB_SHA is empty'; exit 1; }
+          test "${actual_os}" = "Linux" || { echo "FAIL: expected RUNNER_OS=Linux, got ${actual_os}"; exit 1; }
+          test "${actual_arch}" = "ARM64" || { echo "FAIL: runner label matched but actual RUNNER_ARCH=${actual_arch}; refusing false sovereign attestation"; exit 1; }
+          test "${kernel_arch}" = "aarch64" || { echo "FAIL: kernel architecture is ${kernel_arch}, not aarch64; refusing false ARM64 attestation"; exit 1; }
+
+          echo 'SOVEREIGN_RUNNER_ATTESTATION=PASS'
+          echo 'Execution mode: sovereign self-hosted online'
+          echo "Actual runner: ${actual_os}/${actual_arch} (${kernel_arch})"
           echo "Commit: ${GITHUB_SHA}"
       - name: Verify Python runtime
         shell: bash
