@@ -14,7 +14,7 @@ dependencies = [
     "blake3==1.0.9",
     "argon2-cffi==25.1.0",
     "PyNaCl==1.6.2",
-    "pyjwt==2.13.0",
+    "PyJWT==2.13.0",
     "passlib[bcrypt]==1.7.4",
     "SQLAlchemy[asyncio]==2.0.51",
     "redis==8.0.1",
