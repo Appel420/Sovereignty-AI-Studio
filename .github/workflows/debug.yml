@@ -24,7 +24,7 @@ jobs:
   debug:
     name: Sovereign runner diagnostics
     runs-on: ['self-hosted', 'linux', 'ARM64']
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository without third-party actions
         env:
@@ -38,7 +38,7 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all credential.helper || true
 
-      - name: Verify sovereign runner
+      - name: Diagnose and attest sovereign runner
         run: |
           actual_os="${RUNNER_OS:-}"
           actual_arch="${RUNNER_ARCH:-}"
@@ -51,12 +51,13 @@ jobs:
           printf 'uname -m=%q\n' "${kernel_arch}"
           printf 'RUNNER_NAME=%q\n' "${RUNNER_NAME:-}"
           printf 'RUNNER_LABELS=%q\n' "${RUNNER_LABELS:-<not-exposed>}"
+          printf 'RUNNER_TEMP=%q\n' "${RUNNER_TEMP:-}"
 
           test "${GITHUB_ACTIONS:-}" = "true" || { echo 'FAIL: not executing inside GitHub Actions'; exit 1; }
           test -n "${GITHUB_SHA:-}" || { echo 'FAIL: GITHUB_SHA is empty'; exit 1; }
           test "${actual_os}" = "Linux" || { echo "FAIL: expected RUNNER_OS=Linux, got ${actual_os}"; exit 1; }
-          test "${actual_arch}" = "ARM64" || { echo "FAIL: expected RUNNER_ARCH=ARM64, got ${actual_arch}; refusing false sovereign attestation"; exit 1; }
-          test "${kernel_arch}" = "aarch64" || { echo "FAIL: expected aarch64 kernel, got ${kernel_arch}; refusing false sovereign attestation"; exit 1; }
+          test "${actual_arch}" = "ARM64" || { echo "FAIL: runner architecture attestation mismatch: RUNNER_ARCH=${actual_arch}, required ARM64"; exit 1; }
+          test "${kernel_arch}" = "aarch64" || { echo "FAIL: physical kernel architecture is ${kernel_arch}, required aarch64; refusing false ARM64 attestation"; exit 1; }
 
           echo 'SOVEREIGN_RUNNER_ATTESTATION=PASS'
           echo 'Execution mode: sovereign self-hosted online'
@@ -68,32 +69,46 @@ jobs:
           python --version
           python -m pip --version
 
-      - name: Install declared dependencies
+      - name: Install canonical dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -e '.[test]'
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -e '.[test]'
           python -m pip check
 
-      - name: Verify required imports
+      - name: Verify dependency closure and metadata
         run: |
           python - <<'PY'
+          from importlib.metadata import version
           import fastapi
           import nacl
           import pydantic
           import jose
           import quart
+          import pytest
           import pytest_asyncio
-          print('fastapi:', getattr(fastapi, '__version__', 'unknown'))
-          print('nacl:', getattr(nacl, '__version__', 'unknown'))
-          print('pydantic:', getattr(pydantic, '__version__', 'unknown'))
-          print('jose: import OK')
-          print('quart: import OK')
-          print('pytest_asyncio: import OK')
+
+          expected = {
+              'fastapi': '0.139.2',
+              'PyNaCl': '1.6.2',
+              'pydantic': '2.13.4',
+              'python-jose': '3.5.0',
+              'quart': '0.20.0',
+          }
+          for package, required in expected.items():
+              actual = version(package)
+              print(f'{package}: {actual}')
+              assert actual == required, f'{package}: expected {required}, got {actual}'
+          print(f'pytest: {version("pytest")}')
+          print(f'pytest-asyncio: {version("pytest-asyncio")}')
+          print('dependency closure and metadata: PASS')
           PY
 
       - name: Python syntax gate
         run: python -m compileall -q backend apps scripts tests
+
+      - name: I-008 contract gate
+        run: python scripts/verify_i008_contract.py
 
       - name: Test collection gate
         run: python -m pytest --collect-only -q tests
@@ -106,8 +121,9 @@ jobs:
           python - <<'PY'
           from apps.dashboards.weather_dashboard import app
           client = app.test_client()
-          print('Quart application import: OK')
-          print('Quart test client construction: OK')
+          assert app is not None
+          assert client is not None
+          print('Quart application import and test client: PASS')
           PY
 
       - name: Node syntax gate
