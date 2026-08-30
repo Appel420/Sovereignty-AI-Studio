@@ -126,4 +126,5 @@ jobs:
           PY
 
       - name: Coordination import check
-        run: "python -c from backend.coordination import BranchRegistry; print('coordination import: PASS')"
+        run: |
+          python -c "from backend.coordination import BranchRegistry; print('coordination import: PASS')"
