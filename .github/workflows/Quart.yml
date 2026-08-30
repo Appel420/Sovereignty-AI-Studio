@@ -52,10 +52,25 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+
+    timeout-minutes: 20
+
+    steps:
+      - name: Sovereign checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+
           git checkout --detach FETCH_HEAD
 
       - name: Verify Python runtime
         run: |
+
           python --version
           python -m pip --version
 
@@ -102,4 +117,70 @@ jobs:
           from apps.dashboards.weather_dashboard import app
           client = app.test_client()
           print('Quart application import: OK')
+
+          command -v python3
+          python3 --version
+          python3 -m pip --version
+
+      - name: Install canonical repository dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --requirement requirements.txt
+          python3 -m pip install --editable '.[test]'
+
+      - name: Verify dependency closure
+        run: python3 -m pip check
+
+      - name: Verify required imports and package metadata
+        run: |
+          python3 - <<'PY'
+          from importlib.metadata import version
+
+          import fastapi
+          import nacl
+          import pydantic
+          import jose
+          import quart
+          import pytest
+          import pytest_asyncio
+
+          packages = (
+              'fastapi',
+              'PyNaCl',
+              'pydantic',
+              'python-jose',
+              'quart',
+              'pytest',
+              'pytest-asyncio',
+          )
+          for package in packages:
+              print(f'{package} {version(package)}')
+
+          assert fastapi.__version__ == version('fastapi')
+          assert nacl.__version__ == version('PyNaCl')
+          assert pydantic.__version__ == version('pydantic')
+          print('required imports: PASS')
+          PY
+
+      - name: Python syntax gate
+        run: python3 -m compileall -q backend apps scripts tests
+
+      - name: Pytest configuration gate
+        run: python3 -m pytest --version
+
+      - name: Test collection gate
+        run: python3 -m pytest --collect-only -q tests
+
+      - name: Test suite
+        run: python3 -m pytest -q tests
+
+      - name: Quart application smoke test
+        run: |
+          python3 - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+
+          assert app is not None
+          client = app.test_client()
+          assert client is not None
+          print('Quart application import and test client: PASS')
           PY
