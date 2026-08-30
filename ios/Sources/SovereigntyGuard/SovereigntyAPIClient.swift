@@ -1,33 +1,31 @@
 // SovereigntyAPIClient.swift
 // SovereigntyGuard
 //
-// Network client for connecting the iPhone app to the Sovereignty AI Studio backend.
-// All traffic goes through port 9898.
+// Network client for connecting the iPhone app to the Sovereignty AI Studio
+// production ingress. External traffic is HTTPS on TCP 443.
 
 import Foundation
 #if canImport(UIKit)
 import UIKit
 #endif
 
-/// Connects to the Sovereignty AI Studio backend on port 9898.
+/// Connects to the Sovereignty AI Studio production API through HTTPS/443.
 public final class SovereigntyAPIClient: @unchecked Sendable {
 
-    /// Shared singleton instance.
     public static let shared = SovereigntyAPIClient()
 
-    /// Base URL for the backend API — defaults to local network on port 9898.
+    /// Production API base URL. The transport contract requires HTTPS on 443.
     public var baseURL: String {
         get { _baseURL }
         set { _baseURL = newValue }
     }
     private var _baseURL: String
 
-    /// JWT bearer token set after login.
     public var authToken: String?
 
     private let session: URLSession
 
-    public init(baseURL: String = "http://localhost:9898") {
+    public init(baseURL: String = "https://localhost") {
         self._baseURL = baseURL
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
@@ -37,7 +35,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
 
     // MARK: - Health & Status
 
-    /// Check if the backend is reachable.
     public func healthCheck() async throws -> Bool {
         let data = try await get(path: "/health")
         if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -47,7 +44,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
         return false
     }
 
-    /// Fetch mobile-specific service status.
     public func mobileStatus() async throws -> [String: Any] {
         let data = try await get(path: "/api/v1/mobile/status")
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
@@ -58,7 +54,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
 
     // MARK: - Authentication
 
-    /// Login and store the JWT token.
     public func login(username: String, password: String) async throws -> String {
         let body: [String: Any] = ["username": username, "password": password]
         let data = try await post(path: "/api/v1/auth/login", body: body)
@@ -72,7 +67,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
 
     // MARK: - Alerts
 
-    /// Fetch user alerts from the backend.
     public func getAlerts(limit: Int = 50) async throws -> [[String: Any]] {
         let data = try await get(path: "/api/v1/alerts/?limit=\(limit)")
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
@@ -81,7 +75,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
         return json
     }
 
-    /// Create a new alert, optionally with TTS.
     public func createAlert(type: String, title: String, message: String,
                             severity: String = "medium", speak: Bool = false) async throws -> [String: Any] {
         let body: [String: Any] = [
@@ -100,7 +93,6 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
 
     // MARK: - Honeypot
 
-    /// Arm the honeypot with a signed hash.
     public func armHoneypot(hash: String) async throws -> [String: Any] {
         let body: [String: Any] = ["action": "arm", "hash": hash]
         let data = try await post(path: "/api/v1/alerts/", body: [
@@ -116,12 +108,19 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
         return json
     }
 
-    // MARK: - HTTP Helpers
+    // MARK: - Secure transport
+
+    private func makeURL(path: String) throws -> URL {
+        guard let url = URL(string: "\(_baseURL)\(path)"),
+              url.scheme?.lowercased() == "https",
+              url.port == nil || url.port == 443 else {
+            throw APIError.insecureTransport
+        }
+        return url
+    }
 
     private func get(path: String) async throws -> Data {
-        guard let url = URL(string: "\(_baseURL)\(path)") else {
-            throw APIError.invalidURL
-        }
+        let url = try makeURL(path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         addAuth(to: &request)
@@ -131,9 +130,7 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
     }
 
     private func post(path: String, body: [String: Any]) async throws -> Data {
-        guard let url = URL(string: "\(_baseURL)\(path)") else {
-            throw APIError.invalidURL
-        }
+        let url = try makeURL(path: path)
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -166,10 +163,9 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
         }
     }
 
-    // MARK: - Errors
-
     public enum APIError: Error, CustomStringConvertible {
         case invalidURL
+        case insecureTransport
         case invalidResponse
         case authenticationFailed
         case forbidden
@@ -178,6 +174,7 @@ public final class SovereigntyAPIClient: @unchecked Sendable {
         public var description: String {
             switch self {
             case .invalidURL: return "Invalid URL"
+            case .insecureTransport: return "HTTPS on port 443 is required"
             case .invalidResponse: return "Invalid response from server"
             case .authenticationFailed: return "Authentication failed"
             case .forbidden: return "Access forbidden"
