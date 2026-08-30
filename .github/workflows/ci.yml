@@ -1,10 +1,15 @@
-name: CI
+name: ci.yml
 
 on:
-  push:
-    branches: [ara-hardened, Collaboration]
+  Run python -c from backend.coordination import BranchRegistry; print('coordination import: PASS')
+##[debug]Overwrite 'shell' base on job defaults.
+##[debug]/usr/bin/bash --noprofile --norc -euo pipefail /home/runner/work/_temp/692125bd-d215-4963-b238-a69bfce2a74e.sh
+/home/runner/work/_temp/692125bd-d215-4963-b238-a69bfce2a74e.sh: line 1: syntax error near unexpected token `'coordination import: PASS''
+Error: Process completed with exit code 2.
+##[debug]Finishing: Coordination import check
+    branches: [Collaboration]
   pull_request:
-    branches: [ara-hardened, Collaboration]
+    branches: [Collaboration]
   workflow_dispatch:
 
 concurrency:
@@ -21,7 +26,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -40,7 +45,7 @@ jobs:
           echo "STARTUP=PASS"
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v3
         with:
           python-version: '3.13'
           cache: pip
