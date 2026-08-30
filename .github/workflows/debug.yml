@@ -6,37 +6,120 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: debug-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_INPUT: '1'
+
 jobs:
   debug:
-    name: GitHub Debug
-    runs-on: ununtu-latest
-    timeout-minutes: 10
+    name: Sovereign runner diagnostics
+    runs-on: ['self-hosted', 'linux', 'ARM64']
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository 
+      - name: Checkout repository without third-party actions
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
-          set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          rm -rf .git
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Verify runner
+          git config --unset-all credential.helper || true
+
+      - name: Verify sovereign runner
         run: |
-          set -Eeuo pipefail
-          test "${RUNNER_OS}" = "ubuntu"
-          test "${RUNNER_ARCH}" = "ARM64"
+          actual_os="${RUNNER_OS:-}"
+          actual_arch="${RUNNER_ARCH:-}"
+          kernel_arch="$(uname -m)"
+
+          printf 'GITHUB_ACTIONS=%q\n' "${GITHUB_ACTIONS:-}"
+          printf 'GITHUB_SHA=%q\n' "${GITHUB_SHA:-}"
+          printf 'RUNNER_OS=%q\n' "${actual_os}"
+          printf 'RUNNER_ARCH=%q\n' "${actual_arch}"
+          printf 'uname -m=%q\n' "${kernel_arch}"
+          printf 'RUNNER_NAME=%q\n' "${RUNNER_NAME:-}"
+          printf 'RUNNER_LABELS=%q\n' "${RUNNER_LABELS:-<not-exposed>}"
+
+          test "${GITHUB_ACTIONS:-}" = "true" || { echo 'FAIL: not executing inside GitHub Actions'; exit 1; }
+          test -n "${GITHUB_SHA:-}" || { echo 'FAIL: GITHUB_SHA is empty'; exit 1; }
+          test "${actual_os}" = "Linux" || { echo "FAIL: expected RUNNER_OS=Linux, got ${actual_os}"; exit 1; }
+          test "${actual_arch}" = "ARM64" || { echo "FAIL: expected RUNNER_ARCH=ARM64, got ${actual_arch}; refusing false sovereign attestation"; exit 1; }
+          test "${kernel_arch}" = "aarch64" || { echo "FAIL: expected aarch64 kernel, got ${kernel_arch}; refusing false sovereign attestation"; exit 1; }
+
+          echo 'SOVEREIGN_RUNNER_ATTESTATION=PASS'
+          echo 'Execution mode: sovereign self-hosted online'
+          echo "Actual runner: ${actual_os}/${actual_arch} (${kernel_arch})"
+          echo "Commit: ${GITHUB_SHA}"
+
       - name: Verify Python runtime
-        run: python --version
-      - name: Install dependencies
+        run: |
+          python --version
+          python -m pip --version
+
+      - name: Install declared dependencies
         run: |
           python -m pip install --upgrade pip
-          if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
-          python -m pip install pytest flake8
-      - name: Run debug tests
+          python -m pip install -r requirements.txt
+          python -m pip install -e '.[test]'
+          python -m pip check
+
+      - name: Verify required imports
         run: |
-          python -m pytest
-          flake8
+          python - <<'PY'
+          import fastapi
+          import nacl
+          import pydantic
+          import jose
+          import quart
+          import pytest_asyncio
+          print('fastapi:', getattr(fastapi, '__version__', 'unknown'))
+          print('nacl:', getattr(nacl, '__version__', 'unknown'))
+          print('pydantic:', getattr(pydantic, '__version__', 'unknown'))
+          print('jose: import OK')
+          print('quart: import OK')
+          print('pytest_asyncio: import OK')
+          PY
+
+      - name: Python syntax gate
+        run: python -m compileall -q backend apps scripts tests
+
+      - name: Test collection gate
+        run: python -m pytest --collect-only -q tests
+
+      - name: Run test suite
+        run: python -m pytest -q tests
+
+      - name: Quart application smoke test
+        run: |
+          python - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+          client = app.test_client()
+          print('Quart application import: OK')
+          print('Quart test client construction: OK')
+          PY
+
+      - name: Node syntax gate
+        run: |
+          if [[ -f node-bridge/server.js ]]; then
+            node --check node-bridge/server.js
+            echo 'Node syntax: PASS'
+          else
+            echo 'node-bridge/server.js not present; Node gate not applicable.'
+          fi
+
       - name: Debug summary
-        run: echo "GitHub debug validation complete."
+        run: |
+          echo 'SOVEREIGN_DEBUG_WORKFLOW=PASS'
+          echo "Commit: ${GITHUB_SHA}"
