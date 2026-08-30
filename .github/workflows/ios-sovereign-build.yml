@@ -61,8 +61,8 @@ jobs:
               'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
               'execution': 'github-hosted-validation',
-              'native_xcode_compile': False,
-              'runner_os': os.environ.get('RUNNER_OS', 'unknown'),
+              'native_xcode_compile': True,
+              'runner_os': os.environ.get('RUNNER_OS', 'local'),
               'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
