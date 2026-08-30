@@ -2,13 +2,15 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [Collaboration, main, dev]
+    branches: [Collaboration]
     paths:
       - 'node-bridge/**'
+      - '.github/workflows/node-bridge.yml'
   pull_request:
-    branches: [Collaboration, main, dev]
+    branches: [Collaboration]
     paths:
       - 'node-bridge/**'
+      - '.github/workflows/node-bridge.yml'
   workflow_dispatch:
 
 env:
@@ -17,19 +19,29 @@ env:
 permissions:
   contents: read
 
+concurrency:
+  group: node-bridge-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: true
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '25'
-          cache: npm
-          cache-dependency-path: node-bridge/package-lock.json
+        run: node --version
       - name: Install dependencies
         working-directory: node-bridge
         run: npm ci
