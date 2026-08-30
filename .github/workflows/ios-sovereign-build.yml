@@ -1,4 +1,4 @@
-name: iOS Sovereign Build
+name: ios-sovereign-build.yml
 
 on:
   push:
@@ -71,4 +71,4 @@ jobs:
           print(json.dumps(payload, indent=2, sort_keys=True))
           PY
       - name: Verify manifest
-        run: python3 -m json.tool ios-build-manifest.json >/dev/null
+        run: python3 -m json.tool ios-build-manifest.json
