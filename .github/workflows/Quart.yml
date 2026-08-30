@@ -5,21 +5,19 @@ on:
   push:
     branches: [Collaboration]
     paths:
-      - ".github/workflows/Quart.yml"
-      - ".github/workflows/Requirements.txt"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.py"
+      - '.github/workflows/Quart.yml'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - '**/*.py'
   pull_request:
     branches: [Collaboration]
     paths:
-      - ".github/workflows/Quart.yml"
-      - ".github/workflows/Requirements.txt"
-      - "pyproject.toml"
-      - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.py"
+      - '.github/workflows/Quart.yml'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - 'pytest.ini'
+      - '**/*.py'
 
 permissions:
   contents: read
@@ -34,51 +32,95 @@ defaults:
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
- 
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_INPUT: '1'
+
 jobs:
   build:
     name: Quart CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+
     steps:
       - name: Checkout repository
-        uses: 
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
-        uses: 
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: '3.13'
           cache: pip
-          cache-dependency-path: |
-            .github/workflows/Requirements.txt
-            pyproject.toml
+          cache-dependency-path: requirements.txt
 
       - name: Verify Python runtime
-        run: python --version
+        run: |
+          python --version
+          python -m pip --version
 
-      - name: Install dependencies
+      - name: Install canonical repository dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r .github/workflows/Requirements.txt
-          if [[ -f pyproject.toml ]]; then
-            python -m pip install -e .[test]
-          fi
-          python -m pip install hypercorn
+          python -m pip install --requirement requirements.txt
+          python -m pip install --editable '.[test]'
 
-      - name: Validate package metadata
+      - name: Verify dependency closure
         run: python -m pip check
 
-      - name: Test with pytest
-        run: python -m pytest -q
-
-      - name: Quart import smoke test
+      - name: Verify required imports and package versions
         run: |
           python - <<'PY'
-          from quart import Quart
-          app = Quart("ci-smoke")
+          from importlib.metadata import version
+
+          import fastapi
+          import nacl
+          import pydantic
+          import jose
+          import quart
+          import pytest
+          import pytest_asyncio
+
+          packages = (
+              'fastapi',
+              'PyNaCl',
+              'pydantic',
+              'python-jose',
+              'quart',
+              'pytest',
+              'pytest-asyncio',
+          )
+
+          for package in packages:
+              print(f'{package} {version(package)}')
+
+          assert fastapi.__version__ == version('fastapi')
+          assert nacl.__version__ == version('PyNaCl')
+          assert pydantic.__version__ == version('pydantic')
+          print('required dependency closure: PASS')
+          PY
+
+      - name: Python syntax gate
+        run: python -m compileall -q backend apps scripts tests
+
+      - name: Pytest configuration gate
+        run: python -m pytest --version
+
+      - name: Test collection gate
+        run: python -m pytest --collect-only -q tests
+
+      - name: Test suite
+        run: python -m pytest -q tests
+
+      - name: Quart application smoke test
+        run: |
+          python - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+
           assert app is not None
-          print("Quart import and application construction: OK")
+          client = app.test_client()
+          assert client is not None
+          print('Quart application import and test client: PASS')
           PY
