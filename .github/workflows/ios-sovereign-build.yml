@@ -1,12 +1,9 @@
-name: iOS Sovereign Build (deployment)
-
-# Real native build on macOS-latest. This is deployment, not a test.
-# Hosted ignition stays cheap; device shift does the actual Xcode compile.
+name: ios-sovereign-build.yml (deployment)
 on:
   push:
-    branches: [ara-hardened, Collaboration]
+    branches: [Collaboration]
   pull_request:
-    branches: [ara-hardened, Collaboration]
+    branches: [Collaboration]
   workflow_dispatch:
 
 env:
@@ -65,7 +62,7 @@ jobs:
         with:
           name: ios-handoff-${{ github.run_id }}
           path: ios-build-manifest.json
-          retention-days: 7
+          retention-days: 90
           if-no-files-found: error
 
   sovereign-shift:
@@ -102,7 +99,6 @@ jobs:
           if [ -f Makefile ]; then make ios-build; fi
           if [ -f scripts/ios-build.sh ]; then bash scripts/ios-build.sh; fi
           if [ -d ios ] || [ -d "*.xcodeproj" ] || [ -d "*.xcworkspace" ]; then
-            xcodebuild -scheme "${IOS_SCHEME:-App}" -configuration Release -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=NO
-          else
-            echo "No Xcode project found; ignition-only pass"
+            xcodebuild -scheme "${IOS_SCHEME:-App}" -configuration Release -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=YES
+            else
           fi
