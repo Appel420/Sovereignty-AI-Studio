@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""TLS-only production WebSocket bridge.
-
-The public bridge endpoint is WSS on TCP/443. Plain ws:// startup is not a
-supported production mode. TLS 1.3 is mandatory and certificate material must
-be supplied explicitly through the environment.
-"""
+"""TLS-only production WebSocket bridge on TCP/443."""
 from __future__ import annotations
 
 import asyncio
@@ -29,8 +24,7 @@ class SecureBridgeServer(BridgeServer):
             raise RuntimeError("TLS_CERT and TLS_KEY are required; refusing plaintext startup")
         super().__init__(host=host, port=port)
         if self.bridge_watcher is not None:
-            # The watcher must observe the actual secure endpoint, never ws://.
-            self.bridge_watcher.url = f"wss://{host}:443"
+            self.bridge_watcher._url = f"wss://{host}:443"
 
     async def start(self) -> None:
         if not os.path.isfile(CERT) or not os.path.isfile(KEY):
