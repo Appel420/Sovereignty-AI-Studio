@@ -1,32 +1,40 @@
-name: Quart App CI
+name: Python Test Gate
 
 on:
   workflow_dispatch:
   push:
     branches: [Collaboration]
     paths:
-      - ".github/workflows/Quart.yml"
-      - ".github/workflows/Requirements.txt"
       - "pyproject.toml"
+      - "requirements.txt"
       - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.py"
+      - "tests/**"
+      - "app/**"
+      - "backend/**"
+      - "apps/**"
+      - "errors/**"
+      - "helpers/**"
+      - "fixers/**"
+      - "watchers/**"
+      - ".github/workflows/Quart.yml"
   pull_request:
     branches: [Collaboration]
     paths:
-      - ".github/workflows/Quart.yml"
-      - ".github/workflows/Requirements.txt"
       - "pyproject.toml"
+      - "requirements.txt"
       - "pytest.ini"
-      - "requirements*.txt"
-      - "**/*.py"
+      - "tests/**"
+      - "app/**"
+      - "backend/**"
+      - "apps/**"
+      - "errors/**"
+      - "helpers/**"
+      - "fixers/**"
+      - "watchers/**"
+      - ".github/workflows/Quart.yml"
 
 permissions:
   contents: read
-
-concurrency:
-  group: quart-ci-${{ github.ref }}
-  cancel-in-progress: false
 
 defaults:
   run:
@@ -34,51 +42,50 @@ defaults:
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
- 
+
 jobs:
-  build:
-    name: Quart CI
+  test:
+    name: Python dependency + test gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository
-        uses: 
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up Python
-        uses: 
+        uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: |
-            .github/workflows/Requirements.txt
-            pyproject.toml
+          cache-dependency-path: pyproject.toml
 
-      - name: Verify Python runtime
-        run: python --version
-
-      - name: Install dependencies
+      - name: Install package and test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r .github/workflows/Requirements.txt
-          if [[ -f pyproject.toml ]]; then
-            python -m pip install -e .[test]
-          fi
-          python -m pip install hypercorn
+          python -m pip install -e '.[test]'
+          python -m pip check
 
-      - name: Validate package metadata
-        run: python -m pip check
-
-      - name: Test with pytest
-        run: python -m pytest -q
-
-      - name: Quart import smoke test
+      - name: Verify required imports
         run: |
           python - <<'PY'
           from quart import Quart
-          app = Quart("ci-smoke")
-          assert app is not None
-          print("Quart import and application construction: OK")
+          from fastapi import FastAPI
+          from nacl.signing import SigningKey
+          from jose import jwt
+          from pydantic import BaseModel
+          assert Quart("smoke") is not None
+          assert FastAPI() is not None
+          assert SigningKey.generate() is not None
+          assert jwt is not None
+          assert BaseModel is not None
+          print("REQUIRED_IMPORTS=PASS")
           PY
+
+      - name: Verify pytest asyncio configuration
+        run: python -m pytest --trace-config --collect-only -q
+
+      - name: Run complete Python test suite
+        run: python -m pytest -q
