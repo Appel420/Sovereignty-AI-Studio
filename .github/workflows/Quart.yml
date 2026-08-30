@@ -41,7 +41,6 @@ jobs:
     name: Quart CI
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
       - name: Sovereign checkout
         env:
@@ -49,31 +48,31 @@ jobs:
         run: |
           : "${GH_TOKEN:?GITHUB_TOKEN is required}"
           git init .
+          git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
 
       - name: Verify Python runtime
         run: |
-          command -v python3
-          python3 --version
-          python3 -m pip --version
+          python --version
+          python -m pip --version
 
       - name: Install canonical repository dependencies
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install --requirement requirements.txt
-          python3 -m pip install --editable '.[test]'
+          python -m pip install --upgrade pip
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -e '.[test]'
 
       - name: Verify dependency closure
-        run: python3 -m pip check
+        run: python -m pip check
 
       - name: Verify required imports and package metadata
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           from importlib.metadata import version
-
           import fastapi
           import nacl
           import pydantic
@@ -82,43 +81,41 @@ jobs:
           import pytest
           import pytest_asyncio
 
-          packages = (
-              'fastapi',
-              'PyNaCl',
-              'pydantic',
-              'python-jose',
-              'quart',
-              'pytest',
-              'pytest-asyncio',
-          )
-          for package in packages:
-              print(f'{package} {version(package)}')
+          expected = {
+              'fastapi': '0.139.2',
+              'PyNaCl': '1.6.2',
+              'pydantic': '2.13.4',
+              'python-jose': '3.5.0',
+              'quart': '0.20.0',
+          }
+          for package, required in expected.items():
+              actual = version(package)
+              print(f'{package} {actual}')
+              assert actual == required, f'{package}: expected {required}, got {actual}'
 
-          assert fastapi.__version__ == version('fastapi')
-          assert nacl.__version__ == version('PyNaCl')
-          assert pydantic.__version__ == version('pydantic')
-          print('required imports: PASS')
+          print(f'pytest {version("pytest")}')
+          print(f'pytest-asyncio {version("pytest-asyncio")}')
+          print('required dependency closure: PASS')
           PY
 
       - name: Python syntax gate
-        run: python3 -m compileall -q backend apps scripts tests
+        run: python -m compileall -q backend apps scripts tests
 
-      - name: Pytest configuration gate
-        run: python3 -m pytest --version
+      - name: I-008 contract gate
+        run: python scripts/verify_i008_contract.py
 
       - name: Test collection gate
-        run: python3 -m pytest --collect-only -q tests
+        run: python -m pytest --collect-only -q tests
 
       - name: Test suite
-        run: python3 -m pytest -q tests
+        run: python -m pytest -q tests
 
       - name: Quart application smoke test
         run: |
-          python3 - <<'PY'
+          python - <<'PY'
           from apps.dashboards.weather_dashboard import app
-
-          assert app is not None
           client = app.test_client()
+          assert app is not None
           assert client is not None
           print('Quart application import and test client: PASS')
           PY
