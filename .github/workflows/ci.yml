@@ -7,8 +7,6 @@ on:
     branches: [Collaboration]
   workflow_dispatch:
 
-# Never cancel an in-flight validation run. A later push must not strand the
-# previous run in an ambiguous state; both runs remain observable.
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -18,8 +16,6 @@ permissions:
   actions: read
 
 jobs:
-  # Independent gates run in parallel. A failure is evidence, not permission
-  # to silently skip the remaining independent validation surfaces.
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
@@ -27,7 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Startup attestation
         run: |
           set -Eeuo pipefail
@@ -38,29 +33,24 @@ jobs:
             "REF=${GITHUB_REF}" \
             "SHA=${GITHUB_SHA}" \
             "STARTUP=PASS"
-
       - name: Python baseline
         run: |
           python --version
           python -m pip --version
-
       - name: Install validation dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]' || python -m pip install pytest ruff mypy jsonschema
-
       - name: I-008 executable contract
         run: python scripts/verify_i008_contract.py
-
+      - name: Workflow visibility contract
+        run: python scripts/verify_visibility_contract.py
       - name: Compile
         run: python -m compileall -q .
-
       - name: Ruff
         run: ruff check .
-
       - name: Mypy
         run: mypy sovereign/
-
       - name: Pytest
         run: pytest -q
 
@@ -79,9 +69,6 @@ jobs:
           test "${count}" -gt 0
           echo "WORKFLOW_FILE_COUNT=${count}"
           find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
-          if test -f ci.yml; then
-            echo 'WARNING: root ci.yml exists; root YAML is not a GitHub Actions workflow.'
-          fi
 
   coordination-surface:
     name: Coordination import and contract audit
@@ -96,9 +83,6 @@ jobs:
       - name: Coordination tests
         run: pytest -q backend/coordination
 
-  # Explicitly observable recovery lane. It does not mutate code automatically;
-  # it produces deterministic failure evidence for the owner instead of hiding
-  # a broken state behind a cancelled/skipped job.
   recovery-observer:
     name: Recovery observer
     if: always()
