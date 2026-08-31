@@ -1,4 +1,4 @@
-name: OAUTH-API-GENERATOR
+name: oauth-api-generator.yaml
 
 on:
   push:
