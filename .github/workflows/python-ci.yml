@@ -31,12 +31,8 @@ permissions:
 concurrency:
   group: python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
-env:
-  PYTHONDONTWRITEBYTECODE: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-  PIP_NO_INPUT: '1'
-  PYTHONPATH: .:./backend:./src:./prototypes
+  
+PYTHONPATH: .:./backend:./src:./prototypes
 
 defaults:
   run:
@@ -58,9 +54,7 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
+          git checkout --detach FETCH_HEADp
       - name: Verify Python runtime
         run: |
           python --version
