@@ -13,8 +13,7 @@ permissions: {}
 
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-  PIP_NO_INPUT: '1'
+
 
 defaults:
   run:
