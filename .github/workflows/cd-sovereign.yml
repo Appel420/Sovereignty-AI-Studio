@@ -1,0 +1,128 @@
+name: CD — Sovereign Release
+
+# CD is fail-closed. Build, I-008, native ML-DSA verification, PQC SCAR,
+# and local deployment occur in one controlled runner so the deployed
+# artifact is the artifact that passed every release gate.
+on:
+  push:
+    branches: [Collaboration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOVEREIGN_MLDSA_NATIVE_COMMIT: 783a7b51f3992d6b240cef93b78e5449dfccf200
+
+concurrency:
+  group: sovereign-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Verify + Native ML-DSA + PQC SCAR + Deploy
+    runs-on: [self-hosted, Linux, ARM64]
+    environment: production
+    timeout-minutes: 60
+    steps:
+      - name: Checkout exact commit without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          rm -rf .git
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+
+      - name: Runtime identity gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = true
+          test "${RUNNER_OS}" = Linux
+          test "${RUNNER_ARCH}" = ARM64
+          test "$(uname -m)" = aarch64
+          python --version
+
+      - name: Install release dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -e '.[test,lint,pqc]'
+          python -m pip install --disable-pip-version-check build==1.6.0
+          python -m pip check
+
+      - name: I-008 executable gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/verify_i008_contract.py
+          python -m pytest -q backend/coordination/test_i008_transparency.py tests/test_i008_transparency.py
+
+      - name: Full Python collection gate
+        shell: bash
+        run: python -m pytest --collect-only -q tests
+
+      - name: Full test suite
+        shell: bash
+        run: python -m pytest -q tests
+
+      - name: Verify sovereign ML-DSA native implementation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf .pqc/sovereign-mldsa-native
+          git clone --no-tags --filter=blob:none https://github.com/Appel420/sovereign-mldsa-native.git .pqc/sovereign-mldsa-native
+          git -C .pqc/sovereign-mldsa-native fetch --depth=1 origin "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
+          git -C .pqc/sovereign-mldsa-native checkout --detach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
+          test "$(git -C .pqc/sovereign-mldsa-native rev-parse HEAD)" = "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
+          make -C .pqc/sovereign-mldsa-native build
+          make -C .pqc/sovereign-mldsa-native test
+          printf 'SOVEREIGN_MLDSA_NATIVE_COMMIT=%s\n' "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
+          printf 'SOVEREIGN_MLDSA_NATIVE_VERIFY=PASS\n'
+
+      - name: Build exact release artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -rf dist
+          python -m build
+          test -n "$(find dist -maxdepth 1 -type f -print -quit)"
+
+      - name: Independent PQC SCAR attestation
+        shell: bash
+        env:
+          SCAR_PQC_KEY_DIR: /var/lib/sovereignty/scar/pqc
+          SCAR_PQC_OUTPUT: /var/lib/sovereignty/scar/attestations/${{ github.sha }}.json
+        run: |
+          set -Eeuo pipefail
+          python scripts/scar_pqc_attest.py --status PASS --commit "${GITHUB_SHA}"
+          test -s "${SCAR_PQC_OUTPUT}"
+          grep -q '"verified": true' "${SCAR_PQC_OUTPUT}"
+          grep -q 'ML-DSA-87' "${SCAR_PQC_OUTPUT}"
+
+      - name: Deploy exact verified artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash ./scripts/deploy-sovereign.sh "${GITHUB_SHA}"
+          test -f /var/lib/sovereignty/scar/deployment-receipt.json
+
+      - name: Final release proof
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          sha256sum dist/*
+          printf 'SOVEREIGN_CD_VERIFY=PASS\n'
+          printf 'SOVEREIGN_MLDSA_NATIVE=PASS\n'
+          printf 'SOVEREIGN_SCAR_PQC=PASS\n'
+          printf 'SOVEREIGN_CD_DEPLOYMENT=PASS\n'
+          printf 'SOVEREIGN_RELEASE_COMMIT=%s\n' "${GITHUB_SHA}"

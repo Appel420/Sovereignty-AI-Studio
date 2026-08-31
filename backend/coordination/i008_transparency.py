@@ -1,9 +1,4 @@
-"""I-008 deterministic transparency enforcement.
-
-This module is the fail-closed execution boundary. Every side-effecting caller
-must provide a declaration, a schema-valid option set and selected option, a
-pre-action evidence sink, and an explicit owner decision before execution.
-"""
+"""I-008 deterministic transparency enforcement."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -133,7 +128,7 @@ def authorize_action(*, declaration: ActionDeclaration | None, option_set: Mappi
         return {**event, "execution": "BLOCKED"}
     if declaration.decision_class != "ALLOW":
         _incident("I-008: declaration does not authorize execution", incident=incident, owner_alert=owner_alert, context=context)
-    return event
+    return {**event, "execution": "AUTHORIZED"}
 
 
 def execute_authorized_action(*, declaration: ActionDeclaration | None, option_set: Mapping[str, Any] | None, selected_option_id: str | None, option_schema: Mapping[str, Any], owner_decision: str, pre_action_evidence: OwnerSink, incident: OwnerSink, owner_alert: OwnerSink, action: Callable[[], T], post_action_receipt: OwnerSink) -> T | None:

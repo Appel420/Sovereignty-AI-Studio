@@ -7,8 +7,6 @@ on:
     branches: [Collaboration]
   workflow_dispatch:
 
-# Never cancel an in-flight validation run. A later push must not strand the
-# previous run in an ambiguous state; both runs remain observable.
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -17,18 +15,29 @@ permissions:
   contents: read
   actions: read
 
+env:
+  PYTHONPATH: .:./backend
+
 jobs:
-  # Independent gates run in parallel. A failure is evidence, not permission
-  # to silently skip the remaining independent validation surfaces.
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
 
-      - name: Startup attestation
+      - name: Record execution identity
         run: |
           set -Eeuo pipefail
           printf '%s\n' \
@@ -36,8 +45,7 @@ jobs:
             "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}" \
             "EVENT=${GITHUB_EVENT_NAME}" \
             "REF=${GITHUB_REF}" \
-            "SHA=${GITHUB_SHA}" \
-            "STARTUP=PASS"
+            "SHA=${GITHUB_SHA}"
 
       - name: Python baseline
         run: |
@@ -46,8 +54,14 @@ jobs:
 
       - name: Install validation dependencies
         run: |
+          set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]' || python -m pip install pytest ruff mypy jsonschema
+          python -m pip install -e '.[test,lint]'
+          python -m pip install pip-audit==2.9.0
+          python -m pip check
+
+      - name: Dependency vulnerability gate
+        run: pip-audit --strict
 
       - name: I-008 executable contract
         run: python scripts/verify_i008_contract.py
@@ -69,7 +83,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Enumerate workflow surface
         shell: bash
         run: |
@@ -79,8 +104,9 @@ jobs:
           test "${count}" -gt 0
           echo "WORKFLOW_FILE_COUNT=${count}"
           find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
-          if test -f ci.yml; then
-            echo 'WARNING: root ci.yml exists; root YAML is not a GitHub Actions workflow.'
+          if grep -RInE '^[[:space:]]*uses:[[:space:]]+actions/checkout@' .github/workflows; then
+            echo 'ERROR: prohibited checkout action remains in workflow surface'
+            exit 1
           fi
 
   coordination-surface:
@@ -88,7 +114,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Python environment
         run: python --version
       - name: Coordination import
@@ -96,16 +133,24 @@ jobs:
       - name: Coordination tests
         run: pytest -q backend/coordination
 
-  # Explicitly observable recovery lane. It does not mutate code automatically;
-  # it produces deterministic failure evidence for the owner instead of hiding
-  # a broken state behind a cancelled/skipped job.
   recovery-observer:
     name: Recovery observer
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Publish execution state
         run: |
           set -Eeuo pipefail

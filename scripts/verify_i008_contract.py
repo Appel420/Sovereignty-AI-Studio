@@ -31,18 +31,83 @@ def main() -> int:
                 raise ValueError(f"{field} must require minItems=1")
 
         sys.path.insert(0, str(ROOT))
-        from backend.coordination.i008_transparency import I008Violation, declare_action, execute_authorized_action
+        from backend.coordination.i008_transparency import (
+            I008Violation,
+            authorize_action,
+            declare_action,
+            execute_authorized_action,
+        )
 
-        option_set = {"options": [{"id": "verification", "label": "Run verification", "pros": ["Produces evidence"], "cons": ["Consumes CI time"], "risks": ["Verification can fail"], "rewards": ["Validated repository state"]}]}
+        option_set = {
+            "options": [{
+                "id": "verification",
+                "label": "Run verification",
+                "pros": ["Produces evidence"],
+                "cons": ["Consumes CI time"],
+                "risks": ["Verification can fail"],
+                "rewards": ["Validated repository state"],
+            }]
+        }
         events = []
-        declaration = declare_action(action_id="verify-i008", decision_class="ALLOW", owner_id="Appel420", capability_id="verification", policy_hash="sha256:verification", side_effects=["test execution"], data_egress=["CI metadata only"], persistence=["SCAR evidence"], provider_or_technology=["GitHub runner"])
-        result = execute_authorized_action(declaration=declaration, option_set=option_set, selected_option_id="verification", option_schema=schema, owner_decision="ALLOW", pre_action_evidence=events.append, incident=events.append, owner_alert=events.append, action=lambda: "executed", post_action_receipt=events.append)
-        if result != "executed" or [e["event"] for e in events] != ["pre_action_declaration", "post_action_receipt"]:
-            raise AssertionError("I-008 gate sequence did not execute in required order")
+        incidents = []
+        alerts = []
+        declaration = declare_action(
+            action_id="verify-i008",
+            decision_class="ALLOW",
+            owner_id="Appel420",
+            capability_id="verification",
+            policy_hash="sha256:verification",
+            side_effects=["test execution"],
+            data_egress=["CI metadata only"],
+            persistence=["SCAR evidence"],
+            provider_or_technology=["GitHub runner"],
+        )
+
+        authorization = authorize_action(
+            declaration=declaration,
+            option_set=option_set,
+            selected_option_id="verification",
+            option_schema=schema,
+            owner_decision="ALLOW",
+            pre_action_evidence=events.append,
+            incident=incidents.append,
+            owner_alert=alerts.append,
+        )
+        if authorization.get("execution") != "AUTHORIZED":
+            raise AssertionError(f"authorization state is not AUTHORIZED: {authorization!r}")
+
+        # Execute through the same public gate after proving authorization shape.
+        events.clear()
+        result = execute_authorized_action(
+            declaration=declaration,
+            option_set=option_set,
+            selected_option_id="verification",
+            option_schema=schema,
+            owner_decision="ALLOW",
+            pre_action_evidence=events.append,
+            incident=incidents.append,
+            owner_alert=alerts.append,
+            action=lambda: "executed",
+            post_action_receipt=events.append,
+        )
+        sequence = [event.get("event") for event in events]
+        if result != "executed" or sequence != ["pre_action_declaration", "post_action_receipt"]:
+            raise AssertionError(f"I-008 gate sequence invalid: result={result!r}, sequence={sequence!r}")
 
         blocked = []
         try:
-            execute_authorized_action(declaration=None, option_set=option_set, selected_option_id="verification", option_schema=schema, owner_decision="ALLOW", pre_action_evidence=events.append, incident=events.append, owner_alert=events.append, action=lambda: blocked.append(True), post_action_receipt=events.append)
+            execute_authorized_action(
+                declaration=None,
+                option_set=option_set,
+                selected_option_id="verification",
+                option_schema=schema,
+                owner_decision="ALLOW",
+                pre_action_evidence=events.append,
+                incident=incidents.append,
+                owner_alert=alerts.append,
+                action=lambda: blocked.append(True),
+                post_action_receipt=events.append,
+            )
         except I008Violation:
             pass
         else:
@@ -50,11 +115,12 @@ def main() -> int:
         if blocked:
             raise AssertionError("blocked I-008 action executed")
     except Exception as exc:
-        print(f"FAIL: I-008 executable verification failed: {exc}", file=sys.stderr)
+        print(f"FAIL: I-008 executable verification failed: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
 
     print("I008_SCHEMA=VALID")
     print("I008_REQUIRED_ANALYSIS=VALID")
+    print("I008_AUTHORIZATION_STATE=VERIFIED")
     print("I008_RUNTIME_SEQUENCE=VERIFIED")
     print("I008_FAIL_CLOSED=VERIFIED")
     print("I008_TESTS=PRESENT")
