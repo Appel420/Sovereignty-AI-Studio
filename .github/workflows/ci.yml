@@ -1,4 +1,4 @@
-name: CI — Sovereign Convergence
+name: ci.yml
 
 on:
   push:
