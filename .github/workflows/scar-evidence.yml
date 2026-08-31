@@ -1,0 +1,82 @@
+name: SCAR Evidence — Append Only
+
+on:
+  push:
+    branches: [Collaboration]
+  pull_request:
+    branches: [Collaboration]
+  workflow_dispatch:
+
+concurrency:
+  group: scar-evidence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  visibility-and-provenance:
+    name: SCAR visibility and provenance
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enumerate executable surface
+        run: |
+          set -Eeuo pipefail
+          python scripts/verify_visibility_contract.py
+      - name: Emit run provenance
+        run: |
+          set -Eeuo pipefail
+          mkdir -p scar/evidence
+          cat > scar/evidence/run-provenance.json <<EOF
+          {
+            "event_type": "CI_RUN_PROVENANCE",
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_attempt": "${GITHUB_RUN_ATTEMPT}",
+            "workflow": "${GITHUB_WORKFLOW}",
+            "event": "${GITHUB_EVENT_NAME}",
+            "ref": "${GITHUB_REF}",
+            "sha": "${GITHUB_SHA}",
+            "runner_os": "${RUNNER_OS}",
+            "runner_arch": "${RUNNER_ARCH}",
+            "result": "OBSERVED"
+          }
+          EOF
+          cat scar/evidence/run-provenance.json
+      - name: Publish evidence artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scar-run-${{ github.run_id }}
+          path: scar/evidence/run-provenance.json
+          if-no-files-found: error
+
+  repository-ci-observer:
+    name: Repository CI observer
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record workflow inventory
+        run: |
+          set -Eeuo pipefail
+          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
+          echo 'All discovered workflow files are part of the visible repository surface.'
+
+  human-authority-boundary:
+    name: Human authority boundary
+    runs-on: ubuntu-latest
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: State immutable-evidence rule
+        run: |
+          set -Eeuo pipefail
+          echo 'SCAR_HISTORY=IMMUTABLE'
+          echo 'SCAR_WRITER=DEDICATED_EVIDENCE_BOUNDARY'
+          echo 'PROMOTION=HUMAN_AUTHORITY_REQUIRED'
+          echo 'FAILURES=VISIBLE'
+          echo 'CANCELLATION_MUST_NOT_EQUAL_SUCCESS=true'
