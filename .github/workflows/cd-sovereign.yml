@@ -23,7 +23,7 @@ jobs:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
     runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 60
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit without external actions
         env:
@@ -38,14 +38,13 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
+         
       - name: Runtime identity gate
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = true
-          test "${RUNNER_OS}" = Linux
+          test "${RUNNER_OS}" = "ubuntu"
           test "${RUNNER_ARCH}" = ARM64
           test "$(uname -m)" = aarch64
           python --version
@@ -55,9 +54,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          python -m pip install --disable-pip-version-check -e '.[test,lint,pqc]'
-          python -m pip install --disable-pip-version-check build==1.6.0
+          python -m pip install --pip-version-check -r requirements.txt
+          python -m pip install --pip-version-check -e '.[test,lint,pqc]'
+          python -m pip install --pip-version-check build==1.6.0
           python -m pip check
 
       - name: I-008 executable gate
