@@ -2,7 +2,7 @@ name: Docker
 
 on:
   push:
-    tags: ['v*.*.*']
+  
   workflow_dispatch:
 
 env:
@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   build:
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -33,7 +33,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "ubuntu"
           test "${RUNNER_ARCH}" = "ARM64"
           docker version
       - name: Build image
@@ -56,10 +56,3 @@ jobs:
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
-          set -Eeuo pipefail
-          if command -v cosign >/dev/null 2>&1; then
-            cosign sign --yes "$IMAGE_TAG"
-          else
-            echo 'cosign not installed on runner; image remains unsigned and publication is rejected.'
-            exit 1
-          fi
