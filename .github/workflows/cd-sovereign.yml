@@ -1,4 +1,4 @@
-name: CD — Sovereign Release
+name: cd-sovereign.yml
 
 # CD is fail-closed. Build, I-008, native ML-DSA verification, PQC SCAR,
 # and local deployment occur in one controlled runner so the deployed
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 60
     steps:
