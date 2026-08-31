@@ -19,31 +19,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
+    GH_TOKEN: ${{ github.token }}
+    shell: bash
+   run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - name: Verify runner and Docker
+          git checkout --detach   
+          - name: Verify runner and Docker
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "ubuntu"
           test "${RUNNER_ARCH}" = "ARM64"
           docker version
-      - name: Build image
+          - name: Build image
         shell: bash
         run: |
           set -Eeuo pipefail
           TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_REF_NAME}"
           docker build --tag "$TAG" .
           echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
-      - name: Log into GHCR and push
+           - name: Log into GHCR and push
         if: github.event_name != 'pull_request'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +50,7 @@ jobs:
           set -Eeuo pipefail
           printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" -u "${GITHUB_ACTOR}" --password-stdin
           docker push "$IMAGE_TAG"
-      - name: Sign published image when cosign is installed
+          - name: 'Sign published image when cosign is installed'
         if: github.event_name != 'pull_request'
         shell: bash
         run: |
