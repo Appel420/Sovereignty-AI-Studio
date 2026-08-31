@@ -1,4 +1,4 @@
-name: Dependency Health
+name: dep-health.yml
 
 on:
   push:
@@ -39,7 +39,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
       - name: Run pip-audit
@@ -61,7 +60,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+
       - name: Validate requirements syntax
         run: python -m pip install --dry-run -r requirements.txt
 
@@ -81,7 +80,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Run npm audit
         working-directory: node-bridge
         run: npm audit --audit-level=moderate
@@ -102,7 +100,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Validate requirements files
         run: |
           set -Eeuo pipefail
