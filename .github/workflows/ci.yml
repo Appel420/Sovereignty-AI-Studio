@@ -36,20 +36,21 @@ jobs:
 
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Diamond Core lockfile
         shell: bash
         run: |
           set -Eeuo pipefail
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
+          test -f diamond-core/Cargo.toml
+          if test -f diamond-core/Cargo.lock; then
+            test -s diamond-core/Cargo.lock
+          else
+            cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+            test -s diamond-core/Cargo.lock
+          fi
 
       - name: Diamond Core contract gate
         shell: bash
@@ -70,7 +71,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
           python -m pip install pip-audit==2.9.0
@@ -124,42 +124,21 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Enumerate workflow surface
         shell: bash
         run: |
           set -Eeuo pipefail
-
           test -d .github/workflows
-
-          count="$(
-            find .github/workflows \
-              -maxdepth 1 \
-              -type f \
-              \( -name '*.yml' -o -name '*.yaml' \) \
-              | wc -l
-          )"
-
+          count="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | wc -l)"
           test "$count" -gt 0
-
           echo "WORKFLOW_FILE_COUNT=$count"
-
-          find .github/workflows \
-            -maxdepth 1 \
-            -type f \
-            \( -name '*.yml' -o -name '*.yaml' \) \
-            -print \
-            | sort
+          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
 
   trackerdb-familyai:
     name: trackerdb_familyai integration
@@ -217,15 +196,10 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Install coordination test dependencies
@@ -261,22 +235,16 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Publish execution state
         shell: bash
         run: |
           set -Eeuo pipefail
-
           echo "RECOVERY_OBSERVER=ACTIVE"
           echo "RUN_ID=${GITHUB_RUN_ID}"
           echo "RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}"
