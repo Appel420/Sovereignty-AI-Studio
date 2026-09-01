@@ -53,9 +53,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install --pip-version-check -r requirements.txt
-          python -m pip install --pip-version-check -e '.[test,lint,pqc]'
-          python -m pip install --pip-version-check build==1.6.0
+          python -m pip install -r requirements.txt
+          python -m pip install -e '.[test,lint,pqc]'
+          python -m pip install build==1.6.0
           python -m pip check
 
       - name: I-008 executable gate
