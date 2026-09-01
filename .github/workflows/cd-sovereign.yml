@@ -20,7 +20,7 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     environment: production
     timeout-minutes: 10
     steps:
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = true
-          test "${RUNNER_OS}" = "ubuntu"
+          test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = ARM64
           test "$(uname -m)" = aarch64
           python --version
