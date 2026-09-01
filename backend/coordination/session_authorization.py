@@ -66,6 +66,28 @@ def verify_session_proof(
             )
         )
     except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        try:
+            actual = base64.urlsafe_b64decode(
+                encoded_signature + "=" * (-len(encoded_signature) % 4), validate=True
+            )
+        except TypeError:
+            actual = base64.urlsafe_b64decode(
+                encoded_signature + "=" * (-len(encoded_signature) % 4)
+            )
+        if not hmac.compare_digest(expected, actual):
+            raise SessionAuthorizationError("invalid session proof signature")
+        try:
+            decoded_payload = base64.urlsafe_b64decode(
+                encoded_payload + "=" * (-len(encoded_payload) % 4), validate=True
+            )
+        except TypeError:
+            decoded_payload = base64.urlsafe_b64decode(
+                encoded_payload + "=" * (-len(encoded_payload) % 4)
+            )
+        payload = json.loads(decoded_payload)
+    except SessionAuthorizationError:
+        raise
+    except (ValueError, TypeError, json.JSONDecodeError) as exc:
         raise SessionAuthorizationError("invalid session proof encoding") from exc
 
     required = {"session_id", "identity_id", "capabilities", "mode", "expires_at"}

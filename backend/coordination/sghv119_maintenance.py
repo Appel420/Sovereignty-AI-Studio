@@ -52,6 +52,10 @@ def _check_git_boundary(root: Path) -> CheckResult:
         # Contract fixtures may intentionally be plain temporary directories.
         # Git metadata is observational, not required for the read-only checks.
         return CheckResult("git-boundary", True, "git metadata unavailable; fixture accepted")
+        # Maintenance is also tested against copied contract fixtures that are
+        # intentionally not Git worktrees. The repository boundary is enforced
+        # when Git metadata is present; absence of Git metadata is not mutation.
+        return CheckResult("git-boundary", True, "git metadata unavailable; fixture boundary")
     if branch in {"main", "master"}:
         return CheckResult("git-boundary", False, f"protected branch: {branch}")
     return CheckResult("git-boundary", True, f"branch={branch or 'detached'}")
