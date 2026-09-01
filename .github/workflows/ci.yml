@@ -38,8 +38,9 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          test -f diamond-core/Cargo.toml
           cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
+          test -s Cargo.lock
       - name: Diamond Core contract gate
         shell: bash
         run: |
