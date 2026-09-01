@@ -33,7 +33,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
@@ -48,15 +47,14 @@ jobs:
           if test -f diamond-core/Cargo.lock; then
             test -s diamond-core/Cargo.lock
           else
-            # Cargo can resolve and write a usable lockfile before returning
-            # non-zero for a registry/index warning. The artifact itself is
-            # the contract we need; cargo test --locked is the authoritative
-            # follow-up validation.
-            if cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; then
-              :
-            else
-              echo "cargo generate-lockfile returned non-zero; validating generated lockfile" >&2
-            fi
+            # Bootstrap the lockfile through the real build/test path. Some
+            # runner Cargo installations can return non-zero from the
+            # standalone generate-lockfile command after resolving the index.
+            # A successful test proves both resolution and compilation and
+            # leaves Cargo.lock in the manifest directory.
+            cargo test \
+              --manifest-path diamond-core/Cargo.toml \
+              --all-targets
             test -s diamond-core/Cargo.lock
           fi
 
@@ -64,6 +62,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          test -s diamond-core/Cargo.lock
           cargo test \
             --manifest-path diamond-core/Cargo.toml \
             --all-targets \
@@ -124,7 +123,6 @@ jobs:
     name: Workflow surface audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -137,7 +135,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
       - name: Enumerate workflow surface
         shell: bash
         run: |
@@ -152,16 +149,12 @@ jobs:
     name: trackerdb_familyai integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
-          git clone --depth=1 --branch main \
-            https://github.com/Appel420/trackerdb_familyai.git \
-            trackerdb_familyai
-
+          git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
       - name: Node baseline
         working-directory: trackerdb_familyai
         shell: bash
@@ -170,21 +163,18 @@ jobs:
           node --version
           npm --version
           node -e 'const p=require("./package.json"); console.log(`trackerdb_familyai=${p.version}`); console.log(`node>=${p.engines?.node ?? "unspecified"}`)'
-
       - name: Install trackerdb_familyai dependencies
         working-directory: trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
           npm ci
-
       - name: trackerdb_familyai tests
         working-directory: trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
           npm test
-
       - name: trackerdb_familyai build
         working-directory: trackerdb_familyai
         shell: bash
@@ -196,7 +186,6 @@ jobs:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -209,7 +198,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
       - name: Install coordination test dependencies
         shell: bash
         run: |
@@ -217,13 +205,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[test]'
           python -m pip check
-
       - name: Coordination import
         shell: bash
         run: |
           set -Eeuo pipefail
           python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
-
       - name: Coordination tests
         shell: bash
         run: |
@@ -235,7 +221,6 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -248,7 +233,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
       - name: Publish execution state
         shell: bash
         run: |
