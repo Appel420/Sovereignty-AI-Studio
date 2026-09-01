@@ -1,0 +1,31 @@
+name: Diamond Core v0.1 Contract
+
+on:
+  push:
+    branches: [feature/diamond-lattice-core-v0.1]
+    paths:
+      - 'diamond-core/**'
+      - '.github/workflows/diamond-core-v0.1.yml'
+  pull_request:
+    paths:
+      - 'diamond-core/**'
+      - '.github/workflows/diamond-core-v0.1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-tests:
+    name: Diamond Core I-001..I-015
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: diamond-core
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Verify toolchain
+        run: rustc --version && cargo --version
+      - name: Run contract tests
+        run: cargo test --all-targets --locked
