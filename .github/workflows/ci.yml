@@ -25,7 +25,6 @@ jobs:
     name: Repository conformance
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -33,46 +32,31 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Diamond Core lockfile
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
-      - name: Diamond Core contract gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
 
       - name: Diamond Core lockfile
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s Cargo.lock
-          if test -f diamond-core/Cargo.lock; then
-            test -s diamond-core/Cargo.lock
+          # diamond-core is a workspace member; Cargo writes Cargo.lock at the workspace root.
+          if test -f Cargo.lock; then
+            test -s Cargo.lock
           else
             cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-            test -s diamond-core/Cargo.lock
+            test -s Cargo.lock
           fi
+
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
-          cargo test \
-            --manifest-path diamond-core/Cargo.toml \
-            --all-targets \
-            --locked
+
       - name: Python baseline
         shell: bash
         run: |
@@ -128,7 +112,6 @@ jobs:
     name: Workflow surface audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -155,7 +138,6 @@ jobs:
     name: trackerdb_familyai integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout trackerdb_familyai
         shell: bash
@@ -199,7 +181,6 @@ jobs:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -212,7 +193,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Install coordination test dependencies
 
       - name: Install coordination test dependencies
         shell: bash
@@ -221,6 +201,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[test]'
           python -m pip check
+
       - name: Coordination import
         shell: bash
         run: |
@@ -228,7 +209,6 @@ jobs:
           python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
 
       - name: Coordination tests
-        run: python -m pytest -q backend/coordination
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -239,7 +219,6 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
       - name: Checkout repository at exact commit
         env:
