@@ -2,7 +2,27 @@ name: Docker
 
 on:
   push:
-  
+    branches: [Collaboration]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'diamond-core/**'
+      - 'backend/**'
+      - 'node-bridge/**'
+      - 'agents/**'
+      - 'gateway/**'
+      - '.github/workflows/docker-publish.yml'
+  pull_request:
+    branches: [Collaboration]
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - 'diamond-core/**'
+      - 'backend/**'
+      - 'node-bridge/**'
+      - 'agents/**'
+      - 'gateway/**'
+      - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
 env:
@@ -12,45 +32,41 @@ env:
 permissions:
   contents: read
   packages: write
-  id-token: write
 
 jobs:
   build:
+    name: Docker build and contract gate
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
-    GH_TOKEN: ${{ github.token }}
-    shell: bash
-   run: |
+      - name: Checkout repository at exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach   
-          - name: Verify runner and Docker
-        shell: bash
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify Docker
+        run: docker version
+      - name: Diamond Core contract gate
+        run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+      - name: Build image
         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS}" = "ubuntu"
-          test "${RUNNER_ARCH}" = "ARM64"
-          docker version
-          - name: Build image
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_REF_NAME}"
+          TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}"
           docker build --tag "$TAG" .
           echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
-           - name: Log into GHCR and push
-        if: github.event_name != 'pull_request'
+      - name: Publish image
+        if: github.event_name == 'push'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: bash
         run: |
           set -Eeuo pipefail
           printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" -u "${GITHUB_ACTOR}" --password-stdin
           docker push "$IMAGE_TAG"
-          - name: 'Sign published image when cosign is installed'
-        if: github.event_name != 'pull_request'
-        shell: bash
-        run: |
