@@ -7,6 +7,7 @@ description = "Contract-first Diamond Lattice 5D sovereign memory core"
 
 [dependencies]
 blake3 = "1.8"
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 
