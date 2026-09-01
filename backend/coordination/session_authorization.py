@@ -50,6 +50,7 @@ def verify_session_proof(
     encoded_payload, encoded_signature = proof.split(".", 1)
     try:
         expected = hmac.new(secret, encoded_payload.encode("ascii"), hashlib.sha256).digest(
+        expected = hmac.new(secret, encoded_payload.encode("ascii"), hashlib.sha256).digest()
         actual = base64.urlsafe_b64decode(
             encoded_signature + "=" * (-len(encoded_signature) % 4)
         )
