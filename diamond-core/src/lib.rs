@@ -50,6 +50,8 @@ impl MemoryObject {
         Self { id, namespace: namespace.into(), uuid: uuid.into(), content_hash, version, provenance_root, context_hash: context_hash.into(), state: MemoryState::Unverified, provenance }
     }
 
+    pub fn canonical_id(&self) -> ObjectId { ObjectId::derive(&self.namespace, &self.uuid, &self.content_hash, self.version, &self.provenance_root) }
+
     pub fn next_version(&self, content: &[u8], provenance: Provenance) -> Self {
         Self::new(&self.namespace, &self.uuid, content, self.version + 1, &self.context_hash, provenance)
     }
@@ -98,6 +100,9 @@ pub struct ScarEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScarSnapshot { pub root: String, pub epoch: u64 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AccessError { IdentityMismatch, TemporalMismatch, ContextMismatch, ProvenanceMismatch, AuthorityDenied, WindowExpired, ByteLimitExceeded, InvalidTransition }
 
 pub struct Core {
@@ -105,16 +110,18 @@ pub struct Core {
     epoch: u64,
     policy_hash: String,
     pub scar: Vec<ScarEvent>,
+    pub scar_snapshots: Vec<ScarSnapshot>,
 }
 
 impl Core {
-    pub fn new(policy_hash: &str) -> Self { Self { objects: BTreeMap::new(), epoch: 1, policy_hash: policy_hash.into(), scar: Vec::new() } }
+    pub fn new(policy_hash: &str) -> Self { Self { objects: BTreeMap::new(), epoch: 1, policy_hash: policy_hash.into(), scar: Vec::new(), scar_snapshots: Vec::new() } }
 
     pub fn issue_capability(&self, subject: &str, object_ids: BTreeSet<String>, operations: BTreeSet<Operation>, context_hash: &str, issued_at: u64, ttl_seconds: u64) -> Capability {
         Capability { subject: subject.into(), object_ids, operations, context_hash: context_hash.into(), issued_at, expires_at: issued_at.saturating_add(ttl_seconds), epoch: self.epoch, policy_hash: self.policy_hash.clone() }
     }
 
     pub fn insert(&mut self, object: MemoryObject) -> Result<(), AccessError> {
+        if object.version == 0 || object.id != object.canonical_id() || object.provenance_root != provenance_commitment(&object.provenance) { return Err(AccessError::IdentityMismatch); }
         if self.objects.contains_key(&object.id.0) { return Err(AccessError::IdentityMismatch); }
         self.objects.insert(object.id.0.clone(), object);
         Ok(())
@@ -126,10 +133,10 @@ impl Core {
 
     pub fn access(&self, subject: &str, object: &ObjectId, operation: Operation, context_hash: &str, capability: &Capability, now: u64) -> Result<(), AccessError> {
         let o = self.objects.get(&object.0).ok_or(AccessError::IdentityMismatch)?;
-        if o.id != *object { return Err(AccessError::IdentityMismatch); }
+        if o.id != *object || o.id != o.canonical_id() { return Err(AccessError::IdentityMismatch); }
         if o.version == 0 { return Err(AccessError::TemporalMismatch); }
         if o.context_hash != context_hash { return Err(AccessError::ContextMismatch); }
-        if o.provenance_root != provenance_commitment(&o.provenance) { return Err(AccessError::ProvenanceMismatch); }
+        if o.provenance_root != provenance_commitment(&o.provenance) || o.provenance.parent_ids.iter().any(|p| !self.objects.contains_key(p)) { return Err(AccessError::ProvenanceMismatch); }
         if !capability.valid_at(now, subject, object, operation, context_hash, self.epoch, &self.policy_hash) { return Err(AccessError::AuthorityDenied); }
         Ok(())
     }
@@ -175,6 +182,12 @@ impl Core {
             level = level.chunks(2).map(|pair| if pair.len() == 2 { hash_str(&(pair[0].clone() + &pair[1])) } else { hash_str(&(pair[0].clone() + &pair[0])) }).collect();
         }
         level.remove(0)
+    }
+
+    pub fn record_snapshot(&mut self) -> String {
+        let root = self.snapshot_root();
+        self.scar_snapshots.push(ScarSnapshot { root: root.clone(), epoch: self.epoch });
+        root
     }
 
     pub fn verify_snapshot(&self, expected: &str) -> bool { self.snapshot_root() == expected }
