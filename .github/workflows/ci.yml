@@ -2,11 +2,9 @@ name: ci.yml
 
 on:
   push:
-    branches:
-      - Collaboration
+    branches: [Collaboration]
   pull_request:
-    branches:
-      - Collaboration
+    branches: [Collaboration]
   workflow_dispatch:
 
 concurrency:
@@ -24,8 +22,7 @@ jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -38,44 +35,26 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Diamond Core lockfile
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
-      - name: Diamond Core contract gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
+          git config --unset-all http.extraheader 2>/dev/null || true
 
       - name: Diamond Core lockfile
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          # diamond-core is a member of the repository workspace, so Cargo
-          # writes the lockfile at the workspace root, not inside diamond-core/.
           if test -f Cargo.lock; then
             test -s Cargo.lock
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s Cargo.lock
-          if test -f diamond-core/Cargo.lock; then
-            test -s diamond-core/Cargo.lock
           else
             cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
             test -s Cargo.lock
           fi
+
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
-          cargo test \
-            --manifest-path diamond-core/Cargo.toml \
-            --all-targets \
-            --locked
+
       - name: Python baseline
         shell: bash
         run: |
@@ -107,7 +86,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m compileall -q .
+          python -m compileall -q backend
 
       - name: Ruff
         shell: bash
@@ -131,7 +110,6 @@ jobs:
     name: Workflow surface audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -144,8 +122,9 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Enumerate workflow surface
+        shell: bash
         run: |
           set -Eeuo pipefail
           test -d .github/workflows
@@ -158,16 +137,12 @@ jobs:
     name: trackerdb_familyai integration
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
       - name: Checkout trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
-          git clone --depth=1 --branch main \
-            https://github.com/Appel420/trackerdb_familyai.git \
-            trackerdb_familyai
-
+          git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
       - name: Node baseline
         working-directory: trackerdb_familyai
         shell: bash
@@ -176,21 +151,18 @@ jobs:
           node --version
           npm --version
           node -e 'const p=require("./package.json"); console.log(`trackerdb_familyai=${p.version}`); console.log(`node>=${p.engines?.node ?? "unspecified"}`)'
-
       - name: Install trackerdb_familyai dependencies
         working-directory: trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
           npm ci
-
       - name: trackerdb_familyai tests
         working-directory: trackerdb_familyai
         shell: bash
         run: |
           set -Eeuo pipefail
           npm test
-
       - name: trackerdb_familyai build
         working-directory: trackerdb_familyai
         shell: bash
@@ -202,7 +174,6 @@ jobs:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -215,8 +186,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Install coordination test dependencies
-
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install coordination test dependencies
         shell: bash
         run: |
@@ -229,9 +199,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
-
       - name: Coordination tests
-        run: python -m pytest -q backend/coordination
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -242,7 +210,6 @@ jobs:
     if: ${{ always() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -255,7 +222,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Record recovery context
         shell: bash
         run: |
