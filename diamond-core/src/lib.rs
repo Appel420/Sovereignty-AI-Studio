@@ -9,13 +9,13 @@ pub mod transition;
 pub mod types;
 pub mod window;
 
-pub use authority::{AccessRequest, Capability, Decision, AccessError};
-pub use identity::{MemoryObject, ObjectMeta};
-pub use provenance::Provenance;
-pub use store::ObjectStore;
-pub use transition::{TransitionRecord, ScarEvent, ScarSnapshot};
-pub use types::{AuthorityState, Hash, ObjectId, CapabilityId, PolicyId, SubjectId, TransitionId, Operation};
-pub use window::MemoryWindow;
+pub use types::{AccessError, AccessRequest, AuthorityState, Capability, CapabilityId, Decision, Hash, MemoryObject, MemoryWindow, ObjectId, ObjectMeta, Operation, PolicyId, Provenance, ScarEvent, ScarSnapshot, SubjectId, TransitionId, TransitionRecord, Core};
+pub use authority::can_access;
+pub use hash::hash_bytes;
+pub use identity::compute_object_id;
+pub use provenance::{compute_provenance_root, merkle_root, provenance_commitment};
+pub use transition::valid_promotion;
+pub use window::window_contains_all;
 
 pub fn now_seconds() -> u64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() }
 
