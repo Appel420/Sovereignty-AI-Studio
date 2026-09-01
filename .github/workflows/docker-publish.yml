@@ -70,6 +70,7 @@ jobs:
           POSTGRES_PASSWORD: ci-compose-validation-only
           JWT_SECRET: ci-compose-validation-only
           SECRET_KEY: ci-compose-validation-only
+          KEYCLOAK_ADMIN_PASSWORD: ci-compose-validation-only
         run: docker compose config --quiet
       - name: Build image
         run: |
