@@ -18,6 +18,7 @@ jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
@@ -38,6 +39,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
+          # diamond-core is a workspace member; Cargo writes Cargo.lock at the workspace root.
           if test -f Cargo.lock; then
             test -s Cargo.lock
           else
@@ -193,11 +195,16 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install coordination test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test]'
+          python -m pip check
+
           python -m venv .coordination-venv
           .coordination-venv/bin/python -m pip install --upgrade pip
           .coordination-venv/bin/python -m pip install -e '.[test]'

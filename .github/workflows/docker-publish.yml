@@ -64,6 +64,15 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
+          # diamond-core is a workspace member; Cargo writes Cargo.lock at the workspace root.
+          if test -f Cargo.lock; then
+            test -s Cargo.lock
+          else
+            if cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; then
+              :
+            else
+              echo 'cargo generate-lockfile returned non-zero; validating generated workspace lockfile' >&2
+            fi
           if test -f Cargo.lock; then
             test -s Cargo.lock
           else
