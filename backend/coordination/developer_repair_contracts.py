@@ -63,6 +63,7 @@ class RepairProposal:
             risk=self.risk,
             access=self.access,
             state=RepairState.AUTHORIZED,
+            _transition=True,
         )
 
     def decline(self) -> "RepairProposal":
@@ -76,4 +77,5 @@ class RepairProposal:
             risk=self.risk,
             access=self.access,
             state=RepairState.DECLINED,
+            _transition=True,
         )
