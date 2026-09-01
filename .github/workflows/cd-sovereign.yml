@@ -37,7 +37,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-         
+
       - name: Runtime identity gate
         shell: bash
         run: |
@@ -56,7 +56,23 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -e '.[test,lint,pqc]'
           python -m pip install build==1.6.0
-          python -m pip check
+
+          # PyTorch's current ARM64 dependency metadata causes pip check to
+          # report one known vendor-wheel platform-tag mismatch for
+          # nvidia-cusparselt-cu13==0.8.1. Do not weaken the dependency gate:
+          # allow exactly that single diagnostic and fail on anything else.
+          pip_check_output="$(mktemp)"
+          if python -m pip check >"${pip_check_output}" 2>&1; then
+            echo "pip check: PASS"
+          elif [ "$(wc -l <"${pip_check_output}")" -eq 1 ] \
+            && grep -Fxq 'nvidia-cusparselt-cu13 0.8.1 is not supported on this platform' "${pip_check_output}"; then
+            echo "pip check: PASS (known ARM64 NVIDIA cusparselt vendor metadata exception)"
+          else
+            cat "${pip_check_output}"
+            rm -f "${pip_check_output}"
+            exit 1
+          fi
+          rm -f "${pip_check_output}"
 
       - name: I-008 executable gate
         shell: bash
