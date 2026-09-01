@@ -61,6 +61,8 @@ jobs:
       - name: Diamond Core contract gate
         run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
       - name: Validate Compose configuration
+        env:
+          KEYCLOAK_ADMIN_PASSWORD: ci-compose-validation-only
         run: docker compose config --quiet
       - name: Build image
         run: |
