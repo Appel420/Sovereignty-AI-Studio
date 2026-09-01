@@ -87,6 +87,16 @@ jobs:
         run: |
           if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
 
+      - name: Diamond Core v0.1 contract tests
+        run: |
+          set -Eeuo pipefail
+          if [[ -f diamond-core/Cargo.toml ]]; then
+            cargo test --manifest-path diamond-core/Cargo.toml --all-targets
+          else
+            echo 'FAIL: diamond-core/Cargo.toml is required for this validation path' >&2
+            exit 1
+          fi
+
       - name: Node syntax check
         run: |
           if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
