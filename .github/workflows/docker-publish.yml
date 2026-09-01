@@ -71,7 +71,14 @@ jobs:
           JWT_SECRET: ci-compose-validation-only
           SECRET_KEY: ci-compose-validation-only
           KEYCLOAK_ADMIN_PASSWORD: ci-compose-validation-only
-        run: docker compose config --quiet
+          TLS_CERT: /tmp/ci-compose-validation/cert.pem
+          TLS_KEY: /tmp/ci-compose-validation/key.pem
+        run: |
+          set -Eeuo pipefail
+          mkdir -p /tmp/ci-compose-validation
+          : > /tmp/ci-compose-validation/cert.pem
+          : > /tmp/ci-compose-validation/key.pem
+          docker compose --profile production --profile keycloak config --quiet
       - name: Build image
         run: |
           set -Eeuo pipefail
