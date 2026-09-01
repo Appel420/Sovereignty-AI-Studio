@@ -136,3 +136,4 @@ def run_maintenance(root: Path) -> dict[str, Any]:
             "status": "PASS" if passed else "FAIL", "admissible": passed,
             "authorization": "not-granted-by-runner",
             "checks": [check.to_dict() for check in checks]}
+            "checks": [check.to_dict() for check in checks]}
