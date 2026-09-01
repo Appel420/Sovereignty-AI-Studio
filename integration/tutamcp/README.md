@@ -38,7 +38,7 @@ Never put the file, password, TOTP secret, or any other private state in Git.
 
 ## Local MCP registration
 
-For a Grok CLI stdio registration, use:
+For the Grok CLI stdio registration, use:
 
 ```bash
 grok mcp add tutamcp -- docker run --rm -i \
@@ -50,7 +50,7 @@ grok mcp add tutamcp -- docker run --rm -i \
   tutamcp
 ```
 
-If the installed CLI uses `grok` rather than `grok`, substitute the installed executable; the MCP registration remains a local stdio Docker process.
+If your installed xAI CLI command is `grok` rather than `grok`, use that executable; the MCP registration remains a local stdio Docker process.
 
 ## Sovereignty boundary
 
