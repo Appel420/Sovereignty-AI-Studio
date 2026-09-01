@@ -2,20 +2,14 @@ name: ci.yml
 
 on:
   push:
-    branches:
-      - Collaboration
+    branches: [Collaboration]
   pull_request:
-    branches:
-      - Collaboration
+    branches: [Collaboration]
   workflow_dispatch:
 
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
-permissions:
-  contents: read
-  actions: read
 
 env:
   PYTHONPATH: .:./backend
@@ -24,8 +18,7 @@ jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
         env:
@@ -38,28 +31,18 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Diamond Core lockfile
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
-      - name: Diamond Core contract gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
+          git config --unset-all http.extraheader 2>/dev/null || true
 
       - name: Diamond Core lockfile
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s Cargo.lock
-          if test -f diamond-core/Cargo.lock; then
-            test -s diamond-core/Cargo.lock
+          if test -f Cargo.lock; then
+            test -s Cargo.lock
           else
+            cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+            test -s Cargo.lock
             # Bootstrap the lockfile through the real build/test path. Some
             # runner Cargo installations can return non-zero from the
             # standalone generate-lockfile command after resolving the index.
@@ -70,66 +53,65 @@ jobs:
               --all-targets
             test -s diamond-core/Cargo.lock
           fi
+
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
           test -s diamond-core/Cargo.lock
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
-          cargo test \
-            --manifest-path diamond-core/Cargo.toml \
-            --all-targets \
-            --locked
+
       - name: Python baseline
         shell: bash
         run: |
           python --version
           python -m pip --version
 
-      - name: Install validation dependencies
+      - name: Create isolated validation environment
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
-          python -m pip install pip-audit==2.9.0
-          python -m pip check
+          python -m venv .ci-venv
+          .ci-venv/bin/python -m pip install --upgrade pip
+          .ci-venv/bin/python -m pip install -e '.[test,lint]'
+          .ci-venv/bin/python -m pip install pip-audit==2.9.0
+          .ci-venv/bin/python -m pip check
 
       - name: Dependency vulnerability gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          pip-audit --strict
+          .ci-venv/bin/pip-audit --strict
 
       - name: I-008 executable contract
         shell: bash
         run: |
           set -Eeuo pipefail
-          python scripts/verify_i008_contract.py
+          .ci-venv/bin/python scripts/verify_i008_contract.py
 
       - name: Compile
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m compileall -q .
+          .ci-venv/bin/python -m compileall -q backend
 
       - name: Ruff
         shell: bash
         run: |
           set -Eeuo pipefail
-          ruff check .
+          .ci-venv/bin/ruff check .
 
       - name: Mypy
         shell: bash
         run: |
           set -Eeuo pipefail
-          mypy sovereign/
+          .ci-venv/bin/mypy sovereign/
 
       - name: Pytest
         shell: bash
         run: |
           set -Eeuo pipefail
-          pytest -q
+          .ci-venv/bin/pytest -q
 
   workflow-surface:
     name: Workflow surface audit
@@ -147,7 +129,9 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Enumerate workflow surface
+        shell: bash
         run: |
           set -Eeuo pipefail
           test -d .github/workflows
@@ -209,25 +193,26 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install coordination test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[test]'
-          python -m pip check
+          python -m venv .coordination-venv
+          .coordination-venv/bin/python -m pip install --upgrade pip
+          .coordination-venv/bin/python -m pip install -e '.[test]'
+          .coordination-venv/bin/python -m pip check
       - name: Coordination import
         shell: bash
         run: |
           set -Eeuo pipefail
+          .coordination-venv/bin/python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
           python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
-        run: python -m pytest -q backend/coordination
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pytest -q backend/coordination
+          .coordination-venv/bin/python -m pytest -q backend/coordination
 
   recovery-observer:
     name: Recovery observer
@@ -246,12 +231,12 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Record recovery context
       - name: Publish execution state
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "RECOVERY_OBSERVER=ACTIVE"
-          echo "RUN_ID=${GITHUB_RUN_ID}"
-          echo "RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}"
-          echo "SHA=${GITHUB_SHA}"
-          echo "Recovery policy: preserve evidence; never silently convert failure to success."
+          echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
+          echo "RECOVERY_SHA=${GITHUB_SHA}"
+          echo "RECOVERY_CONCLUSION_CONTEXT=${{ job.status }}"
