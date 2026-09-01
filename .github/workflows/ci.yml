@@ -34,11 +34,16 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+      - name: Diamond Core lockfile
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+          test -s diamond-core/Cargo.lock
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          test -f diamond-core/Cargo.toml
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
       - name: Python baseline
         run: |
@@ -80,7 +85,6 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Enumerate workflow surface
-        shell: bash
         run: |
           set -Eeuo pipefail
           test -d .github/workflows
@@ -104,12 +108,16 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Python environment
-        run: python --version
+      - name: Install coordination test dependencies
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test]'
+          python -m pip check
       - name: Coordination import
         run: python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
-        run: pytest -q backend/coordination
+        run: python -m pytest -q backend/coordination
 
   recovery-observer:
     name: Recovery observer
