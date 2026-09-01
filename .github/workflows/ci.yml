@@ -44,13 +44,17 @@ jobs:
 
           git checkout --detach FETCH_HEAD
 
+      - name: Diamond Core lockfile
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+          test -s diamond-core/Cargo.lock
+
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          test -f diamond-core/Cargo.toml
-
           cargo test \
             --manifest-path diamond-core/Cargo.toml \
             --all-targets \
@@ -180,11 +184,13 @@ jobs:
 
           git checkout --detach FETCH_HEAD
 
-      - name: Python environment
+      - name: Install coordination test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
-          python --version
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[test]'
+          python -m pip check
 
       - name: Coordination import
         shell: bash
@@ -196,7 +202,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          pytest -q backend/coordination
+          python -m pytest -q backend/coordination
 
   recovery-observer:
     name: Recovery observer
