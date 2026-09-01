@@ -143,12 +143,6 @@ def run_maintenance(root: Path) -> dict[str, Any]:
     if not ok:
         sha = "unknown"
     ok, branch = _run_git(root, "branch", "--show-current")
-    if not ok: branch = "unknown"
-    return {"runner": "sghv119-maintenance", "mode": "offline-read-only",
-            "network": "disabled-by-design", "branch": branch, "commit": sha,
-            "status": "PASS" if passed else "FAIL", "admissible": passed,
-            "authorization": "not-granted-by-runner",
-            "checks": [check.to_dict() for check in checks]}
     if not ok:
         branch = "unknown"
     return {
