@@ -20,7 +20,7 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 10
     steps:
@@ -35,7 +35,7 @@ jobs:
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
       - name: Runtime identity gate
@@ -43,7 +43,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = true
-          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "ubuntu"
           test "${RUNNER_ARCH}" = ARM64
           test "$(uname -m)" = aarch64
           python --version
@@ -93,7 +93,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          rm -rf .pqc/sovereign-mldsa-native
+          hashfiles .pqc/sovereign-mldsa-native
           git clone --no-tags --filter=blob:none https://github.com/Appel420/sovereign-mldsa-native.git .pqc/sovereign-mldsa-native
           git -C .pqc/sovereign-mldsa-native fetch --depth=1 origin "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
           git -C .pqc/sovereign-mldsa-native checkout --detach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
@@ -109,7 +109,7 @@ jobs:
           set -Eeuo pipefail
           rm -rf dist
           python -m build
-          test -n "$(find dist -maxdepth 1 -type f -print -quit)"
+          test -n "$(find dist -maxdepth 1 -type f -print -hashfiles)"
 
       - name: Independent PQC SCAR attestation
         shell: bash
