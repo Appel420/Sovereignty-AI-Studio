@@ -52,6 +52,12 @@ jobs:
           git checkout --detach FETCH_HEAD
       - name: Verify Docker
         run: docker version
+      - name: Resolve Diamond Core lockfile
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+          test -s Cargo.lock
       - name: Diamond Core contract gate
         run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
       - name: Validate Compose configuration
