@@ -1,50 +1,52 @@
-name: ci.yml
-
+name: CI
 on:
   push:
     branches: [Collaboration]
   pull_request:
     branches: [Collaboration]
   workflow_dispatch:
-
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
 permissions:
   contents: read
   actions: read
-
 env:
   PYTHONPATH: .:./backend
-
 jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
+          cargo test \
+            --manifest-path diamond-core/Cargo.toml \
+            --all-targets \
+            --locked
       - name: Python baseline
+        shell: bash
         run: |
           python --version
           python -m pip --version
       - name: Install validation dependencies
+        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
@@ -52,65 +54,104 @@ jobs:
           python -m pip install pip-audit==2.9.0
           python -m pip check
       - name: Dependency vulnerability gate
-        run: pip-audit --strict
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pip-audit --strict
       - name: I-008 executable contract
-        run: python scripts/verify_i008_contract.py
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/verify_i008_contract.py
       - name: Compile
-        run: python -m compileall -q .
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m compileall -q .
       - name: Ruff
-        run: ruff check .
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          ruff check .
       - name: Mypy
-        run: mypy sovereign/
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mypy sovereign/
       - name: Pytest
-        run: pytest -q
-
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pytest -q
   workflow-surface:
     name: Workflow surface audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Enumerate workflow surface
         shell: bash
         run: |
           set -Eeuo pipefail
           test -d .github/workflows
-          count="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | wc -l)"
+          count="$(
+            find .github/workflows \
+              -maxdepth 1 \
+              -type f \
+              \( -name '*.yml' -o -name '*.yaml' \) \
+              | wc -l
+          )"
           test "$count" -gt 0
           echo "WORKFLOW_FILE_COUNT=$count"
-          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
-
+          find .github/workflows \
+            -maxdepth 1 \
+            -type f \
+            \( -name '*.yml' -o -name '*.yaml' \) \
+            -print \
+            | sort
   coordination-surface:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Python environment
-        run: python --version
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python --version
       - name: Coordination import
-        run: python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
-        run: pytest -q backend/coordination
-
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pytest -q backend/coordination
   recovery-observer:
     name: Recovery observer
     if: always()
@@ -118,16 +159,19 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout repository at exact commit
-        env: { GH_TOKEN: ${{ github.token }} }
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Publish execution state
+        shell: bash
         run: |
           set -Eeuo pipefail
           echo "RECOVERY_OBSERVER=ACTIVE"
