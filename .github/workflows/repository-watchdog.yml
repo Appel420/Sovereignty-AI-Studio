@@ -1,0 +1,69 @@
+name: Repository Watchdog — Sovereign Maintenance
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_run:
+    workflows:
+      - cd-sovereign.yml
+      - oauth-api-generator.yaml
+      - SCAR — Sovereign Compliance Audit Record
+      - CI — Sovereign Device Validation
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  watch:
+    name: Watch required sovereign lanes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Inspect triggering run
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW: ${{ github.event.workflow_run.name }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -Eeuo pipefail
+          printf 'event=%s workflow=%s run=%s conclusion=%s\n' "$EVENT_NAME" "$WORKFLOW" "$RUN_ID" "$CONCLUSION"
+          if [[ "$EVENT_NAME" == workflow_run && "$CONCLUSION" != success && "$CONCLUSION" != neutral && "$CONCLUSION" != skipped ]]; then
+            echo "Required sovereign workflow failed: $WORKFLOW (run $RUN_ID)" >&2
+            exit 1
+          fi
+
+      - name: Verify required workflow files remain present
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/.github/workflows"
+          headers=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json')
+          files="$(curl -fsSL "${headers[@]}" "${api}?ref=${GITHUB_SHA}")"
+          for required in cd-sovereign.yml oauth-api-generator.yaml scar.yml repository-watchdog.yml; do
+            grep -Fq '"name": "'"$required"'"' <<<"$files" || {
+              echo "Required workflow missing: $required" >&2
+              exit 1
+            }
+          done
+          echo 'Required sovereign workflow inventory: PASS'
+
+      - name: Verify architecture invariants
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/"
+          cd_workflow="$(curl -fsSL "${base}.github/workflows/cd-sovereign.yml")"
+          ci_workflow="$(curl -fsSL "${base}.github/workflows/ci-sovereign.yml")"
+          oauth_workflow="$(curl -fsSL "${base}.github/workflows/oauth-api-generator.yaml")"
+          grep -Fq 'runs-on: ubuntu-24.04-arm' <<<"$cd_workflow"
+          grep -Fq 'test "${RUNNER_ARCH}" = ARM64' <<<"$cd_workflow"
+          grep -Fq 'test "$(uname -m)" = aarch64' <<<"$cd_workflow"
+          grep -Fq 'runs-on: [self-hosted, Linux, ARM64]' <<<"$ci_workflow"
+          grep -Fq 'name: OAUTH — local contract' <<<"$oauth_workflow"
+          echo 'Architecture invariants: PASS'
