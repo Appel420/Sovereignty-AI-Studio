@@ -33,7 +33,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
@@ -45,11 +44,13 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          if test -f diamond-core/Cargo.lock; then
-            test -s diamond-core/Cargo.lock
+          # diamond-core is a member of the repository workspace, so Cargo
+          # writes the lockfile at the workspace root, not inside diamond-core/.
+          if test -f Cargo.lock; then
+            test -s Cargo.lock
           else
             cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-            test -s diamond-core/Cargo.lock
+            test -s Cargo.lock
           fi
 
       - name: Diamond Core contract gate
@@ -241,12 +242,10 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
 
-      - name: Publish execution state
+      - name: Record recovery context
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "RECOVERY_OBSERVER=ACTIVE"
-          echo "RUN_ID=${GITHUB_RUN_ID}"
-          echo "RUN_ATTEMPT=${GITHUB_RUN_ATTEMPT}"
-          echo "SHA=${GITHUB_SHA}"
-          echo "Recovery policy: preserve evidence; never silently convert failure to success."
+          echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
+          echo "RECOVERY_SHA=${GITHUB_SHA}"
+          echo "RECOVERY_CONCLUSION_CONTEXT=${{ job.status }}"
