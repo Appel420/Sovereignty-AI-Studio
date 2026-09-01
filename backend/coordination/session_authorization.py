@@ -60,11 +60,10 @@ def verify_session_proof(
         raise SessionAuthorizationError("invalid session proof signature")
 
     try:
-        payload = json.loads(
-            base64.urlsafe_b64decode(
-                encoded_payload + "=" * (-len(encoded_payload) % 4)
-            )
+        decoded_payload = base64.urlsafe_b64decode(
+            encoded_payload + "=" * (-len(encoded_payload) % 4)
         )
+        payload = json.loads(decoded_payload)
     except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise SessionAuthorizationError("invalid session proof encoding") from exc
 
