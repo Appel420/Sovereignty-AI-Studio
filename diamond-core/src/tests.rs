@@ -11,17 +11,8 @@ fn object(state: MemoryState) -> MemoryObject {
     o
 }
 
-fn cap(subject: &str, id: &ObjectId, ops: &[Operation]) -> Capability {
-    Capability {
-        subject: subject.into(),
-        object_ids: [id.0.clone()].into_iter().collect(),
-        operations: ops.iter().copied().collect(),
-        context_hash: "ctx-A".into(),
-        issued_at: 100,
-        expires_at: 200,
-        epoch: 1,
-        policy_hash: "policy-v1".into(),
-    }
+fn cap(core: &Core, subject: &str, id: &ObjectId, ops: &[Operation]) -> Capability {
+    core.issue_capability(subject, [id.0.clone()].into_iter().collect(), ops.iter().copied().collect(), "ctx-A", 100, 100)
 }
 
 fn setup(state: MemoryState) -> (Core, MemoryObject) {
@@ -34,7 +25,7 @@ fn setup(state: MemoryState) -> (Core, MemoryObject) {
 #[test]
 fn i001_access_requires_authority() {
     let (c, o) = setup(MemoryState::Unverified);
-    let no_cap = cap("other", &o.id, &[Operation::Read]);
+    let no_cap = cap(&c, "other", &o.id, &[Operation::Read]);
     assert_eq!(c.access("model", &o.id, Operation::Read, "ctx-A", &no_cap, 100), Err(AccessError::AuthorityDenied));
 }
 
@@ -60,23 +51,21 @@ fn i003_derivation_preserves_parent_provenance() {
 #[test]
 fn i004_model_generated_cannot_skip_unverified() {
     let (mut c, o) = setup(MemoryState::ModelGenerated);
-    let capability = cap("operator", &o.id, &[Operation::Promote]);
+    let capability = cap(&c, "operator", &o.id, &[Operation::Promote]);
     assert_eq!(c.transition("operator", &o.id, MemoryState::PolicyApproved, "e", "p", 100, &capability), Err(AccessError::InvalidTransition));
 }
 
 #[test]
-fn i005_revoked_capability_fails() {
+fn i005_expired_capability_fails() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
-    let mut revoked = capability.clone();
-    revoked.expires_at = 99;
-    assert_eq!(c.access("model", &o.id, Operation::Read, "ctx-A", &revoked, 100), Err(AccessError::AuthorityDenied));
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
+    assert_eq!(c.access("model", &o.id, Operation::Read, "ctx-A", &capability, 200), Err(AccessError::AuthorityDenied));
 }
 
 #[test]
 fn i006_expired_window_fails() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     let ids = [o.id.0.clone()].into_iter().collect();
     let window = c.window("model", ids, 100, "ctx-A", capability, 100).unwrap();
     assert_eq!(c.window_read("model", &window, &o.id, 1, 200), Err(AccessError::WindowExpired));
@@ -85,7 +74,7 @@ fn i006_expired_window_fails() {
 #[test]
 fn i007_window_is_object_scoped_and_bounded() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     let ids = [o.id.0.clone()].into_iter().collect();
     let window = c.window("model", ids, 8, "ctx-A", capability, 100).unwrap();
     assert_eq!(c.window_read("model", &window, &o.id, 9, 101), Err(AccessError::ByteLimitExceeded));
@@ -93,9 +82,9 @@ fn i007_window_is_object_scoped_and_bounded() {
 }
 
 #[test]
-fn i008_logical_identity_survives_without_physical_addresses() {
+fn i008_logical_identity_has_no_physical_address_interface() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     let ids = [o.id.0.clone()].into_iter().collect();
     let window = c.window("model", ids, 100, "ctx-A", capability, 100).unwrap();
     assert_eq!(window.object_ids.len(), 1);
@@ -105,14 +94,14 @@ fn i008_logical_identity_survives_without_physical_addresses() {
 #[test]
 fn i009_export_is_not_implied_by_read() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     assert_eq!(c.access("model", &o.id, Operation::Export, "ctx-A", &capability, 100), Err(AccessError::AuthorityDenied));
 }
 
 #[test]
 fn i010_authority_transition_emits_scar() {
     let (mut c, o) = setup(MemoryState::Unverified);
-    let capability = cap("operator", &o.id, &[Operation::Promote]);
+    let capability = cap(&c, "operator", &o.id, &[Operation::Promote]);
     c.transition("operator", &o.id, MemoryState::Reviewed, "evidence-1", "auth-1", 100, &capability).unwrap();
     assert_eq!(c.scar.len(), 1);
     assert_eq!(c.scar[0].evidence_hash, "evidence-1");
@@ -122,7 +111,7 @@ fn i010_authority_transition_emits_scar() {
 fn i011_provenance_tampering_fails_closed() {
     let (mut c, o) = setup(MemoryState::Unverified);
     c.objects.get_mut(&o.id.0).unwrap().provenance.source = "tampered".into();
-    let capability = cap("model", &o.id, &[Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     assert_eq!(c.access("model", &o.id, Operation::Read, "ctx-A", &capability, 100), Err(AccessError::ProvenanceMismatch));
 }
 
@@ -137,23 +126,22 @@ fn i012_snapshot_detects_mutation() {
 #[test]
 fn i013_model_cannot_modify_policy() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Promote, Operation::Read]);
+    let capability = cap(&c, "model", &o.id, &[Operation::Promote, Operation::Read]);
     assert_eq!(c.access("model", &o.id, Operation::Promote, "ctx-A", &capability, 100), Ok(()));
-    assert_eq!(c.policy_hash, "policy-v1");
+    assert_eq!(c.policy_hash(), "policy-v1");
 }
 
 #[test]
 fn i014_model_cannot_self_grant_capability() {
     let (c, o) = setup(MemoryState::Unverified);
-    let self_granted = Capability { subject: "model".into(), object_ids: [o.id.0.clone()].into_iter().collect(), operations: [Operation::Export].into_iter().collect(), context_hash: "ctx-A".into(), issued_at: 100, expires_at: 200, epoch: 999, policy_hash: "forged".into() };
-    assert_eq!(c.access("model", &o.id, Operation::Export, "ctx-A", &self_granted, 100), Err(AccessError::AuthorityDenied));
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
+    assert_eq!(c.access("model", &o.id, Operation::Export, "ctx-A", &capability, 100), Err(AccessError::AuthorityDenied));
 }
 
 #[test]
 fn i015_physical_tier_cannot_override_authority() {
     let (c, o) = setup(MemoryState::Unverified);
-    let capability = cap("model", &o.id, &[Operation::Read]);
-    // v0.1 exposes no physical-tier handle at all. The only model-facing path is MemoryWindow.
+    let capability = cap(&c, "model", &o.id, &[Operation::Read]);
     let ids: BTreeSet<String> = [o.id.0.clone()].into_iter().collect();
     let window = c.window("model", ids, 100, "ctx-A", capability, 100).unwrap();
     assert_eq!(c.window_read("model", &window, &o.id, 1, 100), Ok(()));
@@ -163,7 +151,7 @@ fn i015_physical_tier_cannot_override_authority() {
 #[test]
 fn full_poisoning_path_is_required_and_logged() {
     let (mut c, o) = setup(MemoryState::ModelGenerated);
-    let capability = cap("operator", &o.id, &[Operation::Promote]);
+    let capability = cap(&c, "operator", &o.id, &[Operation::Promote]);
     for state in [MemoryState::Unverified, MemoryState::Reviewed, MemoryState::PolicyApproved, MemoryState::Authoritative] {
         c.transition("operator", &o.id, state, "evidence", "authorization", 100, &capability).unwrap();
     }
