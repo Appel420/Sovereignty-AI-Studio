@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "tutamcp": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "/path/to/credentials.env:/creds.env:ro",
+        "-e", "TUTAMCP_CREDENTIALS_FILE=/creds.env",
+        "-e", "TUTAMCP_ENABLE_MAIL=1",
+        "-e", "TUTAMCP_MAIL_MODE=dedicated",
+        "-e", "TUTAPROXY_TELEMETRY=false",
+        "-e", "TUTAMCP_OWNER_EMAIL=Appel420@tutamail.com",
+        "tutamcp"
+      ]
+    }
+  }
+}
