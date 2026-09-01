@@ -161,6 +161,50 @@ jobs:
             -print \
             | sort
 
+  trackerdb-familyai:
+    name: trackerdb_familyai integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout trackerdb_familyai
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git clone --depth=1 --branch main \
+            https://github.com/Appel420/trackerdb_familyai.git \
+            trackerdb_familyai
+
+      - name: Node baseline
+        working-directory: trackerdb_familyai
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --version
+          npm --version
+          node -e 'const p=require("./package.json"); console.log(`trackerdb_familyai=${p.version}`); console.log(`node>=${p.engines?.node ?? "unspecified"}`)'
+
+      - name: Install trackerdb_familyai dependencies
+        working-directory: trackerdb_familyai
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci
+
+      - name: trackerdb_familyai tests
+        working-directory: trackerdb_familyai
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm test
+
+      - name: trackerdb_familyai build
+        working-directory: trackerdb_familyai
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm run build
+
   coordination-surface:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
