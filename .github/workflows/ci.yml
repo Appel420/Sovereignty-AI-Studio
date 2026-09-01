@@ -43,12 +43,22 @@ jobs:
           else
             cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
             test -s Cargo.lock
+            # Bootstrap the lockfile through the real build/test path. Some
+            # runner Cargo installations can return non-zero from the
+            # standalone generate-lockfile command after resolving the index.
+            # A successful test proves both resolution and compilation and
+            # leaves Cargo.lock in the manifest directory.
+            cargo test \
+              --manifest-path diamond-core/Cargo.toml \
+              --all-targets
+            test -s diamond-core/Cargo.lock
           fi
 
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
+          test -s diamond-core/Cargo.lock
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
 
       - name: Python baseline
@@ -197,6 +207,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           .coordination-venv/bin/python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
+          python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
         shell: bash
         run: |
@@ -222,6 +233,7 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Record recovery context
+      - name: Publish execution state
         shell: bash
         run: |
           set -Eeuo pipefail

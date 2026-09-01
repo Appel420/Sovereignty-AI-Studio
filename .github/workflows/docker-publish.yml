@@ -33,6 +33,10 @@ permissions:
   contents: read
   packages: write
 
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     name: Docker build and contract gate
@@ -50,8 +54,11 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+
       - name: Verify Docker
         run: docker version
+
       - name: Resolve Diamond Core lockfile
         shell: bash
         run: |
@@ -63,8 +70,25 @@ jobs:
             cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
             test -s Cargo.lock
           fi
+          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+          test -s diamond-core/Cargo.lock
+
       - name: Diamond Core contract gate
         run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
+
+      - name: Prepare isolated Compose validation fixtures
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/compose-tls"
+          openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
+            -subj '/CN=ci-compose-validation' \
+            -keyout "$RUNNER_TEMP/compose-tls/key.pem" \
+            -out "$RUNNER_TEMP/compose-tls/cert.pem" \
+            2>/dev/null
+          test -s "$RUNNER_TEMP/compose-tls/cert.pem"
+          test -s "$RUNNER_TEMP/compose-tls/key.pem"
+
       - name: Validate Compose configuration
         env:
           POSTGRES_PASSWORD: ci-compose-validation-only
@@ -79,12 +103,18 @@ jobs:
           : > /tmp/ci-compose-validation/cert.pem
           : > /tmp/ci-compose-validation/key.pem
           docker compose --profile production --profile keycloak config --quiet
+          TLS_CERT: ${{ runner.temp }}/compose-tls/cert.pem
+          TLS_KEY: ${{ runner.temp }}/compose-tls/key.pem
+        run: docker compose config --quiet
+
       - name: Build image
+        shell: bash
         run: |
           set -Eeuo pipefail
           TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}"
           docker build --tag "$TAG" .
           echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
+
       - name: Publish image
         if: github.event_name == 'push'
         env:
