@@ -1,5 +1,4 @@
 use super::*;
-use std::collections::BTreeSet;
 
 fn ctx() -> Hash { hash_bytes(b"ctx-A") }
 fn policy() -> PolicyId { hash_bytes(b"policy-v1") }
