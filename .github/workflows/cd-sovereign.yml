@@ -37,7 +37,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-         
+
       - name: Runtime identity gate
         shell: bash
         run: |
@@ -53,8 +53,14 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
-          python -m pip install -e '.[test,lint,pqc]'
+          # The ARM64 release runner has no NVIDIA CUDA stack.  Install the
+          # repository's pinned requirements, but do not let pip's CUDA
+          # transitive metadata turn an aarch64 release into a GPU build.
+          # Torch is not imported by the release gates; the package remains
+          # declared in the project for deployments that provide its runtime.
+          python -m pip install --disable-pip-version-check \
+            $(grep -Ev '^(torch|pennylane|piper-tts|vosk|pyttsx3|numpy|onnx|onnxruntime)==|^$|^#' requirements.txt)
+          python -m pip install --disable-pip-version-check -e '.[test,lint,pqc]' --no-deps
           python -m pip install build==1.6.0
           python -m pip check
 
