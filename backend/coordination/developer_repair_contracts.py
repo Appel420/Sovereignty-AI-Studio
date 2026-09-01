@@ -54,6 +54,9 @@ class RepairProposal:
         if self.access is AccessState.DENIED:
             raise PermissionError("required access is denied")
         return RepairProposal(
+            proposal_id=self.proposal_id, problem=self.problem, cause=self.cause,
+            explanation=self.explanation, fix=self.fix, scope=self.scope,
+            risk=self.risk, access=self.access, state=RepairState.AUTHORIZED,
             proposal_id=self.proposal_id,
             problem=self.problem,
             cause=self.cause,
@@ -68,6 +71,9 @@ class RepairProposal:
 
     def decline(self) -> "RepairProposal":
         return RepairProposal(
+            proposal_id=self.proposal_id, problem=self.problem, cause=self.cause,
+            explanation=self.explanation, fix=self.fix, scope=self.scope,
+            risk=self.risk, access=self.access, state=RepairState.DECLINED,
             proposal_id=self.proposal_id,
             problem=self.problem,
             cause=self.cause,
