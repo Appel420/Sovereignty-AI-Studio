@@ -38,12 +38,7 @@ def verify_session_proof(
     secret: bytes | None = None,
     now: int | None = None,
 ) -> SessionAuthorization:
-    """Verify a locally issued HMAC-signed session proof.
-
-    Format: base64url(payload-json).base64url(signature), where the signature
-    is HMAC-SHA256 over the exact encoded payload. The signing secret must be
-    supplied by the local authority; this function never creates one.
-    """
+    """Verify a locally issued HMAC-signed session proof."""
     if not proof or "." not in proof:
         raise SessionAuthorizationError("missing or malformed session proof")
     if secret is None:
@@ -55,6 +50,22 @@ def verify_session_proof(
     encoded_payload, encoded_signature = proof.split(".", 1)
     try:
         expected = hmac.new(secret, encoded_payload.encode("ascii"), hashlib.sha256).digest()
+        actual = base64.urlsafe_b64decode(
+            encoded_signature + "=" * (-len(encoded_signature) % 4)
+        )
+    except (ValueError, TypeError, UnicodeEncodeError) as exc:
+        raise SessionAuthorizationError("invalid session proof encoding") from exc
+
+    if not hmac.compare_digest(expected, actual):
+        raise SessionAuthorizationError("invalid session proof signature")
+
+    try:
+        payload = json.loads(
+            base64.urlsafe_b64decode(
+                encoded_payload + "=" * (-len(encoded_payload) % 4)
+            )
+        )
+    except (ValueError, TypeError, UnicodeDecodeError, json.JSONDecodeError) as exc:
         try:
             actual = base64.urlsafe_b64decode(
                 encoded_signature + "=" * (-len(encoded_signature) % 4), validate=True
@@ -82,7 +93,6 @@ def verify_session_proof(
     required = {"session_id", "identity_id", "capabilities", "mode", "expires_at"}
     if not required.issubset(payload):
         raise SessionAuthorizationError("session proof missing required claims")
-
     current = int(time.time()) if now is None else now
     if int(payload["expires_at"]) <= current:
         raise SessionAuthorizationError("session proof expired")
