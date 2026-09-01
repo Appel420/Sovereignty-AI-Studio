@@ -11,11 +11,11 @@ final class DiamondAccelerationTests: XCTestCase {
         let traversal = DiamondFoldTraversal(authority: authority)
         let step = DiamondFoldStep(sequence: 0, objectID: Data(repeating: 1, count: 32), orientation: .inward, presentedEpoch: 17)
         let first = await traversal.step(step)
-        XCTAssertNotNil(first.failure)
+        if case .success = first { XCTFail("denied authority unexpectedly succeeded") }
         let state = await traversal.state
         XCTAssertEqual(state, .interrupted)
         let second = await traversal.step(step)
-        XCTAssertNotNil(second.failure)
+        if case .success = second { XCTFail("interrupted traversal executed another step") }
         XCTAssertEqual(await authority.calls, 1)
     }
 
@@ -36,7 +36,7 @@ final class DiamondAccelerationTests: XCTestCase {
         return DiamondMemoryHandle(objectID: objectID, byteCount: 1, tier: .shared)
     }
 
-    private enum TestError: Error { case invalid }
+    private enum TestError: Error, Sendable { case invalid }
 
     private actor TestAuthority: DiamondFoldAuthority {
         let shouldAllow: Bool
