@@ -20,7 +20,8 @@ pub struct ObjectId(pub String);
 impl ObjectId {
     pub fn derive(namespace: &str, uuid: &str, content_hash: &str, version: u64, provenance_root: &str) -> Self {
         let mut h = Hasher::new();
-        for field in [namespace, uuid, content_hash, &version.to_string(), provenance_root] {
+        let version = version.to_string();
+        for field in [namespace, uuid, content_hash, version.as_str(), provenance_root] {
             h.update(&(field.len() as u64).to_be_bytes());
             h.update(field.as_bytes());
         }
@@ -56,22 +57,24 @@ impl MemoryObject {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Capability {
-    pub subject: String,
-    pub object_ids: BTreeSet<String>,
-    pub operations: BTreeSet<Operation>,
-    pub context_hash: String,
-    pub issued_at: u64,
-    pub expires_at: u64,
-    pub epoch: u64,
-    pub policy_hash: String,
+    subject: String,
+    object_ids: BTreeSet<String>,
+    operations: BTreeSet<Operation>,
+    context_hash: String,
+    issued_at: u64,
+    expires_at: u64,
+    epoch: u64,
+    policy_hash: String,
 }
 
 impl Capability {
-    pub fn valid_at(&self, now: u64, subject: &str, object: &ObjectId, operation: Operation, context_hash: &str, epoch: u64, policy_hash: &str) -> bool {
+    fn valid_at(&self, now: u64, subject: &str, object: &ObjectId, operation: Operation, context_hash: &str, epoch: u64, policy_hash: &str) -> bool {
         self.subject == subject && self.object_ids.contains(&object.0) && self.operations.contains(&operation)
             && self.context_hash == context_hash && now >= self.issued_at && now < self.expires_at
             && self.epoch == epoch && self.policy_hash == policy_hash
     }
+
+    pub fn expires_at(&self) -> u64 { self.expires_at }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,7 +82,7 @@ pub struct MemoryWindow {
     pub object_ids: BTreeSet<String>,
     pub byte_limit: u64,
     pub context_hash: String,
-    pub capability: Capability,
+    capability: Capability,
     pub expires_at: u64,
 }
 
@@ -95,19 +98,21 @@ pub struct ScarEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AccessError {
-    IdentityMismatch, TemporalMismatch, ContextMismatch, ProvenanceMismatch, AuthorityDenied, WindowExpired, ByteLimitExceeded, InvalidTransition,
-}
+pub enum AccessError { IdentityMismatch, TemporalMismatch, ContextMismatch, ProvenanceMismatch, AuthorityDenied, WindowExpired, ByteLimitExceeded, InvalidTransition }
 
 pub struct Core {
     objects: BTreeMap<String, MemoryObject>,
-    pub epoch: u64,
-    pub policy_hash: String,
+    epoch: u64,
+    policy_hash: String,
     pub scar: Vec<ScarEvent>,
 }
 
 impl Core {
     pub fn new(policy_hash: &str) -> Self { Self { objects: BTreeMap::new(), epoch: 1, policy_hash: policy_hash.into(), scar: Vec::new() } }
+
+    pub fn issue_capability(&self, subject: &str, object_ids: BTreeSet<String>, operations: BTreeSet<Operation>, context_hash: &str, issued_at: u64, ttl_seconds: u64) -> Capability {
+        Capability { subject: subject.into(), object_ids, operations, context_hash: context_hash.into(), issued_at, expires_at: issued_at.saturating_add(ttl_seconds), epoch: self.epoch, policy_hash: self.policy_hash.clone() }
+    }
 
     pub fn insert(&mut self, object: MemoryObject) -> Result<(), AccessError> {
         if self.objects.contains_key(&object.id.0) { return Err(AccessError::IdentityMismatch); }
@@ -116,6 +121,8 @@ impl Core {
     }
 
     pub fn object(&self, id: &ObjectId) -> Option<&MemoryObject> { self.objects.get(&id.0) }
+
+    pub fn policy_hash(&self) -> &str { &self.policy_hash }
 
     pub fn access(&self, subject: &str, object: &ObjectId, operation: Operation, context_hash: &str, capability: &Capability, now: u64) -> Result<(), AccessError> {
         let o = self.objects.get(&object.0).ok_or(AccessError::IdentityMismatch)?;
@@ -128,12 +135,12 @@ impl Core {
     }
 
     pub fn window(&self, subject: &str, ids: BTreeSet<String>, byte_limit: u64, context_hash: &str, capability: Capability, now: u64) -> Result<MemoryWindow, AccessError> {
-        if now >= capability.expires_at || now >= capability.expires_at { return Err(AccessError::WindowExpired); }
+        if now >= capability.expires_at() { return Err(AccessError::WindowExpired); }
         for id in &ids {
             let object = self.objects.get(id).ok_or(AccessError::IdentityMismatch)?;
             self.access(subject, &object.id, Operation::Read, context_hash, &capability, now)?;
         }
-        Ok(MemoryWindow { object_ids: ids, byte_limit, context_hash: context_hash.into(), expires_at: capability.expires_at, capability })
+        Ok(MemoryWindow { object_ids: ids, byte_limit, context_hash: context_hash.into(), expires_at: capability.expires_at(), capability })
     }
 
     pub fn window_read(&self, subject: &str, window: &MemoryWindow, id: &ObjectId, bytes: u64, now: u64) -> Result<(), AccessError> {
