@@ -1,5 +1,5 @@
 name: cd-sovereign.yml
-
+i
 # CD is fail-closed. Build, I-008, native ML-DSA verification, PQC SCAR,
 # and local deployment occur in one controlled runner so the deployed
 # artifact is the artifact that passed every release gate.
@@ -23,6 +23,8 @@ jobs:
     # The release gate requires ARM64 Linux. ubuntu-latest is x64;
     # select GitHub's explicit ARM64 hosted label instead.
     runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04-arm
+    runs-on: macos-latest
     environment: production
     timeout-minutes: 10
     steps:
@@ -46,6 +48,7 @@ jobs:
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = true
           test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "macOS"
           test "${RUNNER_ARCH}" = ARM64
           test "$(uname -m)" = aarch64
           python --version
@@ -95,6 +98,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           rm -rf .pqc/sovereign-mldsa-native
+          mkdir -p .pqc
           git clone --no-tags --filter=blob:none https://github.com/Appel420/sovereign-mldsa-native.git .pqc/sovereign-mldsa-native
           git -C .pqc/sovereign-mldsa-native fetch --depth=1 origin "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
           git -C .pqc/sovereign-mldsa-native checkout --detach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
@@ -111,6 +115,7 @@ jobs:
           rm -rf dist
           python -m build
           find dist -maxdepth 1 -type f -print -quit | grep -q .
+          test -n "$(find dist -maxdepth 1 -type f -print)"
 
       - name: Independent PQC SCAR attestation
         shell: bash
