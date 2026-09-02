@@ -12,10 +12,9 @@
     "keygen": "node -e \"const k=require('crypto').randomBytes(64);require('fs').writeFileSync('.sg_master_key',k,{mode:0o600});console.log('MASTER_KEY_B64='+k.toString('base64'));\""
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
-    "express": "5.1.0",
     "ws": "^8.21.1"
   }
 }
