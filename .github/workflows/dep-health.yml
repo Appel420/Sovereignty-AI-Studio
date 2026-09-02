@@ -82,6 +82,15 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Refresh lockfile resolution from declared dependencies
+        working-directory: node-bridge
+        env:
+          npm_config_audit: 'false'
+          npm_config_fund: 'false'
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Verify dependency tree is reproducible
+        working-directory: node-bridge
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run npm audit
         working-directory: node-bridge
         run: npm audit --audit-level=moderate

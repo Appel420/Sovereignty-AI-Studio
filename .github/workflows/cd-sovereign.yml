@@ -20,6 +20,9 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
+    # The release gate requires ARM64 Linux. ubuntu-latest is x64;
+    # select GitHub's explicit ARM64 hosted label instead.
+    runs-on: ubuntu-24.04-arm
     runs-on: ubuntu-24.04-arm
     runs-on: macos-latest
     environment: production
@@ -37,7 +40,7 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_SHA}"
-          git checkout --attach FETCH_HEAD
+          git checkout --detach FETCH_HEAD
 
       - name: Runtime identity gate
         shell: bash
@@ -60,19 +63,20 @@ jobs:
           python -m pip install build==1.6.0
 
           # PyTorch's current ARM64 dependency metadata causes pip check to
-          # report one known vendor-wheel platform-tag 
-          # allow exactly that single diagnostic and fail on anything else.
+          # report one known vendor-wheel platform-tag mismatch. Do not weaken
+          # the dependency gate: allow exactly that single diagnostic.
           pip_check_output="$(mktemp)"
           if python -m pip check >"${pip_check_output}" 2>&1; then
             echo "pip check: PASS"
           elif [ "$(wc -l <"${pip_check_output}")" -eq 1 ] \
-            && grep -Fxq 'macOS ARM64' "${pip_check_output}"; then
-            echo "pip check: PASS (macOS ARM64)"
+            && grep -Fxq 'nvidia-cusparselt-cu13 0.8.1 is not supported on this platform' "${pip_check_output}"; then
+            echo "pip check: PASS (known ARM64 NVIDIA cusparselt vendor metadata exception)"
           else
             cat "${pip_check_output}"
-            python "${pip_check_output}"
+            rm -f "${pip_check_output}"
             exit 1
           fi
+          rm -f "${pip_check_output}"
 
       - name: I-008 executable gate
         shell: bash
@@ -93,10 +97,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          rm -rf .pqc/sovereign-mldsa-native
           mkdir -p .pqc
           git clone --no-tags --filter=blob:none https://github.com/Appel420/sovereign-mldsa-native.git .pqc/sovereign-mldsa-native
           git -C .pqc/sovereign-mldsa-native fetch --depth=1 origin "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
-          git -C .pqc/sovereign-mldsa-native checkout --attach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
+          git -C .pqc/sovereign-mldsa-native checkout --detach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
           test "$(git -C .pqc/sovereign-mldsa-native rev-parse HEAD)" = "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
           make -C .pqc/sovereign-mldsa-native build
           make -C .pqc/sovereign-mldsa-native test
@@ -109,6 +114,7 @@ jobs:
           set -Eeuo pipefail
           rm -rf dist
           python -m build
+          find dist -maxdepth 1 -type f -print -quit | grep -q .
           test -n "$(find dist -maxdepth 1 -type f -print)"
 
       - name: Independent PQC SCAR attestation
