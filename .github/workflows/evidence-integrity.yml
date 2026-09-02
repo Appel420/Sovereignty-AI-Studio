@@ -1,0 +1,28 @@
+name: Evidence Integrity
+
+on:
+  pull_request:
+  push:
+    branches: [Collaboration]
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate shell syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n scripts/init_sovereignty_state.sh
+
+      - name: Run evidence integrity gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/evidence_integrity_gate.py .
