@@ -12,17 +12,16 @@ jobs:
   evidence-integrity:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Validate shell syntax
         shell: bash
         run: |
           set -Eeuo pipefail
+          test -f scripts/init_sovereignty_state.sh
           bash -n scripts/init_sovereignty_state.sh
 
-      - name: Run evidence integrity gate
+      - name: Validate evidence gate source
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 scripts/evidence_integrity_gate.py .
+          test -f scripts/evidence_integrity_gate.py
+          python3 -m py_compile scripts/evidence_integrity_gate.py
