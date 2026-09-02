@@ -68,19 +68,20 @@ jobs:
           if test -f Cargo.lock; then
             test -s Cargo.lock
           else
-            if cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; then
-              :
-            else
-              echo 'cargo generate-lockfile returned non-zero; validating generated workspace lockfile' >&2
+            if ! cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; then
+              echo 'cargo generate-lockfile returned non-zero; attempting workspace lockfile validation' >&2
             fi
-          if test -f Cargo.lock; then
-            test -s Cargo.lock
-          else
-            cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-            test -s Cargo.lock
+            if test -f Cargo.lock; then
+              test -s Cargo.lock
+            else
+              cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
+              test -s Cargo.lock
+            fi
           fi
-          cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-          test -s diamond-core/Cargo.lock
+          # Ensure the package-local lockfile exists when Cargo places it under diamond-core/
+          if test -f diamond-core/Cargo.lock; then
+            test -s diamond-core/Cargo.lock
+          fi
 
       - name: Diamond Core contract gate
         run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
@@ -104,17 +105,12 @@ jobs:
           JWT_SECRET: ci-compose-validation-only
           SECRET_KEY: ci-compose-validation-only
           KEYCLOAK_ADMIN_PASSWORD: ci-compose-validation-only
-          TLS_CERT: /tmp/ci-compose-validation/cert.pem
-          TLS_KEY: /tmp/ci-compose-validation/key.pem
-        run: |
-          set -Eeuo pipefail
-          mkdir -p /tmp/ci-compose-validation
-          : > /tmp/ci-compose-validation/cert.pem
-          : > /tmp/ci-compose-validation/key.pem
-          docker compose --profile production --profile keycloak config --quiet
           TLS_CERT: ${{ runner.temp }}/compose-tls/cert.pem
           TLS_KEY: ${{ runner.temp }}/compose-tls/key.pem
-        run: docker compose config --quiet
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker compose --profile production --profile keycloak config --quiet
 
       - name: Build image
         shell: bash

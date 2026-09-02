@@ -18,7 +18,6 @@ jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
@@ -195,7 +194,6 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install coordination test dependencies
         shell: bash
@@ -204,7 +202,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e '.[test]'
           python -m pip check
-
           python -m venv .coordination-venv
           .coordination-venv/bin/python -m pip install --upgrade pip
           .coordination-venv/bin/python -m pip install -e '.[test]'
@@ -214,7 +211,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           .coordination-venv/bin/python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
-          python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
         shell: bash
         run: |
@@ -240,6 +236,14 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Record recovery context
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
+          echo "RECOVERY_SHA=${GITHUB_SHA}"
+          echo "RECOVERY_CONCLUSION_CONTEXT=${{ job.status }}"
+          echo "RECOVERY_WORKFLOW=${{ github.workflow }}"
+          echo "RECOVERY_REF=${{ github.ref }}"
       - name: Publish execution state
         shell: bash
         run: |
