@@ -210,7 +210,7 @@ def _minimal_schema_errors(value: Any, schema: dict[str, Any], path: str = "$") 
                 errors.extend(_minimal_schema_errors(value[key], child_schema, f"{path}.{key}"))
 
     if isinstance(value, list):
-        if schema.get("uniqueItems") is True and len(value) != len(set(map(json.dumps, value))):
+        if schema.get("uniqueItems") is True and len(value) != len(set(value)):
             errors.append(f"{path}: array items must be unique")
         item_schema = schema.get("items")
         if item_schema is not None:
