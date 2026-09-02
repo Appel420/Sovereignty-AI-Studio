@@ -16,10 +16,9 @@
   "license": "MIT",
   "dependencies": {
     "express": "^5.2.1",
-    "qs": "6.16.0",
     "ws": "^8.21.1"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=24.0.0"
   }
 }
