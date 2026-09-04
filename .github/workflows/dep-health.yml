@@ -1,0 +1,60 @@
+name: Dependency Health
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit:
+    name: Python CVE audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Audit Python dependencies
+        run: python3 -m pip install --user pip-audit && python3 -m pip_audit -r requirements.txt
+  python-outdated:
+    name: Python requirements validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - run: python3 -m pip install --dry-run -r requirements.txt
+  node-audit:
+    name: Node CVE audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Audit node bridge
+        working-directory: node-bridge
+        run: if [[ -f package.json ]]; then npm ci --ignore-scripts --no-audit --no-fund; npm audit --audit-level=moderate; fi
+  requirements-lint:
+    name: Requirements validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Validate requirements
+        run: python3 - <<'PY'
+          from pathlib import Path
+          for name in ('requirements.txt','.github/workflows/Requirements.txt'):
+              p=Path(name)
+              if p.exists():
+                  assert '\t' not in p.read_text(encoding='utf-8'), f'tab in {name}'
+          print('requirements valid')
+          PY
