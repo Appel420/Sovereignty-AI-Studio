@@ -2,12 +2,9 @@ name: iOS Sovereign Build
 
 on:
   push:
-    branches: [Collaboration]
-    paths:
-      - 'ios/**'
-      - '.github/workflows/ios-sovereign-build.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -35,53 +32,29 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
-
       - name: Validate runner
-        shell: bash
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "macOS"
           test -n "${GITHUB_SHA}"
-          echo "event=${GITHUB_EVENT_NAME}"
-          echo "ref=${GITHUB_REF}"
-          echo "sha=${GITHUB_SHA}"
-          echo "runner_os=${RUNNER_OS}"
-          echo "runner_arch=${RUNNER_ARCH}"
-
       - name: Validate backend Python sources
         run: python3 -m compileall -q backend
-
       - name: Validate Swift sources
         shell: bash
         run: |
           set -Eeuo pipefail
           if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
             while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
-          else
-            echo 'No Swift sources found; native source parse is not applicable.'
-          fi
-
+          else echo 'No Swift sources found; native source parse is not applicable.'; fi
       - name: Generate validation manifest
         shell: bash
         run: |
           set -Eeuo pipefail
           python3 - <<'PY'
           import json, os, platform, time
-          payload = {
-              'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}",
-              'timestamp': int(time.time()),
-              'build_ref': os.environ['GITHUB_SHA'],
-              'platform': 'iOS',
-              'execution': 'github-hosted-validation',
-              'native_xcode_compile': False,
-              'runner_os': os.environ.get('RUNNER_OS', 'local'),
-              'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
-          }
+          payload = {'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}", 'timestamp': int(time.time()), 'build_ref': os.environ['GITHUB_SHA'], 'platform': 'iOS', 'execution': 'github-hosted-validation', 'native_xcode_compile': False, 'runner_os': os.environ.get('RUNNER_OS', 'local'), 'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine())}
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(payload, fh, indent=2, sort_keys=True)
-              fh.write('\n')
-          print(json.dumps(payload, indent=2, sort_keys=True))
+              json.dump(payload, fh, indent=2, sort_keys=True); fh.write('\n')
           PY
-
       - name: Verify manifest
         run: python3 -m json.tool ios-build-manifest.json
