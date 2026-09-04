@@ -3,6 +3,10 @@ name: CI — Sovereign Device Validation
 # Device validation is fail-closed. A certification marker is emitted only
 # after the complete executable validation sequence succeeds.
 on:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -32,48 +36,33 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
-
       - name: Diagnose sovereign device runner
         shell: bash
         run: |
           set -Eeuo pipefail
-          actual_os="${RUNNER_OS:-}"
-          actual_arch="${RUNNER_ARCH:-}"
-          kernel_arch="$(uname -m)"
           test "${GITHUB_ACTIONS:-}" = "true"
           test -n "${GITHUB_SHA:-}"
-          test "${actual_os}" = "Linux"
-          test "${actual_arch}" = "ARM64"
-          test "${kernel_arch}" = "aarch64"
-          printf 'runner=%s/%s kernel=%s commit=%s\n' "$actual_os" "$actual_arch" "$kernel_arch" "$GITHUB_SHA"
-
+          test "${RUNNER_OS:-}" = "Linux"
+          test "${RUNNER_ARCH:-}" = "ARM64"
+          test "$(uname -m)" = "aarch64"
       - name: Verify Python runtime
-        run: |
-          python --version
-          python -m pip --version
-
+        run: python --version
       - name: Install canonical repository dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --disable-pip-version-check -r requirements.txt
           python -m pip install --disable-pip-version-check -e '.[test,lint]'
           python -m pip check
-
       - name: Python syntax gate
         run: python -m compileall -q backend apps scripts tests
-
       - name: I-008 executable gate
         run: |
-          set -Eeuo pipefail
           python scripts/verify_i008_contract.py
           python -m pytest -q backend/coordination/test_i008_transparency.py
-
       - name: Test collection gate
         run: python -m pytest --collect-only -q tests
-
       - name: Python test suite
         run: python -m pytest -q tests
-
       - name: Quart application smoke test
         run: |
           python - <<'PY'
@@ -82,31 +71,18 @@ jobs:
           assert app is not None and client is not None
           print('Quart application import and test client: PASS')
           PY
-
       - name: Phase 0 Rust tests
-        run: |
-          if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
-
+        run: if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
       - name: Diamond Core v0.1 contract tests
         run: |
           set -Eeuo pipefail
-          if [[ -f diamond-core/Cargo.toml ]]; then
-            cargo test --manifest-path diamond-core/Cargo.toml --all-targets
-          else
-            echo 'FAIL: diamond-core/Cargo.toml is required for this validation path' >&2
-            exit 1
-          fi
-
+          test -f diamond-core/Cargo.toml
+          cargo test --manifest-path diamond-core/Cargo.toml --all-targets
       - name: Node syntax check
-        run: |
-          if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
-
+        run: if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
       - name: Frontend ownership contract
-        run: |
-          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; else echo 'Frontend ownership contract: NOT APPLICABLE'; fi
-
+        run: if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; else echo 'Frontend ownership contract: NOT APPLICABLE'; fi
       - name: Sovereign certification marker
         run: |
-          set -Eeuo pipefail
           echo 'SOVEREIGN_DEVICE_VALIDATION=PASS'
           echo "Validated commit: ${GITHUB_SHA}"
