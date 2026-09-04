@@ -1,0 +1,34 @@
+name: CodeQL Scan
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    name: Local Security Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Scan workflow action policy
+        run: |
+          if grep -RInE '(^|[[:space:]])uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+' .github/workflows --include='*.yml' --include='*.yaml'; then exit 1; fi
+      - name: Scan credentials
+        run: |
+          if grep -RInE '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' . --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules; then exit 1; fi
+      - name: Compile Python
+        run: python -m compileall -q .
