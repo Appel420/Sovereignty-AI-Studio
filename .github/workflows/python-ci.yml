@@ -3,7 +3,7 @@ name: python-ci.yml
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
+    branches: ['Collaboration, ara-hardened, copilot/main, claude, GPT/Codex, main' ]
     paths:
       - 'backend/**'
       - 'apps/**'
@@ -14,7 +14,7 @@ on:
       - 'pytest.ini'
       - '.github/workflows/python-ci.yml'
   pull_request:
-    branches: [Collaboration]
+      branches: ['Collaboration, ara-hardened, copilot/main, claude, GPT/Codex, main' ]
     paths:
       - 'backend/**'
       - 'apps/**'
@@ -40,7 +40,7 @@ jobs:
   test:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+  
     steps:
       - name: Checkout repository without external actions
         env:
@@ -80,9 +80,9 @@ jobs:
           import pytest_asyncio
 
           expected = {
-              'fastapi': '0.139.2',
+              'fastapi': '0.141.1',
               'PyNaCl': '1.6.2',
-              'pydantic': '2.13.4',
+              'pydantic': '2.13.5',
               'quart': '0.20.0',
           }
           for package, required in expected.items():
