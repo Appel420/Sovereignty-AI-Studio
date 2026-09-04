@@ -1,5 +1,5 @@
 name: cd-sovereign.yml
-i
+
 # CD is fail-closed. Build, I-008, native ML-DSA verification, PQC SCAR,
 # and local deployment occur in one controlled runner so the deployed
 # artifact is the artifact that passed every release gate.
@@ -20,11 +20,8 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    # The release gate requires ARM64 Linux. ubuntu-latest is x64;
-    # select GitHub's explicit ARM64 hosted label instead.
+    # The release gate requires ARM64 Linux. Use GitHub's explicit ARM64 hosted label.
     runs-on: ubuntu-24.04-arm
-    runs-on: ubuntu-24.04-arm
-    runs-on: macos-latest
     environment: production
     timeout-minutes: 10
     steps:
@@ -39,18 +36,23 @@ jobs:
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_SHA}"
+          # Fetch the actual ref, not a raw SHA (raw SHA is not always a valid remote ref)
+          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+            git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_REF}"
+          fi
           git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}" || echo "Note: HEAD=$(git rev-parse HEAD) GITHUB_SHA=${GITHUB_SHA}"
 
       - name: Runtime identity gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = true
+          test "${GITHUB_ACTIONS}" = "true"
           test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_OS}" = "macOS"
-          test "${RUNNER_ARCH}" = ARM64
-          test "$(uname -m)" = aarch64
+          test "${RUNNER_ARCH}" = "ARM64"
+          test "$(uname -m)" = "aarch64"
           python --version
 
       - name: Install release dependencies
