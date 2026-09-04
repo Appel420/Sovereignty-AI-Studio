@@ -1,0 +1,29 @@
+name: Pylint
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Pylint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Install Pylint
+        run: python -m pip install --upgrade pip pylint
+      - name: Analyse Python sources
+        run: |
+          mapfile -d '' files < <(git ls-files -z -- '*.py' ':!:external/**' ':!:tests/**')
+          if (( ${#files[@]} )); then pylint --disable=missing-docstring,too-few-public-methods,import-error "${files[@]}"; else echo 'No first-party Python files.'; fi
