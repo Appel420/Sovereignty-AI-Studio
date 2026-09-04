@@ -13,7 +13,7 @@ permissions:
 jobs:
   ara:
     name: Ara validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout without external action
@@ -31,7 +31,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
       - name: Validate first-party Python syntax
         shell: bash
         run: |
