@@ -1,0 +1,27 @@
+name: Node Bridge CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    paths: ['node-bridge/**']
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    paths: ['node-bridge/**']
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node bridge tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Install and test
+        working-directory: node-bridge
+        run: if [[ -f package.json ]]; then npm ci; npm test; else echo 'node-bridge package absent; skipped.'; fi
