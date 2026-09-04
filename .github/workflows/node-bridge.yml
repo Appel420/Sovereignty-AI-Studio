@@ -39,7 +39,7 @@ jobs:
         run: node --version
       - name: Install dependencies
         working-directory: node-bridge
-        run: npm ci
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run tests
         working-directory: node-bridge
         run: npm test
