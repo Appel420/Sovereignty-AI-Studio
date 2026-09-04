@@ -47,19 +47,18 @@ jobs:
             # Bootstrap the lockfile through the real build/test path. Some
             # runner Cargo installations can return non-zero from the
             # standalone generate-lockfile command after resolving the index.
-            # A successful test proves both resolution and compilation and
-            # leaves Cargo.lock in the manifest directory.
+            # A successful test proves both resolution and compilation.
             cargo test \
               --manifest-path diamond-core/Cargo.toml \
               --all-targets
-            test -s diamond-core/Cargo.lock
+            test -s Cargo.lock
           fi
 
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          test -s diamond-core/Cargo.lock
+          test -s Cargo.lock
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
 
       - name: Python baseline
@@ -74,8 +73,8 @@ jobs:
           set -Eeuo pipefail
           python -m venv .ci-venv
           .ci-venv/bin/python -m pip install --upgrade pip
-          .ci-venv/bin/python -m pip install -e '.[test,lint]'
-          .ci-venv/bin/python -m pip install pip-audit==2.9.0
+          .ci-venv/bin/python -m pip install --no-cache-dir -e '.[test,lint]'
+          .ci-venv/bin/python -m pip install --no-cache-dir pip-audit==2.9.0
           .ci-venv/bin/python -m pip check
 
       - name: Dependency vulnerability gate
@@ -200,11 +199,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
-          python -m pip install -e '.[test]'
+          python -m pip install --no-cache-dir -e '.[test]'
           python -m pip check
           python -m venv .coordination-venv
           .coordination-venv/bin/python -m pip install --upgrade pip
-          .coordination-venv/bin/python -m pip install -e '.[test]'
+          .coordination-venv/bin/python -m pip install --no-cache-dir -e '.[test]'
           .coordination-venv/bin/python -m pip check
       - name: Coordination import
         shell: bash
