@@ -1,0 +1,31 @@
+name: iOS Sovereign Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    paths: ['.github/workflows/ios-sovereign-build.yml', 'ios/**']
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    paths: ['.github/workflows/ios-sovereign-build.yml', 'ios/**']
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios:
+    name: build-ios
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout without external actions
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Verify Swift package
+        run: |
+          set -Eeuo pipefail
+          xcodebuild -version
+          swift --version
+          if [[ -f ios/Package.swift ]]; then swift package describe --package-path ios; swift build --package-path ios; swift test --package-path ios; else echo 'ios/Package.swift not present; sovereign package build skipped.'; fi
