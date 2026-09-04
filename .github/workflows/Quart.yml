@@ -27,8 +27,8 @@ env:
 jobs:
   test:
     name: Quart tests
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    timeout-minutes: 15
+    runs-on: self-hosted
+    
     steps:
       - name: Checkout repository without third-party actions
         env:
@@ -56,8 +56,8 @@ jobs:
           python -m venv .ci-venv
           source .ci-venv/bin/activate
           python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          python -m pip install --disable-pip-version-check -e '.[test]'
+          python -m pip install --pip-version-check -r requirements.txt
+          python -m pip install --pip-version-check -e '.[test]'
           python -m pip check
       - name: Verify required imports
         run: |
