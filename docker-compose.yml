@@ -1,34 +1,29 @@
 version: '3.9'
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Sovereignty AI Studio — Self-Hosted Docker Stack
-# FRONTEND: KODER (SGHv119.html) served on port 9898 (non-Docker static server).
-# WS/API:   Node.js node-bridge on port 9899 (browser WebSocket + HTTP API proxy).
-# PYTHON:   bridge.py on port 9897 is started separately (non-Docker, via START_SERVER.sh).
-# Backend, database, and Redis stay on the internal Docker network.
-# ─────────────────────────────────────────────────────────────────────────────
+# Sovereignty AI Studio — production ingress
+# Public application traffic enters through the owner-provided TLS certificate on 443.
+# Backend services remain internal to the Docker network. Keycloak may remain on its
+# separately approved administration port 8080; test-only ports are not published here.
 
 services:
-  # ── PostgreSQL ────────────────────────────────────────────────────────────
   db:
     image: postgres:16
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sovereignty}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-sovereignty_db}
     expose:
       - "5432"
     volumes:
       - db_data:/var/lib/postgresql/data
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:r  
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sovereignty}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ── Redis ──────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -44,21 +39,20 @@ services:
       retries: 5
       start_period: 5s
 
-  # ── Python Backend (FastAPI) ───────────────────────────────────────────────
   backend:
     build: ./backend
     restart: unless-stopped
     expose:
       - "8002"
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:-change-me-in-production}@db:5432/${POSTGRES_DB:-sovereignty_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-sovereignty}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-sovereignty_db}
       REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env}
       SOVEREIGN_MODEL_PATH: ${SOVEREIGN_MODEL_PATH:-/models/sovereign.gguf}
       SOVEREIGN_ONNX_PATH: ${SOVEREIGN_ONNX_PATH:-/models/sovereign.onnx}
       SOVEREIGN_API_URL: http://node-bridge:9899/api/ai
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:9898}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost}
       LOG_DIR: /app/logs
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -71,49 +65,42 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8002/health')\""]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 20s
 
-  # ── Node.js Sovereign Bridge (BACKUP proxy on port 9899) ─────────────────
   node-bridge:
     build: ./node-bridge
     restart: unless-stopped
-    ports:
-      - "9899:9899"
+    expose:
+      - "9899"
     environment:
       NODE_BRIDGE_PORT: "9899"
+      NODE_BRIDGE_HOST: "127.0.0.1"
       BACKEND_URL: http://backend:8002
       WEATHER_URL: http://backend:8002
       GATEWAY_URL: http://gateway:9001
       SOVEREIGN_API_URL: http://backend:8002/api/ai
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      CORS_ORIGIN: ${CORS_ORIGIN:-https://localhost}
       RATE_LIMIT_RPM: ${RATE_LIMIT_RPM:-30}
     depends_on:
       backend:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:9899/health', r => process.exit(r.statusCode === 200 ? 0 : 1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
 
-  # ── Keycloak (self-hosted SSO) ────────────────────────────────────────────
   keycloak:
     image: quay.io/keycloak/keycloak:24.0.5
     restart: unless-stopped
     ports:
-      - "8080:8443"
+      - "127.0.0.1:8080:8080"
     environment:
       KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-sovereignty_db}
       KC_DB_USERNAME: ${POSTGRES_USER:-sovereignty}
-      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     command: start-dev
     depends_on:
       db:
@@ -121,7 +108,6 @@ services:
     profiles:
       - keycloak
 
-  # ── Multi-agent system ────────────────────────────────────────────────────
   judge_agent:
     build:
       context: .
@@ -130,8 +116,8 @@ services:
     expose:
       - "9002"
     environment:
-      - JUDGE_METRICS_PORT=9002
-      - REDIS_URL=redis://redis:6379
+      JUDGE_METRICS_PORT: 9002
+      REDIS_URL: redis://redis:6379
     depends_on:
       - redis
 
@@ -143,11 +129,8 @@ services:
     expose:
       - "9004"
     environment:
-      - AI_ROUTER_PORT=9004
-      - REDIS_URL=redis://redis:6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - XAI_API_KEY=${XAI_API_KEY:-}
+      AI_ROUTER_PORT: 9004
+      REDIS_URL: redis://redis:6379
     depends_on:
       - judge_agent
       - redis
@@ -160,9 +143,9 @@ services:
     expose:
       - "9005"
     environment:
-      - PLUGIN_AGENT_PORT=9005
-      - REDIS_URL=redis://redis:6379
-      - PLUGIN_SDK_DIR=/app/plugin_sdk
+      PLUGIN_AGENT_PORT: 9005
+      REDIS_URL: redis://redis:6379
+      PLUGIN_SDK_DIR: /app/plugin_sdk
     depends_on:
       - judge_agent
       - redis
@@ -175,15 +158,8 @@ services:
     expose:
       - "9006"
     environment:
-      - PLATFORM_AGENT_PORT=9006
-      - REDIS_URL=redis://redis:6379
-      - TWITCH_CHANNEL=${TWITCH_CHANNEL:-}
-      - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID:-}
-      - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET:-}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
-      - YOUTUBE_STREAM_ID=${YOUTUBE_STREAM_ID:-}
-      - KICK_CHANNEL=${KICK_CHANNEL:-}
-      - X_BEARER_TOKEN=${X_BEARER_TOKEN:-}
+      PLATFORM_AGENT_PORT: 9006
+      REDIS_URL: redis://redis:6379
     depends_on:
       - judge_agent
       - redis
@@ -196,14 +172,12 @@ services:
     expose:
       - "9007"
     environment:
-      - VOICE_ASSIST_PORT=9007
-      - REDIS_URL=redis://redis:6379
+      VOICE_ASSIST_PORT: 9007
+      REDIS_URL: redis://redis:6379
     depends_on:
       - judge_agent
       - redis
 
-  # ── Python multi-agent gateway (internal port 9001) ───────────────────────
-  # Python is the primary backend. Node-bridge (9899) is backup only.
   gateway:
     build:
       context: .
@@ -212,27 +186,21 @@ services:
     expose:
       - "9001"
     environment:
-      - GATEWAY_PORT=9001
-      - REDIS_URL=redis://redis:6379
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - XAI_API_KEY=${XAI_API_KEY:-}
-      - PLUGIN_SDK_DIR=/app/plugin_sdk
+      GATEWAY_PORT: 9001
+      REDIS_URL: redis://redis:6379
     depends_on:
       - judge_agent
       - redis
 
-  # ── Nginx Reverse Proxy ───────────────────────────────────────────────────
   nginx:
     image: nginx:alpine
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - "127.0.0.1:443:443"
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ${TLS_CERT:-/dev/null}:/etc/nginx/ssl/cert.pem:ro
-      - ${TLS_KEY:-/dev/null}:/etc/nginx/ssl/key.pem:ro
+      - ${TLS_CERT:?Set TLS_CERT to the owner-approved certificate chain}:/etc/nginx/ssl/cert.pem:ro
+      - ${TLS_KEY:?Set TLS_KEY to the owner-approved private key}:/etc/nginx/ssl/key.pem:ro
     depends_on:
       - node-bridge
     profiles:
