@@ -1,29 +1,19 @@
 """Authoritative agent branch registry.
 
-The registry describes ownership and permitted scopes; it does not grant root
-authority. Integration into ``Collaboration`` remains owner-controlled
-(merge, cherry-pick, or owner-authorized integration service).
-Agents never create branches through this module.
+This registry records delegated machine workspaces. It does not grant root
+authority. Main and Collaboration remain owner-controlled integration targets.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Iterable
 
-
-# Not agent-writable. Owner-controlled promotion only.
-# ``Collaboration`` is the repository's canonical integration branch.
 PROTECTED_BRANCHES: frozenset[str] = frozenset(
     {"Collaboration", "collaboration", "main", "master"}
 )
 
-# Owner-controlled integration/production operations (not agent autonomous writes).
 OWNER_AUTHORIZED_OPERATIONS: frozenset[str] = frozenset(
-    {
-        "owner-approved merge",
-        "owner-approved cherry-pick",
-        "owner-authorized integration service",
-    }
+    {"owner-approved merge", "owner-approved cherry-pick", "owner-authorized integration service"}
 )
 
 
@@ -39,30 +29,15 @@ class BranchOwner:
 
 
 BRANCH_OWNERS: dict[str, BranchOwner] = {
-    "ara-hardened": BranchOwner(
-        "ara-hardened", "Ara", frozenset({"security", "attestation", "hardening", "pqc"})
-    ),
-    "claude": BranchOwner(
-        "claude", "Claude", frozenset({"implementation", "refactor"})
-    ),
-    "gpt": BranchOwner(
-        "gpt", "GPT", frozenset({"architecture", "integration", "verification"})
-    ),
-    "copilot": BranchOwner(
-        "copilot", "GitHub Copilot", frozenset({"code-assistance", "fixes", "focused-fix"})
-    ),
-    "devassist420": BranchOwner(
-        "devassist420", "DevAssist420", frozenset({"routing", "coordination"})
-    ),
-    "sovereignty-ai": BranchOwner(
-        "sovereignty-ai", "Sovereignty AI", frozenset({"policy", "governance", "evidence"})
-    ),
-    "family": BranchOwner(
-        "family", "Family Council", frozenset({"family", "usability", "sanitization"})
-    ),
-    "owner": BranchOwner(
-        "owner", "Appel420", frozenset({"architecture", "approval", "ownership"})
-    ),
+    "copilot/main": BranchOwner("copilot/main", "GitHub Copilot", frozenset({"code-assistance", "fixes", "focused-fix"})),
+    "Ara-hardened": BranchOwner("Ara-hardened", "Grok", frozenset({"security", "attestation", "hardening", "pqc"})),
+    "GPT/Codex": BranchOwner("GPT/Codex", "ChatGPT / Codex", frozenset({"architecture", "integration", "verification"})),
+    "DDG/DuckAI-main": BranchOwner("DDG/DuckAI-main", "DuckAI", frozenset({"research", "evidence", "sanitization"})),
+    "claude": BranchOwner("claude", "Claude", frozenset({"implementation", "refactor"})),
+    "DevAssist420": BranchOwner("DevAssist420", "DevAssist420", frozenset({"routing", "coordination"})),
+    "sovereignty-ai": BranchOwner("sovereignty-ai", "Sovereignty AI", frozenset({"policy", "governance", "evidence"})),
+    "family": BranchOwner("family", "Family Council", frozenset({"family", "usability", "sanitization"})),
+    "owner": BranchOwner("owner", "Appel420", frozenset({"architecture", "approval", "ownership"})),
 }
 
 
@@ -78,7 +53,7 @@ class BranchRegistry:
     def require(self, branch: str) -> BranchOwner:
         if branch in PROTECTED_BRANCHES:
             raise ValueError(f"Protected branch is not agent-writable: {branch}")
-        owner = self.get(branch)
+        owner = self._entries.get(branch)
         if owner is None:
             raise ValueError(f"Unknown agent branch: {branch}")
         return owner

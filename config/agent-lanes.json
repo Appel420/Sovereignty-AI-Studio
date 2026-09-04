@@ -1,14 +1,44 @@
 {
-  "version": "1.0.0",
+  "version": "1.2.0",
   "repository": "Appel420/Sovereignty-AI-Studio",
-  "protected_branches": ["main", "master", "Collaboration"],
+  "protected_branches": ["main", "master", "Collaboration", "collaboration"],
   "agents": {
-    "copilot": {"provider_path": "github-copilot", "branch_pattern": "copilot/*"},
-    "gpt": {"provider_path": "openai-gpt", "branch_pattern": "gpt/*"},
-    "grok": {"provider_path": "xai-grok", "branch_pattern": "grok/*"},
-    "claude": {"provider_path": "anthropic-claude", "branch_pattern": "claude/*"},
-    "ara": {"provider_path": "ara-core", "branch_pattern": "ara/*"},
-    "devassist420": {"provider_path": "devassist420-local", "branch_pattern": "devassist420/*"}
+    "copilot": {
+      "display_name": "GitHub Copilot",
+      "provider_path": "github-copilot",
+      "branch_pattern": "copilot/main",
+      "active_model": "5.6"
+    },
+    "grok": {
+      "display_name": "Grok",
+      "provider_path": "xai-grok",
+      "branch_pattern": "Ara-hardened",
+      "active_model": null
+    },
+    "gpt-codex": {
+      "display_name": "ChatGPT / Codex",
+      "provider_path": "openai-gpt-codex",
+      "branch_pattern": "GPT/Codex",
+      "active_model": null
+    },
+    "duckai": {
+      "display_name": "DuckAI",
+      "provider_path": "ddg-duckai",
+      "branch_pattern": "DDG/DuckAI-main",
+      "active_model": null
+    },
+    "claude": {
+      "display_name": "Claude",
+      "provider_path": "anthropic-claude",
+      "branch_pattern": "claude",
+      "active_model": null
+    },
+    "devassist420": {
+      "display_name": "DevAssist420",
+      "provider_path": "devassist420-local",
+      "branch_pattern": "DevAssist420",
+      "active_model": null
+    }
   },
   "owner_approval_required_for": ["repo.patch", "repo.commit", "repo.push", "promotion"]
 }
