@@ -1,0 +1,49 @@
+name: GPT/Codex SCAR fix verification
+
+on:
+  pull_request:
+    branches: ["GPT/Codex"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install required audit dependencies
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --disable-pip-version-check blake3 jsonschema liboqs-python pytest
+
+      - name: Python syntax gate
+        run: |
+          set -Eeuo pipefail
+          python3 -m py_compile scripts/scar_pqc_attest.py src/deployment/deployment_profile.py
+
+      - name: Deployment profile tests
+        run: |
+          set -Eeuo pipefail
+          pytest -q tests/deployment/test_deployment_profile.py
+
+      - name: SCAR attestation contract
+        env:
+          SCAR_PQC_KEY_DIR: "${{ runner.temp }}/scar/pqc"
+          SCAR_PQC_OUTPUT: "${{ runner.temp }}/scar/attestation.json"
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${SCAR_PQC_KEY_DIR}" "$(dirname "${SCAR_PQC_OUTPUT}")"
+          python3 scripts/scar_pqc_attest.py --status PASS --commit "${GITHUB_SHA}"
+          test -s "${SCAR_PQC_OUTPUT}"
+          grep -q '"verified": true' "${SCAR_PQC_OUTPUT}"
+          grep -q 'ML-DSA-87' "${SCAR_PQC_OUTPUT}"
+
+      - name: Node dependency audit
+        run: |
+          set -Eeuo pipefail
+          npm audit --audit-level=moderate
