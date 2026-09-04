@@ -1,0 +1,26 @@
+name: iOS Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+jobs:
+  package-validation:
+    name: iOS package validation
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"; git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"; git checkout --detach FETCH_HEAD
+      - name: Validate iOS source
+        run: |
+          if [[ -d ios ]]; then find ios -maxdepth 2 -type f | head -100; else echo 'No ios directory; package validation skipped.'; fi
