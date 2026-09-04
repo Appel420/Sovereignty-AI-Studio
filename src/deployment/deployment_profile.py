@@ -14,7 +14,7 @@ if _jsonschema_spec is not None:
     _jsonschema = import_module("jsonschema")
     Draft202012Validator = _jsonschema.Draft202012Validator
     FormatChecker = _jsonschema.FormatChecker
-else:  # optional dependency fallback for offline/minimal audit environments
+else:
     Draft202012Validator = None
     FormatChecker = None
 
@@ -170,13 +170,7 @@ def _type_matches(value: Any, expected: str) -> bool:
 
 
 def _minimal_schema_errors(value: Any, schema: dict[str, Any], path: str = "$") -> list[str]:
-    """Validate the deployment schema subset used by this repository.
-
-    This fallback preserves local/offline validation when the optional
-    ``jsonschema`` package is not installed. It intentionally supports only the
-    keywords used by ``deployment-profile.schema.json`` and fails closed for
-    unsupported schema shapes.
-    """
+    """Validate the deployment schema subset used by this repository."""
     errors: list[str] = []
     expected_type = schema.get("type")
     if isinstance(expected_type, str) and not _type_matches(value, expected_type):
@@ -228,8 +222,15 @@ def _validate_schema_contract(instance: dict[str, Any], schema: Any) -> list[str
     if Draft202012Validator is not None and FormatChecker is not None:
         try:
             validator = Draft202012Validator(schema, format_checker=FormatChecker())
-            return [error.message for error in validator.iter_errors(instance)]
-        except Exception as exc:  # fail-closed on invalid schemas
+            errors: list[str] = []
+            for error in sorted(validator.iter_errors(instance), key=lambda item: list(item.path)):
+                if error.validator == "additionalProperties":
+                    unexpected = error.validator_value
+                    errors.append(f"additional property not allowed: {unexpected}")
+                else:
+                    errors.append(error.message)
+            return errors
+        except Exception as exc:
             return [f"schema invalid: {exc}"]
     return _minimal_schema_errors(instance, schema)
 
