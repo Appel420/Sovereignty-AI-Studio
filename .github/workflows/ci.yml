@@ -17,6 +17,9 @@ concurrency:
 env:
   PYTHONDONTWRITEBYTECODE: '1'
   PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PYTHONUNBUFFERED: '1'
+  CARGO_TERM_COLOR: always
+  CI: '1'
 
 jobs:
   contract:
@@ -68,7 +71,7 @@ jobs:
       - name: Compile first-party Python
         run: python -m compileall -q .
       - name: Test Python
-        run: python -m pytest -q tests
+        run: python -m pytest -vv --maxfail=1 --showlocals tests
   node:
     name: Node Lane
     runs-on: ubuntu-latest
@@ -84,7 +87,12 @@ jobs:
           git checkout --detach FETCH_HEAD
       - name: Validate Node
         run: |
-          if [[ -f package.json ]]; then npm install --ignore-scripts --no-audit --no-fund; npm test --if-present; fi
+          if [[ -f package.json ]]; then
+            npm install --ignore-scripts --no-audit --no-fund
+            npm test --if-present -- --verbose
+          else
+            echo 'No package.json; lane passed.'
+          fi
   rust:
     name: Rust Lane
     runs-on: ubuntu-latest
@@ -99,7 +107,12 @@ jobs:
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Validate Rust
-        run: if [[ -f Cargo.toml ]]; then cargo test --workspace --all-targets; else echo 'No Cargo.toml; lane passed.'; fi
+        run: |
+          if [[ -f Cargo.toml ]]; then
+            cargo test --workspace --all-targets --verbose
+          else
+            echo 'No Cargo.toml; lane passed.'
+          fi
   integration:
     name: Integration Result
     if: ${{ always() }}
