@@ -1,0 +1,28 @@
+name: Ara
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["GPT/Codex"]
+  pull_request:
+    branches: ["GPT/Codex"]
+
+permissions:
+  contents: read
+
+jobs:
+  ara:
+    name: Ara validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout without external action
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Validate repository Python syntax
+        run: python -m compileall -q . --exclude external --exclude .venv
