@@ -1,0 +1,114 @@
+name: Sovereignty CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sovereignty-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+
+jobs:
+  contract:
+    name: Contract Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Validate manifest
+        run: |
+          python -m json.tool system/component-manifest.json >/dev/null
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          d=json.loads(Path('system/component-manifest.json').read_text())
+          assert d['schema']=='sovereignty.system.component/v1'
+          assert d['authority']=='human-owner'
+          ids=[c['id'] for c in d['components']]
+          repos=[c['repository'] for c in d['components']]
+          assert len(ids)==len(set(ids))
+          assert len(repos)==len(set(repos))
+          for e in d['edges']:
+              assert e['from'] in ids and e['to'] in ids
+          print(f"contract OK: {len(ids)} components, {len(d['edges'])} edges")
+          PY
+  python:
+    name: Python Lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile first-party Python
+        run: python -m compileall -q .
+      - name: Test Python
+        run: python -m pytest -q tests
+  node:
+    name: Node Lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Validate Node
+        run: |
+          if [[ -f package.json ]]; then npm install --ignore-scripts --no-audit --no-fund; npm test --if-present; fi
+  rust:
+    name: Rust Lane
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        env: {GH_TOKEN: ${{ github.token }}}
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Validate Rust
+        run: if [[ -f Cargo.toml ]]; then cargo test --workspace --all-targets; else echo 'No Cargo.toml; lane passed.'; fi
+  integration:
+    name: Integration Result
+    if: ${{ always() }}
+    needs: [contract, python, node, rust]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all lanes
+        env:
+          RESULTS: "${{ needs.contract.result }} ${{ needs.python.result }} ${{ needs.node.result }} ${{ needs.rust.result }}"
+        run: |
+          for result in $RESULTS; do [[ "$result" == success ]] || exit 1; done
+          echo 'All independent lanes completed successfully.'
