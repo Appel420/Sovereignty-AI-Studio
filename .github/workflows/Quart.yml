@@ -1,0 +1,95 @@
+name: Quart App CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quart-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_INPUT: '1'
+
+jobs:
+  test:
+    name: Quart tests
+    runs-on: ['self-hosted', 'linux', 'arm64']
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request) fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge" ;;
+            push|workflow_dispatch) fetch_ref="refs/heads/${GITHUB_REF_NAME}" ;;
+            *) echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"; exit 1 ;;
+          esac
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${fetch_ref}"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Verify Python runtime
+        run: |
+          python --version
+          python -m pip --version
+      - name: Create isolated environment
+        run: |
+          rm -rf .ci-venv
+          python -m venv .ci-venv
+          source .ci-venv/bin/activate
+          python -m pip install --upgrade pip
+          python -m pip install --disable-pip-version-check -r requirements.txt
+          python -m pip install --disable-pip-version-check -e '.[test]'
+          python -m pip check
+      - name: Verify required imports
+        run: |
+          source .ci-venv/bin/activate
+          python - <<'PY'
+          import fastapi, nacl, pydantic, quart, pytest_asyncio
+          print('required dependency closure: OK')
+          PY
+      - name: Python syntax gate
+        run: |
+          source .ci-venv/bin/activate
+          python -m compileall -q backend apps scripts tests
+      - name: Test collection gate
+        run: |
+          source .ci-venv/bin/activate
+          python -m pytest --collect-only -q tests
+      - name: Test suite
+        run: |
+          source .ci-venv/bin/activate
+          python -m pytest -q tests
+      - name: Quart application smoke test
+        run: |
+          source .ci-venv/bin/activate
+          python - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+          import asyncio
+          async def main():
+              client = app.test_client()
+              response = await client.get('/api/weather?city=London')
+              assert response.status_code == 200
+              payload = await response.get_json()
+              assert payload['city'] == 'London'
+          asyncio.run(main())
+          print('Quart application smoke test: OK')
+          PY
