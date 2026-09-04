@@ -2,9 +2,9 @@ name: ci.yml
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 concurrency:
@@ -32,41 +32,23 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
-
       - name: Diamond Core lockfile
         shell: bash
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          # diamond-core is a workspace member; Cargo writes Cargo.lock at the workspace root.
-          if test -f Cargo.lock; then
-            test -s Cargo.lock
-          else
-            cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-            test -s Cargo.lock
-            # Bootstrap the lockfile through the real build/test path. Some
-            # runner Cargo installations can return non-zero from the
-            # standalone generate-lockfile command after resolving the index.
-            # A successful test proves both resolution and compilation.
-            cargo test \
-              --manifest-path diamond-core/Cargo.toml \
-              --all-targets
-            test -s Cargo.lock
-          fi
-
+          if test -f Cargo.lock; then test -s Cargo.lock; else cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; test -s Cargo.lock; fi
       - name: Diamond Core contract gate
         shell: bash
         run: |
           set -Eeuo pipefail
           test -s Cargo.lock
           cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
-
       - name: Python baseline
         shell: bash
         run: |
           python --version
           python -m pip --version
-
       - name: Create isolated validation environment
         shell: bash
         run: |
@@ -76,42 +58,24 @@ jobs:
           .ci-venv/bin/python -m pip install --no-cache-dir -e '.[test,lint]'
           .ci-venv/bin/python -m pip install --no-cache-dir pip-audit==2.9.0
           .ci-venv/bin/python -m pip check
-
       - name: Dependency vulnerability gate
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/pip-audit --strict
-
+        run: .ci-venv/bin/pip-audit --strict
       - name: I-008 executable contract
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/python scripts/verify_i008_contract.py
-
+        run: .ci-venv/bin/python scripts/verify_i008_contract.py
       - name: Compile
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/python -m compileall -q backend
-
+        run: .ci-venv/bin/python -m compileall -q backend
       - name: Ruff
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/ruff check .
-
+        run: .ci-venv/bin/ruff check .
       - name: Mypy
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/mypy sovereign/
-
+        run: .ci-venv/bin/mypy sovereign/
       - name: Pytest
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/pytest -q
+        run: .ci-venv/bin/pytest -q
 
   workflow-surface:
     name: Workflow surface audit
@@ -119,8 +83,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -160,22 +123,13 @@ jobs:
           node -e 'const p=require("./package.json"); console.log(`trackerdb_familyai=${p.version}`); console.log(`node>=${p.engines?.node ?? "unspecified"}`)'
       - name: Install trackerdb_familyai dependencies
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm ci
+        run: npm ci
       - name: trackerdb_familyai tests
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm test
+        run: npm test
       - name: trackerdb_familyai build
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm run build
+        run: npm run build
 
   coordination-surface:
     name: Coordination import and contract audit
@@ -183,8 +137,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -195,26 +148,15 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install coordination test dependencies
-        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install --no-cache-dir -e '.[test]'
           python -m pip check
-          python -m venv .coordination-venv
-          .coordination-venv/bin/python -m pip install --upgrade pip
-          .coordination-venv/bin/python -m pip install --no-cache-dir -e '.[test]'
-          .coordination-venv/bin/python -m pip check
       - name: Coordination import
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .coordination-venv/bin/python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
+        run: python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
       - name: Coordination tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .coordination-venv/bin/python -m pytest -q backend/coordination
+        run: python -m pytest -q backend/coordination
 
   recovery-observer:
     name: Recovery observer
@@ -223,8 +165,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -235,7 +176,6 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Record recovery context
-        shell: bash
         run: |
           set -Eeuo pipefail
           echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
@@ -244,7 +184,6 @@ jobs:
           echo "RECOVERY_WORKFLOW=${{ github.workflow }}"
           echo "RECOVERY_REF=${{ github.ref }}"
       - name: Publish execution state
-        shell: bash
         run: |
           set -Eeuo pipefail
           echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
