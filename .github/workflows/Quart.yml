@@ -27,7 +27,7 @@ env:
 jobs:
   test:
     name: Quart tests
-    runs-on: self-hosted
+    runs-on: self-hosted ubuntu-latest
     
     steps:
       - name: Checkout repository without third-party actions
