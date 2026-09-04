@@ -2,15 +2,9 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [Collaboration]
-    paths:
-      - 'node-bridge/**'
-      - '.github/workflows/node-bridge.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
-    paths:
-      - 'node-bridge/**'
-      - '.github/workflows/node-bridge.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 env:
@@ -25,6 +19,7 @@ concurrency:
 
 jobs:
   test:
+    name: Node Bridge tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
