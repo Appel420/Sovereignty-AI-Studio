@@ -3,25 +3,9 @@ name: Ara
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
-      - Claude
-      - GPT/Codex
-      - ara-hardened
-      - copilot/main
-      - Collaboration
-      - duckAI
-      - devassist420
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches:
-      - main
-      - Claude
-      - GPT/Codex
-      - ara-hardened
-      - copilot/main
-      - Collaboration
-      - duckAI
-      - devassist420
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
@@ -35,13 +19,14 @@ jobs:
       - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
           set -Eeuo pipefail
           git init .
-          git config --local advice.detachedHead false
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-      - name: Validate repository Python syntax
-        run: python -m compileall -q .
+      - name: Validate first-party Python syntax
+        run: |
+          set -Eeuo pipefail
+          mapfile -d '' files < <(git ls-files -z -- '*.py' ':!:external/**' ':!:vendor/**' ':!:node_modules/**')
+          if (( ${#files[@]} )); then python -m py_compile "${files[@]}"; fi
