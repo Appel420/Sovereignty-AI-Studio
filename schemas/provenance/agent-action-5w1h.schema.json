@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:sovereignty:copilot:5w1h:1.0.0",
+  "type": "object",
+  "required": ["who", "what", "when", "where", "why", "how", "agent_id", "provider_path", "model_id", "repository", "branch", "authorization"],
+  "properties": {
+    "who": {"type": "object", "required": ["human_owner", "machine_agent"]},
+    "what": {"type": "string", "minLength": 1},
+    "when": {"type": "string", "format": "date-time"},
+    "where": {"type": "object", "required": ["repository", "branch", "workspace"]},
+    "why": {"type": "string", "minLength": 1},
+    "how": {"type": "object", "required": ["execution_plane", "capability", "approval"]},
+    "agent_id": {"type": "string", "minLength": 1},
+    "provider_path": {"type": "string", "minLength": 1},
+    "model_id": {"type": "string", "minLength": 1},
+    "repository": {"const": "Appel420/Sovereignty-AI-Studio"},
+    "branch": {"type": "string", "minLength": 1},
+    "authorization": {"type": "object", "required": ["owner_approved", "self_authorization_forbidden"]}
+  },
+  "additionalProperties": false
+}
