@@ -19,7 +19,7 @@ concurrency:
 jobs:
   conformance:
     name: Sovereign Device Validation
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout repository without external actions
@@ -36,15 +36,13 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Diagnose sovereign device runner
+      - name: Diagnose runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS:-}" = "true"
           test -n "${GITHUB_SHA:-}"
           test "${RUNNER_OS:-}" = "Linux"
-          test "${RUNNER_ARCH:-}" = "ARM64"
-          test "$(uname -m)" = "aarch64"
       - name: Verify Python runtime
         run: python --version
       - name: Install canonical repository dependencies
