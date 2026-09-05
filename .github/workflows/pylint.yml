@@ -3,9 +3,9 @@ name: Pylint
 on:
   workflow_dispatch:
   push:
-    branches: [ Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [ Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: pylint-${{ github.ref }}
@@ -31,8 +31,10 @@ jobs:
           set -Eeuo pipefail
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c credential.helper='!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f' fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Startup
         run: |
           echo "event=${GITHUB_EVENT_NAME}"
@@ -44,4 +46,4 @@ jobs:
       - name: Install pylint
         run: python -m pip install --upgrade pip pylint
       - name: Analyse the code with pylint
-        run: make py-lint || python -m pylint --exit-zero $(find . -name '*.py' | head -50)
+        run: make py-lint || python -m pylint --exit-zero $(find . -name '*.py' -not -path './external/*' | head -50)

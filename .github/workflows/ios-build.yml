@@ -2,12 +2,9 @@ name: iOS Build
 
 on:
   push:
-    branches: [Collaboration]
-    paths:
-      - 'ios/**'
-      - '.github/workflows/ios-build.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -39,19 +36,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -d ios ]]; then
-            find ios -maxdepth 3 -type f -print | head -100
-          else
-            echo 'No ios/ directory exists in this repository; source validation is not applicable.'
-          fi
+          if [[ -d ios ]]; then find ios -maxdepth 3 -type f -print | head -100; else echo 'No ios/ directory exists; source validation not applicable.'; fi
       - name: Validate Swift syntax when Swift sources exist
         shell: bash
         run: |
           set -Eeuo pipefail
           if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
-            while IFS= read -r -d '' file; do
-              swiftc -parse "$file"
-            done < <(find ios -type f -name '*.swift' -print0)
-          else
-            echo 'No Swift source files found; native source parse is not applicable.'
-          fi
+            while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
+          else echo 'No Swift source files found; native source parse not applicable.'; fi

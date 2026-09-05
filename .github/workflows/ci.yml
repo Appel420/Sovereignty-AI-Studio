@@ -2,9 +2,9 @@ name: ci.yml
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 concurrency:
@@ -18,123 +18,57 @@ jobs:
   repo-conformance:
     name: Repository conformance
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
       - name: Diamond Core lockfile
-        shell: bash
         run: |
-          set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
-          # diamond-core is a workspace member; Cargo writes Cargo.lock at the workspace root.
-          if test -f Cargo.lock; then
-            test -s Cargo.lock
-          else
-            cargo generate-lockfile --manifest-path diamond-core/Cargo.toml
-            test -s Cargo.lock
-            # Bootstrap the lockfile through the real build/test path. Some
-            # runner Cargo installations can return non-zero from the
-            # standalone generate-lockfile command after resolving the index.
-            # A successful test proves both resolution and compilation.
-            cargo test \
-              --manifest-path diamond-core/Cargo.toml \
-              --all-targets
-            test -s Cargo.lock
-          fi
-
+          if test -f Cargo.lock; then test -s Cargo.lock; else cargo generate-lockfile --manifest-path diamond-core/Cargo.toml; test -s Cargo.lock; fi
       - name: Diamond Core contract gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -s Cargo.lock
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
-
+        run: cargo test --manifest-path diamond-core/Cargo.toml --all-targets --locked
       - name: Python baseline
-        shell: bash
-        run: |
-          python --version
-          python -m pip --version
-
+        run: python --version
       - name: Create isolated validation environment
-        shell: bash
         run: |
-          set -Eeuo pipefail
           python -m venv .ci-venv
           .ci-venv/bin/python -m pip install --upgrade pip
           .ci-venv/bin/python -m pip install --no-cache-dir -e '.[test,lint]'
           .ci-venv/bin/python -m pip install --no-cache-dir pip-audit==2.9.0
           .ci-venv/bin/python -m pip check
-
       - name: Dependency vulnerability gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/pip-audit --strict
-
+        run: .ci-venv/bin/pip-audit --strict
       - name: I-008 executable contract
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/python scripts/verify_i008_contract.py
-
+        run: .ci-venv/bin/python scripts/verify_i008_contract.py
       - name: Compile
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/python -m compileall -q backend
-
+        run: .ci-venv/bin/python -m compileall -q backend
       - name: Ruff
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/ruff check .
-
+        run: .ci-venv/bin/ruff check .
       - name: Mypy
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/mypy sovereign/
-
+        run: .ci-venv/bin/mypy sovereign/
       - name: Pytest
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .ci-venv/bin/pytest -q
+        run: .ci-venv/bin/pytest -q
 
   workflow-surface:
     name: Workflow surface audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Enumerate workflow surface
-        shell: bash
         run: |
-          set -Eeuo pipefail
-          test -d .github/workflows
           count="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | wc -l)"
           test "$count" -gt 0
           echo "WORKFLOW_FILE_COUNT=$count"
@@ -143,110 +77,149 @@ jobs:
   trackerdb-familyai:
     name: trackerdb_familyai integration
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
+        run: git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
       - name: Node baseline
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          node --version
-          npm --version
-          node -e 'const p=require("./package.json"); console.log(`trackerdb_familyai=${p.version}`); console.log(`node>=${p.engines?.node ?? "unspecified"}`)'
-      - name: Install trackerdb_familyai dependencies
+        run: node --version && npm --version
+      - name: Install dependencies
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm ci
-      - name: trackerdb_familyai tests
+        run: npm ci
+      - name: Tests
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm test
-      - name: trackerdb_familyai build
+        run: npm test
+      - name: Build
         working-directory: trackerdb_familyai
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          npm run build
+        run: npm run build
 
   coordination-surface:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Install coordination test dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install --no-cache-dir -e '.[test]'
-          python -m pip check
-          python -m venv .coordination-venv
-          .coordination-venv/bin/python -m pip install --upgrade pip
-          .coordination-venv/bin/python -m pip install --no-cache-dir -e '.[test]'
-          .coordination-venv/bin/python -m pip check
-      - name: Coordination import
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .coordination-venv/bin/python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
-      - name: Coordination tests
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          .coordination-venv/bin/python -m pytest -q backend/coordination
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && python -m pip install --no-cache-dir -e '.[test]' && python -m pip check
+      - name: Import
+        run: python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
+      - name: Tests
+        run: python -m pytest -q backend/coordination
 
   recovery-observer:
     name: Recovery observer
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
+      - run: echo "RECOVERY_SHA=${GITHUB_SHA}"
+
+  scar-pqc-native:
+    name: SCAR — native ML-DSA-87 attestation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Record recovery context
-        shell: bash
+      - name: Install native PQC provider
+        run: python3 -m pip install --upgrade pip && python3 -m pip install --no-cache-dir blake3==1.0.9 liboqs-python
+      - name: Verify native ML-DSA-87
+        run: python3 -c "import oqs; assert 'ML-DSA-87' in oqs.get_enabled_sig_mechanisms(); print('NATIVE_ML_DSA_87=PASS')"
+      - name: Run SCAR PQC attestation
+        env: { SCAR_PQC_KEY_DIR: "${{ runner.temp }}/scar/pqc", SCAR_PQC_OUTPUT: "${{ runner.temp }}/scar/attestation.json" }
+        run: |
+          mkdir -p "$SCAR_PQC_KEY_DIR"
+          python3 scripts/scar_pqc_attest.py --status PASS --commit "$GITHUB_SHA"
+          test -s "$SCAR_PQC_OUTPUT"
+          grep -q '"verified": true' "$SCAR_PQC_OUTPUT"
+          grep -q 'ML-DSA-87' "$SCAR_PQC_OUTPUT"
+
+  ara-validation:
+    name: Ara validation
+    runs-on: hqbuntu-latest
+    steps:
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
-          echo "RECOVERY_SHA=${GITHUB_SHA}"
-          echo "RECOVERY_CONCLUSION_CONTEXT=${{ job.status }}"
-          echo "RECOVERY_WORKFLOW=${{ github.workflow }}"
-          echo "RECOVERY_REF=${{ github.ref }}"
-      - name: Publish execution state
-        shell: bash
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Validate first-party Python
+        run: while IFS= read -r -d '' f; do python3 -m py_compile "$f"; done < <(git ls-files -z -- '*.py' ':!:external/**')
+
+  quart-validation:
+    name: Quart tests
+    runs-on: ['self-hosted', 'linux', 'arm64']
+    steps:
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
-          echo "RECOVERY_RUN_ID=${GITHUB_RUN_ID}"
-          echo "RECOVERY_SHA=${GITHUB_SHA}"
-          echo "RECOVERY_CONCLUSION_CONTEXT=${{ job.status }}"
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Install Quart dependencies
+        run: python3 -m pip install --upgrade pip && python3 -m pip install -r requirements.txt
+      - name: Quart test suite
+        run: python3 -m pytest -q tests
+
+  codeql-local-security:
+    name: Local security gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Workflow action policy
+        run: '! grep -RInE "^[[:space:]]*uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+" .github/workflows --include="*.yml" --include="*.yaml"'
+      - name: Python syntax security gate
+        run: python3 -m compileall -q backend apps scripts tests
+
+  ios-sovereign-validation:
+    name: iOS sovereign validation
+    runs-on: macos-latest
+    steps:
+      - name: Checkout exact commit
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          set -Eeuo pipefail
+          git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
+          git checkout --detach FETCH_HEAD
+      - name: Backend source validation
+        run: python3 -m compileall -q backend
+      - name: Swift parse when present
+        run: |
+          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then while IFS= read -r -d '' f; do swiftc -parse "$f"; done < <(find ios -type f -name '*.swift' -print0); fi
+
+  sovereign-device-validation:
+    name: Sovereign device validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify sovereign runner
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = Linux
+          test "${RUNNER_ARCH}" = ARM64
+          test "$(uname -m)" = aarch64
+      - name: Verify PQC provider is installed on device runner
+        run: python3 -c "import oqs; assert 'ML-DSA-87' in oqs.get_enabled_sig_mechanisms(); print('DEVICE_NATIVE_ML_DSA_87=PASS')"

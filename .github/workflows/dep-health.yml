@@ -2,14 +2,9 @@ name: Dependency Health
 
 on:
   push:
-    branches: [Collaboration]
-    paths:
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - 'node-bridge/**'
-      - '.github/workflows/dep-health.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 env:
@@ -29,8 +24,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -51,8 +45,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -71,8 +64,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -101,8 +93,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
           set -Eeuo pipefail

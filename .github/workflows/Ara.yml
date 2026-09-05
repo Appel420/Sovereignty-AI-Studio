@@ -2,34 +2,38 @@ name: Ara
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    runs-on: ['self-hosted', 'linux', 'arm64']
+  ara:
+    name: Ara validation
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
+      - name: Checkout without external action
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
         run: |
           set -Eeuo pipefail
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          git -c http.extraheader="AUTHORIZATION: bearer ${GH_TOKEN}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Verify runner
         run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
-          test "${RUNNER_ARCH}" = "ARM64"
-          echo "Ara CI runner: ${RUNNER_OS}/${RUNNER_ARCH}"
-      - name: Run validation
+      - name: Validate first-party Python syntax
+        shell: bash
         run: |
           set -Eeuo pipefail
-          echo "Ara validation active"
-          python3 --version
-          git status --short
+          while IFS= read -r -d '' file; do python3 -m py_compile "$file"; done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.venv/**')
+          echo 'Ara Python syntax validation: PASS'
