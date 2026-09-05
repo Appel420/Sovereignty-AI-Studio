@@ -2,9 +2,9 @@ name: SCAR — Sovereign Compliance Audit Record
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
   pull_request:
-    branches: [Collaboration]
+    branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
   workflow_dispatch:
 
 permissions:
