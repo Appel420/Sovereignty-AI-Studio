@@ -4,9 +4,9 @@ name: CI — Sovereign Device Validation
 # after the complete executable validation sequence succeeds.
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,6 @@ jobs:
   conformance:
     name: Sovereign Device Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
       - name: Checkout repository without external actions
         env:
