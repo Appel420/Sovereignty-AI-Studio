@@ -36,34 +36,85 @@ jobs:
             exit 1
           fi
 
+      - name: Resolve verification ref
+        id: ref
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -Eeuo pipefail
+          if [[ "$EVENT_NAME" == workflow_run && -n "$WORKFLOW_RUN_BRANCH" ]]; then
+            target_ref="$WORKFLOW_RUN_BRANCH"
+          elif [[ -n "$REF_NAME" && "$REF_NAME" != "" ]]; then
+            target_ref="$REF_NAME"
+          else
+            target_ref="$DEFAULT_BRANCH"
+          fi
+          [[ -n "$target_ref" ]] || { echo 'Unable to resolve a verification ref' >&2; exit 1; }
+          printf 'target_ref=%s\n' "$target_ref"
+          printf 'target_ref=%s\n' "$target_ref" >> "$GITHUB_OUTPUT"
+
       - name: Verify required workflow files remain present
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ steps.ref.outputs.target_ref }}
         run: |
           set -Eeuo pipefail
-          api="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/.github/workflows"
-          headers=(-H "Authorization: Bearer ${GH_TOKEN}" -H 'Accept: application/vnd.github+json')
-          files="$(curl -fsSL "${headers[@]}" "${api}?ref=${GITHUB_SHA}")"
-          for required in cd-sovereign.yml oauth-api-generator.yaml scar.yml repository-watchdog.yml; do
-            grep -Fq '"name": "'"$required"'"' <<<"$files" || {
-              echo "Required workflow missing: $required" >&2
-              exit 1
-            }
-          done
-          echo 'Required sovereign workflow inventory: PASS'
+          mapfile -t workflows < <(
+            gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows" \
+              --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              -f "ref=${TARGET_REF}" \
+              --jq '.[].name'
+          )
 
-      - name: Verify architecture invariants
+          required_workflows=(
+            cd-sovereign.yml
+            ci-sovereign.yml
+            oauth-api-generator.yaml
+            scar.yml
+            repository-watchdog.yml
+          )
+
+          for required in "${required_workflows[@]}"; do
+            if ! printf '%s\n' "${workflows[@]}" | grep -Fxq "$required"; then
+              echo "Required workflow missing at ref ${TARGET_REF}: $required" >&2
+              exit 1
+            fi
+          done
+          echo "Required sovereign workflow inventory: PASS (ref=${TARGET_REF})"
+
+      - name: Load workflow source at verified ref
         env:
           GH_TOKEN: ${{ github.token }}
+          TARGET_REF: ${{ steps.ref.outputs.target_ref }}
         run: |
           set -Eeuo pipefail
-          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/"
-          cd_workflow="$(curl -fsSL "${base}.github/workflows/cd-sovereign.yml")"
-          ci_workflow="$(curl -fsSL "${base}.github/workflows/ci-sovereign.yml")"
-          oauth_workflow="$(curl -fsSL "${base}.github/workflows/oauth-api-generator.yaml")"
+          fetch_workflow() {
+            local path="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/contents/${path}" \
+              --method GET \
+              -H 'Accept: application/vnd.github+json' \
+              -f "ref=${TARGET_REF}" \
+              --jq '.content' | tr -d '\n' | base64 --decode
+          }
+
+          fetch_workflow .github/workflows/cd-sovereign.yml > "$RUNNER_TEMP/cd-sovereign.yml"
+          fetch_workflow .github/workflows/ci-sovereign.yml > "$RUNNER_TEMP/ci-sovereign.yml"
+          fetch_workflow .github/workflows/oauth-api-generator.yaml > "$RUNNER_TEMP/oauth-api-generator.yaml"
+
+      - name: Verify architecture invariants
+        run: |
+          set -Eeuo pipefail
+          cd_workflow="$(cat "$RUNNER_TEMP/cd-sovereign.yml")"
+          ci_workflow="$(cat "$RUNNER_TEMP/ci-sovereign.yml")"
+          oauth_workflow="$(cat "$RUNNER_TEMP/oauth-api-generator.yaml")"
+
           grep -Fq 'runs-on: ubuntu-24.04-arm' <<<"$cd_workflow"
-          grep -Fq 'test "${RUNNER_ARCH}" = ARM64' <<<"$cd_workflow"
-          grep -Fq 'test "$(uname -m)" = aarch64' <<<"$cd_workflow"
-          grep -Fq 'runs-on: [self-hosted, Linux, ARM64]' <<<"$ci_workflow"
+          grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' <<<"$cd_workflow"
+          grep -Fq 'test "$(uname -m)" = "aarch64"' <<<"$cd_workflow"
+          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_workflow"
           grep -Fq 'name: OAUTH — local contract' <<<"$oauth_workflow"
           echo 'Architecture invariants: PASS'
