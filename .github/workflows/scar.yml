@@ -1,13 +1,10 @@
-name: SCAR — Sovereign Compliance Audit Record
-
-on:
+name: SCAR.yml — Sovereign Compliance Audit Recordon:
   push:
     branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
   pull_request:
     branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
   workflow_dispatch:
-
-permissions:
+  permissions:
   contents: read
 
 concurrency:
@@ -57,3 +54,4 @@ jobs:
           set -Eeuo pipefail
           printf 'SCAR_STATUS=PASS\n'
           printf 'SCAR_COMMIT=%s\n' "${GITHUB_SHA}"
+          
