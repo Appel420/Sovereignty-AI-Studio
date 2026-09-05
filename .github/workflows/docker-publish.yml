@@ -27,6 +27,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # GHCR requires the image repository name to be lowercase
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
@@ -55,6 +56,13 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
+
+      - name: Normalize image name to lowercase
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          # GHCR repository names must be lowercase
+          echo "IMAGE_NAME_LC=${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
 
       - name: Verify Docker
         run: docker version
@@ -116,7 +124,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          TAG="${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}"
+          TAG="${REGISTRY}/${IMAGE_NAME_LC}:${GITHUB_SHA}"
           docker build --tag "$TAG" .
           echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
 

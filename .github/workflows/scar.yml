@@ -2,9 +2,9 @@ name: SCAR — Sovereign Compliance Audit Record
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -33,6 +33,22 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
+
+      - name: Install SCAR cryptographic dependencies
+        run: |
+          set -Eeuo pipefail
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --no-cache-dir blake3==1.0.9 liboqs-python
+
+      - name: Verify native ML-DSA-87 provider
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import oqs
+          supported = oqs.get_enabled_sig_mechanisms()
+          assert 'ML-DSA-87' in supported, f'ML-DSA-87 unavailable: {supported}'
+          print(f'liboqs={oqs.oqs_version()} ML-DSA-87=AVAILABLE')
+          PY
 
       - name: SCAR source gate
         run: |

@@ -1,29 +1,11 @@
-name: python-ci.yml 
+name: python-ci.yml
 
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
-    paths:
-      - 'backend/**'
-      - 'apps/**'
-      - 'scripts/**'
-      - 'tests/**'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - 'pytest.ini'
-      - '.github/workflows/python-ci.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
-    paths:
-      - 'backend/**'
-      - 'apps/**'
-      - 'scripts/**'
-      - 'tests/**'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - 'pytest.ini'
-      - '.github/workflows/python-ci.yml'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
@@ -31,7 +13,7 @@ permissions:
 concurrency:
   group: python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
- 
+
 defaults:
   run:
     shell: bash --noprofile --norc -euo pipefail {0}
@@ -54,59 +36,37 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
       - name: Verify Python runtime
-      
         run: |
           python --version
           python -m pip --version
-
       - name: Install canonical repository dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install --disable-pip-version-check -r requirements.txt
-       
-
       - name: Verify dependency closure
         run: python -m pip check
-
       - name: Verify required imports and versions
         run: |
           python - <<'PY'
           from importlib.metadata import version
-          import fastapi
-          import nacl
-          import pydantic
-          import quart
-          import pytest
-          import pytest_asyncio
-
-          expected = {
-              'fastapi': '0.139.2',
-              'PyNaCl': '1.6.2',
-              'pydantic': '2.13.4',
-              'quart': '0.20.0',
-          }
+          import fastapi, nacl, pydantic, quart, pytest, pytest_asyncio
+          expected = {'fastapi':'0.139.2','PyNaCl':'1.6.2','pydantic':'2.13.4','quart':'0.20.0'}
           for package, required in expected.items():
               actual = version(package)
               print(f'{package}: {actual}')
               assert actual == required, f'{package}: expected {required}, got {actual}'
-
           print('pytest:', version('pytest'))
           print('pytest-asyncio:', version('pytest-asyncio'))
           print('required imports and versions: PASS')
           PY
-
       - name: Python syntax gate
         run: python -m compileall -q backend apps scripts tests
-
       - name: I-008 contract gate
         run: python scripts/verify_i008_contract.py
-
       - name: Test collection gate
         run: python -m pytest --collect-only -q tests
-
       - name: Test suite
         run: python -m pytest -q tests
-
       - name: Quart application smoke test
         run: |
           python - <<'PY'
@@ -115,7 +75,5 @@ jobs:
           assert client is not None
           print('Quart application import and test client: PASS')
           PY
-
       - name: Coordination import check
-        run: |
-          python -c "from backend.coordination import BranchRegistry; print('coordination import: PASS')"
+        run: python -c "from backend.coordination import BranchRegistry; print('coordination import: PASS')"
