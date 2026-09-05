@@ -72,10 +72,12 @@ jobs:
           count="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | wc -l)"
           test "$count" -gt 0
           echo "WORKFLOW_FILE_COUNT=$count"
-          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sor    
-          trackerdb-familyai:
-      - name: trackerdb_familyai integration
-       runs-on: ubuntu-latest 
+          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
+
+  trackerdb-familyai:
+    name: trackerdb_familyai integration
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout trackerdb_familyai
         run: git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
       - name: Node baseline
@@ -90,7 +92,8 @@ jobs:
       - name: Build
         working-directory: trackerdb_familyai
         run: npm run build
-   coordination-surface:
+
+  coordination-surface:
     name: Coordination import and contract audit
     runs-on: ubuntu-latest
     steps:
@@ -176,8 +179,8 @@ jobs:
   codeql-local-security:
     name: Local security gate
     runs-on: ubuntu-latest
-    steps: 
-      - name: Come heckout exact commit
+    steps:
+      - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
