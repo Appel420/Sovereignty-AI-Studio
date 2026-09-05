@@ -17,8 +17,7 @@ env:
 jobs:
   repo-conformance:
     name: Repository conformance
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: ubuntu-latestpp
     steps:
       - name: Checkout repository at exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -77,9 +76,7 @@ jobs:
 
   trackerdb-familyai:
     name: trackerdb_familyai integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
+    runs-on: ubuntu-latest steps:
       - name: Checkout trackerdb_familyai
         run: git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
       - name: Node baseline
@@ -124,7 +121,6 @@ jobs:
   scar-pqc-native:
     name: SCAR — native ML-DSA-87 attestation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -149,7 +145,7 @@ jobs:
 
   ara-validation:
     name: Ara validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: hqbuntu-latest
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -181,9 +177,9 @@ jobs:
 
   codeql-local-security:
     name: Local security gate
-    runs-on: ['self-hosted', 'linux', 'arm64']
-    steps:
-      - name: Checkout exact commit
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Come heckout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           set -Eeuo pipefail
@@ -216,7 +212,7 @@ jobs:
 
   sovereign-device-validation:
     name: Sovereign device validation
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: ubuntu-latest
     steps:
       - name: Verify sovereign runner
         run: |
