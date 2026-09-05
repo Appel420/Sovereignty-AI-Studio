@@ -122,10 +122,14 @@ jobs:
       - name: Independent PQC SCAR attestation
         shell: bash
         env:
-          SCAR_PQC_KEY_DIR: /var/lib/sovereignty/scar/pqc
-          SCAR_PQC_OUTPUT: /var/lib/sovereignty/scar/attestations/${{ github.sha }}.json
+          # GitHub-hosted runners are unprivileged. Keep CI attestation state
+          # in the runner's writable temporary filesystem; production retains
+          # /var/lib/sovereignty via the script defaults.
+          SCAR_PQC_KEY_DIR: ${{ runner.temp }}/sovereignty/scar/pqc
+          SCAR_PQC_OUTPUT: ${{ runner.temp }}/sovereignty/scar/attestations/${{ github.sha }}.json
         run: |
           set -Eeuo pipefail
+          mkdir -p "${SCAR_PQC_KEY_DIR}" "$(dirname "${SCAR_PQC_OUTPUT}")"
           python scripts/scar_pqc_attest.py --status PASS --commit "${GITHUB_SHA}"
           test -s "${SCAR_PQC_OUTPUT}"
           grep -q '"verified": true' "${SCAR_PQC_OUTPUT}"
@@ -133,10 +137,17 @@ jobs:
 
       - name: Deploy exact verified artifact
         shell: bash
+        env:
+          # Deployment is local to this hosted runner. Override the production
+          # filesystem defaults with writable runner paths rather than using
+          # sudo or weakening /var/lib permissions.
+          SOVEREIGN_RELEASE_ROOT: ${{ runner.temp }}/sovereignty/releases
+          SOVEREIGN_CURRENT_LINK: ${{ runner.temp }}/sovereignty/current
+          SOVEREIGN_SCAR_ROOT: ${{ runner.temp }}/sovereignty/scar
         run: |
           set -Eeuo pipefail
           bash ./scripts/deploy-sovereign.sh "${GITHUB_SHA}"
-          test -f /var/lib/sovereignty/scar/deployment-receipt.json
+          test -f "${SOVEREIGN_SCAR_ROOT}/deployment-receipt.json"
 
       - name: Final release proof
         shell: bash

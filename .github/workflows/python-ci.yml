@@ -76,4 +76,8 @@ jobs:
           print('Quart application import and test client: PASS')
           PY
       - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('coordination import: PASS')"
+        run: |
+          python - <<'PY'
+          from backend.coordination import BranchRegistry
+          print('coordination import: PASS')
+          PY
