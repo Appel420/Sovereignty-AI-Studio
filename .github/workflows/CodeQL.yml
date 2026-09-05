@@ -1,11 +1,11 @@
 name: CodeQL Scan
 
-on:
+on: 
   workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, GPT/Codex-scar-ci-fix, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, GPT/Codex-scar-ci-fix, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
 
 permissions:
   contents: read
