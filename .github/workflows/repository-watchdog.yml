@@ -53,6 +53,7 @@ jobs:
 
           required_workflows=(
             cd-sovereign.yml
+            ci-sovereign.yml
             oauth-api-generator.yaml
             scar.yml
             repository-watchdog.yml
@@ -75,10 +76,18 @@ jobs:
           cd_workflow="$(cat .github/workflows/cd-sovereign.yml)"
           ci_workflow="$(cat .github/workflows/ci-sovereign.yml)"
           oauth_workflow="$(cat .github/workflows/oauth-api-generator.yaml)"
+
+          # Production release lane: hosted Linux ARM64, not a self-hosted or macOS runner.
           grep -Fq 'runs-on: ubuntu-24.04-arm' <<<"$cd_workflow"
-          grep -Fq 'test "${RUNNER_ARCH}" = ARM64' <<<"$cd_workflow"
-          grep -Fq 'test "$(uname -m)" = aarch64' <<<"$cd_workflow"
-          grep -Fq 'runs-on: [self-hosted, Linux, ARM64]' <<<"$ci_workflow"
+          grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' <<<"$cd_workflow"
+          grep -Fq 'test "$(uname -m)" = "aarch64"' <<<"$cd_workflow"
+
+          # Device-validation lanes remain explicit and visible: hosted Ubuntu,
+          # owner-controlled self-hosted Linux ARM64, and hosted macOS/iOS.
+          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_workflow"
+          grep -Fq "runs-on: ['self-hosted', 'linux', 'arm64']" <<<"$ci_workflow"
+          grep -Fq 'runs-on: macos-latest' <<<"$ci_workflow"
+
           grep -Fq 'name: OAUTH — local contract' <<<"$oauth_workflow"
           echo 'Architecture invariants: PASS'
           printf 'Architecture commit: %s\n' "$CHECKOUT_SHA"
