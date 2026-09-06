@@ -2,8 +2,9 @@ name: Repository Watchdog — Sovereign Maintenance
 
 on:
   push:
-    branches:  [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches:  [Collaboration]
+     request:
+    branches: [Collaboration]
   schedule:
     - cron: '17 * * * *'
   workflow_run:
