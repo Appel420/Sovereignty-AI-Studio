@@ -13,7 +13,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
   contents: read
 
 jobs:
@@ -28,93 +27,71 @@ jobs:
           CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           WORKFLOW: ${{ github.event.workflow_run.name }}
           RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -Eeuo pipefail
-          printf 'event=%s workflow=%s run=%s conclusion=%s\n' "$EVENT_NAME" "$WORKFLOW" "$RUN_ID" "$CONCLUSION"
+          printf 'WATCHDOG event=%s workflow=%s run=%s conclusion=%s head_sha=%s\n' "$EVENT_NAME" "$WORKFLOW" "$RUN_ID" "$CONCLUSION" "$HEAD_SHA"
           if [[ "$EVENT_NAME" == workflow_run && "$CONCLUSION" != success && "$CONCLUSION" != neutral && "$CONCLUSION" != skipped ]]; then
             echo "Required sovereign workflow failed: $WORKFLOW (run $RUN_ID)" >&2
             exit 1
           fi
 
-      - name: Resolve verification ref
-        id: ref
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW_RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          REF_NAME: ${{ github.ref_name }}
-        run: |
-          set -Eeuo pipefail
-          if [[ "$EVENT_NAME" == workflow_run && -n "$WORKFLOW_RUN_BRANCH" ]]; then
-            target_ref="$WORKFLOW_RUN_BRANCH"
-          elif [[ -n "$REF_NAME" && "$REF_NAME" != "" ]]; then
-            target_ref="$REF_NAME"
-          else
-            target_ref="$DEFAULT_BRANCH"
-          fi
-          [[ -n "$target_ref" ]] || { echo 'Unable to resolve a verification ref' >&2; exit 1; }
-          printf 'target_ref=%s\n' "$target_ref"
-          printf 'target_ref=%s\n' "$target_ref" >> "$GITHUB_OUTPUT"
-
-      - name: Verify required workflow files remain present
+      - name: Verify required workflow files locally
         env:
           GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ steps.ref.outputs.target_ref }}
+          CHECKOUT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
         run: |
           set -Eeuo pipefail
-          mapfile -t workflows < <(
-            gh api "repos/${GITHUB_REPOSITORY}/contents/.github/workflows" \
-              --method GET \
-              -H 'Accept: application/vnd.github+json' \
-              -f "ref=${TARGET_REF}" \
-              --jq '.[].name'
-          )
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$CHECKOUT_SHA"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
 
           required_workflows=(
             cd-sovereign.yml
             ci-sovereign.yml
+            ci.yml
             oauth-api-generator.yaml
             scar.yml
             repository-watchdog.yml
           )
-
           for required in "${required_workflows[@]}"; do
-            if ! printf '%s\n' "${workflows[@]}" | grep -Fxq "$required"; then
-              echo "Required workflow missing at ref ${TARGET_REF}: $required" >&2
+            test -f ".github/workflows/$required" || {
+              echo "Required workflow missing: $required" >&2
               exit 1
-            fi
+            }
           done
-          echo "Required sovereign workflow inventory: PASS (ref=${TARGET_REF})"
+          echo 'Required sovereign workflow inventory: PASS'
+          printf 'Checked commit: %s\n' "$CHECKOUT_SHA"
 
-      - name: Load workflow source at verified ref
+      - name: Verify architecture invariants locally
         env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ steps.ref.outputs.target_ref }}
+          CHECKOUT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        shell: bash
         run: |
           set -Eeuo pipefail
-          fetch_workflow() {
-            local path="$1"
-            gh api "repos/${GITHUB_REPOSITORY}/contents/${path}" \
-              --method GET \
-              -H 'Accept: application/vnd.github+json' \
-              -f "ref=${TARGET_REF}" \
-              --jq '.content' | tr -d '\n' | base64 --decode
-          }
+          cd_workflow="$(cat .github/workflows/cd-sovereign.yml)"
+          ci_sovereign_workflow="$(cat .github/workflows/ci-sovereign.yml)"
+          hybrid_ci_workflow="$(cat .github/workflows/ci.yml)"
+          oauth_workflow="$(cat .github/workflows/oauth-api-generator.yaml)"
 
-          fetch_workflow .github/workflows/cd-sovereign.yml > "$RUNNER_TEMP/cd-sovereign.yml"
-          fetch_workflow .github/workflows/ci-sovereign.yml > "$RUNNER_TEMP/ci-sovereign.yml"
-          fetch_workflow .github/workflows/oauth-api-generator.yaml > "$RUNNER_TEMP/oauth-api-generator.yaml"
-
-      - name: Verify architecture invariants
-        run: |
-          set -Eeuo pipefail
-          cd_workflow="$(cat "$RUNNER_TEMP/cd-sovereign.yml")"
-          ci_workflow="$(cat "$RUNNER_TEMP/ci-sovereign.yml")"
-          oauth_workflow="$(cat "$RUNNER_TEMP/oauth-api-generator.yaml")"
-
+          # Production release lane: hosted Linux ARM64, never silently substituted.
           grep -Fq 'runs-on: ubuntu-24.04-arm' <<<"$cd_workflow"
           grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' <<<"$cd_workflow"
           grep -Fq 'test "$(uname -m)" = "aarch64"' <<<"$cd_workflow"
-          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_workflow"
+
+          # Hosted sovereign validation remains portable and explicit.
+          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_sovereign_workflow"
+
+          # Hybrid CI explicitly declares both hosted and owner-device lanes.
+          grep -Fq "runs-on: ['self-hosted', 'linux', 'arm64']" <<<"$hybrid_ci_workflow"
+          grep -Fq 'runs-on: macos-latest' <<<"$hybrid_ci_workflow"
+          grep -Fq 'execution_lane' <<<"$hybrid_ci_workflow"
           grep -Fq 'name: OAUTH — local contract' <<<"$oauth_workflow"
+
           echo 'Architecture invariants: PASS'
+          printf 'Architecture commit: %s\n' "$CHECKOUT_SHA"
