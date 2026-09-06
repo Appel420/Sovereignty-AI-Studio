@@ -1,8 +1,9 @@
 """Fail-closed authorization boundary for the local MCP surface.
 
-This module is deliberately independent of workspace execution.  MCP is
-never allowed to manufacture an identity, capability grant, or authority.
-The trusted local host must inject an authenticated session context.
+MCP is a transport/execution adapter. It must not manufacture identity,
+capability grants, or authority. A trusted local host supplies the verified
+identity and an explicit capability grant; the adapter only evaluates them
+against policy and records sanitized evidence.
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ class IdentityContext:
 
 @dataclass(frozen=True, slots=True)
 class CapabilityRecord:
-    """Capability granted by the authority plane, not by MCP."""
+    """Explicit capability grant supplied by the authority plane."""
 
     capability_id: str
     active: bool = True
@@ -95,6 +96,7 @@ class AuditRecorder:
                 "operation": request.operation,
                 "mode": request.mode,
                 "result": result,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
             }
         )
 
@@ -116,6 +118,10 @@ class MCPAuthorityAdapter:
             return self._finish(request, version, "DENY", "missing request id", timestamp)
         if not request.identity.authenticated or not request.identity.identity_id.strip():
             return self._finish(request, version, "DENY", "unauthenticated identity", timestamp)
+        if not request.operation.strip():
+            return self._finish(request, version, "DENY", "missing operation", timestamp)
+        if request.capability_id != request.operation:
+            return self._finish(request, version, "DENY", "capability does not match operation", timestamp)
         if not request.capability.active:
             return self._finish(request, version, "DENY", "inactive capability grant", timestamp)
         if not isinstance(capability, Mapping):
@@ -128,6 +134,8 @@ class MCPAuthorityAdapter:
             return self._finish(request, version, "DENY", "explicit owner approval required", timestamp)
         if capability.get("classification") == "authority":
             return self._finish(request, version, "DENY", "MCP cannot grant authority", timestamp)
+        if not request.workspace.strip():
+            return self._finish(request, version, "DENY", "missing workspace boundary", timestamp)
         if not self._valid_attestation(request.identity.attestation):
             return self._finish(request, version, "DENY", "invalid local attestation", timestamp)
         return self._finish(request, version, "ALLOW", "capability permitted", timestamp)
@@ -160,8 +168,6 @@ class MCPAuthorityAdapter:
         try:
             self.audit.record(result)
         except Exception as error:
-            # Evidence failure is a hard authorization failure.  Do not allow
-            # execution to proceed when the required audit boundary is broken.
             return AuthorizationDecision(
                 result.request_id,
                 result.identity_id,
