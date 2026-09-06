@@ -1,12 +1,21 @@
 name: ara-hardened-unit-ci-local
 
-# Retained as an explicit lightweight compatibility lane. The authoritative
-# repository gate is .github/workflows/ci.yml.
+# Explicit compatibility lane. The authoritative repository gate is
+# .github/workflows/ci.yml. This workflow is intentionally visible on pushes
+# and pull requests so failures are reported as normal checks.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ara-hardened
+      - Collaboration
+  pull_request:
+    branches:
+      - ara-hardened
+      - Collaboration
 
 concurrency:
-  group: ara-hardened-unit-ci-local-${{ github.ref }}
+  group: ara-hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -21,37 +30,62 @@ env:
 
 jobs:
   light:
+    name: Visible local coordination and accessibility checks
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
+            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+
       - name: Startup verification
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
+          echo "Running visible CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+
+      - name: Set up isolated Python
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          python_bin="$(command -v python3.13 || command -v python3)"
+          "${python_bin}" -m venv .venv
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+          python --version
+
       - name: Install minimal test tools
-        run: python -m pip install --upgrade pip pytest
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip pytest
+
       - name: Coordination import check
         run: |
+          set -Eeuo pipefail
           python - <<'PY'
           import sys
           sys.path.insert(0, '.')
           from backend.coordination import BranchRegistry
-          r = BranchRegistry()
-          assert not r.is_writable('main')
-          assert not r.is_writable('collaboration')
-          assert r.is_writable('ara-hardened')
+
+          registry = BranchRegistry()
+          assert not registry.is_writable('main')
+          assert not registry.is_writable('collaboration')
+          assert registry.is_writable('ara-hardened')
           print('coordination OK')
           PY
+
       - name: Accessibility harness tests
         env:
           PYTHONPATH: prototypes
