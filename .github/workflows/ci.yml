@@ -161,7 +161,7 @@ jobs:
 
   quart-validation:
     name: Quart tests
-    runs-on: ['self-hosted', 'linux', 'arm64']
+    runs-on: self-hosted
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
