@@ -54,6 +54,7 @@ jobs:
           required_workflows=(
             cd-sovereign.yml
             ci-sovereign.yml
+            ci.yml
             oauth-api-generator.yaml
             scar.yml
             repository-watchdog.yml
@@ -74,20 +75,23 @@ jobs:
         run: |
           set -Eeuo pipefail
           cd_workflow="$(cat .github/workflows/cd-sovereign.yml)"
-          ci_workflow="$(cat .github/workflows/ci-sovereign.yml)"
+          ci_sovereign_workflow="$(cat .github/workflows/ci-sovereign.yml)"
+          hybrid_ci_workflow="$(cat .github/workflows/ci.yml)"
           oauth_workflow="$(cat .github/workflows/oauth-api-generator.yaml)"
 
-          # Production release lane: hosted Linux ARM64, not a self-hosted or macOS runner.
+          # Production release lane: hosted Linux ARM64, never silently substituted.
           grep -Fq 'runs-on: ubuntu-24.04-arm' <<<"$cd_workflow"
           grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' <<<"$cd_workflow"
           grep -Fq 'test "$(uname -m)" = "aarch64"' <<<"$cd_workflow"
 
-          # Device-validation lanes remain explicit and visible: hosted Ubuntu,
-          # owner-controlled self-hosted Linux ARM64, and hosted macOS/iOS.
-          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_workflow"
-          grep -Fq "runs-on: ['self-hosted', 'linux', 'arm64']" <<<"$ci_workflow"
-          grep -Fq 'runs-on: macos-latest' <<<"$ci_workflow"
+          # Hosted sovereign validation remains portable and explicit.
+          grep -Fq 'runs-on: ubuntu-latest' <<<"$ci_sovereign_workflow"
 
+          # Hybrid CI explicitly declares both hosted and owner-device lanes.
+          grep -Fq "runs-on: ['self-hosted', 'linux', 'arm64']" <<<"$hybrid_ci_workflow"
+          grep -Fq 'runs-on: macos-latest' <<<"$hybrid_ci_workflow"
+          grep -Fq 'execution_lane' <<<"$hybrid_ci_workflow"
           grep -Fq 'name: OAUTH — local contract' <<<"$oauth_workflow"
+
           echo 'Architecture invariants: PASS'
           printf 'Architecture commit: %s\n' "$CHECKOUT_SHA"
