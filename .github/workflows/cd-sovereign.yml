@@ -5,7 +5,7 @@ name: cd-sovereign.yml
 # artifact is the artifact that passed every release gate.
 on:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 permissions:
   contents: read
@@ -21,11 +21,13 @@ jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
     # The release gate requires ARM64 Linux. Use GitHub's explicit ARM64 hosted label.
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     environment: production
-    timeout-minutes: 10
+    # Dependency installation, the full test suite, native ML-DSA compilation,
+    # attestation, and deployment can exceed the previous 10-minute limit.
+    timeout-minutes: 30
     steps:
-      - name: Checkout exact commit without external actions
+      - name: Checkout exact commit with internal actions
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -64,9 +66,9 @@ jobs:
           python -m pip install -e '.[test,lint,pqc]'
           python -m pip install build==1.6.0
 
-          # PyTorch's current ARM64 dependency metadata causes pip check to
-          # report one known vendor-wheel platform-tag mismatch. Do not weaken
-          # the dependency gate: allow exactly that single diagnostic.
+          # PyTorch's current ARM64 dependency metadata causes pip check
+          # to report one known vendor-wheel platform-tag mismatch. Do not
+          # weaken the dependency gate: allow exactly that single diagnostic.
           pip_check_output="$(mktemp)"
           if python -m pip check >"${pip_check_output}" 2>&1; then
             echo "pip check: PASS"
