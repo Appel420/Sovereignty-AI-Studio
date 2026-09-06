@@ -2,13 +2,9 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [ main, Collaboration ]
-    paths:
-      - 'node-bridge/**'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [ main, Collaboration ]
-    paths:
-      - 'node-bridge/**'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 env:
@@ -17,22 +13,28 @@ env:
 permissions:
   contents: read
 
+concurrency:
+  group: node-bridge-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
+    name: Node Bridge tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '25'
+          node-version: '20'
           cache: npm
           cache-dependency-path: node-bridge/package-lock.json
       - name: Install dependencies
         working-directory: node-bridge
-        run: npm ci
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run tests
         working-directory: node-bridge
         run: npm test
