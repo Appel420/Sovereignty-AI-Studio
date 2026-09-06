@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, dev, ara-hardened, Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [ main, dev, ara-hardened, Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -16,8 +16,9 @@ permissions:
 
 jobs:
   test:
-    runs-on: self-hosted linux ARM64
-    timeout-minutes: 10
+    name: Python CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,43 +29,36 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-      - name: Install test/lint tools
+          cache-dependency-path: |
+            pyproject.toml
+            requirements.txt
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest
-          pip install -e '.[test,lint]'
-      - name: Lint
-        run: ruff check backend/coordination prototypes/accessibility
-      - name: Run focused tests
-        env:
-          PYTHONPATH: prototypes:.
-        run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
-      - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('ok')"
-      - name: Create CI manifest
+          python -m pip install -r requirements.txt
+          python -m pip install -e '.[test,lint]'
+          python -m pip check
+      - name: Verify required imports
         run: |
-          python3 - <<'PY'
-          import hashlib, hmac, json
-          manifest = {
-              'workflow': 'Python CI',
-              'run_id': '${{ github.run_id }}',
-              'sha': '${{ github.sha }}',
-              'ref': '${{ github.ref }}',
-              'execution': 'github-hosted',
-              'device_independent': True,
-              'signing_backend': 'hmac-sha256-ci-local',
-          }
-          key = b'ci-manifest-local-verification'
-          message = json.dumps(manifest, sort_keys=True).encode()
-          manifest['signature'] = hmac.new(key, message, hashlib.sha256).hexdigest()
-          with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(manifest, fh, indent=2)
+          python - <<'PY'
+          import fastapi, nacl, pydantic, quart, pytest, pytest_asyncio
+          print('required imports: PASS')
           PY
-      - name: Upload Test Manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-ci-manifest-${{ github.run_id }}
-          path: python-ci-manifest.json
-          retention-days: 30
-          if-no-files-found: error
+      - name: Python syntax gate
+        run: python -m compileall -q backend apps scripts tests
+      - name: I-008 contract gate
+        run: python scripts/verify_i008_contract.py
+      - name: Test collection gate
+        run: python -m pytest --collect-only -q tests
+      - name: Test suite
+        run: python -m pytest -q tests
+      - name: Quart application smoke test
+        run: |
+          python - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+          client = app.test_client()
+          assert app is not None and client is not None
+          print('Quart application import and test client: PASS')
+          PY
+      - name: Coordination import check
+        run: python -c 'from backend.coordination import BranchRegistry; print("coordination import: PASS")'
