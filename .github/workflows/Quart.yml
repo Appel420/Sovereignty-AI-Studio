@@ -3,45 +3,61 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [ main, Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [ main, Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
 
 concurrency:
-  group: quart-${{ github.ref }}
+  group: quart-ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  PIP_NO_INPUT: '1'
+
 jobs:
-  build-linux:
+  test:
+    name: Quart tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 1
           persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r .github/workflows/Requirements.txt
-          pip install pytest hypercorn
-      - name: Test with pytest
-        env:
-          PYTHONPATH: .:./backend
-        run: pytest -q
-      - name: Run Quart App for local smoke test
-        shell: bash
+          python -m pip install -r requirements.txt
+          python -m pip install -e '.[test]'
+          python -m pip install hypercorn
+          python -m pip check
+      - name: Python syntax gate
+        run: python -m compileall -q backend apps scripts tests
+      - name: Test collection gate
+        run: python -m pytest --collect-only -q tests
+      - name: Test suite
+        run: python -m pytest -q tests
+      - name: Quart application smoke test
         run: |
-          set -Eeuo pipefail
-          hypercorn weather_dashboard:app --bind 127.0.0.1:8001 &
-          APP_PID=$!
-          trap 'kill "$APP_PID" 2>/dev/null || true' EXIT
-          sleep 5
-          kill -0 "$APP_PID"
-          curl -f http://127.0.0.1:[*]/api/weather?city=London
+          python - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+          import asyncio
+          async def main():
+              client = app.test_client()
+              response = await client.get('/api/weather?city=London')
+              assert response.status_code == 200
+              payload = await response.get_json()
+              assert payload['city'] == 'London'
+          asyncio.run(main())
+          print('Quart application smoke test: PASS')
+          PY
