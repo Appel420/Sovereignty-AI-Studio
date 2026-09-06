@@ -1,25 +1,26 @@
 name: CI
 
-# Required CI uses a universally available GitHub-hosted runner.
-# Sovereign/self-hosted execution remains opt-in through dedicated workflows.
 on:
   push:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 concurrency:
-  group: github-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
+env:
+  PYTHONPATH: .:./backend
+
 jobs:
   conformance:
-    name: GitHub CI
-    runs-on: ['self-hosted Linux arm64']
+    name: Repository conformance
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout repository
@@ -27,20 +28,13 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-
       - name: Verify runner execution
-        shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
           test -n "${RUNNER_OS}"
           test -n "${RUNNER_ARCH}"
-          echo "CI controller: GitHub Actions"
-          echo "Execution mode: portable hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
-          echo "Commit: ${GITHUB_SHA}"
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -49,30 +43,36 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             requirements.txt
-
       - name: Install Python dependencies
-        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip
           python -m pip install -e '.[test,lint]'
           if [[ -f requirements.txt ]]; then python -m pip install -r requirements.txt; fi
           python -m pip check
-
       - name: Python tests
-        shell: bash
-        env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
         run: python -m pytest -q tests
-
       - name: Node syntax check
-        shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; fi
-
       - name: Frontend ownership contract
-        shell: bash
         run: |
           set -Eeuo pipefail
           if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; fi
+
+  workflow-surface:
+    name: Workflow surface audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Enumerate workflow surface
+        run: |
+          set -Eeuo pipefail
+          count="$(find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) | wc -l)"
+          test "$count" -gt 0
+          echo "WORKFLOW_FILE_COUNT=$count"
+          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
