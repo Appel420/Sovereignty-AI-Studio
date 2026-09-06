@@ -3,9 +3,9 @@ name: SCAR.yml — Sovereign Compliance Audit Recordon:
     branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
   pull_request:
     branches: [ 'Collaboration, main, copilot/main, GPT/Codex, ara-hardened' ]
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   workflow_dispatch:
   permissions:
   contents: read
