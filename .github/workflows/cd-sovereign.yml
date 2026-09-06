@@ -5,7 +5,7 @@ name: cd-sovereign.yml
 # artifact is the artifact that passed every release gate.
 on:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
     # attestation, and deployment can exceed the previous 10-minute limit.
     timeout-minutes: 30
     steps:
-      - name: Checkout exact commit without external actions
+      - name: Checkout exact commit with internal actions
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
