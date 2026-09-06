@@ -1,50 +1,62 @@
-name: iOS Sovereign Build (local-first)
+name: iOS Sovereign Build
 
-# Device-independent validation. Native Xcode compilation remains a separate
-# macOS capability; this workflow never claims a Linux build is an iOS build.
 on:
   push:
-    branches: [ ara-hardened, Collaboration ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
-
-env:
-  PYTHONPATH: .:./backend
 
 permissions:
   contents: read
 
 concurrency:
   group: ios-sovereign-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   lightweight-security:
-    runs-on: ubuntu-latest
+    name: iOS source validation (visible)
+    runs-on: macos-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v6
         with:
-          python-version: '3.13'
-      - name: Validate source and generate manifest
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Validate runner
         run: |
-          python -m compileall -q backend
+          set -Eeuo pipefail
+          test "${RUNNER_OS}" = "macOS"
+          test -n "${GITHUB_SHA}"
+      - name: Validate backend Python sources
+        run: python3 -m compileall -q backend
+      - name: Validate Swift sources
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
+            while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
+          else echo 'No Swift source files found; native source parse is not applicable.'; fi
+      - name: Generate validation manifest
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           python3 - <<'PY'
-          import json, time
+          import json, os, platform, time
           payload = {
-              'node_id': 'ios-build-${{ github.run_id }}',
+              'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}",
               'timestamp': int(time.time()),
-              'build_ref': '${{ github.sha }}',
+              'build_ref': os.environ['GITHUB_SHA'],
               'platform': 'iOS',
               'execution': 'github-hosted-validation',
               'native_xcode_compile': False,
+              'runner_os': os.environ.get('RUNNER_OS', 'local'),
+              'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
           }
           with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(payload, fh, indent=2)
+              json.dump(payload, fh, indent=2, sort_keys=True)
+              fh.write('\n')
           PY
-      - name: Upload validation manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-sovereign-build-artifacts-${{ github.run_id }}
-          path: ios-build-manifest.json
-          if-no-files-found: error
+      - name: Verify manifest
+        run: python3 -m json.tool ios-build-manifest.json
