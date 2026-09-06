@@ -21,7 +21,7 @@ jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
     # The release gate requires ARM64 Linux. Use GitHub's explicit ARM64 hosted label.
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     environment: production
     # Dependency installation, the full test suite, native ML-DSA compilation,
     # attestation, and deployment can exceed the previous 10-minute limit.
