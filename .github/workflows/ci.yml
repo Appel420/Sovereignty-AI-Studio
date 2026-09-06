@@ -90,7 +90,7 @@ jobs:
         working-directory: trackerdb_familyai
         run: npm test
       - name: Build
-        working-directory: trackerdb_familyai
+        working-directory: trackerdb-familyai
         run: npm run build
 
   coordination-surface:
@@ -146,7 +146,7 @@ jobs:
 
   ara-validation:
     name: Ara validation
-    runs-on: hqbuntu-latest
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
