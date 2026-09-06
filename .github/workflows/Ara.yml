@@ -1,22 +1,30 @@
-name: Ara.yml
+name: Ara
 
 on:
   workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  ara:
+    name: Ara validation
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Run a one-line script
-        run: echo Hello, world!
-      - name: Run a multi-line script
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Verify runner
+        run: test "${RUNNER_OS}" = "Linux"
+      - name: Validate first-party Python syntax
+        shell: bash
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          set -Eeuo pipefail
+          while IFS= read -r -d '' file; do python3 -m py_compile "$file"; done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.venv/**')
+          echo 'Ara Python syntax validation: PASS'
