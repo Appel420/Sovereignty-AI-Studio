@@ -1,4 +1,4 @@
-name: oauth-api-generator.yaml
+name: OAUTH — local contract
 
 on:
   push:
