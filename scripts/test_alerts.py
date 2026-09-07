@@ -77,5 +77,5 @@ def test_alert_system():
     finally:
         db.close()
 
-if __name__ == "__Collaboration__":
+if __name__ == "__main__":
     test_alert_system()

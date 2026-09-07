@@ -15,7 +15,7 @@ def test_dependency_changes_require_full_ci():
     assert MODULE.scope({"pyproject.toml"})["full"] is True
 
 
-def test_source_changes_are_incremental(): 
+def test_source_changes_require_full_ci():
     result = MODULE.scope({"backend/coordination/devassist_router.py"})
     assert result["full"] is True
     assert result["python"] == ["backend/coordination/devassist_router.py"]
