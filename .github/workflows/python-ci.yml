@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration, main, ara-hardened]
+    branches: [Collaboration]
   pull_request:
-    branches: [Collaboration, main, ara-hardened]
+    branches: [Collaboration]
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -17,7 +17,7 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit without external actions
         env:
@@ -46,7 +46,7 @@ jobs:
           python3 -m pip install --no-cache-dir -e '.[test,lint]' || true
 
       - name: Lint (advisory — does not fail the job)
-        continue-on-error: true
+        continue-on-error: false
         run: |
           set -Eeuo pipefail
           ruff check backend/coordination prototypes/accessibility || ruff check . || true
