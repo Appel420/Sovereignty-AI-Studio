@@ -1,8 +1,4 @@
 name: cd-sovereign.yml
-
-# CD is fail-closed. Build, I-008, native ML-DSA verification, PQC SCAR,
-# and local deployment occur in one controlled runner so the deployed
-# artifact is the artifact that passed every release gate.
 on:
   push:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
@@ -20,12 +16,10 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    # The release gate requires ARM64 Linux. Use GitHub's explicit ARM64 hosted label.
-    runs-on: ubuntu-latest
+    # The native ML-DSA build requires an ARM64 Linux runner.
+    runs-on: ubuntu-24.04-arm
     environment: production
-    # Dependency installation, the full test suite, native ML-DSA compilation,
-    # attestation, and deployment can exceed the previous 10-minute limit.
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit with internal actions
         env:
@@ -52,7 +46,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
-          test "${RUNNER_OS}" = "ubuntu-latest"
+          test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
           test "$(uname -m)" = "aarch64"
           python --version
@@ -67,8 +61,8 @@ jobs:
           python -m pip install build==1.6.0
 
           # PyTorch's current ARM64 dependency metadata causes pip check
-          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency 
-          gate: allow exactly that single diagnostic.
+          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency
+          # gate: allow exactly that single diagnostic.
           pip_check_output="$(mktemp)"
           if python -m pip check >"${pip_check_output}" 2>&1; then
             echo "pip check: PASS"
