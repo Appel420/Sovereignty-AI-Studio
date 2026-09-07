@@ -16,7 +16,8 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    runs-on: ubuntu-latest
+    # The native ML-DSA build requires an ARM64 Linux runner.
+    runs-on: ubuntu-24.04-arm
     environment: production
     timeout-minutes: 10
     steps:
@@ -45,7 +46,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
-          test "${RUNNER_OS}" = "linux"
+          test "${RUNNER_OS}" = "Linux"
           test "${RUNNER_ARCH}" = "ARM64"
           test "$(uname -m)" = "aarch64"
           python --version
@@ -60,8 +61,8 @@ jobs:
           python -m pip install build==1.6.0
 
           # PyTorch's current ARM64 dependency metadata causes pip check
-          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency 
-          gate: allow exactly that single diagnostic.
+          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency
+          # gate: allow exactly that single diagnostic.
           pip_check_output="$(mktemp)"
           if python -m pip check >"${pip_check_output}" 2>&1; then
             echo "pip check: PASS"
