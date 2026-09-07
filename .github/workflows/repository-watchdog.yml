@@ -1,9 +1,9 @@
 name: Repository Watchdog — Sovereign Maintenance
 
 on:
-      push: maintenance
-      branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-      request:
+    push: maintenance
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+     request:
       branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
       schedule:
       - cron: '17 * * * *'
@@ -13,8 +13,8 @@ on:
       - 'oauth-api-generator.yaml'
       - 'SCAR.yml — Sovereign Compliance Audit Record'
       - 'CI — Sovereign Device Validation'
-    types: [completed]
-  workflow_dispatch:
+      types: [completed]
+      workflow_dispatch:
 
 permissions:
   contents: read
