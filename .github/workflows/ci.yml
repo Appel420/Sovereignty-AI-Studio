@@ -96,9 +96,9 @@ jobs:
   coordination-surface:
        name: Coordination import and contract audit
        runs-on: ubuntu-latest
-env: { GH_TOKEN: "${{ github.token }}" }
-run: |
-          set -Eeuo pipefail
+       env: { GH_TOKEN: "${{ github.token }}"
+       run: 
+       set: -Eeuo pipefail
           git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
@@ -158,8 +158,8 @@ run: |
           runs-on: self-hosted
           steps:
           - name: Checkout exact commit
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
+          env: { GH_TOKEN: "${{ github.token }}" }
+          run: |
           set -Eeuo pipefail
           git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
@@ -173,44 +173,44 @@ run: |
           name: Local security gate
           runs-on: ubuntu-latest
           steps:
-      - name: Checkout exact commit
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
+          - name: Checkout exact commit
+          env: { GH_TOKEN: "${{ github.token }}" }
+          run: |
           set -Eeuo pipefail
           git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-      - name: Workflow action policy
-        run: '! grep -RInE "^[[:space:]]*uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+" .github/workflows --include="*.yml" --include="*.yaml"'
-      - name: Python syntax security gate
-        run: python3 -m compileall -q backend apps scripts tests
-        ios-sovereign-validation:
-    name: iOS sovereign validation
-    runs-on: macos-latest
-    steps:
-      - name: Checkout exact commit
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: |
+          - name: Workflow action policy
+          run: '! grep -RInE "^[[:space:]]*uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+" .github/workflows --include="*.yml" --include="*.yaml"'
+          - name: Python syntax security gate
+          run: python3 -m compileall -q backend apps scripts tests
+          ios-sovereign-validation:
+          name: iOS sovereign validation
+          runs-on: ubuntu-latest
+          steps:
+          - name: Checkout exact commit
+          env: { GH_TOKEN: "${{ github.token }}" }
+          run: |
           set -Eeuo pipefail
           git init .; git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$GITHUB_SHA"
           git checkout --detach FETCH_HEAD
-      - name: Backend source validation
-        run: python3 -m compileall -q backend
-      - name: Swift parse when present
-        run: |
+          - name: Backend source validation
+           run: python3 -m compileall -q backend
+           - name: Swift parse when present
+           run: |
           if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then while IFS= read -r -d '' f; do swiftc -parse "$f"; done < <(find ios -type f -name '*.swift' -print0); fi
           sovereign-device-validation:
-    name: Sovereign device validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Verify sovereign runner
-        run: |
+          name: Sovereign device validation
+          runs-on: ubuntu-latest
+          steps:
+          - name: Verify sovereign runner
+           run: |
           set -Eeuo pipefail
           test "${RUNNER_OS}" = Linux
           test "${RUNNER_ARCH}" = ARM64
           test "$(uname -m)" = aarch64
-      - name: Verify PQC provider is installed on device runner
-        run: python3 -c "import oqs; assert 'ML-DSA-87' in oqs.get_enabled_sig_mechanisms(); print('DEVICE_NATIVE_ML_DSA_87=PASS')"
+          - name: Verify PQC provider is installed on device runner
+          run: python3 -c "import oqs; assert 'ML-DSA-87' in oqs.get_enabled_sig_mechanisms(); print('DEVICE_NATIVE_ML_DSA_87=PASS')"
