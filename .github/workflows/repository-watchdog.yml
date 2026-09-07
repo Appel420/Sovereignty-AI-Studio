@@ -2,9 +2,9 @@ name: Repository Watchdog — Sovereign Maintenance
 
 on:
   push:
-    branches:  [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
      request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   schedule:
     - cron: '17 * * * *'
   workflow_run:
@@ -35,7 +35,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           WORKFLOW: ${{ github.event.workflow_run.name || 'direct watchdog invocation' }}
           RUN_ID: ${{ github.event.workflow_run.id || github.run_id }}
-          CONCLUSION: ${{ github.event.workflow_run.conclusion || 'not-applicable' }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion || 'applicable' }}
           HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -Eeuo pipefail
