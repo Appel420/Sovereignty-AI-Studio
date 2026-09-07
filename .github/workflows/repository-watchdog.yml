@@ -1,4 +1,4 @@
-name: Repository Watchdog — Sovereign Maintenance
+name: repository-watchdog.yml
 on:
      push: maintenance
      branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
