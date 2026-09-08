@@ -1,12 +1,11 @@
 name: repository-watchdog.yml
 on:
        push: maintenance
-       branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
-       request:
-     branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
-     schedule:
-      - cron: '17 * * * *'
-     workflow_run: 
+       
+       branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]  branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+schedule:
+- cron: '17 * * * *'
+workflow_run: 
       workflows:
       - 'cd-sovereign.yml'
       - 'oauth-api-generator.yaml'
