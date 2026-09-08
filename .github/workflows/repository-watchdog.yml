@@ -1,19 +1,26 @@
 name: repository-watchdog.yml
+
 on:
-       push: maintenance
-       branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
-       request:
-     branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
-     schedule:
-      - cron: '17 * * * *'
-     workflow_run: 
-      workflows:
-      - 'cd-sovereign.yml'
-      - 'oauth-api-generator.yaml'
-      - 'SCAR.yml — Sovereign Compliance Audit Record'
-      - 'CI — Sovereign Device Validation'
-      types: [completed]
-      workflow_dispatch:
+  push:
+    branches:
+      - main
+      - Claude
+      - GPT/Codex
+      - ara-hardened
+      - copilot/main
+      - Collaboration
+      - duckAI
+      - devassist420
+  schedule:
+    - cron: '17 * * * *'
+  workflow_run:
+    workflows:
+      - cd-sovereign.yml
+      - oauth-api-generator.yaml
+      - SCAR.yml — Sovereign Compliance Audit Record
+      - CI — Sovereign Device Validation
+    types: [completed]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -101,7 +108,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          grep -Fq 'runs-on: ubuntu-24.04-arm' .github/workflows/cd-sovereign.yml
+          grep -Fq 'runs-on: [self-hosted, ubuntu-latest]' .github/workflows/cd-sovereign.yml
           grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' .github/workflows/cd-sovereign.yml
           grep -Fq 'test "$(uname -m)" = "aarch64"' .github/workflows/cd-sovereign.yml
           grep -Fq 'runs-on: ubuntu-latest' .github/workflows/ci-sovereign.yml
