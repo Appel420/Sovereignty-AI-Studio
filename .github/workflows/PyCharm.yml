@@ -1,11 +1,20 @@
 name: PyCharm Python Security
-# Ghost recovery: workflow registered but file was missing under .github/workflows/.
+
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  disabled:
-    if: false
-    runs-on: ubuntu-latest
+  pycharm-security-recovery:
+    name: PyCharm security recovery / visible execution
+    runs-on: ubuntu-24.04-arm
     steps:
-      - run: echo "PyCharm workflow disabled stub"
+      - name: Report workflow state
+        run: |
+          set -euo pipefail
+          echo "WORKFLOW_VISIBLE=true"
+          echo "WORKFLOW_FILE=.github/workflows/PyCharm.yml"
+          echo "RECOVERY_MODE=VISIBLE"
+          echo "ORIGINAL_IMPLEMENTATION_REQUIRES_RESTORATION=true"
