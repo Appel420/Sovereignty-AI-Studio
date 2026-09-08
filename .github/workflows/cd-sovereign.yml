@@ -17,9 +17,8 @@ jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
     # The native ML-DSA build requires an ARM64 Linux runner.
-    runs-on: ubuntu-24.04-arm
-    environment: production
-    timeout-minutes: 10
+    runs-on: [self-hosted, ubuntu-latest]
+    environment: 
     steps:
       - name: Checkout exact commit with internal actions
         env:
