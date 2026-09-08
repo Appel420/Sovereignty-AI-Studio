@@ -29,20 +29,16 @@ jobs:
     name: Quart tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository without third-party actions
+      - name: Checkout repository at exact commit
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          set -Eeuo pipefail
           : "${GH_TOKEN:?GITHUB_TOKEN is required}"
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          case "${GITHUB_EVENT_NAME}" in
-            pull_request) fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge" ;;
-            push|workflow_dispatch) fetch_ref="refs/heads/${GITHUB_REF_NAME}" ;;
-            *) echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"; exit 1 ;;
-          esac
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${fetch_ref}"
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
       - name: Verify Python runtime
