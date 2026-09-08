@@ -3,8 +3,9 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
+    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
 
 permissions:
   contents: read
@@ -16,6 +17,7 @@ concurrency:
 defaults:
   run:
     shell: bash --noprofile --norc -euo pipefail {0}
+
 jobs:
   test:
     name: Quart tests
