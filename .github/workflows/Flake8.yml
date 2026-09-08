@@ -1,11 +1,20 @@
 name: Flake8 Lint
-# Ghost recovery: workflow registered under .github/workflows/Flake8.yml but file was missing.
+
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  disabled:
-    if: false
-    runs-on: ubuntu-latest
+  flake8-recovery:
+    name: Flake8 recovery / visible execution
+    runs-on: ubuntu-24.04-arm
     steps:
-      - run: echo "Flake8 workflow disabled stub"
+      - name: Report workflow state
+        run: |
+          set -euo pipefail
+          echo "WORKFLOW_VISIBLE=true"
+          echo "WORKFLOW_FILE=.github/workflows/Flake8.yml"
+          echo "RECOVERY_MODE=VISIBLE"
+          echo "ORIGINAL_IMPLEMENTATION_REQUIRES_RESTORATION=true"
