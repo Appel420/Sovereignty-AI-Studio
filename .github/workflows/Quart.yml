@@ -3,7 +3,6 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
@@ -17,13 +16,6 @@ concurrency:
 defaults:
   run:
     shell: bash --noprofile --norc -euo pipefail {0}
-
-env:
-  PYTHONPATH: .:./backend:./src:./prototypes
-  PYTHONDONTWRITEBYTECODE: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-  PIP_NO_INPUT: '1'
-
 jobs:
   test:
     name: Quart tests
