@@ -1,0 +1,12 @@
+name: CI Startup Probe
+# Ghost recovery: file was deleted but GitHub kept the workflow active.
+# Stub only — never runs on push.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "startup-probe disabled stub"

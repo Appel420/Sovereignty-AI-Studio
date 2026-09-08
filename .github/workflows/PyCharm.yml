@@ -1,0 +1,11 @@
+name: PyCharm Python Security
+# Ghost recovery: workflow registered but file was missing under .github/workflows/.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PyCharm workflow disabled stub"
