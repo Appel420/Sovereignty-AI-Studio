@@ -1,11 +1,20 @@
 name: Lint Autofix Recovery
-# Ghost recovery: file was deleted but GitHub kept the workflow active.
+
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  disabled:
-    if: false
-    runs-on: ubuntu-latest
+  lint-autofix-recovery:
+    name: Lint autofix recovery / visible execution
+    runs-on: ubuntu-24.04-arm
     steps:
-      - run: echo "lint-autofix-recovery disabled stub"
+      - name: Report workflow state
+        run: |
+          set -euo pipefail
+          echo "WORKFLOW_VISIBLE=true"
+          echo "WORKFLOW_FILE=.github/workflows/lint-autofix-recovery.yml"
+          echo "RECOVERY_MODE=VISIBLE"
+          echo "ORIGINAL_IMPLEMENTATION_REQUIRES_RESTORATION=true"
