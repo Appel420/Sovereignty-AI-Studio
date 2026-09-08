@@ -1,0 +1,11 @@
+name: sovereign-guard
+# Ghost recovery: file was deleted but GitHub kept the workflow active.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "sovereign-guard disabled stub"

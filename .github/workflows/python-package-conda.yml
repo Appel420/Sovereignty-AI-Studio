@@ -1,0 +1,11 @@
+name: Python Package using Conda
+# Ghost recovery: file was deleted but GitHub kept the workflow active.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "python-package-conda disabled stub"

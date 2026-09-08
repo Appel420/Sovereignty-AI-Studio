@@ -1,0 +1,11 @@
+name: SCAR Evidence — Append Only
+# Ghost recovery: file was deleted but GitHub kept the workflow active.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "scar-evidence disabled stub"

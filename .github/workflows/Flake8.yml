@@ -1,0 +1,11 @@
+name: Flake8 Lint
+# Ghost recovery: workflow registered under .github/workflows/Flake8.yml but file was missing.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Flake8 workflow disabled stub"
