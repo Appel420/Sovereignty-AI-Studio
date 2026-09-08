@@ -104,7 +104,8 @@ jobs:
           grep -Fq 'test "$(uname -m)" = "aarch64"' .github/workflows/cd-sovereign.yml
           grep -Fq 'runs-on: ubuntu-latest' .github/workflows/ci-sovereign.yml
           grep -Fq 'name: OAUTH — local contract' .github/workflows/oauth-api-generator.yaml
-          grep -Fq 'branches: [Collaboration]' .github/workflows/ci.yml
+          # Collaboration must appear in the ci.yml branch list (multi-branch OK)
+          grep -Eq 'branches:.*Collaboration' .github/workflows/ci.yml
           echo 'Architecture invariants: PASS'
 
       - name: Final watchdog result — visible
