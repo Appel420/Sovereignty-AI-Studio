@@ -1,12 +1,20 @@
 name: CI Startup Probe
-# Ghost recovery: file was deleted but GitHub kept the workflow active.
-# Stub only — never runs on push.
+
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  disabled:
-    if: false
-    runs-on: ubuntu-latest
+  startup-probe-recovery:
+    name: CI startup probe / visible execution
+    runs-on: ubuntu-24.04-arm
     steps:
-      - run: echo "startup-probe disabled stub"
+      - name: Report workflow state
+        run: |
+          set -euo pipefail
+          echo "WORKFLOW_VISIBLE=true"
+          echo "WORKFLOW_FILE=.github/workflows/startup-probe.yml"
+          echo "RECOVERY_MODE=VISIBLE"
+          echo "ORIGINAL_IMPLEMENTATION_REQUIRES_RESTORATION=true"
