@@ -24,6 +24,17 @@ def test_owner_can_approve_and_action_is_audited(tmp_path):
     assert result["audit"][-1]["event"] == "APPROVAL_APPROVED"
 
 
+def test_owner_can_hold_without_locking_access(tmp_path):
+    store = ApprovalStore(tmp_path / "approvals.jsonl")
+    request = store.request(kind="PROCESS", subject="bridge", summary="Start bridge", requested_by="launcher")
+
+    result = store.decide(request["approval_id"], "HELD", "owner")
+
+    assert result["state"] == "HELD"
+    assert result["decided_by"] == "owner"
+    assert result["audit"][-1]["event"] == "APPROVAL_HELD"
+
+
 def test_denied_request_cannot_be_decided_again(tmp_path):
     store = ApprovalStore(tmp_path / "approvals.jsonl")
     request = store.request(kind="PROCESS", subject="node-bridge", summary="Start service", requested_by="launcher")
