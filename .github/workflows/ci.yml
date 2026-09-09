@@ -10,10 +10,6 @@ on:
 concurrency:
   group: sovereign-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
-
-env:
-  PYTHONPATH: .:./backend
-
 jobs:
   repo-conformance:
     name: Repository conformance
