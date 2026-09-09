@@ -3,16 +3,16 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 permissions:
   contents: read
 
 jobs:
   test:
     name: Quart tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted,ubuntu-latest]
     steps:
       - name: Prove runner alive
         run: |
