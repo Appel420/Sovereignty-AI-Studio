@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: [ubuntu-latest, self-hosted]
+    timeout-minutes: 10
 
     steps:
       - name: Checkout exact commit without external actions
