@@ -3,36 +3,31 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
+
 permissions:
   contents: read
 
 jobs:
   test:
     name: Quart tests
-    runs-on: [self-hosted,ubuntu-latest]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Prove runner alive
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install project dependencies
         run: |
-          echo "RUNNER_ALIVE=1"
-          echo "SHA=${GITHUB_SHA}"
-          uname -a
-          python3 --version
-      - name: Checkout with token
-        env:
-          GH_TOKEN: ${{ github.token }}
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -e .
+      - name: Prove Quart runtime
         run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          echo "CHECKOUT_OK"
-      - name: Python baseline
-        run: |
-          python3 --version
-          python3 -m pip --version
+          python3 - <<'PY'
+          from apps.dashboards.weather_dashboard import app
+          assert app is not None
+          print('QUART_IMPORT=PASS')
+          PY

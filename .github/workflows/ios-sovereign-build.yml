@@ -2,9 +2,9 @@ name: iOS Sovereign Build
 
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
   workflow_dispatch:
 
 permissions:
@@ -17,21 +17,13 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible)
-    runs-on: [macos-latest, self-hosted]
+    runs-on: macos-latest
     timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - name: Validate runner
         run: |
           set -Eeuo pipefail
