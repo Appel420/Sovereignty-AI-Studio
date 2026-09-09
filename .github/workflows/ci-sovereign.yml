@@ -19,7 +19,7 @@ concurrency:
 jobs:
   conformance:
     name: Sovereign Device Validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository without external actions
         env:
@@ -67,10 +67,9 @@ jobs:
           client = app.test_client()
           assert app is not None and client is not None
           print('Quart application import and test client: PASS')
-          PY
-      - name: Phase 0 Rust tests
-        run: if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
-      - name: Diamond Core v0.1 contract tests
+       - name: Phase 0 Rust tests
+         run: if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
+       - name: Diamond Core v0.1 contract tests
         run: |
           set -Eeuo pipefail
           test -f diamond-core/Cargo.toml
