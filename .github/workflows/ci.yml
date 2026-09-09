@@ -3,21 +3,20 @@ name: ci
 on:
   workflow_dispatch:
   push:
-    branches:
-      - Collaboration
+    branches:  [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
 
 concurrency:
   group: sovereignty-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   validate:
     name: Validate Sovereignty AI Studio
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    runs-on: [ubuntu-latest, self-hosted]
+    timeout-minutes: 10
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
@@ -27,7 +26,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.13"
           cache: pip
 
       - name: Install application and test dependencies
