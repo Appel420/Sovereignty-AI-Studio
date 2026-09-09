@@ -23,7 +23,7 @@ concurrency:
 jobs:
   watch:
     name: Watch required sovereign lanes
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, self-hosted]
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
