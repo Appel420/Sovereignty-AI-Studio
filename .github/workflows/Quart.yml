@@ -3,14 +3,9 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches:
-      - Collaboration
-      - main
+    branches: [Collaboration]
   pull_request:
-    branches:
-      - Collaboration
-      - main
-
+    branches: [Collaboration]
 permissions:
   contents: read
 
@@ -36,7 +31,7 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          echo "CHECKOUT_OK=1"
+          echo "CHECKOUT_OK"
       - name: Python baseline
         run: |
           python3 --version
