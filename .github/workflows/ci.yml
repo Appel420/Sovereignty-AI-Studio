@@ -3,7 +3,7 @@ name: ci
 on:
   workflow_dispatch:
   push:
-    branches:  [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   validate:
     name: Validate Sovereignty AI Studio
-    runs-on: [ubuntu-latest, self-hosted]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
@@ -40,7 +40,6 @@ jobs:
           python - <<'PY'
           from fastapi.testclient import TestClient
           from app.main import app
-
           client = TestClient(app)
           response = client.get("/health")
           assert response.status_code == 200, response.text
