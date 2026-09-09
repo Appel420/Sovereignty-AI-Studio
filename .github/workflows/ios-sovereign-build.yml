@@ -17,7 +17,7 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible)
-    runs-on: [self-hosted, macos-latest]
+    runs-on: [macos-latest, self-hosted]
     timeout-minutes: 15
     steps:
       - name: Checkout repository at exact commit
