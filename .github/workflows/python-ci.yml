@@ -9,50 +9,45 @@ on:
 
 concurrency:
   group: python-ci-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: Python CI (self-hosted)
+    runs-on: self-hosted
+    timeout-minutes: 15
     steps:
       - name: Checkout exact commit
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Set up isolated Python environment
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 --version
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify local runner
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Set up isolated Python environment
+        run: |
+          set -Eeuo pipefail
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
       - name: Install project test dependencies
-        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --no-cache-dir -e ".[test]"
           python -m pip install --no-cache-dir ruff pytest
-
       - name: Lint
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          ruff check backend/coordination prototypes/accessibility
-
+        run: ruff check backend/coordination prototypes/accessibility
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
-        shell: bash
         run: python -m pytest -q
-
       - name: Coordination import check
-        shell: bash
         run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
