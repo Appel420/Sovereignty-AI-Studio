@@ -17,7 +17,7 @@ env:
 jobs:
   repo-conformance:
     name: Repository conformance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository at exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -73,7 +73,7 @@ jobs:
 
   workflow-surface:
     name: Workflow surface audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout repository at exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -92,7 +92,7 @@ jobs:
 
   trackerdb-familyai:
     name: trackerdb_familyai integration
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout trackerdb_familyai
         run: git clone --depth=1 --branch main https://github.com/Appel420/trackerdb_familyai.git trackerdb_familyai
@@ -111,7 +111,7 @@ jobs:
 
   coordination-surface:
     name: Coordination import and contract audit
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -132,7 +132,7 @@ jobs:
   recovery-observer:
     name: Recovery observer
     if: ${{ always() }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - run: echo "RECOVERY_SHA=${GITHUB_SHA}"
 
@@ -171,7 +171,7 @@ jobs:
 
   ara-validation:
     name: Ara validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -186,7 +186,7 @@ jobs:
 
   quart-validation:
     name: Quart tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -204,7 +204,7 @@ jobs:
 
   codeql-local-security:
     name: Local security gate
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -221,7 +221,7 @@ jobs:
 
   ios-sovereign-validation:
     name: iOS sovereign validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Checkout exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
@@ -239,7 +239,7 @@ jobs:
 
   sovereign-device-validation:
     name: Sovereign device validation
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, ubuntu-latest]
     steps:
       - name: Verify runner baseline
         run: |
@@ -248,5 +248,5 @@ jobs:
           echo "RUNNER_ARCH=${RUNNER_ARCH}"
           uname -m
       - name: Verify PQC provider when available
-        continue-on-error: true
+        continue-on-error: false
         run: python3 -c "import oqs; assert 'ML-DSA-87' in oqs.get_enabled_sig_mechanisms(); print('DEVICE_NATIVE_ML_DSA_87=PASS')" || echo "device PQC check skipped"
