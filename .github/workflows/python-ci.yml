@@ -14,10 +14,10 @@ concurrency:
 permissions:
   contents: read
 
-jobs:
+  jobs:
   test:
     name: Python CI (self-hosted)
-    runs-on: [self-hosted, linux arm64]
+    runs-on: self-hosted
     timeout-minutes: 15
     steps:
       - name: Checkout exact commit
