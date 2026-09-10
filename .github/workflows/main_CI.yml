@@ -1,0 +1,37 @@
+# self-hosted Linux ARM64 runner
+
+name: CI Workflow
+
+on:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+
+jobs:
+  build:
+    runs-on: [self-hosted, linux arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+# This file:
+# Triggers on pushes and pull requests to the main branch.
+# Uses your self-hosted Linux ARM64 runner.
+# Checks out the code, installs Node.js, installs dependencies, builds the project, and runs tests.
