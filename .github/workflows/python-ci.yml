@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration, main, ara-hardened]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration, main, ara-hardened]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -16,72 +16,37 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Python CI (self-hosted)
+    runs-on: [self-hosted, linux arm64]
     timeout-minutes: 15
     steps:
-      - name: Checkout exact commit without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout exact commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
-      - name: Set up Python (system)
+      - name: Verify local runner
         run: |
           set -Eeuo pipefail
-          python3 --version
-          python3 -m pip install --upgrade pip
-
-      - name: Install test/lint tools
+          test "${GITHUB_ACTIONS}" = "true"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Set up isolated Python environment
         run: |
           set -Eeuo pipefail
-          python3 -m pip install --no-cache-dir ruff pytest
-          python3 -m pip install --no-cache-dir -e '.[test,lint]' || true
-
-      - name: Lint (advisory — does not fail the job)
-        continue-on-error: true
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+      - name: Install project test dependencies
         run: |
           set -Eeuo pipefail
-          ruff check backend/coordination prototypes/accessibility || ruff check . || true
-          echo "Ruff completed (advisory)"
-
-      - name: Run focused tests
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
+      - name: Lint
+        run: ruff check backend/coordination prototypes/accessibility
+      - name: Run tests
         env:
           PYTHONPATH: prototypes:.
-        run: |
-          set -Eeuo pipefail
-          pytest -q prototypes/accessibility/tests/test_accessibility_control.py || pytest -q || true
-
-      - name: Coordination import check
-        run: |
-          set -Eeuo pipefail
-          python3 -c "from backend.coordination import BranchRegistry; print('ok')" || echo "Coordination module not present on this lane — skipped"
-
-      - name: Create CI manifest
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          import hashlib, hmac, json, os
-          manifest = {
-              'workflow': 'Python CI',
-              'run_id': os.environ.get('GITHUB_RUN_ID', ''),
-              'sha': os.environ.get('GITHUB_SHA', ''),
-              'ref': os.environ.get('GITHUB_REF', ''),
-              'execution': 'github-hosted',
-              'device_independent': True,
-              'signing_backend': 'hmac-sha256-ci-local',
-          }
-          key = b'ci-manifest-local-verification'
-          message = json.dumps(manifest, sort_keys=True).encode()
-          manifest['signature'] = hmac.new(key, message, hashlib.sha256).hexdigest()
-          with open('python-ci-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(manifest, fh, indent=2)
-          print('CI manifest written')
-          PY
+        run: python -m pytest -q
+  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"
