@@ -17,7 +17,7 @@ env:
 jobs:
   repo-conformance:
     name: Repository conformance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux arm64]
     steps:
       - name: Checkout repository at exact commit
         env: { GH_TOKEN: "${{ github.token }}" }
