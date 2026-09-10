@@ -1,0 +1,5 @@
+# Sovereignty AI Studio plugin-scanner policy.
+# Non-selected ecosystems remain inert unless explicitly enabled.
+[scanner]
+ecosystem = "codex"
+profile = "strict-security"

@@ -1,6 +1,6 @@
 {
   "name": "supergrok-unified",
-  "version": "13.1.0",
+  "version": "13.1.1",
   "description": "SuperGrok Enterprise — Unified Server",
   "main": "node-bridge/server.js",
   "scripts": {
