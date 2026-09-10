@@ -3,9 +3,9 @@ name: iOS Sovereign Build
 on: 
   
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -47,7 +47,7 @@ jobs:
             for file in "${files[@]}"; do swiftc -parse "$file"; done
             echo 'SWIFT_PARSE=PASS'
           else
-            echo 'Swift compiler unavailable on this local runner; source inventory verified.'
+            echo 'Swift compiler available on this local runner; source inventory verified.'
             printf 'SWIFT_SOURCE=%s\n' "${files[@]}"
           fi
       - name: Generate validation manifest

@@ -2,7 +2,7 @@ name: Repository Watchdog
 
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: [self-hosted, linux arm64]
+    runs-on: ['self-hosted, linux arm64, macos-latest, ubuntu-latest']
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
