@@ -30,7 +30,7 @@ jobs:
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Verify runner
         run: |
-          test "${RUNNER_OS}" = "ubuntu"
+          test "${RUNNER_OS}" = "linux"
       - name: Scan workflow action policy
         shell: bash
         run: |
