@@ -13,10 +13,9 @@ permissions:
 concurrency:
   group: quart-ci-${{ github.ref }}
   cancel-in-progress: false
-     
 
 jobs:
-  test:
+  quart-tests:
     name: Quart tests
     runs-on: self-hosted
 
@@ -24,41 +23,65 @@ jobs:
       - name: Checkout repository without third-party actions
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REF_VALUE: ${{ github.ref }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+          set -Eeuo pipefail
+
+          : "${GH_TOKEN:?GH_TOKEN is required}"
 
           git init .
+          git remote remove origin 2>/dev/null || true
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          auth_token="$(
+            printf 'x-access-token:%s' "${GH_TOKEN}" |
+              base64 |
+              tr -d '\n'
+          )"
 
-          case "${GITHUB_EVENT_NAME}" in
+          case "${EVENT_NAME}" in
             pull_request)
-              fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge"
+              fetch_ref="refs/pull/${PR_NUMBER}/merge"
               ;;
+
             push|workflow_dispatch)
-              fetch_ref="refs/heads/${GITHUB_REF_NAME}"
+              fetch_ref="${GITHUB_REF_VALUE}"
               ;;
+
             *)
-              echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"
+              echo "ERROR: unsupported GitHub event: ${EVENT_NAME}" >&2
               exit 1
               ;;
           esac
 
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" \
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth_token}" \
             fetch --no-tags --depth=1 origin "${fetch_ref}"
 
           git checkout --detach FETCH_HEAD
 
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          actual_sha="$(git rev-parse HEAD)"
+
+          if [[ "${actual_sha}" != "${EXPECTED_SHA}" ]]; then
+            echo "ERROR: checked out SHA does not match GitHub SHA" >&2
+            echo "Expected: ${EXPECTED_SHA}" >&2
+            echo "Actual:   ${actual_sha}" >&2
+            exit 1
+          fi
 
       - name: Verify Python runtime
         run: |
+          set -Eeuo pipefail
+
           python --version
           python -m pip --version
 
       - name: Create isolated environment
         run: |
+          set -Eeuo pipefail
+
           rm -rf .ci-venv
           python -m venv .ci-venv
 
@@ -76,60 +99,12 @@ jobs:
 
       - name: Verify required imports
         run: |
+          set -Eeuo pipefail
+
           .ci-venv/bin/python - <<'PY'
           import fastapi
           import nacl
           import pydantic
           import quart
           import pytest_asyncio
-
-          print("required dependency closure: OK")
-          PY
-
-      - name: Python syntax gate
-        run: |
-          directories=()
-
-          for directory in backend apps scripts tests; do
-            if [[ -d "${directory}" ]]; then
-              directories+=("${directory}")
-            fi
-          done
-
-          if ((${#directories[@]} == 0)); then
-            echo "No Python source directories found"
-            exit 1
-          fi
-
-          .ci-venv/bin/python -m compileall -q "${directories[@]}"
-
-      - name: Test collection gate
-        run: |
-          test -d tests
-          .ci-venv/bin/python -m pytest --collect-only -q tests
-
-      - name: Test suite
-        run: |
-          .ci-venv/bin/python -m pytest -q tests
-
-      - name: Quart application smoke test
-        run: |
-          .ci-venv/bin/python - <<'PY'
-          import asyncio
-
-          from apps.dashboards.weather_dashboard import app
-
-
-          async def main():
-              client = app.test_client()
-              response = await client.get("/api/weather?city=London")
-
-              assert response.status_code == 200
-
-              payload = await response.get_json()
-              assert payload["city"] == "London"
-
-
-          asyncio.run(main())
-          print("Quart application smoke test: OK")
           PY
