@@ -13,9 +13,8 @@ permissions:
 concurrency:
   group: quart-ci-${{ github.ref }}
   cancel-in-progress: false
-defaults:
-  run:
-    shell: bash --noprofile --norc -euo pipefail {0}
+defaults: 
+  run: |
 
 jobs:
   test:
