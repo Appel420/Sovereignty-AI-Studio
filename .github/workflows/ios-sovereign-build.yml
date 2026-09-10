@@ -18,7 +18,7 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible, local)
-    runs-on: [self-hosted, macos-latest]
+    runs-on: ['self-hosted, linux arm64, ubuntu-latest, macos-latest']
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
@@ -32,7 +32,7 @@ jobs:
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARM64}"
       - name: Validate backend Python sources
         run: python3 -m compileall -q backend
       - name: Validate Swift sources when Swift compiler is present
