@@ -1,6 +1,6 @@
 name: ci.yml
 
-on:
+on: 
   push:
     branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
   pull_request:
