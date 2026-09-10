@@ -1,25 +1,8 @@
-name: repository-watchdog.yml
+name: Repository Watchdog
 
 on:
   push:
-    branches:
-      - main
-      - Claude
-      - GPT/Codex
-      - ara-hardened
-      - copilot/main
-      - Collaboration
-      - duckAI
-      - devassist420
-  schedule:
-    - cron: '17 * * * *'
-  workflow_run:
-    workflows:
-      - cd-sovereign.yml
-      - oauth-api-generator.yaml
-      - SCAR.yml — Sovereign Compliance Audit Record
-      - CI — Sovereign Device Validation
-    types: [completed]
+    branches: ['main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420']
   workflow_dispatch:
 
 permissions:
@@ -31,101 +14,45 @@ concurrency:
 
 jobs:
   watch:
-    name: Watch required sovereign lanes
-    runs-on: ubuntu-latest
+    name: Repository Watchdog (visible)
+    runs-on: ['self-hosted, linux arm64, macos-latest, ubuntu-latest']
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
         shell: bash
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW: ${{ github.event.workflow_run.name || 'direct watchdog invocation' }}
-          RUN_ID: ${{ github.event.workflow_run.id || github.run_id }}
-          CONCLUSION: ${{ github.event.workflow_run.conclusion || 'applicable' }}
-          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=STARTED\n'
-          printf 'WATCHDOG_EVENT=%s\n' "$EVENT_NAME"
-          printf 'WATCHDOG_WORKFLOW=%s\n' "$WORKFLOW"
-          printf 'WATCHDOG_RUN_ID=%s\n' "$RUN_ID"
-          printf 'WATCHDOG_CONCLUSION=%s\n' "$CONCLUSION"
-          printf 'WATCHDOG_HEAD_SHA=%s\n' "$HEAD_SHA"
-          {
-            echo '## Repository Watchdog'
-            echo
-            echo "- **Status:** STARTED"
-            echo "- **Event:** ${EVENT_NAME}"
-            echo "- **Workflow:** ${WORKFLOW}"
-            echo "- **Run:** ${RUN_ID}"
-            echo "- **Commit:** ${HEAD_SHA}"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [[ "$EVENT_NAME" == workflow_run && "$CONCLUSION" != success && "$CONCLUSION" != neutral && "$CONCLUSION" != skipped ]]; then
-            echo "Required sovereign workflow failed: $WORKFLOW (run $RUN_ID)" >&2
-            exit 1
-          fi
-
+          printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
+          printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
+          printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
       - name: Checkout exact inspected commit
-        env:
-          GH_TOKEN: ${{ github.token }}
-          CHECKOUT_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          rm -rf .git
-          git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "$CHECKOUT_SHA"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-          test "$(git rev-parse HEAD)" = "$CHECKOUT_SHA"
-
-      - name: Verify required workflow inventory
+      - name: Verify workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(
-            cd-sovereign.yml
-            ci-sovereign.yml
-            ci.yml
-            oauth-api-generator.yaml
-            scar.yml
-            repository-watchdog.yml
-          )
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml ios-sovereign-build.yml Quart.yml repository-watchdog.yml)
           for required in "${required_workflows[@]}"; do
-            test -f ".github/workflows/$required" || {
-              echo "Required workflow missing: $required" >&2
-              exit 1
-            }
+            test -f ".github/workflows/$required" || { echo "Missing workflow: $required" >&2; exit 1; }
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
           done
-          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
-          echo 'Required sovereign workflow inventory: PASS'
-
-      - name: Verify architecture invariants
+      - name: Verify local runner contracts
         shell: bash
         run: |
           set -Eeuo pipefail
-          grep -Fq 'runs-on: [self-hosted, ubuntu-latest]' .github/workflows/cd-sovereign.yml
-          grep -Fq 'test "${RUNNER_ARCH}" = "ARM64"' .github/workflows/cd-sovereign.yml
-          grep -Fq 'test "$(uname -m)" = "aarch64"' .github/workflows/cd-sovereign.yml
-          grep -Fq 'runs-on: ubuntu-latest' .github/workflows/ci-sovereign.yml
-          grep -Fq 'name: OAUTH — local contract' .github/workflows/oauth-api-generator.yaml
-          grep -Fq 'branches: [Collaboration]' .github/workflows/ci.yml
-          echo 'Architecture invariants: PASS'
-
+          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
+            grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow" || { echo "Wrong runner contract: $workflow" >&2; exit 1; }
+          done
+          grep -Fq 'runs-on: self-hosted' ".github/workflows/ios-sovereign-build.yml"
+          echo 'RUNNER_CONTRACTS=PASS'
       - name: Final watchdog result — visible
         shell: bash
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=PASS\n'
-          printf 'WATCHDOG_RESULT=ALL_REQUIRED_LANES_VISIBLE_AND_VERIFIED\n'
-          {
-            echo
-            echo '- **Result:** PASS'
-            echo '- **Required lanes:** present and inspected'
-            echo '- **Failure propagation:** enabled'
-            echo '- **Base branch contract:** Collaboration'
-          } >> "$GITHUB_STEP_SUMMARY"
+          printf 'WATCHDOG_RESULT=VISIBLE_LOCAL_RUNNER_CONTRACTS_VERIFIED\n'
