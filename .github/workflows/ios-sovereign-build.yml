@@ -12,13 +12,13 @@ permissions:
 
 concurrency:
   group: ios-sovereign-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   lightweight-security:
     name: iOS source validation (visible, local)
-    runs-on: self-hosted
-    timeout-minutes: 15
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
         shell: bash
