@@ -20,7 +20,7 @@ defaults:
 jobs:
   test:
     name: Quart tests
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: [self-hosted, linux arm64]
 
     steps:
       - name: Checkout repository without third-party actions
