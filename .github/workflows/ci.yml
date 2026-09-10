@@ -17,10 +17,7 @@ permissions:
 jobs:
   test:
     name: Python CI (self-hosted ARM64)
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
+    runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
