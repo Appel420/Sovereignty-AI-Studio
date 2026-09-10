@@ -3,9 +3,9 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -49,5 +49,4 @@ jobs:
         env:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
-      - name: Coordination import check
-        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"
