@@ -1,14 +1,86 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # Sovereignty AI Studio — Extended / Experimental Package Ecosystem
 #
-# Quarantined 2026-09-10. This file is NOT installed by default.
-# Install selectively and only with an explicit, pinned version:
-#   pip install <package>==<version>
-#
-# Policy: no unpinned entries. No experimental or unvetted packages.
-# The only package retained here is the MCP bridge, which must also be
-# pinned in requirements.txt for production installs.
+# These packages are tracked here for reference and future integration.
+# They are NOT included in requirements.txt because many are not yet
+# published on PyPI or are under active development.
+# Install selectively: pip install <package-name>
 # ─────────────────────────────────────────────────────────────────────────────
 
-# MCP bridge — sole retained entry. Pin in requirements.txt for prod.
+aagora
+ai-model-picker
+aip-identity
+aitop
+allen-powerplatform-client
+anvid
+anysite-cli
+axiron
+blocksolver
+bmk
+brainstem
+check-duplicate-variables
+cognautic-cli
+connector-py
+connector2
+dalexor
+depkeeper
+devoc-sdk
+elizaos-plugin-xai
+event-isc
+flanes
+free-grok
+gchat
+gha-utils
 grok-cli-mcp
+grok-image-generator
+grok-video-generator
+groktest
+HAP-python-pycryptodome
+humanbound-cli
+Ilm-grok
+iphone-backup-decrypt
+Is-converter
+late-sdk
+lexis
+megrok.strictrequire
+memory
+metorial-xai
+mpra
+mpytool
+multiple
+nlweb-core
+novalang
+one-click-ai-spark
+onedb
+open-terminal
+openintent
+piviz-3d
+progressor-lib
+py-browser-automation
+pydocket
+pyhabitat
+pyimagedl
+pyp
+pyzbrowser
+qodacode
+quorum-cli
+quyaml
+runware
+sanna
+sc-oa
+scalexi-llm
+serverpy
+sirine
+solve
+speechmatics-voice
+subtidal
+synpi
+tapkit
+taxgrok
+usefy
+video-cli
+vllm-sr
+wagtail-thumbnail-choice-block
+webex-message-handler
+xai-review-oleg-fork
+xstate-statemachine
