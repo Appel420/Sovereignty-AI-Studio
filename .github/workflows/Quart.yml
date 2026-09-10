@@ -3,43 +3,137 @@ name: Quart App CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
+    branches: [collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
 
 permissions:
   contents: read
 
 concurrency:
   group: quart-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
 
 jobs:
   test:
-    name: Quart tests (self-hosted)
-    runs-on: self-hosted
-    timeout-minutes: 15
+    name: Quart tests
+    runs-on: [self-hosted, ubuntu-latest]
+
     steps:
-      - name: Checkout exact revision
-        shell: bash
+      - name: Checkout repository without third-party actions
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
+
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+
+          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+
+          case "${GITHUB_EVENT_NAME}" in
+            pull_request)
+              fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge"
+              ;;
+            push|workflow_dispatch)
+              fetch_ref="refs/heads/${GITHUB_REF_NAME}"
+              ;;
+            *)
+              echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"
+              exit 1
+              ;;
+          esac
+
+          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" \
+            fetch --no-tags --depth=1 origin "${fetch_ref}"
+
           git checkout --detach FETCH_HEAD
-      - name: Verify local runner
+
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: Verify Python runtime
         run: |
-          set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
-      - name: Install project dependencies
+          python --version
+          python -m pip --version
+
+      - name: Create isolated environment
         run: |
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -e .
-      - name: Prove Quart runtime
+          rm -rf .ci-venv
+          python -m venv .ci-venv
+
+          .ci-venv/bin/python -m pip install --upgrade pip
+
+          .ci-venv/bin/python -m pip install \
+            --disable-pip-version-check \
+            -r requirements.txt
+
+          .ci-venv/bin/python -m pip install \
+            --disable-pip-version-check \
+            -e ".[test]"
+
+          .ci-venv/bin/python -m pip check
+
+      - name: Verify required imports
         run: |
-          python3 - <<'PY'
+          .ci-venv/bin/python - <<'PY'
+          import fastapi
+          import nacl
+          import pydantic
+          import quart
+          import pytest_asyncio
+
+          print("required dependency closure: OK")
+          PY
+
+      - name: Python syntax gate
+        run: |
+          directories=()
+
+          for directory in backend apps scripts tests; do
+            if [[ -d "${directory}" ]]; then
+              directories+=("${directory}")
+            fi
+          done
+
+          if ((${#directories[@]} == 0)); then
+            echo "No Python source directories found"
+            exit 1
+          fi
+
+          .ci-venv/bin/python -m compileall -q "${directories[@]}"
+
+      - name: Test collection gate
+        run: |
+          test -d tests
+          .ci-venv/bin/python -m pytest --collect-only -q tests
+
+      - name: Test suite
+        run: |
+          .ci-venv/bin/python -m pytest -q tests
+
+      - name: Quart application smoke test
+        run: |
+          .ci-venv/bin/python - <<'PY'
+          import asyncio
+
           from apps.dashboards.weather_dashboard import app
-          client = app.test_client()
-          assert app is not None and client is not None
-          print('QUART_IMPORT=PASS')
+
+
+          async def main():
+              client = app.test_client()
+              response = await client.get("/api/weather?city=London")
+
+              assert response.status_code == 200
+
+              payload = await response.get_json()
+              assert payload["city"] == "London"
+
+
+          asyncio.run(main())
+          print("Quart application smoke test: OK")
           PY
