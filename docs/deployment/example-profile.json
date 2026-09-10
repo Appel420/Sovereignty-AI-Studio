@@ -1,0 +1,41 @@
+{
+  "deployment": {
+    "id": "example-deployment-0001",
+    "profile": "custom",
+    "created_at": "2026-08-12T00:00:00Z",
+    "schema_version": "1.0.0",
+    "reference_only": true
+  },
+  "identity": {
+    "owner_ref": "local://owner-reference",
+    "device_id": "local://device-reference-0001",
+    "authority_id": "local://authority-reference-0001",
+    "key_refs": ["local://keys/signing-reference"]
+  },
+  "vault": {
+    "state_path": "local://vault/example/state",
+    "memory_scope": "instance-local",
+    "evidence_path": "local://vault/example/evidence",
+    "isolation": "strict",
+    "credentials_protected": true
+  },
+  "topology": {
+    "production_branch": "production",
+    "integration_branch": "integration",
+    "development_lanes": [],
+    "agents": [],
+    "providers": []
+  },
+  "capabilities": {
+    "local_execution": true,
+    "external_execution": false,
+    "communication": true,
+    "persistence": true
+  },
+  "governance": {
+    "authorization": "owner-controlled",
+    "promotion": "owner-controlled",
+    "audit": "mandatory",
+    "transparency": "mandatory"
+  }
+}

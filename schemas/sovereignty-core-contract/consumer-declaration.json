@@ -1,0 +1,53 @@
+{
+  "consumer": "Appel420/Sovereignty-AI-Studio",
+  "adapter_version": "1.0.0",
+  "contract": "sovereignty-core-contract@1.0.0",
+  "contract_digest": "ad63eb2a10b9a30033978cd0074b23d43df92479c5c5df8b2af2f270d46b8c27",
+  "invariant_digest": "b950fe784a45fc0dcbbfb3a1e25ec9c6dd7aa21d4f8ed9e4fd250d39849fb560",
+  "declared_at": "2026-09-02T21:57:00Z",
+  "binding": {
+    "core_owns": [
+      "schemas",
+      "invariants",
+      "validation_rules",
+      "evidence_format",
+      "promotion_predicate"
+    ],
+    "studio_owns": [
+      "AgentRegistry",
+      "JudgeSupervisor",
+      "LeaseIssuer",
+      "BranchRegistry",
+      "EventBus",
+      "execution_adapters",
+      "provenance",
+      "dashboard_telemetry",
+      "CI"
+    ],
+    "agent_owns": [
+      "branch",
+      "execution_path",
+      "commits",
+      "logs",
+      "proposals"
+    ],
+    "human_owns": [
+      "repository_permissions",
+      "key_custody",
+      "approvals",
+      "protected_branch_promotion"
+    ]
+  },
+  "fail_closed_on": [
+    "contract_digest_mismatch",
+    "invariant_digest_mismatch",
+    "unknown_agent",
+    "unhealthy_agent",
+    "expired_or_consumed_capability",
+    "scope_mismatch",
+    "missing_scar_receipt",
+    "scar_commit_mismatch",
+    "missing_or_invalid_human_authorization"
+  ],
+  "notes": "Studio consumes the Core contract. It does not redefine invariants. Dashboard (DevAssist420SGHv119.html) is owner-visible interface only and is never an authority source."
+}

@@ -5,7 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from backend.coordination import BranchRegistry, DevAssistRouter
 
@@ -27,8 +32,7 @@ def main() -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args()
 
-    root = Path(__file__).resolve().parents[1]
-    branch = args.branch or current_branch(root)
+    branch = args.branch or current_branch(ROOT)
     registry = BranchRegistry()
     owner = registry.get(branch)
     payload: dict[str, object] = {

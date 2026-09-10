@@ -1,0 +1,58 @@
+name: Repository Watchdog
+
+on:
+  push:
+    branches: [Collaboration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-watchdog-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    name: Repository Watchdog (visible)
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 10
+    steps:
+      - name: Watchdog startup — visible
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf 'WATCHDOG_STATUS=STARTED\n'
+          printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
+          printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
+          printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
+      - name: Checkout exact inspected commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify workflow inventory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml ios-sovereign-build.yml Quart.yml repository-watchdog.yml)
+          for required in "${required_workflows[@]}"; do
+            test -f ".github/workflows/$required" || { echo "Missing workflow: $required" >&2; exit 1; }
+            printf 'WORKFLOW_PRESENT=%s\n' "$required"
+          done
+      - name: Verify local runner contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
+            grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow" || { echo "Wrong runner contract: $workflow" >&2; exit 1; }
+          done
+          grep -Fq 'runs-on: self-hosted' ".github/workflows/ios-sovereign-build.yml"
+          echo 'RUNNER_CONTRACTS=PASS'
+      - name: Final watchdog result — visible
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf 'WATCHDOG_STATUS=PASS\n'
+          printf 'WATCHDOG_RESULT=VISIBLE_LOCAL_RUNNER_CONTRACTS_VERIFIED\n'

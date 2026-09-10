@@ -38,7 +38,7 @@ def test_alert_system():
         print("\n2. Creating security alert...")
         security_alert = AlertCreate(
             type="security",
-            title="Security Test",
+            title="Security Test Alert",
             message="Testing security alert functionality",
             severity="high",
             source="security_module"

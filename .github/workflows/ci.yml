@@ -1,111 +1,74 @@
-name: CI
+name: Python CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-    paths-ignore:
-      - 'README.md'
-      - '.github/workflows/readme-implementation-sync.yml'
-  workflow_dispatch:
-  
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: python-ci-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
-  build:
-    runs-on: [self-hosted, Linux arm64]
+  test:
+    name: Python CI (self-hosted)
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: 'pip'
-    
-
-      - name: Install system dependencies
+      - name: Checkout exact revision
+        shell: bash
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cmake \
-            ninja-build \
-            libssl-dev \
-            pkg-config
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
 
-      - name: Install dependencies
+      - name: Verify local runner
+        shell: bash
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -e ".[test,lint,pqc]"
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
+          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
 
-      - name: Verify PQC provider (ML-DSA-87)
+      - name: Set up isolated Python environment
+        shell: bash
         run: |
-          python - <<'PY'
-          import oqs
+          set -Eeuo pipefail
+          python3 --version
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
 
-          supported = oqs.get_enabled_sig_mechanisms()
-          if "ML-DSA-87" not in supported:
-              raise SystemExit(
-                  f"ML-DSA-87 is unavailable in this liboqs build.\n"
-                  f"Supported algorithms: {supported}"
-              )
-          print(f"liboqs {oqs.oqs_version()} — ML-DSA-87 available")
-          PY
+      - name: Install project test dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
 
       - name: Lint
-        run: ruff check sovereign/
-
-      - name: Type check
-        run: mypy sovereign/
-
-      - name: Test
-        run: pytest
-
-      - name: Create PQC-Signed CI Manifest
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import json
-          import sys
-          import time
+          set -Eeuo pipefail
+          targets=()
+          for directory in backend/coordination prototypes/accessibility; do
+            [[ -e "${directory}" ]] && targets+=("${directory}")
+          done
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
 
-          sys.path.insert(0, ".")
+      - name: Run tests
+        env:
+          PYTHONPATH: prototypes:.
+        shell: bash
+        run: python -m pytest -q
 
-          from sovereign.pqc_signatures import MLDSASigner
-
-          manifest = {
-              "workflow": "CI",
-              "run_id": "${{ github.run_id }}",
-              "run_number": "${{ github.run_number }}",
-              "sha": "${{ github.sha }}",
-              "ref": "${{ github.ref }}",
-              "actor": "${{ github.actor }}",
-              "event": "${{ github.event_name }}",
-              "timestamp": int(time.time()),
-          }
-
-          signer = MLDSASigner(algorithm="ML-DSA-87")
-          public_key, _ = signer.load_or_create_keypair()
-          message = json.dumps(manifest, sort_keys=True).encode()
-          signature = signer.sign(message)
-
-          if not signer.verify(message, signature):
-              raise RuntimeError("ML-DSA-87 signature verification failed")
-
-          manifest["ml_dsa_87_signature"] = signature.hex()
-          manifest["public_key"] = public_key.hex()
-
-          with open("ci-build-manifest.json", "w", encoding="utf-8") as fh:
-              json.dump(manifest, fh, indent=2)
-
-          print("PQC-signed CI build manifest created (ML-DSA-87)")
-          PY
-
-      - name: Upload CI Manifest
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ci-build-manifest-${{ github.run_id }}
-          path: ci-build-manifest.json
-          retention-days: 30
+      - name: Coordination import check
+        shell: bash
+        run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"

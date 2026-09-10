@@ -1,0 +1,10 @@
+[package]
+name = "policy-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+principal = { path = "../principal" }
+
+[lib]
+path = "src/lib.rs"

@@ -4,7 +4,8 @@ import hashlib
 from hmac import compare_digest
 from typing import Any, Optional
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 
 from app.config import settings
 
@@ -94,5 +95,5 @@ def verify_token(token: str) -> Optional[str]:
             algorithms=[settings.algorithm],
         )
         return payload.get("sub")
-    except JWTError:
+    except InvalidTokenError:
         return None

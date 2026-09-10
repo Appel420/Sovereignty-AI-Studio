@@ -10,6 +10,6 @@ COPY event_bus/ ./event_bus/
 
 ENV PLUGIN_SDK_DIR=/app/plugin_sdk
 
-EXPOSE 8002
+EXPOSE 9897
 
 CMD ["python", "-c", "from agents.plugin_agent.plugin_manager import PluginAgent; print('Plugin Agent ready')"]

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sovereignty.local/schemas/option-set-with-risk-reward.json",
+  "title": "OptionSetWithRiskReward",
+  "description": "Frozen contract: every owner-facing set of options MUST include pros, cons, risks, and rewards before selection is valid.",
+  "type": "object",
+  "required": ["options"],
+  "properties": {
+    "options": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "pros", "cons", "risks", "rewards"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "label": {"type": "string", "minLength": 1},
+          "description": {"type": "string"},
+          "pros": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+          "cons": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+          "risks": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+          "rewards": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+          "net_assessment": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "context": {"type": "string"}
+  },
+  "additionalProperties": false
+}

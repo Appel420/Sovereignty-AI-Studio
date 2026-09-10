@@ -1,0 +1,12 @@
+name: RUN ALL WORKFLOWS
+# Ghost recovery: file was deleted but GitHub kept the workflow active.
+# This was a cascade bomb. Stub only — never runs on push.
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "run-all-workflows disabled stub"

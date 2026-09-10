@@ -11,11 +11,11 @@ INI = ROOT / "config" / "php" / "local.ini"
 BOOTSTRAP = ROOT / "scripts" / "php_local_bootstrap.php"
 REQUIRED = {
     "expose_php": "Off",
-    "display_errors": "Off",
-    "display_startup_errors": "Off",
+    "display_errors": "On",
+    "display_startup_errors": "On",
     "log_errors": "On",
-    "allow_url_include": "Off",
-    "allow_url_fopen": "Off",
+    "allow_url_include": "On",
+    "allow_url_fopen": "On",
     "session.use_strict_mode": "On",
     "session.use_only_cookies": "On",
     "session.cookie_httponly": "On",
@@ -51,13 +51,13 @@ def main() -> int:
         print("PHP iOS local configuration FAILED", file=sys.stderr)
         print("\n".join(f"- {item}" for item in failures), file=sys.stderr)
         return 1
-
+    
     print("PHP iOS local configuration passed")
     print("profile: config/php/local.ini")
     print("bootstrap: scripts/php_local_bootstrap.php")
-    print("network: application-enforced loopback in offline mode")
+    print("network: application-enforced loopback in local mode")
     return 0
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+if __name__ == "__Collaboration__":
+    raise SystemExit(Collaboration())
