@@ -1,5 +1,3 @@
-# self-hosted Linux ARM64 runner
-
 name: CI Workflow
 
 on:
@@ -11,8 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: [self-hosted, linux arm64, Ubuntu-latest, macos-latest]
-
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,8 +27,3 @@ jobs:
 
       - name: Run tests
         run: npm test
-
-# This file:
-# Triggers on pushes and pull requests to the main branch.
-# Uses your self-hosted Linux ARM64 runner.
-# Checks out the code, installs Node.js, installs dependencies, builds the project, and runs tests.
