@@ -71,4 +71,5 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: |
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
