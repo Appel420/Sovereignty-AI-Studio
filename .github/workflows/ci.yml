@@ -1,23 +1,21 @@
 name: CI
 
-# PR runs PAUSED — workflow file kept. Full PQC install is not for every PR.
-# Re-enable pull_request only with owner approval.
 on:
   push:
-    branches: [ dev, main ]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
     paths-ignore:
       - 'README.md'
       - '.github/workflows/readme-implementation-sync.yml'
   workflow_dispatch:
-  # pull_request: paused
+  
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
-    runs-on: ['self-hosted Linux arm64']
+    runs-on: [self-hosted, Linux arm64]
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
@@ -25,7 +23,7 @@ jobs:
         with:
           python-version: '3.13'
           cache: 'pip'
-          cache-dependency-path: pyproject.toml
+    
 
       - name: Install system dependencies
         run: |
