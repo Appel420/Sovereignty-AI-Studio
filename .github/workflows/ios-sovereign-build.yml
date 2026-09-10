@@ -1,6 +1,7 @@
 name: iOS Sovereign Build
 
-on:
+on: 
+  
   push:
     branches: [Collaboration]
   pull_request:
