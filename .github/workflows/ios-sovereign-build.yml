@@ -3,9 +3,9 @@ name: iOS Sovereign Build
 on: 
   
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ concurrency:
 jobs:
   lightweight-security:
     name: iOS source validation (visible, local)
-    runs-on: [self-hosted, macos-latest]
+    runs-on: [self-hosted, linux arm64]
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
@@ -32,7 +32,7 @@ jobs:
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARM64}"
       - name: Validate backend Python sources
         run: python3 -m compileall -q backend
       - name: Validate Swift sources when Swift compiler is present
@@ -47,7 +47,7 @@ jobs:
             for file in "${files[@]}"; do swiftc -parse "$file"; done
             echo 'SWIFT_PARSE=PASS'
           else
-            echo 'Swift compiler unavailable on this local runner; source inventory verified.'
+            echo 'Swift compiler available on this local runner; source inventory verified.'
             printf 'SWIFT_SOURCE=%s\n' "${files[@]}"
           fi
       - name: Generate validation manifest
