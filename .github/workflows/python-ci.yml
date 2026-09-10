@@ -5,7 +5,7 @@ on:
   push:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-   branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: python-ci-${{ github.ref }}
@@ -16,153 +16,37 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Python CI (self-hosted)
+    runs-on: [self-hosted, linux arm64]
     timeout-minutes: 15
-
     steps:
-      - name: Checkout exact commit without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout exact commit
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-
-          auth="$(
-            printf 'x-access-token:%s' "${GH_TOKEN}" |
-              base64 |
-              tr -d '\n'
-          )"
-
-          git -c "http.extraheader=AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
-      - name: Set up isolated Python environment
-        shell: bash
+      - name: Verify local runner
         run: |
           set -Eeuo pipefail
-
-          python3 --version
+          test "${GITHUB_ACTIONS}" = "true"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Set up isolated Python environment
+        run: |
+          set -Eeuo pipefail
           python3 -m venv .venv
-
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
-
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Install test and lint tools
-        shell: bash
+      - name: Install project test dependencies
         run: |
           set -Eeuo pipefail
-
+          python -m pip install --no-cache-dir -e ".[test]"
           python -m pip install --no-cache-dir ruff pytest
-
-          if [[ -f pyproject.toml || -f setup.py || -f setup.cfg ]]; then
-            if python -m pip install --no-cache-dir -e ".[test,lint]"; then
-              echo "Installed project with test and lint extras"
-            else
-              echo "Extras unavailable; installing the project without extras"
-              python -m pip install --no-cache-dir -e .
-            fi
-          else
-            echo "No Python package metadata found; run editable install"
-          fi
-
       - name: Lint
-        continue-on-error: false
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          targets=()
-
-          for directory in backend/coordination prototypes/accessibility; do
-            if [[ -e "${directory}" ]]; then
-              targets+=("${directory}")
-            fi
-          done
-
-          if (( ${#targets[@]} > 0 )); then
-            ruff check "${targets[@]}"
-          else
-            ruff check .
-          fi
-
-      - name: Run focused tests
+        run: ruff check backend/coordination prototypes/accessibility
+      - name: Run tests
         env:
           PYTHONPATH: prototypes:.
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          focused_test="prototypes/accessibility/tests/test_accessibility_control.py"
-
-          if [[ -f "${focused_test}" ]]; then
-            pytest -q "${focused_test}"
-          else
-            echo "Focused accessibility test not found; running the complete test suite"
-            pytest -q
-          fi
-
-      - name: Coordination import check
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          if [[ -d backend/coordination || -f backend/coordination.py ]]; then
-            python -c \
-              "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
-          else
-            echo "Coordination module not present on this lane; skipped"
-          fi
-
-      - name: Create CI manifest
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          python - <<'PY'
-          import hashlib
-          import hmac
-          import json
-          import os
-
-          manifest = {
-              "workflow": "Python CI",
-              "run_id": os.environ.get("GITHUB_RUN_ID", ""),
-              "sha": os.environ.get("GITHUB_SHA", ""),
-              "ref": os.environ.get("GITHUB_REF", ""),
-              "execution": "github-hosted",
-              "device_independent": True,
-              "signing_backend": "hmac-sha256-ci-local",
-          }
-
-          key = b"ci-manifest-local-verification"
-          message = json.dumps(
-              manifest,
-              sort_keys=True,
-              separators=(",", ":"),
-          ).encode("utf-8")
-
-          manifest["signature"] = hmac.new(
-              key,
-              message,
-              hashlib.sha256,
-          ).hexdigest()
-
-          with open(
-              "python-ci-manifest.json",
-              "w",
-              encoding="utf-8",
-          ) as output:
-              json.dump(manifest, output, indent=2)
-              output.write("\n")
-
-          print("CI manifest written")
-          PY
+        run: python -m pytest -q
+  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"
