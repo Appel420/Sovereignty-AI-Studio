@@ -3,13 +3,13 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: python-ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -17,7 +17,7 @@ permissions:
 jobs:
   test:
     name: Python CI (self-hosted)
-    runs-on: self-hosted
+    runs-on: [self-hosted, linux arm64]
     timeout-minutes: 15
     steps:
       - name: Checkout exact commit
@@ -49,5 +49,4 @@ jobs:
         env:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
-      - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
+  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"

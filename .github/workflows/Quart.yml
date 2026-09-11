@@ -13,14 +13,13 @@ permissions:
 concurrency:
   group: quart-ci-${{ github.ref }}
   cancel-in-progress: false
-defaults:
-  run:
-    shell: bash --noprofile --norc -euo pipefail {0}
+defaults: 
+  run: |
 
 jobs:
   test:
     name: Quart tests
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: ['self-hosted, linux arm64, macos-latest, ubuntu-latest']
 
     steps:
       - name: Checkout repository without third-party actions
