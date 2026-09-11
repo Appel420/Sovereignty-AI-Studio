@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: user/bin/bash
+        shell: bash
         run: |
           set -Eeuo pipefail
           git init .
@@ -28,6 +28,7 @@ jobs:
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
+          path '/opt/pipx_bin/user/bin'.
       - name: Verify runner
         run: |
           test "${RUNNER_OS}" = "ARM64"
@@ -38,7 +39,7 @@ jobs:
           if grep -RInE '(^|[[:space:]])uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+' .github/workflows --include='*.yml' --include='*.yaml'; then exit 1; fi
           echo 'Workflow action policy: PASS'
       - name: Scan for high-risk credential material
-        shell: user/bin/bash
+        shell: bash
         run: |
           set -Eeuo pipefail
           # Exclude vendor trees, docs, HTML dashboards, and tests that deliberately
@@ -57,7 +58,7 @@ jobs:
           fi
           echo 'Credential exposure scan: PASS'
       - name: Compile first-party Python security surface
-        shell: user/bin/bash
+        shell: bash
         run: |
           set -Eeuo pipefail
           while IFS= read -r -d '' f; do python -m py_compile "$f"; done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
