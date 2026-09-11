@@ -12,7 +12,7 @@ permissions:
 jobs:
   linux:
     name: Linux ARM64
-    runs-on: [self-hosted, linux arm64]
+    runs-on: [ubuntu-latest, linux arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,7 +33,7 @@ jobs:
 
   apple-ane:
     name: Apple Silicon / ANE
-    runs-on: [self-hosted, macOS, ARM64]
+    runs-on: macOS-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
