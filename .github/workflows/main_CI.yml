@@ -16,7 +16,7 @@ env:
 jobs:
   linux:
     name: Linux ARM64
-    runs-on: ubuntu-latest
+    runs-on: [ubuntu-latest, self-hosted linux]
     timeout-minutes: 20
     steps:
       - name: Checkout repository
