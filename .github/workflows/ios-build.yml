@@ -34,5 +34,5 @@ jobs:
         run: |
           set -Eeuo pipefail
           if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
-            while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
+            while IFS= read -r -d '' file; do xcrun swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
           else echo 'No Swift source files found; native source parse not applicable.'; fi
