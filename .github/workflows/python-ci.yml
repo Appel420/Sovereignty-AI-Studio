@@ -9,8 +9,8 @@ permissions:
   jobs:
   test:
     name: Python CI (self-hosted)
-    runs-on: self-hosted
-    timeout-minutes: 15
+    runs-on: ['macos-latest, self-hosted']
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit
         shell: bash
@@ -42,4 +42,4 @@ permissions:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
       - name: Coordination import check
-        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch registry; print('Coordination import: ok')"
