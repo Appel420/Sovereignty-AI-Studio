@@ -47,7 +47,6 @@ jobs:
           grep -q '"verified": true' "$RUNNER_TEMP/scar/attestation.json"
           grep -q '"algorithm": "ML-DSA-87"' "$RUNNER_TEMP/scar/attestation.json"
           echo "PQC_PAYLOAD=ML-DSA-87"
-
  apple-ane:
     name: Apple Silicon / ANE
     runs-on: macos-latest
