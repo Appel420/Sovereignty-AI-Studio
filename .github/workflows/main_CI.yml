@@ -48,7 +48,7 @@ jobs:
           grep -q '"algorithm": "ML-DSA-87"' "$RUNNER_TEMP/scar/attestation.json"
           echo "PQC_PAYLOAD=ML-DSA-87"
 
-  apple-ane:
+ apple-ane:
     name: Apple Silicon / ANE
     runs-on: macos-latest
     timeout-minutes: 10
