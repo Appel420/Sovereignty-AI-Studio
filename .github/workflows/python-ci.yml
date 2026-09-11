@@ -6,10 +6,10 @@ on:
 permissions:
   contents: read
 
-jobs:
+  jobs:
   test:
-    name: Python CI (manual)
-    runs-on: [self-hosted, linux arm64]
+    name: Python CI (self-hosted)
+    runs-on: self-hosted
     timeout-minutes: 15
     steps:
       - name: Checkout exact commit
