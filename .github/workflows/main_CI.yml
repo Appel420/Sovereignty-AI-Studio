@@ -6,10 +6,13 @@ on:
   pull_request:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
+permissions:
+  contents: read
 
 jobs:
-  build:
-    runs-on: self-hosted ubuntu-latest
+  linux:
+    name: Linux ARM64
+    runs-on: [self-hosted, linux arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,3 +30,30 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+  apple-ane:
+    name: Apple Silicon / ANE
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify Apple Silicon runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${RUNNER_OS:-}" = "macOS"
+          test "${RUNNER_ARCH:-}" = "ARM64"
+          uname -m
+
+      - name: Run ANE validation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f scripts/ane_validation.py ]]; then
+            python3 scripts/ane_validation.py
+          elif [[ -f tests/test_ane.py ]]; then
+            python3 -m pytest -q tests/test_ane.py
+          else
+            echo "ANE validation target not present; runner validation only."
+          fi
