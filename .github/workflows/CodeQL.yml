@@ -3,7 +3,7 @@ name: CodeQL Scan
 on: 
   workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, GPT/Codex-scar-ci-fix, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
-        shell: user/bin/bash
+        shell: bash
         run: |
           set -Eeuo pipefail
           git init .
@@ -38,7 +38,7 @@ jobs:
           if grep -RInE '(^|[[:space:]])uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+' .github/workflows --include='*.yml' --include='*.yaml'; then exit 1; fi
           echo 'Workflow action policy: PASS'
       - name: Scan for high-risk credential material
-        shell: user/bin/bash
+        shell: bash
         run: |
           set -Eeuo pipefail
           # Exclude vendor trees, docs, HTML dashboards, and tests that deliberately
