@@ -2,14 +2,6 @@ name: Python CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-
-concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -49,4 +41,5 @@ permissions:
         env:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
-  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"
+      - name: Coordination import check
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

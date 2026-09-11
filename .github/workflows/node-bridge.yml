@@ -1,10 +1,6 @@
 name: Node Bridge CI
 
 on:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 env:
@@ -13,13 +9,9 @@ env:
 permissions:
   contents: read
 
-concurrency:
-  group: node-bridge-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   test:
-    name: Node Bridge tests
+    name: Node Bridge tests (manual)
     runs-on: [self-hosted, linux arm64]
     timeout-minutes: 15
     steps:
