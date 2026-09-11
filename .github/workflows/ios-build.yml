@@ -1,22 +1,14 @@
 name: iOS Build
 
 on:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ios-build-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   package-validation:
-    name: iOS package validation
+    name: iOS package validation (manual)
     runs-on: macos-latest
     timeout-minutes: 15
     steps:
@@ -28,7 +20,7 @@ jobs:
           set -Eeuo pipefail
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true

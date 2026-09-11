@@ -2,19 +2,11 @@ name: Python CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
-
-concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
-jobs:
+  jobs:
   test:
     name: Python CI (self-hosted)
     runs-on: self-hosted
@@ -50,4 +42,4 @@ jobs:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
       - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

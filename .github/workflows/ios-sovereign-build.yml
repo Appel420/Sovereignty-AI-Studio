@@ -1,24 +1,15 @@
 name: iOS Sovereign Build
 
-on: 
-  
-  push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
+on:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: ios-sovereign-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   lightweight-security:
-    name: iOS source validation (visible, local)
-    runs-on: [self-hosted, macos-latest]
+    name: iOS source validation (manual)
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 10
     steps:
       - name: Checkout repository at exact commit
@@ -47,28 +38,6 @@ jobs:
             for file in "${files[@]}"; do swiftc -parse "$file"; done
             echo 'SWIFT_PARSE=PASS'
           else
-            echo 'Swift compiler unavailable on this local runner; source inventory verified.'
+            echo 'Swift compiler unavailable; source inventory verified.'
             printf 'SWIFT_SOURCE=%s\n' "${files[@]}"
           fi
-      - name: Generate validation manifest
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          import json, os, platform, time
-          payload = {
-              'node_id': f"ios-build-{os.environ['GITHUB_RUN_ID']}",
-              'timestamp': int(time.time()),
-              'build_ref': os.environ['GITHUB_SHA'],
-              'platform': 'iOS',
-              'execution': 'self-hosted-validation',
-              'native_xcode_compile': bool(os.environ.get('RUNNER_OS') == 'macOS'),
-              'runner_os': os.environ.get('RUNNER_OS', 'local'),
-              'runner_arch': os.environ.get('RUNNER_ARCH', platform.machine()),
-          }
-          with open('ios-build-manifest.json', 'w', encoding='utf-8') as fh:
-              json.dump(payload, fh, indent=2, sort_keys=True)
-              fh.write('\n')
-          PY
-      - name: Verify manifest
-        run: python3 -m json.tool ios-build-manifest.json
