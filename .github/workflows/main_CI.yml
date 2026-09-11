@@ -15,9 +15,9 @@ env:
 
 jobs:
   linux:
-    name: Linux ARM64
-    runs-on: [ubuntu-latest, self-hosted linux]
-    timeout-minutes: 20
+    name: ubuntu Linux ARM64
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -41,7 +41,7 @@ jobs:
       - name: PQC signed SCAR payload
         run: |
           set -Eeuo pipefail
-          python3 -m pip install --disable-pip-version-check blake3 liboqs-python
+          python3 -m pip install --pip-version-check blake3 liboqs-python
           test -f scripts/scar_pqc_attest.py
           mkdir -p "$RUNNER_TEMP/scar/pqc"
           SCAR_PQC_KEY_DIR="$RUNNER_TEMP/scar/pqc" SCAR_PQC_OUTPUT="$RUNNER_TEMP/scar/attestation.json" python3 scripts/scar_pqc_attest.py --status PASS --commit "$GITHUB_SHA"
@@ -52,7 +52,7 @@ jobs:
   apple-ane:
     name: Apple Silicon / ANE
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
       - name: PQC signed SCAR payload
         run: |
           set -Eeuo pipefail
-          python3 -m pip install --disable-pip-version-check blake3 liboqs-python
+          python3 -m pip install --pip-version-check blake3 liboqs-python
           test -f scripts/scar_pqc_attest.py
           mkdir -p "$RUNNER_TEMP/scar/pqc"
           SCAR_PQC_KEY_DIR="$RUNNER_TEMP/scar/pqc" SCAR_PQC_OUTPUT="$RUNNER_TEMP/scar/attestation.json" python3 scripts/scar_pqc_attest.py --status PASS --commit "$GITHUB_SHA"
