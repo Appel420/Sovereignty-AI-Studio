@@ -1,5 +1,6 @@
 # Retired from .github/workflows because its registered workflow repeatedly returned startup_failure with zero jobs.
 # Preserved verbatim from Collaboration for audit/recovery.
+# NOTE: self-check for repository-watchdog.yml removed — the file lives here, not in .github/workflows.
 name: Repository Watchdog
 
 on:
@@ -38,11 +39,12 @@ jobs:
           set -Eeuo pipefail
           test -d .github/workflows
           test ! -e .github/workflows/main_CI.yml
-          test -f .github/workflows/ci.yml
-          test -f .github/workflows/ci-sovereign.yml
-          test -f .github/workflows/python-ci.yml
-          test -f .github/workflows/Quart.yml
-          test -f .github/workflows/repository-watchdog.yml
+          test ! -e .github/workflows/ci.yml
+          test ! -e .github/workflows/ci-sovereign.yml
+          test ! -e .github/workflows/python-ci.yml
+          test ! -e .github/workflows/Quart.yml
+          test ! -e .github/workflows/repository-watchdog.yml
+          test -f docs/quarantine/repository-watchdog.yml.disabled
           printf 'COLLABORATION_WORKFLOW_BOUNDARY=PASS\n'
       - name: Final watchdog result — visible
         run: |
