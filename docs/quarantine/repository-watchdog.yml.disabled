@@ -1,3 +1,5 @@
+# Retired from .github/workflows because its registered workflow repeatedly returned startup_failure with zero jobs.
+# Preserved verbatim from Collaboration for audit/recovery.
 name: Repository Watchdog
 
 on:
