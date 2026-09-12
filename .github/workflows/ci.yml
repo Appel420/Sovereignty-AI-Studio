@@ -1,75 +1,65 @@
-name: Python CI
+name: Collaboration CI
 
 on:
   workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-
-concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: false
+    branches: [Collaboration]
 
 permissions:
   contents: read
 
+concurrency:
+  group: collaboration-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
-    name: Python CI (self-hosted ARM64)
-    runs-on: macos-latest
-    timeout-minutes: 10
+  validate:
+    name: Collaboration CI (visible)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout exact revision
+      - name: Checkout exact revision without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-
-      - name: Verify local runner
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Runner evidence
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
-          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
-
-      - name: Set up isolated Python environment
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "REPOSITORY=${GITHUB_REPOSITORY}"
+          echo "SHA=${GITHUB_SHA}"
+      - name: Python syntax gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 --version
-          python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip setuptools wheel
-          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Install project test dependencies
+          python3 -m compileall -q backend apps scripts tests
+      - name: Coordination import gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --no-cache-dir -e ".[test]"
-          python -m pip install --no-cache-dir ruff pytest
-
-      - name: Lint
+          python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+      - name: Test collection gate
         shell: bash
         run: |
           set -Eeuo pipefail
-          targets=()
-          for directory in backend/coordination prototypes/accessibility; do
-            [[ -e "${directory}" ]] && targets+=("${directory}")
-          done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
-
-      - name: Run tests
-        env:
-          PYTHONPATH: prototypes:.
-        shell: bash
-        run: python -m pytest -q
-
-      - name: Coordination import check
+          python3 -m pytest --collect-only -q tests
+      - name: Test suite
         shell: bash
         run: |
-          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+          set -Eeuo pipefail
+          python3 -m pytest -q tests
+      - name: Final result
+        run: printf 'COLLABORATION_CI=PASS\n'

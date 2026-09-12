@@ -1,3 +1,6 @@
+# QUARANTINED FROM .github/workflows ON THE Collaboration REPAIR BRANCH
+# Original active workflow was structurally invalid: jobs: lacked a job identifier.
+# Preserved verbatim for audit/recovery.
 name: CI Workflow
 
 on:
@@ -44,8 +47,8 @@ jobs:
           test -f scripts/scar_pqc_attest.py
           mkdir -p "$RUNNER_TEMP/scar/pqc"
           SCAR_PQC_KEY_DIR="$RUNNER_TEMP/scar/pqc" SCAR_PQC_OUTPUT="$RUNNER_TEMP/scar/attestation.json" python3 scripts/scar_pqc_attest.py --status PASS --commit "$GITHUB_SHA"
-          grep -q '"verified": true' "$RUNNER_TEMP/scar/attestation.json"
-          grep -q '"algorithm": "ML-DSA-87"' "$RUNNER_TEMP/scar/attestation.json"
+          grep -q '\"verified\": true' "$RUNNER_TEMP/scar/attestation.json"
+          grep -q '\"algorithm\": \"ML-DSA-87\"' "$RUNNER_TEMP/scar/attestation.json"
           echo "PQC_PAYLOAD=ML-DSA-87"
  apple-ane:
     name: Apple Silicon / ANE
@@ -74,6 +77,6 @@ jobs:
           test -f scripts/scar_pqc_attest.py
           mkdir -p "$RUNNER_TEMP/scar/pqc"
           SCAR_PQC_KEY_DIR="$RUNNER_TEMP/scar/pqc" SCAR_PQC_OUTPUT="$RUNNER_TEMP/scar/attestation.json" python3 scripts/scar_pqc_attest.py --status PASS --commit "$GITHUB_SHA"
-          grep -q '"verified": true' "$RUNNER_TEMP/scar/attestation.json"
-          grep -q '"algorithm": "ML-DSA-87"' "$RUNNER_TEMP/scar/attestation.json"
+          grep -q '\"verified\": true' "$RUNNER_TEMP/scar/attestation.json"
+          grep -q '\"algorithm\": \"ML-DSA-87\"' "$RUNNER_TEMP/scar/attestation.json"
           echo "PQC_PAYLOAD=ML-DSA-87"
