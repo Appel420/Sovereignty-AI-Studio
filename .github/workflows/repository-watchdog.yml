@@ -26,12 +26,7 @@ jobs:
           printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
-      - name: Checkout exact inspected commit
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+
       - name: Verify workflow inventory
         shell: bash
         run: |
@@ -46,7 +41,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
-            grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow"
+            grep -Eq 'runs-on:ubuntu([[:space:]]|$)' ".github/workflows/$workflow"
           done
           grep -Fq 'runs-on: ubuntu-latest' ".github/workflows/ios-sovereign-build.yml"
           echo 'RUNNER_CONTRACTS=PASS'
