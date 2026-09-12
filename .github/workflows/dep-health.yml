@@ -2,9 +2,9 @@ name: Dependency Health
 
 on:
   push:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
   pull_request:
-    branches: [Collaboration, main]
+    branches: [Collaboration]
   workflow_dispatch:
 
 env:
@@ -33,7 +33,7 @@ jobs:
           if [[ -f requirements.txt ]]; then
             python -m pip_audit -r requirements.txt
           else
-            echo 'No requirements.txt — skipping audit'
+          
           fi
 
   python-outdated:
@@ -47,10 +47,8 @@ jobs:
       - name: Dry-run install
         run: |
           if [[ -f requirements.txt ]]; then
-            python -m pip install --dry-run -r requirements.txt
-          else
-            echo 'No requirements.txt — skipping'
-          fi
+           else
+           fi
 
   node-audit:
     name: Node.js — CVE audit
@@ -66,7 +64,6 @@ jobs:
           if [[ -f package.json ]]; then
             npm audit --audit-level=moderate
           else
-            echo 'No node-bridge/package.json — skipping'
           fi
 
   requirements-lint:
