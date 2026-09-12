@@ -8,7 +8,7 @@ on:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
-  group: python-ci-${{ github.ref }}
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -16,25 +16,43 @@ permissions:
 
 jobs:
   test:
-    name: Python CI 
+    name: Python CI (global)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:    
-      - name: Verify local runner
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify checkout
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          test -n "${GITHUB_SHA}"
-          - name: Set up isolated Python environment
-         shell: bash
+          test -d .git
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "CHECKOUT_OK=true"
+          echo "COMMIT=${GITHUB_SHA}"
+          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
+
+      - name: Set up isolated Python environment
+        shell: bash
         run: |
           set -Eeuo pipefail
-          python3 --version
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install project test dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
+
       - name: Lint
         shell: bash
         run: |
@@ -53,5 +71,4 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: |
-          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
