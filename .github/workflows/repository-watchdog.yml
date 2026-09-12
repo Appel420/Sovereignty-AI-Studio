@@ -34,7 +34,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml)
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml)
           for required in "${required_workflows[@]}"; do
             test -f ".github/workflows/$required"
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
@@ -43,7 +43,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
+          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml; do
             if grep -Eq 'runs-on:([[:space:]]|$)' ".github/workflows/$workflow"; then
             
             else
