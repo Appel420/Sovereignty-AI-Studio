@@ -2,32 +2,21 @@ name: Python CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-
-concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Python CI 
+    name: Python CI
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    steps:    
-      - name: Verify local runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up isolated Python environment
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          test -n "${GITHUB_SHA}"
-          - name: Set up isolated Python environment
-         shell: bash
         run: |
           set -Eeuo pipefail
           python3 --version
@@ -35,6 +24,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
       - name: Lint
         shell: bash
         run: |
@@ -43,7 +33,11 @@ jobs:
           for directory in backend/coordination prototypes/accessibility; do
             [[ -e "${directory}" ]] && targets+=("${directory}")
           done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+          if (( ${#targets[@]} )); then
+            ruff check "${targets[@]}"
+          else
+            ruff check .
+          fi
 
       - name: Run tests
         env:
