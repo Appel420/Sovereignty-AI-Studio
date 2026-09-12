@@ -1,3 +1,8 @@
+# QUARANTINED — intentionally outside .github/workflows so GitHub Actions cannot execute it.
+# Original path: .github/workflows/main_CI.yml
+# Reason: malformed duplicate CI workflow produced repeated zero-job/failure runs on Collaboration.
+# Preserved verbatim for audit/recovery; not an executable workflow.
+
 name: CI Workflow
 
 on:
