@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+ test: 
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact commit without external actions
@@ -38,18 +38,12 @@ jobs:
           set -Eeuo pipefail
           python3 --version
           python3 -m pip install --upgrade pip
-
-      - name: Install test/lint tools
-        run: |
-          set -Eeuo pipefail
-          python3 -m pip install --no-cache-dir ruff pytest
-          python3 -m pip install --no-cache-dir -e '.[test,lint]' || true
-
-      - name: Lint (advisory — does not fail the job)
+          - name: Lint (advisory — does not fail the job)
         continue-on-error: false
+      - name: run backend
         run: |
           set -Eeuo pipefail
-          ruff check backend/coordination prototypes/accessibility || ruff check . || true
+          ruff check backend/accessibility || ruff check . || true
           echo "Ruff completed (advisory)"
 
       - name: Run focused tests
