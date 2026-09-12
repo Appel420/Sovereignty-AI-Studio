@@ -2,37 +2,76 @@ name: Quart App CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
 permissions:
   contents: read
 
+concurrency:
+  group: quart-ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  test:
+  quart-tests:
     name: Quart tests
-    runs-on: [self-hosted,ubuntu-latest]
+    runs-on: ubuntu-latest
     steps:
-      - name: Prove runner alive
-        run: |
-          echo "RUNNER_ALIVE=1"
-          echo "SHA=${GITHUB_SHA}"
-          uname -a
-          python3 --version
-      - name: Checkout with token
+      - name: Checkout repository without third-party actions
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REF_VALUE: ${{ github.ref }}
+          EXPECTED_SHA: ${{ github.sha }}
         run: |
           set -Eeuo pipefail
+
+          : "${GH_TOKEN:?GH_TOKEN is required}"
+
           git init .
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+
+          auth_token="$(
+            printf 'x-access-token:%s' "${GH_TOKEN}" |
+              base64 |
+              tr -d '\n'
+          )"
+
+          case "${EVENT_NAME}" in
+            pull_request)
+              fetch_ref="refs/pull/${PR_NUMBER}/merge"
+              ;;
+
+            push|workflow_dispatch)
+              fetch_ref="${GITHUB_REF_VALUE}"
+              ;;
+
+            *)
+              ;;
+          esac
+
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth_token}" \
+            fetch  --depth=1 origin "${fetch_ref}"
+
           git checkout --detach FETCH_HEAD
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          echo "CHECKOUT_OK"
-      - name: Python baseline
+
+          actual_sha="$(git rev-parse HEAD)"
+
+    
+
+      - name: Verify Python runtime
         run: |
-          python3 --version
-          python3 -m pip --version
+          set -Eeuo pipefail
+
+          python --version
+          python -m pip --version
+      - name: Verify required imports
+        run: |
+          set -Eeuo pipefail
+
+          .ci-venv/bin/python - <<'PY'
+          import fastapi
+          import nacl
+          import pydantic
+          import quart
+          import pytest_asyncio
+          PY

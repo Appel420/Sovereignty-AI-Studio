@@ -1,52 +1,75 @@
-name: ci
+name: Python CI
 
 on:
   workflow_dispatch:
   push:
-    branches:  [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: sovereignty-ci-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
-  validate:
-    name: Validate Sovereignty AI Studio
-    runs-on: [ubuntu-latest, self-hosted]
+  test:
+    name: Python CI (self-hosted ARM64)
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-          cache: pip
-
-      - name: Install application and test dependencies
-        run: python -m pip install --upgrade pip && python -m pip install -e ".[test]"
-
-      - name: Compile backend
-        run: python -m compileall -q backend
-
-      - name: Verify FastAPI application
+        shell: bash
         run: |
-          python - <<'PY'
-          from fastapi.testclient import TestClient
-          from app.main import app
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
 
-          client = TestClient(app)
-          response = client.get("/health")
-          assert response.status_code == 200, response.text
-          assert response.json() == {"status": "healthy"}
-          print("FASTAPI_HEALTH=PASS")
-          PY
+      - name: Verify local runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
+          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
+
+      - name: Set up isolated Python environment
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 --version
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install project test dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
+
+      - name: Lint
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          targets=()
+          for directory in backend/coordination prototypes/accessibility; do
+            [[ -e "${directory}" ]] && targets+=("${directory}")
+          done
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
 
       - name: Run tests
+        env:
+          PYTHONPATH: prototypes:.
+        shell: bash
         run: python -m pytest -q
+
+      - name: Coordination import check
+        shell: bash
+        run: |
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

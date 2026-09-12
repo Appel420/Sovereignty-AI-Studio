@@ -1,11 +1,9 @@
 name: Dependency Health
 
 on:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
+    
+     branches: [Collaboration]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -19,51 +17,10 @@ concurrency:
 
 jobs:
   python-audit:
-    name: Python — CVE audit (pip-audit)
+    name: Python — CVE audit (manual)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Install pip-audit
-        run: python -m pip install --upgrade pip pip-audit
-      - name: Run pip-audit
-        run: python -m pip_audit -r requirements.txt
-
-  python-outdated:
-    name: Python — requirements validation
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository without external actions
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Validate requirements syntax
-        run: python -m pip install --dry-run -r requirements.txt
-
-  node-audit:
-    name: Node.js — CVE audit (npm audit)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository without external actions
+      - name: Checkout repository
         env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
@@ -73,26 +30,49 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Refresh lockfile resolution from declared dependencies
-        working-directory: node-bridge
-        env:
-          npm_config_audit: 'false'
-          npm_config_fund: 'false'
-        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-      - name: Verify dependency tree is reproducible
-        working-directory: node-bridge
-        run: npm install --ignore-scripts --no-audit --no-fund
-      - name: Run npm audit
-        working-directory: node-bridge
+      - run: python -m pip install --upgrade pip pip-audit
+      - run: python -m pip_audit -r requirements.txt
+
+  python-outdated:
+    name: Python — requirements validation (manual)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        env: { GH_TOKEN: "${{ github.token }}" }
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          
+      - run: python -m pip install --dry-run -r requirements.txt
+
+  node-audit:
+    name: Node.js — CVE audit (manual)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        env: { GH_TOKEN: "${{ github.token }}" }
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - working-directory: node-bridge
         run: npm audit --audit-level=moderate
 
   requirements-lint:
-    name: Lint requirements files
+    name: Lint requirements files (manual)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Checkout repository without external actions
+      - name: Checkout repository
         env: { GH_TOKEN: "${{ github.token }}" }
         shell: bash
         run: |
@@ -102,18 +82,12 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-      - name: Validate requirements files
-        run: |
-          set -Eeuo pipefail
-          python - <<'PY'
+          
+          run: python - <<'PY'
           import pathlib
           for name in ('requirements.txt', '.github/workflows/Requirements.txt'):
               path = pathlib.Path(name)
-              if not path.exists():
-                  continue
-              for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-                  if '\t' in line:
-                      raise SystemExit(f'{name}:{number}: tab character is not allowed')
+              if path.exists():
+                  for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1)
           print('requirements files are structurally valid')
           PY

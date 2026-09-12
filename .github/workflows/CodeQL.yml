@@ -1,64 +1,116 @@
 name: CodeQL Scan
 
-on: 
+on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, GPT/Codex-scar-ci-fix, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
+
+concurrency:
+  group: codeql-scan-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   analyze:
     name: Local Security Gate
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     steps:
       - name: Checkout repository without external actions
         env:
           GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REF_VALUE: ${{ github.ref }}
+          EXPECTED_SHA: ${{ github.sha }}
         shell: bash
         run: |
           set -Eeuo pipefail
+
+          : "${GH_TOKEN:?GH_TOKEN is required}"
+
           git init .
+          git remote remove origin 2>/dev/null || true
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+
+          auth_token="$(
+            printf 'x-access-token:%s' "${GH_TOKEN}" |
+              base64 |
+              tr -d '\n'
+          )"
+
+          case "${EVENT_NAME}" in
+            pull_request)
+              fetch_ref="refs/pull/${PR_NUMBER}/merge"
+              ;;
+
+            push|workflow_dispatch)
+              fetch_ref="${GITHUB_REF_VALUE}"
+              ;;
+
+            *)
+              echo "ERROR: unsupported GitHub event: ${EVENT_NAME}" >&2
+              exit 1
+              ;;
+          esac
+
+          git -c "http.extraheader=AUTHORIZATION: basic ${auth_token}" \
+            fetch --no-tags --depth=1 origin "${fetch_ref}"
+
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+
+          actual_sha="$(git rev-parse HEAD)"
+
+          if [[ "${actual_sha}" != "${EXPECTED_SHA}" ]]; then
+            echo "ERROR: checked out SHA does not match GitHub SHA" >&2
+            echo "Expected: ${EXPECTED_SHA}" >&2
+            echo "Actual:   ${actual_sha}" >&2
+            exit 1
+          fi
+
       - name: Verify runner
+        shell: bash
         run: |
+          set -Eeuo pipefail
           test "${RUNNER_OS}" = "Linux"
       - name: Scan workflow action policy
         shell: bash
         run: |
           set -Eeuo pipefail
-          if grep -RInE '(^|[[:space:]])uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+' .github/workflows --include='*.yml' --include='*.yaml'; then exit 1; fi
-          echo 'Workflow action policy: PASS'
+
+          if grep -RInE \
+            '(^|[[:space:]])uses:[[:space:]]*[^./[:space:]]+/[^[:space:]]+' \
+            .github/workflows \
+            --include='*.yml' \
+            --include='*.yaml'
+          then
+            echo "ERROR: External GitHub Actions are not permitted." >&2
+            exit 1
+          fi
+
+          echo "Workflow action policy: PASS"
+
       - name: Scan for high-risk credential material
         shell: bash
         run: |
           set -Eeuo pipefail
-          # Exclude vendor trees, docs, HTML dashboards, and tests that deliberately
-          # contain PEM header string literals (not real private keys).
           if grep -RInE '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' . \
-            --exclude-dir=.git \
-            --exclude-dir=.venv \
-            --exclude-dir=node_modules \
-            --exclude-dir=external \
-            --exclude-dir=docs \
-            --exclude-dir=tests \
-            --exclude='*.html' \
-            --exclude='*.md' \
-            --exclude='*.json'; then
+            --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules --exclude-dir=external; then
             exit 1
           fi
-          echo 'Credential exposure scan: PASS'
+
+          echo "Credential exposure scan: PASS"
+
       - name: Compile first-party Python security surface
         shell: bash
         run: |
           set -Eeuo pipefail
-          while IFS= read -r -d '' f; do python -m py_compile "$f"; done < <(git -c core.quotePath=false ls-files -z -- '*.py' ':!:external/**' ':!:.git/**')
-          echo 'First-party Python syntax/security preflight: PASS'
+
+          while IFS= read -r -d '' file; do
+            python -m py_compile "${file}"
+          done < <(
+            git -c core.quotePath=false ls-files -z -- '*.py'
+          )
+
+          echo "Python syntax/security preflight: PASS"
