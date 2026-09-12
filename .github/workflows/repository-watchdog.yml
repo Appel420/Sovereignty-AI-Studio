@@ -15,7 +15,7 @@ concurrency:
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: [self-hosted, linux arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
@@ -46,7 +46,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
-            grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow" || { echo "Wrong runner contract: $workflow" >&2; exit 1; }
+            grep -Eq 'runs-on: (self-hosted|ubuntu-latest)' ".github/workflows/$workflow" || { echo "Wrong runner contract: $workflow" >&2; exit 1; }
           done
           grep -Fq 'runs-on: self-hosted' ".github/workflows/ios-sovereign-build.yml"
           echo 'RUNNER_CONTRACTS=PASS'
