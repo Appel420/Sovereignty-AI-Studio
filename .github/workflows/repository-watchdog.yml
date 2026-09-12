@@ -44,8 +44,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
-            if grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow"; then
-              echo "self-hosted contract present in $workflow"
+            if grep -Eq 'runs-on:([[:space:]]|$)' ".github/workflows/$workflow"; then
+            
             else
               echo "ubuntu-latest contract present in $workflow"
             fi

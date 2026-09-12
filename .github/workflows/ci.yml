@@ -16,28 +16,18 @@ permissions:
 
 jobs:
   test:
-    name: Python CI (self-hosted ARM64)
-    runs-on: macos-latest
+    name: Python CI 
+    runs-on: ubuntu-latest
     timeout-minutes: 10
-    steps:
-      - name: Checkout exact revision
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-
+    steps:    
       - name: Verify local runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
-          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
-
-      - name: Set up isolated Python environment
-        shell: bash
+          - name: Set up isolated Python environment
+         shell: bash
         run: |
           set -Eeuo pipefail
           python3 --version
@@ -45,14 +35,6 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Install project test dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --no-cache-dir -e ".[test]"
-          python -m pip install --no-cache-dir ruff pytest
-
       - name: Lint
         shell: bash
         run: |
