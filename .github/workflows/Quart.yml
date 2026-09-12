@@ -14,7 +14,6 @@ jobs:
   quart-tests:
     name: Quart tests
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository without third-party actions
         env:
