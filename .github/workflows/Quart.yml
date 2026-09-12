@@ -1,6 +1,10 @@
 name: Quart App CI
 
 on:
+  push:
+    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
+  pull_request:
+    branches: [Collaboration, main]
   workflow_dispatch:
 
 permissions:
@@ -14,65 +18,38 @@ jobs:
   quart-tests:
     name: Quart tests
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository without third-party actions
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          GITHUB_REF_VALUE: ${{ github.ref }}
-          EXPECTED_SHA: ${{ github.sha }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Set up isolated Python environment
+        shell: bash
         run: |
           set -Eeuo pipefail
-
-          : "${GH_TOKEN:?GH_TOKEN is required}"
-
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-
-          auth_token="$(
-            printf 'x-access-token:%s' "${GH_TOKEN}" |
-              base64 |
-              tr -d '\n'
-          )"
-
-          case "${EVENT_NAME}" in
-            pull_request)
-              fetch_ref="refs/pull/${PR_NUMBER}/merge"
-              ;;
-
-            push|workflow_dispatch)
-              fetch_ref="${GITHUB_REF_VALUE}"
-              ;;
-
-            *)
-              ;;
-          esac
-
-          git -c "http.extraheader=AUTHORIZATION: basic ${auth_token}" \
-            fetch  --depth=1 origin "${fetch_ref}"
-
-          git checkout --detach FETCH_HEAD
-
-          actual_sha="$(git rev-parse HEAD)"
-
-    
-
-      - name: Verify Python runtime
+          python3 -m venv .ci-venv
+          . .ci-venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.ci-venv/bin" >> "${GITHUB_PATH}"
+      - name: Install required packages
+        shell: bash
         run: |
           set -Eeuo pipefail
-
-          python --version
-          python -m pip --version
+          python -m pip install --no-cache-dir quart fastapi nacl pydantic pytest-asyncio
       - name: Verify required imports
+        shell: bash
         run: |
           set -Eeuo pipefail
-
-          .ci-venv/bin/python - <<'PY'
+          python - <<'PY'
           import fastapi
           import nacl
           import pydantic
           import quart
           import pytest_asyncio
+          print('Quart imports: ok')
           PY

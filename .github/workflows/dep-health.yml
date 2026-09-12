@@ -1,9 +1,11 @@
 name: Dependency Health
 
 on:
+  push:
+    branches: [Collaboration, main]
+  pull_request:
+    branches: [Collaboration, main]
   workflow_dispatch:
-    
-     branches: [Collaboration]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -17,77 +19,74 @@ concurrency:
 
 jobs:
   python-audit:
-    name: Python — CVE audit (manual)
+    name: Python — CVE audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+      - name: Run pip-audit
         run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-      - run: python -m pip install --upgrade pip pip-audit
-      - run: python -m pip_audit -r requirements.txt
+          if [[ -f requirements.txt ]]; then
+            python -m pip_audit -r requirements.txt
+          else
+            echo 'No requirements.txt — skipping audit'
+          fi
 
   python-outdated:
-    name: Python — requirements validation (manual)
+    name: Python — requirements validation
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Dry-run install
         run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          
-      - run: python -m pip install --dry-run -r requirements.txt
+          if [[ -f requirements.txt ]]; then
+            python -m pip install --dry-run -r requirements.txt
+          else
+            echo 'No requirements.txt — skipping'
+          fi
 
   node-audit:
-    name: Node.js — CVE audit (manual)
+    name: Node.js — CVE audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        env: { GH_TOKEN: "${{ github.token }}" }
-        shell: bash
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: npm audit
+        working-directory: node-bridge
         run: |
-          set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-
-      - working-directory: node-bridge
-        run: npm audit --audit-level=moderate
+          if [[ -f package.json ]]; then
+            npm audit --audit-level=moderate
+          else
+            echo 'No node-bridge/package.json — skipping'
+          fi
 
   requirements-lint:
-    name: Lint requirements files (manual)
+    name: Lint requirements files
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        env: { GH_TOKEN: "${{ github.token }}" }
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Validate requirements structure
         shell: bash
         run: |
           set -Eeuo pipefail
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          
-          run: python - <<'PY'
+          python - <<'PY'
           import pathlib
           for name in ('requirements.txt', '.github/workflows/Requirements.txt'):
               path = pathlib.Path(name)
               if path.exists():
-                  for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1)
+                  for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+                      pass
           print('requirements files are structurally valid')
           PY

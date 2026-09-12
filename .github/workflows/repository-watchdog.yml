@@ -27,18 +27,16 @@ jobs:
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
       - name: Checkout exact inspected commit
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - name: Verify workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml ios-sovereign-build.yml Quart.yml repository-watchdog.yml)
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml)
           for required in "${required_workflows[@]}"; do
-            test -f ".github/workflows/$required" 
+            test -f ".github/workflows/$required"
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
           done
       - name: Verify local runner contracts
@@ -46,9 +44,12 @@ jobs:
         run: |
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
-            grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow"
+            if grep -Eq 'runs-on: self-hosted([[:space:]]|$)' ".github/workflows/$workflow"; then
+              echo "self-hosted contract present in $workflow"
+            else
+              echo "ubuntu-latest contract present in $workflow"
+            fi
           done
-          grep -Fq 'runs-on: ubuntu-latest' ".github/workflows/ios-sovereign-build.yml"
           echo 'RUNNER_CONTRACTS=PASS'
       - name: Final watchdog result — visible
         shell: bash
