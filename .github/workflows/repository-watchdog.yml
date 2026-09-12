@@ -45,9 +45,9 @@ jobs:
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml; do
             if grep -Eq 'runs-on:([[:space:]]|$)' ".github/workflows/$workflow"; then
-            
-            else
               echo "ubuntu-latest contract present in $workflow"
+            else
+              echo "WARNING: no explicit runs-on in $workflow"
             fi
           done
           echo 'RUNNER_CONTRACTS=PASS'
