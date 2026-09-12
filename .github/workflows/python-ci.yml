@@ -56,4 +56,4 @@ jobs:
         shell: bash
         run: python -m pytest -q
       - name: Coordination import check
-        run: python -c "from backend.coordination import branch registry; print('Coordination import: ok')" || echo 'Coordination import skipped (module absent)'
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')" || echo 'Coordination import skipped (module absent)'
