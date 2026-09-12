@@ -1,3 +1,5 @@
+# Quarantined from .github/workflows while migrating the Collaboration CI lane.
+# Original file preserved verbatim below.
 name: Collaboration CI
 
 on:

@@ -1,0 +1,54 @@
+name: Collaboration Gate
+
+on:
+  push:
+    branches: [Collaboration]
+  pull_request:
+    branches: [Collaboration]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collaboration-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Collaboration Gate (visible)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact revision without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Runner evidence
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test -n "${GITHUB_SHA}"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "REPOSITORY=${GITHUB_REPOSITORY}"
+          echo "SHA=${GITHUB_SHA}"
+      - name: Install test tools
+        run: python3 -m pip install --disable-pip-version-check pytest
+      - name: Python syntax gate
+        run: python3 -m compileall -q backend apps scripts tests
+      - name: Coordination import gate
+        run: python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+      - name: Test collection gate
+        run: python3 -m pytest --collect-only -q tests
+      - name: Test suite
+        run: python3 -m pytest -q tests
+      - name: Final result
+        run: printf 'COLLABORATION_GATE=PASS\n'
