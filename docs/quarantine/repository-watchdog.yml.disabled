@@ -4,7 +4,7 @@
 name: Repository Watchdog
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: active
   pull_request:
     branches: [Collaboration]
 
