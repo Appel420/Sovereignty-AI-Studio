@@ -1,3 +1,4 @@
+# Retired from .github/workflows during Collaboration CI consolidation.
 name: Quart CI
 
 on:
@@ -31,7 +32,4 @@ jobs:
       - name: Install test tools
         run: python3 -m pip install --disable-pip-version-check pytest
       - name: Run tests when present
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -d tests ]]; then python3 -m pytest -q tests; else echo 'No tests directory; structural validation passed.'; fi
+        run: if [[ -d tests ]]; then python3 -m pytest -q tests; else echo 'No tests directory; structural validation passed.'; fi

@@ -1,4 +1,5 @@
-name: Python CI
+# Retired from .github/workflows after repeated startup failures on Collaboration.
+name: Sovereign Device Validation
 
 on:
   workflow_dispatch:
@@ -9,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Python CI
+  conformance:
+    name: Sovereign Validation (visible)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -32,17 +33,9 @@ jobs:
           test "${GITHUB_ACTIONS}" = "true"
           echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
           echo "SHA=${GITHUB_SHA}"
-      - name: Install test tools
-        run: python3 -m pip install --disable-pip-version-check pytest ruff
-      - name: Lint
-        run: |
-          set -Eeuo pipefail
-          targets=()
-          for directory in backend/coordination prototypes/accessibility; do [[ -e "$directory" ]] && targets+=("$directory"); done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
-      - name: Run tests
-        env:
-          PYTHONPATH: prototypes:.
+      - name: Python syntax gate
+        run: python3 -m compileall -q backend apps scripts tests
+      - name: I-008 gate when present
+        run: if [[ -f scripts/verify_i008_contract.py ]]; then python3 scripts/verify_i008_contract.py; else echo 'I-008 script not present; gate skipped by repository state.'; fi
+      - name: Test suite
         run: python3 -m pytest -q tests
-      - name: Coordination import check
-        run: python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
