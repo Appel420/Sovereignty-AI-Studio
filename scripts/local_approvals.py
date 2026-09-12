@@ -12,7 +12,11 @@ from local_governance.approvals import ApprovalStore
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Local approval notifications")
-    parser.add_argument("--store", type=Path, default=Path(os.environ.get("SG_APPROVALS", "state/approvals.jsonl")))
+    parser.add_argument(
+        "--store",
+        type=Path,
+        default=Path(os.environ.get("SG_APPROVALS", "state/approvals.jsonl")),
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     request = sub.add_parser("request")
@@ -28,7 +32,10 @@ def main() -> int:
 
     decide = sub.add_parser("decide")
     decide.add_argument("approval_id")
-    decide.add_argument("decision", choices=("APPROVED", "DENIED", "EXPIRED", "CANCELLED"))
+    decide.add_argument(
+        "decision",
+        choices=("APPROVED", "DENIED", "EXPIRED", "CANCELLED", "HELD"),
+    )
     decide.add_argument("--owner", required=True)
 
     args = parser.parse_args()

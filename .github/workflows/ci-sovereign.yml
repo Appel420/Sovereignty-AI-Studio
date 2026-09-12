@@ -1,0 +1,45 @@
+name: CI — Sovereign Device Validation
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    name: Sovereign Device Validation (manual)
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Diagnose runner
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS:-}" = "true"
+          test -n "${GITHUB_SHA:-}"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Verify Python runtime
+        run: python3 --version
+      - name: Install canonical dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          python3 -m pip install --disable-pip-version-check -e '.[test,lint]'
+          python3 -m pip check
+      - name: Python syntax gate
+        run: python3 -m compileall -q backend apps scripts tests
+      - name: I-008 executable gate
+        run: |
+          python3 scripts/verify_i008_contract.py
+          python3 -m pytest -q backend/coordination/test_i008_transparency.py
+      - name: Test collection gate
+        run: python3 -m pytest --collect-only -q tests
+      - name: Python test suite
+        run: python3 -m pytest -q tests

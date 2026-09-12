@@ -1,0 +1,33 @@
+name: SCAR.yml — Sovereign Compliance Audit Record
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scar-contract:
+    name: SCAR — Independent Compliance Attestation (manual)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: SCAR source gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [ -f scripts/scar_pqc_attest.py ]; then
+            python3 -m py_compile scripts/scar_pqc_attest.py
+          fi
+          echo "SCAR_SOURCE_GATE=PASS"

@@ -1,0 +1,26 @@
+name: CI Health Probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: CI health probe (manual)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prove GitHub-hosted job execution
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "GitHub Actions job execution is alive"
+          echo "repo=${GITHUB_REPOSITORY}"
+          echo "ref=${GITHUB_REF}"
+          echo "sha=${GITHUB_SHA}"
+          echo "runner=${RUNNER_OS}/${RUNNER_ARCH}"
+          test "${GITHUB_ACTIONS}" = "true"
+          test "${RUNNER_OS}" = "Linux"
+          echo "CI_HEALTH=PASS"

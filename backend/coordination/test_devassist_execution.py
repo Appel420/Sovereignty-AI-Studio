@@ -1,4 +1,4 @@
-"""Contract tests for the existing local DevAssist execution boundary."""
+"""Contract tests for the local DevAssist execution boundary."""
 from __future__ import annotations
 
 import pytest
@@ -31,28 +31,42 @@ def route(*, route: str = "devassist", decision: str = "ALLOW") -> RouteDecision
     )
 
 
-def test_devassist_requires_authorized_route() -> None:
+def test_devassist_rejects_missing_task() -> None:
     adapter = DevAssistExecutionAdapter(lambda _task, _route: {"status": "ok"})
+    with pytest.raises(TypeError, match="TaskEnvelope"):
+        adapter.execute(None, route())  # type: ignore[arg-type]
 
-    with pytest.raises(AttributeError):
+
+def test_devassist_rejects_missing_route() -> None:
+    adapter = DevAssistExecutionAdapter(lambda _task, _route: {"status": "ok"})
+    with pytest.raises(TypeError, match="RouteDecision"):
         adapter.execute(task(), None)  # type: ignore[arg-type]
 
 
 def test_devassist_rejects_non_allow_route() -> None:
     adapter = DevAssistExecutionAdapter(lambda _task, _route: {"status": "ok"})
-
     with pytest.raises(PermissionError, match="ALLOW"):
         adapter.execute(task(), route(decision="DENY"))
 
 
 def test_devassist_rejects_external_route() -> None:
-    adapter = DevAssistExecutionAdapter(
-        lambda _task, _route: {"status": "ok"},
-        allowed_routes={"devassist"},
-    )
-
+    adapter = DevAssistExecutionAdapter(lambda _task, _route: {"status": "ok"})
     with pytest.raises(PermissionError, match="not enabled"):
         adapter.execute(task(), route(route="sovereignty-runtime"))
+
+
+def test_devassist_rejects_mismatched_task() -> None:
+    adapter = DevAssistExecutionAdapter(lambda _task, _route: {"status": "ok"})
+    mismatched = RouteDecision(
+        task_id="task-2",
+        decision="ALLOW",
+        route="devassist",
+        mode="offline",
+        reason_code="ROUTE_AUTHORIZED",
+        policy_hash="sha256:policy",
+    )
+    with pytest.raises(ValueError, match="task_id"):
+        adapter.execute(task(), mismatched)
 
 
 def test_devassist_returns_execution_receipt() -> None:
@@ -75,6 +89,7 @@ def test_devassist_returns_execution_receipt() -> None:
     assert receipt.output_hash == "sha256:output"
     assert receipt.files_changed == ("example.py",)
     assert receipt.network_accessed is False
+    assert receipt.receipt_hash.startswith("sha256:")
 
 
 def test_devassist_does_not_execute_when_route_is_rejected() -> None:
@@ -91,3 +106,15 @@ def test_devassist_does_not_execute_when_route_is_rejected() -> None:
         adapter.execute(task(), route(decision="ESCALATE"))
 
     assert executed is False
+
+
+def test_devassist_rejects_invalid_executor_result() -> None:
+    adapter = DevAssistExecutionAdapter(lambda _task, _route: {"files_changed": [""]})
+    with pytest.raises(ValueError, match="files_changed"):
+        adapter.execute(task(), route())
+
+
+def test_devassist_rejects_non_boolean_network_access() -> None:
+    adapter = DevAssistExecutionAdapter(lambda _task, _route: {"network_accessed": "false"})
+    with pytest.raises(ValueError, match="network_accessed"):
+        adapter.execute(task(), route())

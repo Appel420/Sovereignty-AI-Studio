@@ -2,26 +2,112 @@
 
 declare(strict_types=1);
 
-$root = dirname(__DIR__);
-$events = $root . '/AUDIT/events';
-if (!is_dir($events)) {
-    mkdir($events, 0700, true);
+enum SovereigntyModeName: string
+{
+    case GHOST = 'ghost';
+    case HYBRID = 'hybrid';
+    case ONLINE = 'online';
 }
 
-$record = static function (string $type, array $payload) use ($events): array {
-    $entry = [
-        'id' => bin2hex(random_bytes(16)),
-        'type' => $type,
-        'timestamp' => gmdate('c'),
-        'payload' => $payload,
-    ];
-    file_put_contents($events . '/events.jsonl', json_encode($entry, JSON_THROW_ON_ERROR) . PHP_EOL, FILE_APPEND | LOCK_EX);
-    return $entry;
-};
+final class SovereigntyMode
+{
+    public function __construct(
+        private readonly array $config
+    ) {}
 
-$status = static function () use ($events): array {
-    $file = $events . '/events.jsonl';
-    return ['enabled' => true, 'path' => 'AUDIT/events/events.jsonl', 'entries' => is_file($file) ? count(file($file, FILE_IGNORE_NEW_LINES)) : 0];
-};
+    public function resolve(
+        string $requested,
+        ?string $approval = null
+    ): array {
+        $requestedMode = strtolower(trim($requested));
 
-return ['record' => $record, 'status' => $status];
+        $mode = match ($requestedMode) {
+            'ghost', 'local' => SovereigntyModeName::GHOST,
+            'hybrid' => SovereigntyModeName::HYBRID,
+            'online' => SovereigntyModeName::ONLINE,
+            default => $this->defaultMode(),
+        };
+
+        /*
+         * Online capability NEVER implies external-memory capability.
+         * Explicit owner authorization is required for Online.
+         */
+        if (
+            $mode === SovereigntyModeName::ONLINE
+            && !hash_equals(
+                'OWNER_APPROVED',
+                (string) $approval
+            )
+        ) {
+            $mode = SovereigntyModeName::HYBRID;
+        }
+
+        return match ($mode) {
+            SovereigntyModeName::GHOST => [
+                'mode' => 'ghost',
+                'network' => false,
+                'external_memory' => false,
+                'external_sync' => false,
+                'state_location' => 'DEVICE_LOCAL',
+                'state_policy' => [
+                    'required_state_location' => 'DEVICE_ONLY',
+                    'allow_external_memory' => false,
+                    'allow_provider_training' => false,
+                    'allow_cross_session_sync' => false,
+                    'allow_telemetry' => false,
+                ],
+            ],
+
+            SovereigntyModeName::HYBRID => [
+                'mode' => 'hybrid',
+                'network' => true,
+                'external_memory' => 'PER_OPERATION',
+                'external_sync' => 'PER_OPERATION',
+                'state_location' => 'DEVICE_LOCAL',
+                'state_policy' => [
+                    'required_state_location' => 'DEVICE_FIRST',
+                    'allow_external_memory' => false,
+                    'allow_provider_training' => false,
+                    'allow_cross_session_sync' => false,
+                    'allow_telemetry' => true,
+                ],
+            ],
+
+            SovereigntyModeName::ONLINE => [
+                'mode' => 'online',
+                'network' => true,
+                'external_memory' => 'OPT_IN_ONLY',
+                'external_sync' => 'OPT_IN_ONLY',
+                'state_location' => 'DEVICE_LOCAL',
+                'state_policy' => [
+                    'required_state_location' => 'DEVICE_FIRST',
+                    'allow_external_memory' => false,
+                    'allow_provider_training' => false,
+                    'allow_cross_session_sync' => false,
+                    'allow_telemetry' => true,
+                ],
+            ],
+        };
+    }
+
+    private function defaultMode(): SovereigntyModeName
+    {
+        $default = strtolower(
+            trim((string) ($this->config['default'] ?? 'ghost'))
+        );
+
+        return match ($default) {
+            'ghost', 'local' => SovereigntyModeName::GHOST,
+            'hybrid' => SovereigntyModeName::HYBRID,
+            'online' => SovereigntyModeName::ONLINE,
+            default => SovereigntyModeName::GHOST,
+        };
+    }
+}
+
+return [
+    'mode' => new SovereigntyMode([
+        'default' => 'ghost',
+        'fallback' => 'hybrid',
+    ]),
+];

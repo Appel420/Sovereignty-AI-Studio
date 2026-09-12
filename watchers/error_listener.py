@@ -1,14 +1,6 @@
 """
 ErrorListener — subscribes to 'error' events on the EventBus and
 aggregates them for dashboards and alerting.
-
-Usage::
-
-    bus = EventBus()
-    listener = ErrorListener(bus, alert_threshold=10)
-    await listener.start()
-    # ...
-    await listener.stop()
 """
 
 from __future__ import annotations
@@ -19,19 +11,11 @@ import time
 from typing import Any, Callable, Dict, List, Optional
 
 log = logging.getLogger("watchers.error_listener")
-
 _MAX_ERRORS = 1000
 
 
 class ErrorListener:
-    """
-    Listens for ``'error'`` events published on an :class:`EventBus` instance.
-
-    * Aggregates error counts by category.
-    * Fires optional alert callbacks when a category's error count crosses
-      *alert_threshold*.
-    * Logs a periodic summary of counts (every 60 s) for operational visibility.
-    """
+    """Aggregate error events and emit threshold alerts."""
 
     def __init__(self, bus: Any, alert_threshold: int = 10) -> None:
         self._bus = bus
@@ -42,10 +26,6 @@ class ErrorListener:
         self._running = False
         self._task: Optional[asyncio.Task] = None  # type: ignore[type-arg]
         self._started_at: Optional[float] = None
-
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
 
     async def start(self) -> None:
         """Register the error handler and start the background flush loop."""
@@ -67,50 +47,33 @@ class ErrorListener:
                 pass
         log.info("ErrorListener stopped")
 
-    # ------------------------------------------------------------------
-    # Event handler
-    # ------------------------------------------------------------------
-
     def _on_error(self, event: Dict[str, Any]) -> None:
-        """Called synchronously by the EventBus for each 'error' event."""
+        """Aggregate one error event and trigger alerts when necessary."""
         category = str(event.get("category", "unknown"))
-
         self._errors.append(event)
         self._counts[category] = self._counts.get(category, 0) + 1
-
-        # Keep memory bounded
         if len(self._errors) > _MAX_ERRORS:
             self._errors = self._errors[-(_MAX_ERRORS // 2):]
-
         log.warning(
             "[ErrorListener] %s | category=%s | total=%d",
-            event.get("error", "?"),
-            category,
-            self._counts[category],
+            event.get("error", "?"), category, self._counts[category],
         )
-
         if self._counts[category] >= self._alert_threshold:
             self._trigger_alert(category)
 
     def _trigger_alert(self, category: str) -> None:
+        """Invoke registered callbacks for a threshold crossing."""
         count = self._counts[category]
-        msg = (
-            f"ErrorListener: '{category}' error threshold reached "
-            f"({count} occurrences)."
-        )
+        msg = f"ErrorListener: '{category}' error threshold reached ({count} occurrences)."
         log.error(msg)
-        for cb in list(self._alert_callbacks):
+        for callback in list(self._alert_callbacks):
             try:
-                cb(category, count, msg)
-            except Exception as exc:  # noqa: BLE001
+                callback(category, count, msg)
+            except Exception as exc:  # pylint: disable=broad-exception-caught
                 log.debug("Alert callback raised: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Alert callbacks
-    # ------------------------------------------------------------------
-
     def add_alert_callback(self, callback: Callable[..., None]) -> None:
-        """Register a ``callback(category: str, count: int, message: str)``."""
+        """Register an alert callback."""
         if callback not in self._alert_callbacks:
             self._alert_callbacks.append(callback)
 
@@ -121,26 +84,15 @@ class ErrorListener:
         except ValueError:
             pass
 
-    # ------------------------------------------------------------------
-    # Background periodic summary
-    # ------------------------------------------------------------------
-
     async def _flush_loop(self) -> None:
         """Log a periodic summary of error counts every 60 seconds."""
         while self._running:
-            try:
-                await asyncio.sleep(60)
-                if self._counts:
-                    summary = ", ".join(
-                        f"{k}={v}" for k, v in sorted(self._counts.items())
-                    )
-                    log.info("[ErrorListener] 60s summary — %s", summary)
-            except asyncio.CancelledError:
-                raise
-
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
+            await asyncio.sleep(60)
+            if self._counts:
+                summary = ", ".join(
+                    f"{key}={value}" for key, value in sorted(self._counts.items())
+                )
+                log.info("[ErrorListener] 60s summary — %s", summary)
 
     def recent(self, limit: int = 20) -> List[Dict[str, Any]]:
         """Return the most recent *limit* error events."""

@@ -1,0 +1,25 @@
+# Optional: run tutaproxy locally for IMAP/SMTP/CalDAV/CardDAV/WebDAV.
+# All ports bound to 127.0.0.1. Telemetry disabled.
+# Usage: docker compose -f docker-compose.tuta.yml up -d
+
+services:
+  tutaproxy:
+    image: ghcr.io/peix2/tutaproxy:latest
+    container_name: tutaproxy
+    restart: unless-stopped
+    environment:
+      - TUTA_EMAIL=${TUTA_EMAIL}
+      - TUTA_PASSWORD=${TUTA_PASSWORD}
+      - TUTA_TOTP_SECRET=${TUTA_TOTP_SECRET:-}
+      - TUTAPROXY_TELEMETRY=false
+    ports:
+      - "127.0.0.1:1143:1143"   # IMAP
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:5232:5232"   # CalDAV
+      - "127.0.0.1:5233:5233"   # CardDAV
+      - "127.0.0.1:5234:5234"   # WebDAV (Drive)
+    volumes:
+      - tutaproxy_cache:/cache
+
+volumes:
+  tutaproxy_cache:

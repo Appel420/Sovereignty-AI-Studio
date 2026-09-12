@@ -1,0 +1,51 @@
+name: cd-sovereign.yml
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOVEREIGN_MLDSA_NATIVE_COMMIT: 783a7b51f3992d6b240cef93b78e5449dfccf200
+
+jobs:
+  release:
+    name: Verify + Native ML-DSA + PQC SCAR + Deploy (manual)
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Runtime identity gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_ACTIONS}" = "true"
+          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_ARCH}" = "ARM64"
+          test "$(uname -m)" = "aarch64"
+          python --version
+      - name: Install release dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -e '.[test,lint,pqc]'
+          python -m pip install build==1.6.0
+          python -m pip check
+      - name: I-008 executable gate
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python scripts/verify_i008_contract.py
+          python -m pytest -q backend/coordination/test_i008_transparency.py tests/test_i008_transparency.py
+      - name: Full Python collection gate
+        run: python -m pytest --collect-only -q tests
+      - name: Full test suite
+        run: python -m pytest -q tests

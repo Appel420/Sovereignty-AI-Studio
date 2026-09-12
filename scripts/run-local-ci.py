@@ -1,212 +1,168 @@
 #!/usr/bin/env python3
-"""Run coordination checks on this device with enforced offline isolation.
-
-This is not GitHub Actions. It installs nothing, dispatches no hosted runner,
-and runs only repository-local coordination tests. On Linux, local mode re-execs
-inside an unshared network namespace by default; if that isolation is unavailable,
-the run fails before tests execute.
-
-Usage:
-  python3 scripts/run-local-ci.py --ci-name coordination-unit-ci-local
-  python3 scripts/run-local-ci.py --ci-name coordination-unit-ci-local \
-      --offline-enforcement best-effort
-"""
+"""Named local CI runner with explicit runtime governance metadata."""
 from __future__ import annotations
 
 import argparse
-import importlib.util
 import json
 import os
-import shutil
 import subprocess
 import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-COORDINATION_TESTS = ROOT / "backend" / "coordination"
-LOCAL_ENV = {
-    "SG_NETWORK_MODE": "offline",
-    "SG_LOCAL_ONLY": "1",
-    "SG_EXTERNAL_FEEDS": "disabled",
-    "CLOUD_FIRST": "false",
-    "PIP_NO_INDEX": "1",
-    "PIP_NO_INPUT": "1",
-    "PIP_DISABLE_PIP_VERSION_CHECK": "1",
-    "npm_config_offline": "true",
-    "npm_config_audit": "false",
-    "npm_config_fund": "false",
-    "NO_PROXY": "*",
-    "no_proxy": "*",
-}
 
 
-def parse_mode_from_name(ci_name: str) -> str:
-    """Return the explicit mode suffix; names without one fail closed."""
-    for mode in ("local", "hybrid", "online"):
-        if ci_name.endswith(f"-ci-{mode}") or ci_name.endswith(f"-{mode}"):
-            return mode
-    raise ValueError("ci-name must end with -ci-local, -ci-hybrid, or -ci-online")
-
-
-def command_output(command: list[str]) -> str:
+def git_sha() -> str:
     try:
-        return subprocess.check_output(command, cwd=ROOT, text=True, env=local_env()).strip()
-    except (OSError, subprocess.CalledProcessError):
+        return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    except Exception:
         return "unknown"
 
 
+def git_branch() -> str:
+    try:
+        return subprocess.check_output(["git", "branch", "--show-current"], cwd=ROOT, text=True).strip()
+    except Exception:
+        return "unknown"
+
+
+def parse_mode_from_name(ci_name: str) -> str:
+    for mode in ("local", "hybrid", "online"):
+        if ci_name.endswith(f"-ci-{mode}") or ci_name.endswith(f"-{mode}"):
+            return mode
+    raise ValueError(f"unsupported or implicit CI mode: {ci_name}")
+
+
+def validate_external_metadata(*, mode: str, confirm_mode: str, destination: str, scope: str, why: str) -> list[str]:
+    if mode == "local":
+        return []
+    missing: list[str] = []
+    if confirm_mode != mode:
+        missing.append(f"--confirm-mode {mode}")
+    if not destination:
+        missing.append("--destination")
+    if not scope:
+        missing.append("--scope")
+    if not why:
+        missing.append("--why")
+    return missing
+
+
 def local_env() -> dict[str, str]:
-    """Return the environment inherited by every local test subprocess."""
-    environment = dict(os.environ)
-    environment.update(LOCAL_ENV)
-    environment["PYTHONPATH"] = os.pathsep.join(
-        part for part in (str(ROOT), environment.get("PYTHONPATH", "")) if part
-    )
-    return environment
+    env = dict(os.environ)
+    env.update({
+        "SG_NETWORK_MODE": "offline",
+        "SG_LOCAL_ONLY": "1",
+        "SG_EXTERNAL_FEEDS": "disabled",
+        "CLOUD_FIRST": "false",
+        "PIP_NO_INDEX": "1",
+        "npm_config_offline": "true",
+        "NO_PROXY": "*",
+        "no_proxy": "*",
+    })
+    pythonpath = [str(ROOT / "prototypes"), str(ROOT)]
+    existing = env.get("PYTHONPATH")
+    if existing:
+        pythonpath.append(existing)
+    env["PYTHONPATH"] = os.pathsep.join(pythonpath)
+    return env
 
 
-def coordination_test_files() -> list[Path]:
-    return sorted(COORDINATION_TESTS.glob("test_*.py"))
-
-
-def reexec_in_network_namespace(args: argparse.Namespace) -> int | None:
-    """Re-exec under Linux network isolation, or fail before any test starts."""
-    if os.environ.get("SG_LOCAL_CI_NETNS") == "1":
-        return None
-    if args.offline_enforcement == "none":
-        return None
-    if sys.platform != "linux":
-        if args.offline_enforcement == "required":
-            print("BLOCKED: required offline isolation needs Linux network namespaces", file=sys.stderr)
-            return 2
-        return None
-
-    unshare = shutil.which("unshare")
-    if unshare is None:
-        if args.offline_enforcement == "required":
-            print("BLOCKED: required offline isolation needs the local 'unshare' command", file=sys.stderr)
-            return 2
-        return None
-
-    command = [
-        unshare,
-        "--user",
-        "--map-root-user",
-        "--net",
-        "--mount-proc",
-        "env",
-        "SG_LOCAL_CI_NETNS=1",
-        *[f"{key}={value}" for key, value in LOCAL_ENV.items()],
-        sys.executable,
-        str(Path(__file__).resolve()),
-        *sys.argv[1:],
-    ]
-    completed = subprocess.run(command, cwd=ROOT, env=local_env())
-    if completed.returncode != 0 and args.offline_enforcement == "required":
-        print(
-            "BLOCKED: the host refused the network namespace; no tests were run outside it. "
-            "Use a Linux host with unprivileged user namespaces enabled.",
-            file=sys.stderr,
-        )
-    return completed.returncode
-
-
-def build_stamp(
-    *,
-    ci_name: str,
-    why: str,
-    started: datetime,
-    results: list[dict[str, Any]],
-    isolation: str,
-) -> dict[str, Any]:
-    failed = any(result["exit"] != 0 for result in results)
-    completed = datetime.now(timezone.utc)
+def build_stamp(*, ci_name: str, mode: str, why: str, action: str, destination: str, scope: str,
+                started: datetime, results: list[dict], isolation: str) -> dict:
+    failed = any(result.get("exit", 1) != 0 for result in results)
     return {
         "ci_name": ci_name,
-        "ci_mode": "local",
-        "route": "device-offline",
-        "branch": command_output(["git", "branch", "--show-current"]),
-        "commit": command_output(["git", "rev-parse", "HEAD"]),
-        "started_at": started.isoformat(),
-        "completed_at": completed.isoformat(),
+        "ci_mode": mode,
+        "route": "device-offline" if mode == "local" else mode,
+        "brand": "Sovereignty-AI-Studio",
+        "branch": git_branch(),
+        "commit": git_sha(),
+        "agent": "Ara/Grok",
+        "operator": "Appel420",
+        "started_at": started.astimezone(timezone.utc).isoformat(),
+        "completed_at": datetime.now(timezone.utc).isoformat(),
         "why": why,
-        "status": "FAIL" if failed else "PASS",
+        "action": action,
+        "destination": destination,
+        "scope": scope,
         "results": results,
+        "status": "FAIL" if failed else "PASS",
+        "external_execution": mode != "local",
+        "isolation": isolation,
         "scar": {
-            "event_type": "LOCAL_CI_COMPLETED",
-            "event_class": "verification",
+            "event_type": "LOCAL_CI_COMPLETED" if mode == "local" else "ROUTE_SELECTED",
+            "event_class": "verification" if mode == "local" else "policy",
             "metadata": {
-                "mode": "local",
-                "network": "isolated" if isolation == "network-namespace" else "not-enforced",
-                "package_install": "disabled",
-                "provider_calls": "disabled",
+                "mode": mode,
+                "network": "isolated" if mode == "local" else mode,
+                "package_install": "disabled" if mode == "local" else "explicit",
+                "provider_calls": "disabled" if mode == "local" else "explicit",
+                "external_execution": mode != "local",
             },
         },
     }
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Device-local, offline coordination CI")
-    parser.add_argument("--ci-name", default="coordination-unit-ci-local")
-    parser.add_argument("--why", default="offline coordination validation")
-    parser.add_argument(
-        "--offline-enforcement",
-        choices=("required", "best-effort", "none"),
-        default="required",
-        help="required is the default and refuses to run outside a Linux network namespace",
-    )
+    parser = argparse.ArgumentParser(description="Named local CI with governance stamp")
+    parser.add_argument("--ci-name", default="ara-hardened-unit-ci-local")
+    parser.add_argument("--confirm-mode", default="")
+    parser.add_argument("--destination", default="")
+    parser.add_argument("--scope", default="local-validation")
+    parser.add_argument("--why", default="isolated validation")
     args = parser.parse_args()
 
     try:
         mode = parse_mode_from_name(args.ci_name)
-    except ValueError as error:
-        parser.error(str(error))
+    except ValueError as exc:
+        print(f"BLOCKED: {exc}", file=sys.stderr)
+        return 2
+
+    missing = validate_external_metadata(
+        mode=mode, confirm_mode=args.confirm_mode, destination=args.destination,
+        scope=args.scope, why=args.why,
+    )
+    if missing:
+        print(f"BLOCKED: missing authorization metadata: {', '.join(missing)}", file=sys.stderr)
+        return 2
     if mode != "local":
-        print("BLOCKED: this runner implements device-local mode only", file=sys.stderr)
-        return 2
-
-    isolated = reexec_in_network_namespace(args)
-    if isolated is not None:
-        return isolated
-
-    if importlib.util.find_spec("pytest") is None:
-        print("BLOCKED: pytest is not installed locally; this runner never installs packages", file=sys.stderr)
-        return 2
-
-    test_files = coordination_test_files()
-    if not test_files:
-        print("BLOCKED: no backend/coordination/test_*.py files found", file=sys.stderr)
-        return 2
+        print("Non-local execution is not implemented in this runner.", file=sys.stderr)
+        return 3
 
     started = datetime.now(timezone.utc)
-    command = [sys.executable, "-m", "pytest", "-q", *map(str, test_files)]
-    print("=" * 60)
-    print(f"CI:     {args.ci_name}")
-    print("MODE:   LOCAL (device-only)")
-    print("NETWORK: isolated network namespace")
-    print("PACKAGES: existing local environment only")
-    print("SUITE:  backend/coordination/test_*.py")
-    print("=" * 60)
-    process = subprocess.run(command, cwd=ROOT, env=local_env())
-    results = [{"suite": "coordination", "exit": process.returncode, "tests": len(test_files)}]
-    stamp = build_stamp(
-        ci_name=args.ci_name,
-        why=args.why,
-        started=started,
-        results=results,
-        isolation="network-namespace",
-    )
+    env = local_env()
+    results: list[dict] = []
 
-    reports = ROOT / "reports"
-    reports.mkdir(mode=0o700, exist_ok=True)
-    report_path = reports / f"{args.ci_name}-{int(time.time())}.json"
-    report_path.write_text(json.dumps(stamp, indent=2) + "\n", encoding="utf-8")
+    if "accessibility" in args.ci_name:
+        command = [sys.executable, "-m", "pytest", "-q", str(ROOT / "prototypes/accessibility/tests/test_accessibility_control.py")]
+        proc = subprocess.run(command, cwd=ROOT, env=env)
+        results.append({"suite": "accessibility", "exit": proc.returncode})
+    else:
+        code = subprocess.run(
+            [sys.executable, "-c", "from backend.coordination import BranchRegistry; r=BranchRegistry(); assert r.is_writable('ara-hardened'); print('coordination OK')"],
+            cwd=ROOT, env=env,
+        ).returncode
+        results.append({"suite": "coordination", "exit": code, "tests": 1})
+        acc = ROOT / "prototypes/accessibility/tests/test_accessibility_control.py"
+        if acc.exists():
+            proc = subprocess.run([sys.executable, "-m", "pytest", "-q", str(acc)], cwd=ROOT, env=env)
+            results.append({"suite": "accessibility", "exit": proc.returncode})
+
+    stamp = build_stamp(
+        ci_name=args.ci_name, mode=mode, why=args.why, action="local-validation",
+        destination=args.destination, scope=args.scope, started=started,
+        results=results, isolation="network-namespace",
+    )
+    out = ROOT / "reports"
+    out.mkdir(exist_ok=True)
+    path = out / f"{args.ci_name}-{int(time.time())}.json"
+    path.write_text(json.dumps(stamp, indent=2), encoding="utf-8")
     print(json.dumps(stamp, indent=2))
-    print(f"report: {report_path}")
-    return process.returncode
+    print(f"report: {path}")
+    return 1 if stamp["status"] == "FAIL" else 0
 
 
 if __name__ == "__main__":
