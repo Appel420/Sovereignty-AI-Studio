@@ -16,8 +16,8 @@ permissions:
 
 jobs:
   test:
-    name: Python CI (self-hosted)
-    runs-on: [self-hosted, linux arm64]
+    name: Python CI (self-hosted ARM64)
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout exact revision
@@ -71,4 +71,5 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
+        run: |
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

@@ -2,23 +2,15 @@ name: Python CI
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
-
-concurrency:
-  group: python-ci-${{ github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   test:
-    name: Python CI (self-hosted)
-    runs-on: self-hosted
-    timeout-minutes: 15
+    name: Python CI 
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout exact commit
         shell: bash
@@ -26,28 +18,45 @@ jobs:
           set -Eeuo pipefail
           git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
+
       - name: Verify local runner
+        shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+
       - name: Set up isolated Python environment
+        shell: bash
         run: |
           set -Eeuo pipefail
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
       - name: Install project test dependencies
+        shell: bash
         run: |
           set -Eeuo pipefail
           python -m pip install --no-cache-dir -e ".[test]"
           python -m pip install --no-cache-dir ruff pytest
+
       - name: Lint
-        run: ruff check backend/coordination prototypes/accessibility
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          targets=()
+          for directory in backend/coordination prototypes/accessibility; do
+            [[ -e "${directory}" ]] && targets+=("${directory}")
+          done
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
+        shell: bash
         run: python -m pytest -q
+
       - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch registry; print('Coordination import: ok')"

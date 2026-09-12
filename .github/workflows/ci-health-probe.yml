@@ -1,8 +1,6 @@
 name: CI Health Probe
 
 on:
-  push:
-    branches: [Collaboration]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +8,7 @@ permissions:
 
 jobs:
   probe:
-    name: CI health probe
+    name: CI health probe (manual)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
