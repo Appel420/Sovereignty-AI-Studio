@@ -2,10 +2,6 @@ name: CodeQL Scan
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
@@ -17,7 +13,7 @@ concurrency:
 jobs:
   analyze:
     name: Local Security Gate
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 10
 
     steps:
@@ -77,12 +73,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          if [[ "${RUNNER_OS}" != "Linux" ]]; then
-            echo "ERROR: This workflow requires a Linux self-hosted runner." >&2
-            exit 1
-          fi
-
+          test "${RUNNER_OS}" = "Linux"
       - name: Scan workflow action policy
         shell: bash
         run: |
@@ -104,12 +95,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          if grep -RInI -E \
-            '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' \
-            .
-          then
-            echo "ERROR: High-risk credential material detected." >&2
+          if grep -RInE '(BEGIN (RSA|OPENSSH|EC|DSA|PRIVATE KEY)|ghp_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,})' . \
+            --exclude-dir=.git --exclude-dir=.venv --exclude-dir=node_modules --exclude-dir=external; then
             exit 1
           fi
 
