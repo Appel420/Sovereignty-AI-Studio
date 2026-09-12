@@ -19,13 +19,13 @@ jobs:
     name: Python CI (global)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    steps:
+    steps: 
       - name: Checkout exact revision
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify checkout
         shell: bash
@@ -45,14 +45,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Install project test dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --no-cache-dir -e ".[test]"
-          python -m pip install --no-cache-dir ruff pytest
-
+    
       - name: Lint
         shell: bash
         run: |
@@ -71,4 +64,5 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: |
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
