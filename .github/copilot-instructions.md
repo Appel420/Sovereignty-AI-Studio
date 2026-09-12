@@ -1,4 +1,4 @@
-# Universal agent guidelines (all agents)
+# Universal agent guidelines (all AI)
 
 **Applies to everyone:** Ara / Grok, Claude, GPT / Codex, Copilot, DevAssist420, DuckAI, Sovereignty AI, and any other agent or helper.
 
