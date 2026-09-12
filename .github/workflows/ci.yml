@@ -33,7 +33,6 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Runner evidence
-        shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
@@ -41,25 +40,15 @@ jobs:
           echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
           echo "REPOSITORY=${GITHUB_REPOSITORY}"
           echo "SHA=${GITHUB_SHA}"
+      - name: Install test tools
+        run: python3 -m pip install --disable-pip-version-check pytest
       - name: Python syntax gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 -m compileall -q backend apps scripts tests
+        run: python3 -m compileall -q backend apps scripts tests
       - name: Coordination import gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
       - name: Test collection gate
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 -m pytest --collect-only -q tests
+        run: python3 -m pytest --collect-only -q tests
       - name: Test suite
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 -m pytest -q tests
+        run: python3 -m pytest -q tests
       - name: Final result
         run: printf 'COLLABORATION_CI=PASS\n'
