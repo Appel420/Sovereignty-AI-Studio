@@ -16,11 +16,22 @@ permissions:
 
 jobs:
   test:
-    name: Python CI (self-hosted)
-    runs-on: [self-hosted, linux arm64]
-    timeout-minutes: 15
+    name: Python CI
+    # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
+    # when a registered sovereign runner is available.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Checkout exact commit
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Install test/lint tools
         shell: bash
         run: |
           set -Eeuo pipefail
