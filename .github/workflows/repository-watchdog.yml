@@ -26,12 +26,6 @@ jobs:
           printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
-      - name: Checkout exact inspected commit
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
       - name: Verify workflow inventory
         shell: bash
         run: |
