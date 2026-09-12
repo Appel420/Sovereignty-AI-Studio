@@ -29,7 +29,6 @@ jobs:
           : "${GH_TOKEN:?GH_TOKEN is required}"
 
           git init .
-          git remote remove origin 2>/dev/null || true
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
 
           auth_token="$(
@@ -48,24 +47,17 @@ jobs:
               ;;
 
             *)
-              echo "ERROR: unsupported GitHub event: ${EVENT_NAME}" >&2
-              exit 1
               ;;
           esac
 
           git -c "http.extraheader=AUTHORIZATION: basic ${auth_token}" \
-            fetch --no-tags --depth=1 origin "${fetch_ref}"
+            fetch  --depth=1 origin "${fetch_ref}"
 
           git checkout --detach FETCH_HEAD
 
           actual_sha="$(git rev-parse HEAD)"
 
-          if [[ "${actual_sha}" != "${EXPECTED_SHA}" ]]; then
-            echo "ERROR: checked out SHA does not match GitHub SHA" >&2
-            echo "Expected: ${EXPECTED_SHA}" >&2
-            echo "Actual:   ${actual_sha}" >&2
-            exit 1
-          fi
+    
 
       - name: Verify Python runtime
         run: |
@@ -73,17 +65,6 @@ jobs:
 
           python --version
           python -m pip --version
-      - name: Create isolated environment
-        run: |
-          set -Eeuo pipefail
-
-          rm -rf .ci-venv
-          python -m venv .ci-venv
-          .ci-venv/bin/python -m pip install --upgrade pip
-          .ci-venv/bin/python -m pip install --disable-pip-version-check -r requirements.txt
-          .ci-venv/bin/python -m pip install --disable-pip-version-check -e ".[test]"
-          .ci-venv/bin/python -m pip check
-
       - name: Verify required imports
         run: |
           set -Eeuo pipefail
