@@ -8,7 +8,7 @@ on:
     branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
-  group: python-ci-${{ github.ref }}
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -16,31 +16,31 @@ permissions:
 
 jobs:
   test:
-    name: Python CI (self-hosted ARM64)
-    runs-on: macos-latest
-    timeout-minutes: 10
+    name: Python CI (global)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout exact revision
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
 
-      - name: Verify local runner
+      - name: Verify checkout
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          test -n "${GITHUB_SHA}"
-          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
+          test -d .git
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          echo "CHECKOUT_OK=true"
+          echo "COMMIT=${GITHUB_SHA}"
           echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
 
       - name: Set up isolated Python environment
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 --version
           python3 -m venv .venv
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
@@ -71,5 +71,4 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: |
-          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

@@ -1,4 +1,4 @@
-name: Python CI
+name: Python CI (manual)
 
 on:
   workflow_dispatch:
@@ -8,64 +8,43 @@ permissions:
 
 jobs:
   test:
-    name: Python CI 
+    name: Python CI manual
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
+      - name: Verify checkout
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -d .git
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.13'
           cache: pip
-      - name: Install test/lint tools
+      - name: Install project dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-
-      - name: Verify local runner
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${GITHUB_ACTIONS}" = "true"
-          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
-
-      - name: Set up isolated Python environment
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 -m venv .venv
-          . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
-          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Install project test dependencies
-        shell: bash
-        run: |
-          set -Eeuo pipefail
           python -m pip install --no-cache-dir -e ".[test]"
           python -m pip install --no-cache-dir ruff pytest
-
+          python -m pip check
       - name: Lint
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          targets=()
-          for directory in backend/coordination prototypes/accessibility; do
-            [[ -e "${directory}" ]] && targets+=("${directory}")
-          done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
-
+        run: ruff check backend/coordination prototypes/accessibility
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
         shell: bash
         run: python -m pytest -q
-
       - name: Coordination import check
-        run: python -c "from backend.coordination import branch registry; print('Coordination import: ok')"
+        shell: bash
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
