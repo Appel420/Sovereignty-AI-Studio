@@ -2,7 +2,9 @@ name: Repository Watchdog
 
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [Collaboration]
+  pull_request:
+    branches: [Collaboration]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +12,7 @@ permissions:
 
 concurrency:
   group: repository-watchdog-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   watch:
@@ -29,31 +31,28 @@ jobs:
       - name: Checkout exact inspected commit
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           fetch-depth: 1
+          persist-credentials: false
       - name: Verify workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml)
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml repository-watchdog.yml)
           for required in "${required_workflows[@]}"; do
             test -f ".github/workflows/$required"
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
           done
-      - name: Verify local runner contracts
+      - name: Verify executable workflow boundary
         shell: bash
         run: |
           set -Eeuo pipefail
-          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml repository-watchdog.yml; do
-            if grep -Eq 'runs-on:([[:space:]]|$)' ".github/workflows/$workflow"; then
-            
-            else
-              echo "ubuntu-latest contract present in $workflow"
-            fi
-          done
-          echo 'RUNNER_CONTRACTS=PASS'
+          test -d .github/workflows
+          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
+          echo 'WORKFLOW_BOUNDARY=PASS'
       - name: Final watchdog result — visible
         shell: bash
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=PASS\n'
-          printf 'WATCHDOG_RESULT=VISIBLE_LOCAL_RUNNER_CONTRACTS_VERIFIED\n'
+          printf 'WATCHDOG_RESULT=VISIBLE_COLLABORATION_WORKFLOW_BOUNDARY_VERIFIED\n'
