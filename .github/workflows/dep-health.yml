@@ -2,7 +2,8 @@ name: Dependency Health
 
 on:
   workflow_dispatch:
-  branches: [Collaboration]
+    
+     branches: [Collaboration]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
