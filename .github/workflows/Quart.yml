@@ -13,9 +13,6 @@ permissions:
 concurrency:
   group: quart-ci-${{ github.ref }}
   cancel-in-progress: false
-defaults: 
-  run: |
-
 jobs:
   test:
     name: Quart tests
