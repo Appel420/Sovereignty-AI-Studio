@@ -1,3 +1,5 @@
+# Retired because the workflow registration produced startup_failure with zero jobs.
+# Preserved verbatim from Collaboration for audit/recovery.
 name: Collaboration Gate
 
 on:

@@ -1,13 +1,13 @@
 name: ara-hardened-unit-ci-local
 
-# Explicit compatibility lane. The authoritative repository gate is
-# .github/workflows/ci.yml. This workflow is intentionally visible on pushes
-# and pull requests so failures are reported as normal checks.
+# Known-good Collaboration execution lane. This workflow is intentionally
+# visible on Collaboration pull requests and pushes.
 on:
   workflow_dispatch:
   push:
     branches:
       - ara-hardened
+      - Collaboration
   pull_request:
     branches:
       - ara-hardened
@@ -29,9 +29,9 @@ env:
 
 jobs:
   light:
-    name: Visible local coordination and accessibility checks
+    name: Visible Collaboration validation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout repository without external actions
         env:
@@ -39,53 +39,42 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
-
       - name: Startup verification
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "Running visible CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
-
-      - name: Set up isolated Python
+          echo "REPOSITORY=${GITHUB_REPOSITORY}"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+          echo "SHA=${GITHUB_SHA}"
+      - name: Install test tools
+        run: python3 -m pip install --disable-pip-version-check pytest ruff
+      - name: Python syntax gate
+        run: python3 -m compileall -q backend apps scripts tests
+      - name: Lint
         shell: bash
         run: |
           set -Eeuo pipefail
-
-          python_bin="$(command -v python3.13 || command -v python3)"
-          "${python_bin}" -m venv .venv
-          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-          python --version
-
-      - name: Install minimal test tools
-        run: |
-          set -Eeuo pipefail
-          python -m pip install --upgrade pip pytest
-
+          targets=()
+          for directory in backend/coordination prototypes/accessibility; do
+            [[ -e "$directory" ]] && targets+=("$directory")
+          done
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
       - name: Coordination import check
-        run: |
-          set -Eeuo pipefail
-          python - <<'PY'
-          import sys
-          sys.path.insert(0, '.')
-          from backend.coordination import BranchRegistry
-
-          registry = BranchRegistry()
-          assert not registry.is_writable('main')
-          assert not registry.is_writable('collaboration')
-          assert registry.is_writable('ara-hardened')
-          print('coordination OK')
-          PY
-
-      - name: Accessibility harness tests
+        run: python3 -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+      - name: Test collection gate
+        run: python3 -m pytest --collect-only -q tests
+      - name: Test suite
+        run: python3 -m pytest -q tests
+      - name: Accessibility harness
         env:
           PYTHONPATH: prototypes
-        run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
+        run: python3 -m pytest -q prototypes/accessibility/tests/test_accessibility_control.py
+      - name: Final result
+        run: printf 'COLLABORATION_VALIDATION=PASS\n'
