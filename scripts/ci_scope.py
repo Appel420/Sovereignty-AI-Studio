@@ -1,117 +1,135 @@
 #!/usr/bin/env python3
-"""Compute an offline, incremental local-CI scope from Git changes.
-
-This module never installs dependencies and never contacts package registries.
-Full validation is selected only for dependency/build/workflow changes or an
-explicit FULL_CI=1 request. The local CI runner decides how to execute checks.
-"""
 from __future__ import annotations
 
-import os
-from pathlib import Path
-import subprocess
-import sys
+import argparse
+import json
+from pathlib import PurePosixPath
+from typing import Iterable
 
-ROOT = Path(__file__).resolve().parents[1]
-FULL_MARKERS = (
-    "requirements",
+FULL_PATHS = {
+    ".github/workflows/",
+    ".github/actions/",
     "pyproject.toml",
+    "pytest.ini",
+    "tox.ini",
+    "setup.py",
+    "setup.cfg",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "requirements-test.txt",
     "package.json",
     "package-lock.json",
     "npm-shrinkwrap.json",
-    "pytest.ini",
-    "Makefile",
-    "Dockerfile",
-    "docker-compose",
-    ".github/workflows/",
-    "scripts/local-ci.sh",
-    "scripts/ci_scope.py",
-    "config/runtime-coherence.json",
-    "PLATFORM.json",
-)
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "Cargo.toml",
+    "Cargo.lock",
+    "rust-toolchain",
+    "rust-toolchain.toml",
+    ".gitmodules",
+    "node_modules/",
+    ".venv/",
+    "venv/",
+    "build/",
+    "dist/",
+    "downloads/",
+}
+
+EXCLUDED_PREFIXES = {
+    "external/",
+    "vendor/",
+}
+
+PYTHON_SUFFIXES = {".py", ".pyi"}
+NODE_SUFFIXES = {".js"}
+RUST_SUFFIXES = {".rs"}
 
 
-def runtime_files(names: set[str]) -> set[str]:
-    """Return runtime paths, excluding external vendor/reference content."""
-    return {
-        name for name in names
-        if name and name != "external" and not name.startswith("external/")
+def _normalize(path: str) -> str:
+    value = str(path).replace("\\", "/").lstrip("./")
+    return str(PurePosixPath(value))
+
+
+def _is_excluded(path: str) -> bool:
+    return any(
+        path == prefix.rstrip("/") or path.startswith(prefix)
+        for prefix in EXCLUDED_PREFIXES
+    )
+
+
+def _requires_full(path: str) -> bool:
+    if path in FULL_PATHS:
+        return True
+    return any(
+        path.startswith(prefix)
+        for prefix in FULL_PATHS
+        if prefix.endswith("/")
+    )
+
+
+def scope(changed_paths: Iterable[str]) -> dict[str, object]:
+    normalized = sorted(
+        {
+            _normalize(path)
+            for path in changed_paths
+            if str(path).strip()
+        }
+    )
+
+    changed = [path for path in normalized if not _is_excluded(path)]
+
+    result: dict[str, object] = {
+        "changed": changed,
+        "python": [],
+        "node": [],
+        "rust": [],
+        "full": True,
     }
 
+    python: list[str] = []
+    node: list[str] = []
+    rust: list[str] = []
 
-def git_names(*args: str) -> set[str]:
-    result = subprocess.run(
-        ["git", "-C", str(ROOT), "diff", "--name-only", *args],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    for path in changed:
+        if _requires_full(path):
+            result["full"] = True
 
+        suffix = PurePosixPath(path).suffix.lower()
 
-def changed_files() -> set[str]:
-    names = git_names()
-    names |= git_names("--cached")
+        if suffix in PYTHON_SUFFIXES:
+            python.append(path)
+        elif suffix in NODE_SUFFIXES:
+            node.append(path)
+        elif suffix in RUST_SUFFIXES:
+            rust.append(path)
 
-    untracked = subprocess.run(
-        ["git", "-C", str(ROOT), "ls-files", "--others", "--exclude-standard"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    names |= {line.strip() for line in untracked.stdout.splitlines() if line.strip()}
+    result["python"] = python
+    result["node"] = node
+    result["rust"] = rust
 
-    base = os.environ.get("BASE_SHA") or os.environ.get("GITHUB_BASE_SHA")
-    head = os.environ.get("HEAD_SHA") or os.environ.get("GITHUB_SHA")
-    if base and head:
-        names |= git_names(f"{base}...{head}")
-    elif not names:
-        names |= git_names("HEAD~1", "HEAD")
-    return runtime_files(names)
-
-
-def scope(names: set[str]) -> dict[str, object]:
-    names = runtime_files(names)
-    full = bool(os.environ.get("FULL_CI")) or any(
-        name == marker or name.startswith(marker)
-        for name in names
-        for marker in FULL_MARKERS
-    )
-    python_files = sorted(name for name in names if name.endswith(".py"))
-    node_files = sorted(name for name in names if name.endswith((".js", ".mjs", ".cjs")))
-    shell_files = sorted(name for name in names if name.endswith(".sh"))
-    test_files = sorted(
-        name for name in names if name.startswith("tests/") and name.endswith(".py")
-    )
-    frontend_changed = any(
-        name.startswith("frontend/") or name.endswith((".html", ".css"))
-        for name in names
-    )
-    return {
-        "full": full,
-        "python": python_files,
-        "node": node_files,
-        "shell": shell_files,
-        "tests": test_files,
-        "frontend": frontend_changed,
-        "changed": sorted(names),
-    }
+    return result
 
 
 def main() -> int:
-    names = changed_files()
-    result = scope(names)
-    if len(sys.argv) == 1 or sys.argv[1] == "--json":
-        import json
-        print(json.dumps(result, indent=2, sort_keys=True))
-        return 0
-    value = result.get(sys.argv[1])
-    if isinstance(value, list):
-        print("\n".join(str(item) for item in value))
-    elif isinstance(value, bool):
-        print("1" if value else "0")
-    else:
-        print(value or "")
+    parser = argparse.ArgumentParser(
+        description="Classify changed files into CI lanes"
+    )
+    parser.add_argument(
+        "paths",
+        nargs="*",
+        help="repository-relative changed paths",
+    )
+
+    args = parser.parse_args()
+
+    print(
+        json.dumps(
+            scope(args.paths),
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
     return 0
 
 

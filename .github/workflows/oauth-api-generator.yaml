@@ -1,0 +1,114 @@
+name: OAUTH — local contract
+
+on:
+  push:
+    branches: [Collaboration]
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+  pull_request:
+    branches: [Collaboration]
+    paths: ['.github/workflows/oauth-api-generator.yaml', 'scripts/**', 'config/**', 'tests/**', 'pyproject.toml']
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  PYTHONPATH: .:./backend:./src:./prototypes
+
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  oauth-contract:
+    name: OAUTH — local contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
+    steps:
+      - name: Checkout repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Install canonical repository dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -e '.[test]'
+          python3 -m pip check
+      - name: Verify canonical imports
+        run: |
+          python3 - <<'PY'
+          from importlib.metadata import version
+          import fastapi, nacl, pydantic, quart, pytest, pytest_asyncio
+          expected = {
+              'fastapi': '0.139.2',
+              'PyNaCl': '1.6.2',
+              'pydantic': '2.13.4',
+              'quart': '0.20.0',
+          }
+          for package, required in expected.items():
+              actual = version(package)
+              print(f'{package}: {actual}')
+              assert actual == required, f'{package}: expected {required}, got {actual}'
+          print('canonical dependency closure: PASS')
+          PY
+      - name: Validate canonical local OAuth
+        run: python3 scripts/validate-local-oauth.py
+      - name: OAuth generator contract tests
+        run: python3 -m pytest -q tests/test_oauth_local_generator.py
+
+  node-check:
+    name: Node validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
+    steps:
+      - name: Checkout repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Node checks
+        run: |
+          test -f package.json
+          node --check node-bridge/server.js
+
+  security-scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
+    steps:
+      - name: Checkout repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Install test dependencies
+        run: python3 -m pip install --upgrade pip pytest
+      - name: Security policy contract
+        run: |
+          test -f scripts/security_policy_scan.py
+          python3 -m pytest -q tests/contracts/security/test_security_policy_scan.py
+
+  # Sovereign ARM64 execution is centralized in ci-sovereign.yml.
+  # No duplicate self-hosted handoff is permitted here.

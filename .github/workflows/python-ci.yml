@@ -3,12 +3,12 @@ name: Python CI
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [Collaboration, main, dev, copilot/main]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
-  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  group: python-ci-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -19,7 +19,7 @@ jobs:
     name: Python CI
     # Portable default. Set SOVEREIGN_CI_RUNNER=self-hosted Linux arm64
     # when a registered sovereign runner is available.
-    runs-on: ['self-hosted, linux arm64']
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -35,18 +35,29 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install ruff pytest
-          if [[ -f pyproject.toml ]]; then python -m pip install -e '.[test,lint]'; fi
-      - name: Lint
-        shell: bash
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+      - name: Verify local runner
         run: |
           set -Eeuo pipefail
-          if [[ -d backend ]]; then ruff check backend; fi
-          if [[ -d prototypes/accessibility ]]; then ruff check prototypes/accessibility; fi
+          test "${GITHUB_ACTIONS}" = "true"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
+      - name: Set up isolated Python environment
+        run: |
+          set -Eeuo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+      - name: Install project test dependencies
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
+      - name: Lint
+        run: ruff check backend/coordination prototypes/accessibility
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
         run: python -m pytest -q
-      - name: Coordination import check
-        run: python -c "from backend.coordination import BranchRegistry; print('ok')"
+  python -c "from backend.coordination import branch_registry; print('Coordination import: 'ok')"

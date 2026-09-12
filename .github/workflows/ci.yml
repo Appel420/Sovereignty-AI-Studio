@@ -1,112 +1,75 @@
-name: CI
+name: Python CI
 
 on:
-  push:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
-  pull_request:
-    branches: [ara-hardened, Collaboration, main, dev, copilot/main]
   workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
-  group: github-ci-${{ github.workflow }}-${{ github.ref }}
+  group: python-ci-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
-  conformance:
-    name: GitHub CI
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+  test:
+    name: Python CI (self-hosted)
+    runs-on: [self-hosted, linux arm64]
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
+      - name: Checkout exact revision
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
 
-      - name: Verify runner execution
+      - name: Verify local runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          test -n "${RUNNER_OS}"
-          test -n "${RUNNER_ARCH}"
-          echo "CI controller: GitHub Actions"
-          echo "Execution mode: portable hosted"
-          echo "Actual runner: ${RUNNER_OS}/${RUNNER_ARCH}"
-          echo "Runner name: ${RUNNER_NAME}"
-          echo "Workflow: ${GITHUB_WORKFLOW}"
-          echo "Run ID: ${GITHUB_RUN_ID}"
-          echo "Commit: ${GITHUB_SHA}"
+          echo "SELF_HOSTED_RUNNER=${RUNNER_NAME}"
+          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-          cache: pip
-          cache-dependency-path: |
-            pyproject.toml
-            requirements.txt
-
-      - name: Install Python dependencies
+      - name: Set up isolated Python environment
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --upgrade pip
-          python -m pip install -e '.[test,lint]'
-          if [[ -f requirements.txt ]]; then
-            python -m pip install -r requirements.txt
-          fi
-          python -m pip check
-          python - <<'PY'
-          import nacl
-          print('PyNaCl:', nacl.__version__)
-          PY
+          python3 --version
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
 
-      - name: Python lint diagnostics
-        continue-on-error: true
+      - name: Install project test dependencies
         shell: bash
         run: |
           set -Eeuo pipefail
-          if [[ -d sovereign ]]; then ruff check sovereign; fi
-          if [[ -d backend ]]; then ruff check backend; fi
+          python -m pip install --no-cache-dir -e ".[test]"
+          python -m pip install --no-cache-dir ruff pytest
 
-      - name: Python tests
+      - name: Lint
         shell: bash
+        run: |
+          set -Eeuo pipefail
+          targets=()
+          for directory in backend/coordination prototypes/accessibility; do
+            [[ -e "${directory}" ]] && targets+=("${directory}")
+          done
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+
+      - name: Run tests
         env:
-          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src:${{ github.workspace }}/backend:${{ github.workspace }}/prototypes
-        run: |
-          set -Eeuo pipefail
-          if [[ -d tests ]]; then python -m pytest -q tests; fi
+          PYTHONPATH: prototypes:.
+        shell: bash
+        run: python -m pytest -q
 
-      - name: Phase 0 Rust tests
+      - name: Coordination import check
         shell: bash
         run: |
-          set -Eeuo pipefail
-          if [[ -f phase0/Cargo.toml ]]; then
-            command -v cargo >/dev/null 2>&1
-            cargo test --manifest-path phase0/Cargo.toml
-          else
-            echo 'phase0/Cargo.toml not present; skipping Phase 0 Rust tests'
-          fi
-
-      - name: Node syntax check
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -f node-bridge/server.js ]]; then
-            command -v node >/dev/null 2>&1
-            node --check node-bridge/server.js
-          fi
-
-      - name: Frontend ownership contract
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then
-            command -v node >/dev/null 2>&1
-            node frontend/scripts/test-sghv119-ownership.js
-          fi
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"

@@ -2,37 +2,44 @@ name: Node Bridge CI
 
 on:
   push:
-    branches: [ main, Collaboration ]
-    paths:
-      - 'node-bridge/**'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   pull_request:
-    branches: [ main, Collaboration ]
-    paths:
-      - 'node-bridge/**'
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: node-bridge-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   test:
+    name: Node Bridge tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
+      - name: Checkout repository without external actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '25'
-          cache: npm
-          cache-dependency-path: node-bridge/package-lock.json
+        run: node --version
       - name: Install dependencies
         working-directory: node-bridge
-        run: npm ci
+        run: npm install --ignore-scripts --no-audit --no-fund
       - name: Run tests
         working-directory: node-bridge
         run: npm test

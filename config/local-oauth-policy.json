@@ -1,16 +1,6 @@
 {
-  "issuer": "local",
-  "generator": "scripts/oauth_local_generator.py",
-  "signing_algorithm": "Ed25519",
-  "network_access": false,
   "external_oauth": "disabled",
-  "credential_storage": {
-    "metadata": "oauth-client.json",
-    "private_key": "oauth-private-key.pem",
-    "provenance": "provenance.json",
-    "metadata_mode": "0600",
-    "private_key_mode": "0600",
-    "provenance_mode": "0600"
-  },
-  "dry_run_command": "python3 scripts/oauth_local_generator.py --dry-run"
+  "generator": "scripts/oauth_local_generator.py",
+  "issuer": "local",
+  "network_access": false
 }

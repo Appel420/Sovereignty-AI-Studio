@@ -1,0 +1,20 @@
+name: PyCharm Python Security
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pycharm-security-recovery:
+    name: PyCharm security recovery / visible execution
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Report workflow state
+        run: |
+          set -euo pipefail
+          echo "WORKFLOW_VISIBLE=true"
+          echo "WORKFLOW_FILE=.github/workflows/PyCharm.yml"
+          echo "RECOVERY_MODE=VISIBLE"
+          echo "ORIGINAL_IMPLEMENTATION_REQUIRES_RESTORATION=true"

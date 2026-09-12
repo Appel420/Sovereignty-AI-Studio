@@ -3,15 +3,6 @@ EventBus — in-process async pub/sub for agent coordination.
 
 Agents and services can subscribe to typed events and publish to them.
 Events are dispatched to all subscribers of a given type.
-
-Usage:
-    bus = EventBus()
-    bus.subscribe("ai_response", my_handler)
-    await bus.publish("ai_response", {"text": "Hello"})
-    # my_handler({"text": "Hello"}) is called
-
-Wildcard subscription:
-    bus.subscribe("*", catch_all_handler)
 """
 
 import asyncio
@@ -20,7 +11,6 @@ from collections import defaultdict
 from typing import Any, Callable, Coroutine
 
 log = logging.getLogger("watchers.event_bus")
-
 Handler = Callable[[dict[str, Any]], Coroutine | None]
 
 
@@ -32,12 +22,8 @@ class EventBus:
         self._history: list[dict[str, Any]] = []
         self._max_history = 200
 
-    # ------------------------------------------------------------------
-    # Subscribe / unsubscribe
-    # ------------------------------------------------------------------
-
     def subscribe(self, event_type: str, handler: Handler) -> None:
-        """Register a handler for `event_type`. Use '*' for all events."""
+        """Register a handler for ``event_type``; ``*`` receives all events."""
         if handler not in self._subscribers[event_type]:
             self._subscribers[event_type].append(handler)
             log.debug("Subscribed %s → %s", handler.__name__, event_type)
@@ -50,22 +36,15 @@ class EventBus:
             pass
 
     def unsubscribe_all(self, handler: Handler) -> None:
-        """Remove a handler from all event types."""
+        """Remove a handler from every event type."""
         for handlers in self._subscribers.values():
             try:
                 handlers.remove(handler)
             except ValueError:
                 pass
 
-    # ------------------------------------------------------------------
-    # Publish
-    # ------------------------------------------------------------------
-
     async def publish(self, event_type: str, payload: dict[str, Any]) -> int:
-        """
-        Publish an event to all subscribers of `event_type` and '*'.
-        Returns the number of handlers invoked.
-        """
+        """Publish an event and return the number of handlers invoked."""
         event = {"type": event_type, **payload}
         self._history.append(event)
         if len(self._history) > self._max_history:
@@ -81,40 +60,41 @@ class EventBus:
                 if asyncio.iscoroutine(result):
                     await result
                 count += 1
-            except Exception as exc:
-                log.warning("Handler %s raised exception for event type %s: %s", handler, event_type, exc)
-
+            except Exception as exc:  # pylint: disable=broad-exception-caught
+                # A subscriber must not be able to terminate the event bus.
+                log.warning(
+                    "Handler %s raised exception for event type %s: %s",
+                    handler,
+                    event_type,
+                    exc,
+                )
         return count
 
     def publish_sync(self, event_type: str, payload: dict[str, Any]) -> None:
-        """
-        Schedule an async publish from sync code.
-        Requires a running event loop.
-        """
+        """Schedule ``publish`` from synchronous code when a loop is running."""
         try:
             loop = asyncio.get_running_loop()
             loop.create_task(self.publish(event_type, payload))
         except RuntimeError:
             log.warning("No running event loop — event %s dropped", event_type)
 
-    # ------------------------------------------------------------------
-    # Introspection
-    # ------------------------------------------------------------------
-
     def subscriber_count(self, event_type: str | None = None) -> int:
+        """Return the number of subscribers for one event or all events."""
         if event_type:
             return len(self._subscribers.get(event_type, []))
-        return sum(len(hs) for hs in self._subscribers.values())
+        return sum(len(handlers) for handlers in self._subscribers.values())
 
     def history(self, event_type: str | None = None, limit: int = 50) -> list[dict]:
+        """Return recent history, optionally filtered by event type."""
         items = (
-            [e for e in self._history if e.get("type") == event_type]
+            [event for event in self._history if event.get("type") == event_type]
             if event_type
             else list(self._history)
         )
         return items[-limit:]
 
     def status(self) -> dict:
+        """Return subscription and history status."""
         return {
             "subscriptions": {k: len(v) for k, v in self._subscribers.items() if v},
             "history_count": len(self._history),

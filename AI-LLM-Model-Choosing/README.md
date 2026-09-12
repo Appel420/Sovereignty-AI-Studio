@@ -5,8 +5,8 @@ Utilities for selecting and routing models across common families:
 - Claude (`claude-*`)
 - GPT (`gpt-*`)
 - Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
+- hybrid-Orchestrator (`DevAssist420-*`)
+- router (`Sovereignty AI-*`) 
 - DuckAI (`DuckAI-*`)
 
 This module is designed to work in "sovereign" mode: for on-device/self-hosted inference, it resolves model paths via environment variables and provides judge-model routing helpers for evaluation tasks.
@@ -19,8 +19,8 @@ List known models:
 python3 AI-LLM-Model-Claude (`claude-*`)
 - GPT (`gpt-*`)
 - Grok (`grok-*`)
-- hybrid (`DevAssist420-*`)
-- GitHub-Copilot(`GitHub-Copilot-*`) 
+- hybrid-Orchestrator (`DevAssist420-*`)
+- router (`Sovereignty AI-*`) 
 - DuckAI (`DuckAI-*Choosing/choose_model.py --list
 ```
 
@@ -29,7 +29,7 @@ Select a model (shows routing hints):
 ```bash
 python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-File-Storage/Model-Router, llm-vlm-grok-
 python3 AI-LLM-VLM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task chat
-python3 AI-LLM-VZlM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task judge
+python3 AI-LLM-VlM-Model-Choosing/choose_model.py --model DevAssist420-Local-Hybrid, grok-4-5 --task judge
 ```
 
 ### On-device model paths

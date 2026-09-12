@@ -1,3 +1,5 @@
-# Wrapper module to make weather_dashboard importable from root
-# This allows test_weather.py to import from weather_dashboard directly
+"""Root compatibility wrapper for the weather dashboard application."""
+
 from apps.dashboards.weather_dashboard import app
+
+__all__ = ["app"]
