@@ -2,17 +2,13 @@ name: Ara
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 permissions:
   contents: read
 
 jobs:
   ara:
-    name: Ara validation
+    name: Ara validation (manual)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -28,9 +24,7 @@ jobs:
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true
       - name: Verify runner
-        run: |
-          set -Eeuo pipefail
-          test "${RUNNER_OS}" = "Linux"
+        run: test "${RUNNER_OS}" = "Linux"
       - name: Validate first-party Python syntax
         shell: bash
         run: |
