@@ -2,88 +2,165 @@ name: Dependency Health
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [Collaboration, fix/ci-dep-health-pqc]
   pull_request:
     branches: [Collaboration]
   workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  SCAR_EVENT_CLASS: dep-health
 
 permissions:
   contents: read
 
 concurrency:
-  group: dep-health ${{ github.ref }}
+  group: dep-health-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   python-audit:
     name: Python — CVE audit
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout repository
+      - name: Checkout exact revision
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
       - name: Install pip-audit
-        run: python -m pip install --upgrade pip pip-audit
-      - name: Run pip-audit
         run: |
-          if [[ -f requirements.txt ]]; then
-            python -m pip_audit -r requirements.txt
-          else
-          
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip pip-audit
+
+      - name: Run pip-audit (fail-closed)
+        run: |
+          set -Eeuo pipefail
+          if [[ ! -f requirements.txt ]]; then
+            echo "SCAR_STATUS=FAIL"
+            echo "SCAR_REASON=requirements.txt missing"
+            exit 1
           fi
+          python -m pip_audit -r requirements.txt
+          echo "SCAR_STATUS=PASS"
+          echo "SCAR_JOB=python-audit"
 
-  python-outdated:
-    name: Python — requirements validation
-    runs-on: macos-latest
+  python-requirements:
+    name: Python — requirements structure + digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository
+      - name: Checkout exact revision
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: install
-        run: |
-          if [[ -f requirements.txt ]]; then show run
-           else
-           fi
 
-  node-audit:
-    name: Node.js — CVE audit
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          fetch-depth: 1
-      - name: npm audit
-        working-directory: node-bridge
-        run: |
-          if [[ -f package.json ]]; then
-            npm audit --audit-level=moderate
-          else
-          fi
+          python-version: '3.13'
 
-  requirements-lint:
-    name: Lint requirements files
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: Validate requirements structure
+      - name: Validate requirements and emit SCAR digest
         shell: bash
         run: |
           set -Eeuo pipefail
+          if [[ ! -f requirements.txt ]]; then
+            echo "SCAR_STATUS=FAIL"
+            echo "SCAR_REASON=requirements.txt missing"
+            exit 1
+          fi
           python - <<'PY'
-          import pathlib
-          for name in ('requirements.txt', '.github/workflows/Requirements.txt'):
+          import pathlib, re, hashlib, sys
+          path = pathlib.Path("requirements.txt")
+          text = path.read_text(encoding="utf-8")
+          lines = text.splitlines()
+          bad = []
+          for i, line in enumerate(lines, 1):
+              s = line.strip()
+              if not s or s.startswith("#"):
+                  continue
+              # pin or VCS/url allowed; bare unpinned names are rejected
+              if re.match(r"^[A-Za-z0-9_.\-\[\]]+$\s*$", s) and "==" not in s and "@" not in s:
+                  bad.append((i, s))
+          if bad:
+              for i, s in bad:
+                  print(f"UNPINNED line {i}: {s}", file=sys.stderr)
+              print("SCAR_STATUS=FAIL")
+              print("SCAR_REASON=unpinned requirements present")
+              sys.exit(1)
+          digest = hashlib.sha512(text.encode("utf-8")).hexdigest()
+          print(f"SCAR_REQUIREMENTS_SHA512={digest}")
+          print(f"SCAR_REQUIREMENTS_LINES={len(lines)}")
+          print("SCAR_STATUS=PASS")
+          print("SCAR_JOB=python-requirements")
+          PY
+
+  node-audit:
+    name: Node.js — CVE audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: npm audit (fail-closed when package.json present)
+        working-directory: node-bridge
+        run: |
+          set -Eeuo pipefail
+          if [[ ! -f package.json ]]; then
+            echo "SCAR_STATUS=SKIP"
+            echo "SCAR_REASON=node-bridge/package.json missing"
+            exit 0
+          fi
+          npm install --package-lock-only --ignore-scripts 2>/dev/null || true
+          npm audit --audit-level=moderate
+          echo "SCAR_STATUS=PASS"
+          echo "SCAR_JOB=node-audit"
+
+  requirements-lint:
+    name: Lint requirements files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Structural lint
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import pathlib, sys
+          checked = 0
+          for name in ("requirements.txt",):
               path = pathlib.Path(name)
-              if path.exists():
-                  for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-                      pass
-          print('requirements files are structurally valid')
+              if not path.exists():
+                  print(f"MISSING: {name}", file=sys.stderr)
+                  print("SCAR_STATUS=FAIL")
+                  sys.exit(1)
+              data = path.read_text(encoding="utf-8")
+              if not data.strip():
+                  print(f"EMPTY: {name}", file=sys.stderr)
+                  print("SCAR_STATUS=FAIL")
+                  sys.exit(1)
+              checked += 1
+              print(f"OK: {name} ({len(data)} bytes)")
+          print(f"SCAR_FILES_CHECKED={checked}")
+          print("SCAR_STATUS=PASS")
+          print("SCAR_JOB=requirements-lint")
           PY

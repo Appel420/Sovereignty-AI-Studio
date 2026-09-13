@@ -2,7 +2,7 @@ name: Repository Watchdog
 
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420, fix/ci-dep-health-pqc]
   workflow_dispatch:
 
 permissions:
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
@@ -26,34 +26,58 @@ jobs:
           printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
+
       - name: Checkout exact inspected commit
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - name: Verify workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml)
+          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml Quart.yml dep-health.yml)
+          missing=0
           for required in "${required_workflows[@]}"; do
-            test -f ".github/workflows/$required"
-            printf 'WORKFLOW_PRESENT=%s\n' "$required"
+            if [[ -f ".github/workflows/$required" ]]; then
+              printf 'WORKFLOW_PRESENT=%s\n' "$required"
+            else
+              printf 'WORKFLOW_MISSING=%s\n' "$required"
+              missing=1
+            fi
           done
-      - name: Verify local runner contracts
+          if [[ "$missing" -ne 0 ]]; then
+            echo "SCAR_STATUS=FAIL"
+            echo "SCAR_REASON=required workflow missing"
+            exit 1
+          fi
+          echo "SCAR_STATUS=PASS"
+
+      - name: Verify runner contracts (ubuntu-latest primary)
         shell: bash
         run: |
           set -Eeuo pipefail
-          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml; do
-            if grep -Eq 'runs-on: macos-latest ([[:space:]]|$)' ".github/workflows/$workflow"; then
-              echo "macos-latest contract present in $workflow"
+          for workflow in ci.yml python-ci.yml Quart.yml dep-health.yml; do
+            if grep -Eq 'runs-on:[[:space:]]*ubuntu-latest' ".github/workflows/$workflow"; then
+              echo "ubuntu-latest contract present in $workflow"
+            elif grep -Eq 'runs-on:' ".github/workflows/$workflow"; then
+              echo "WARNING: non-ubuntu runs-on in $workflow (allowed if intentional)"
+              grep -n 'runs-on:' ".github/workflows/$workflow" || true
             else
               echo "WARNING: no explicit runs-on in $workflow"
             fi
           done
+          # ci-sovereign is self-hosted by design
+          if grep -Eq 'self-hosted' ".github/workflows/ci-sovereign.yml"; then
+            echo "ci-sovereign self-hosted contract present (expected)"
+          fi
           echo 'RUNNER_CONTRACTS=PASS'
+          echo "SCAR_JOB=repository-watchdog"
+
       - name: Final watchdog result — visible
         shell: bash
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=PASS\n'
-          printf 'WATCHDOG_RESULT=VISIBLE_LOCAL_RUNNER_CONTRACTS_VERIFIED\n'
+          printf 'WATCHDOG_RESULT=VISIBLE_RUNNER_CONTRACTS_VERIFIED\n'
+          printf 'SCAR_STATUS=PASS\n'
