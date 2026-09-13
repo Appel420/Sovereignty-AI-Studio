@@ -15,7 +15,7 @@ concurrency:
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
@@ -44,8 +44,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml; do
-            if grep -Eq 'runs-on:([[:space:]]|$)' ".github/workflows/$workflow"; then
-              echo "ubuntu-latest contract present in $workflow"
+            if grep -Eq 'runs-on: macos-latest ([[:space:]]|$)' ".github/workflows/$workflow"; then
+              echo "macos-latest contract present in $workflow"
             else
               echo "WARNING: no explicit runs-on in $workflow"
             fi
