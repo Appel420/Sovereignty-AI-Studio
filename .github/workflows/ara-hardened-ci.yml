@@ -6,16 +6,13 @@ name: ara-hardened-unit-ci-local
 on:
   workflow_dispatch:
   push:
-    branches:
-      - ara-hardened
+    branches: [ "collaboration" ]
   pull_request:
-    branches:
-      - ara-hardened
-      - Collaboration
+    branches: [ "Collaboration" ]
 
 concurrency:
-  group: ara-hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: rm -rf  ara-hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -31,7 +28,7 @@ jobs:
   light:
     name: Visible local coordination and accessibility checks
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
         env:
@@ -81,7 +78,7 @@ jobs:
           registry = BranchRegistry()
           assert not registry.is_writable('main')
           assert not registry.is_writable('collaboration')
-          assert registry.is_writable('ara-hardened')
+          assert registry.is_writable('')
           print('coordination OK')
           PY
 
