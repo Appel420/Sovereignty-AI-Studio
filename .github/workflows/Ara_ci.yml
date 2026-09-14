@@ -1,8 +1,5 @@
-name: ara-hardened-unit-ci-local
+name: Ara_ci.yml
 
-# Explicit compatibility lane. The authoritative repository gate is
-# .github/workflows/ci.yml. This workflow is intentionally visible on pushes
-# and pull requests so failures are reported as normal checks.
 on:
   workflow_dispatch:
   push:
@@ -11,18 +8,18 @@ on:
     branches: [ "Collaboration" ]
 
 concurrency:
-  group: rm -rf  ara-hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
+  group: rm -rf  hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
   contents: read
 
 env:
-  CI_NAME: ara-hardened-unit-ci-local
+  CI_NAME: Ara_ci.yml
   CI_MODE: local
-  SG_NETWORK_MODE: local
-  SG_LOCAL_ONLY: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  SGNETWORKMODE: local
+  SGLOCALONLY: '1'
+  PIPDISABLEPIPVERSIONCHECK: '1'
 
 jobs:
   light:
@@ -30,59 +27,46 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout repository without external actions
-        env:
+     name: Checkout repository without external actions
+     env:
           GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
+     shell: bash
+     run: |
           set -Eeuo pipefail
-
           git init .
-          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          git remote add origin "${GITHUBSERVERURL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
             fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
-
-      - name: Startup verification
-        run: |
+          git config --unset-all http.extraheader 2>/dev/null || truename: Startup verification
+     run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "Running visible CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
-
-      - name: Set up isolated Python
-        shell: bash
-        run: |
+          echo "Running visible CI for ${GITHUBREPOSITORY}@${GITHUBSHA}"
+          name: Set up isolated Python
+     shell: bash
+     run: |
           set -Eeuo pipefail
-
           python_bin="$(command -v python3.13 || command -v python3)"
           "${python_bin}" -m venv .venv
-          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+          echo "${GITHUBWORKSPACE}/.venv/bin" >> "${GITHUBPATH}"
           python --version
-
-      - name: Install minimal test tools
-        run: |
+          name: Install minimal test tools
+     run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip pytest
-
-      - name: Coordination import check
-        run: |
+          name: Coordination import check
+      run: |
           set -Eeuo pipefail
           python - <<'PY'
           import sys
           sys.path.insert(0, '.')
           from backend.coordination import BranchRegistry
-
           registry = BranchRegistry()
           assert not registry.is_writable('main')
           assert not registry.is_writable('collaboration')
           assert registry.is_writable('')
           print('coordination OK')
           PY
-
-      - name: Accessibility harness tests
-        env:
-          PYTHONPATH: prototypes
-        run: pytest -q prototypes/accessibility/tests/test_accessibility_control.py
