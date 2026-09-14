@@ -15,7 +15,7 @@ concurrency:
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Watchdog startup — visible
@@ -27,9 +27,17 @@ jobs:
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
       - name: Checkout exact inspected commit
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Verify workflow inventory
         shell: bash
         run: |
@@ -39,21 +47,22 @@ jobs:
             test -f ".github/workflows/$required"
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
           done
-      - name: Verify local runner contracts
+      - name: Verify workflow policy
         shell: bash
         run: |
           set -Eeuo pipefail
-          for workflow in ci.yml ci-sovereign.yml python-ci.yml Quart.yml; do
-            if grep -Eq 'runs-on: macos-latest ([[:space:]]|$)' ".github/workflows/$workflow"; then
-              echo "macos-latest contract present in $workflow"
-            else
-              echo "WARNING: no explicit runs-on in $workflow"
-            fi
-          done
-          echo 'RUNNER_CONTRACTS=PASS'
+          if grep -RInE '^[[:space:]]*uses:[[:space:]]*[^@[:space:]]+@(v[0-9]+|[0-9]+\.[0-9]+\.[0-9]+)$' .github/workflows --include='*.yml' --include='*.yaml'; then
+            echo 'Unpinned GitHub Action reference detected.' >&2
+            exit 1
+          fi
+          if grep -RInE '^[[:space:]]*group:.*(rm[[:space:]]+-rf|git[[:space:]]|bash[[:space:]]|sh[[:space:]])' .github/workflows --include='*.yml' --include='*.yaml'; then
+            echo 'Shell command detected inside concurrency group.' >&2
+            exit 1
+          fi
+          echo 'WORKFLOW_POLICY=PASS'
       - name: Final watchdog result — visible
         shell: bash
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=PASS\n'
-          printf 'WATCHDOG_RESULT=VISIBLE_LOCAL_RUNNER_CONTRACTS_VERIFIED\n'
+          printf 'WATCHDOG_RESULT=VISIBLE_WORKFLOW_POLICY_VERIFIED\n'
