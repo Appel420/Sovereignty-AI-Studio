@@ -9,7 +9,10 @@ permissions:
 jobs:
   conformance:
     name: Sovereign Device Validation (manual)
-    runs-on: [self-hosted, linux arm64]
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 20
     steps:
       - name: Checkout repository
