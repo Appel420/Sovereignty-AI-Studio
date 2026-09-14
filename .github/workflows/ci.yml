@@ -19,23 +19,20 @@ jobs:
     name: Python CI (global)
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    steps: 
+    steps:
       - name: Checkout exact revision
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 1
-          persist-credentials: true
-
-      - name: Verify checkout
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -Eeuo pipefail
-          test -d .git
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          echo "CHECKOUT_OK=true"
-          echo "COMMIT=${GITHUB_SHA}"
-          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
 
       - name: Set up isolated Python environment
         shell: bash
@@ -45,7 +42,17 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
-    
+
+      - name: Install project test dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f pyproject.toml ]]; then
+            python -m pip install --no-cache-dir -e ".[test]" || python -m pip install --no-cache-dir ruff pytest
+          else
+            python -m pip install --no-cache-dir ruff pytest
+          fi
+
       - name: Lint
         shell: bash
         run: |
@@ -64,5 +71,4 @@ jobs:
 
       - name: Coordination import check
         shell: bash
-        run: |
-          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
+        run: python -c "from backend.coordination import branch_registry; print('Coordination import: ok')"
