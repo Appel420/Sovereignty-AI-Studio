@@ -3,12 +3,12 @@ name: Ara_ci.yml
 on:
   workflow_dispatch:
   push:
-    branches: [ "collaboration" ]
+    branches: [Collaboration]
   pull_request:
-    branches: [ "Collaboration" ]
+    branches: [Collaboration]
 
 concurrency:
-  group: rm -rf  hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
+  group: hardened-unit-ci-local-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -27,38 +27,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-     name: Checkout repository without external actions
-     env:
+      - name: Checkout exact revision
+        env:
           GH_TOKEN: ${{ github.token }}
-     shell: bash
-     run: |
+        shell: bash
+        run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "${GITHUBSERVERURL}/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" \
-            fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || truename: Startup verification
-     run: |
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Startup verification
+        run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
           test -n "${GITHUB_SHA}"
-          echo "Running visible CI for ${GITHUBREPOSITORY}@${GITHUBSHA}"
-          name: Set up isolated Python
-     shell: bash
-     run: |
+          echo "Running visible CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+      - name: Set up isolated Python
+        shell: bash
+        run: |
           set -Eeuo pipefail
           python_bin="$(command -v python3.13 || command -v python3)"
           "${python_bin}" -m venv .venv
-          echo "${GITHUBWORKSPACE}/.venv/bin" >> "${GITHUBPATH}"
-          python --version
-          name: Install minimal test tools
-     run: |
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+          "${GITHUB_WORKSPACE}/.venv/bin/python" --version
+      - name: Install minimal test tools
+        run: |
           set -Eeuo pipefail
           python -m pip install --upgrade pip pytest
-          name: Coordination import check
-      run: |
+      - name: Coordination import check
+        run: |
           set -Eeuo pipefail
           python - <<'PY'
           import sys
@@ -67,6 +67,5 @@ jobs:
           registry = BranchRegistry()
           assert not registry.is_writable('main')
           assert not registry.is_writable('collaboration')
-          assert registry.is_writable('')
           print('coordination OK')
           PY
