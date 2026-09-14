@@ -1,4 +1,4 @@
-name: Quart App CI
+name: Quart.yml
 
 on:
   push:
