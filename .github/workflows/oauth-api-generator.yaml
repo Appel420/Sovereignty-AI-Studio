@@ -14,7 +14,6 @@ permissions: {}
 env:
   PYTHONPATH: .:./backend:./src:./prototypes
 
-
 defaults:
   run:
     shell: bash --noprofile --norc -euo pipefail {0}
@@ -27,15 +26,10 @@ jobs:
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
+        uses: actions/checkout@11bd719a4b96800402da201a00e009c66f9b4bf9
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Install canonical repository dependencies
         run: |
           python3 -m pip install --upgrade pip
@@ -71,16 +65,10 @@ jobs:
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+        uses: actions/checkout@11bd719a4b96800402da201a00e009c66f9b4bf9
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Node checks
         run: |
           test -f package.json
@@ -93,16 +81,10 @@ jobs:
     permissions: {contents: read}
     steps:
       - name: Checkout repository
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required for repository checkout}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+        uses: actions/checkout@11bd719a4b96800402da201a00e009c66f9b4bf9
+        with:
+          fetch-depth: 0
+          persist-credentials: false
       - name: Install test dependencies
         run: python3 -m pip install --upgrade pip pytest
       - name: Security policy contract
