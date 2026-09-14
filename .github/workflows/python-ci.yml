@@ -2,13 +2,17 @@ name: Python CI
 
 on:
   push:
-    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
   pull_request:
-    branches: [Collaboration, main]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -16,14 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 1
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: pip
+
       - name: Set up isolated Python environment
         shell: bash
         run: |
@@ -32,6 +33,7 @@ jobs:
           . .venv/bin/activate
           python -m pip install --upgrade pip setuptools wheel
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
       - name: Install project test dependencies
         shell: bash
         run: |
@@ -41,6 +43,7 @@ jobs:
           else
             python -m pip install --no-cache-dir ruff pytest
           fi
+
       - name: Lint
         shell: bash
         run: |
@@ -50,11 +53,16 @@ jobs:
             [[ -e "${directory}" ]] && targets+=("${directory}")
           done
           if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
         shell: bash
-        run: python -m pytest -q
-      - name: Coordination import check
         run: |
-         python -c "from backend.coordination import branch_registry; print('Coordination import: ok')" || echo 'Coordination import skipped (module absent)'
+         python -m pytest -q
+
+      - name: Coordination import check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')" || echo 'Coordination import skipped (module absent)'
