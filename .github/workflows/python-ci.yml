@@ -2,9 +2,9 @@ name: Python CI
 
 on:
   push:
-    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
   pull_request:
-    branches: [Collaboration, main]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
   workflow_dispatch:
 
 permissions:
@@ -18,7 +18,7 @@ jobs:
   test:
     name: Python CI
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -58,7 +58,8 @@ jobs:
         env:
           PYTHONPATH: prototypes:.
         shell: bash
-        run: python -m pytest -q
+        run: |
+         python -m pytest -q
 
       - name: Coordination import check
         shell: bash
