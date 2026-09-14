@@ -2,9 +2,9 @@ name: Quart App CI
 
 on:
   push:
-    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
+    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
   pull_request:
-    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
+    branches: [Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
@@ -19,16 +19,20 @@ jobs:
     name: Quart tests
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout exact revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-          cache: pip
-      - name: Set up isolated Python environment
         shell: bash
         run: |
           set -Eeuo pipefail
