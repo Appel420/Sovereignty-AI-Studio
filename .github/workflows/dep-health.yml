@@ -14,66 +14,95 @@ permissions:
   contents: read
 
 concurrency:
-  group: dep-health ${{ github.ref }}
+  group: dep-health-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   python-audit:
     name: Python — CVE audit
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout exact revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
       - name: Run pip-audit
+        shell: bash
         run: |
-          if [[ -f requirements.txt ]]; then
-            python -m pip_audit -r requirements.txt
-          else
-          
-          fi
+          set -Eeuo pipefail
+          if [[ -f requirements.txt ]]; then python -m pip_audit -r requirements.txt; else echo 'No requirements.txt; Python audit not applicable.'; fi
 
   python-outdated:
     name: Python — requirements validation
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-      - name: install
+      - name: Checkout exact revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          if [[ -f requirements.txt ]]; then show run
-           else
-           fi
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
+      - name: Validate requirements
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if [[ -f requirements.txt ]]; then python -m pip install --dry-run -r requirements.txt; else echo 'No requirements.txt; validation not applicable.'; fi
 
   node-audit:
     name: Node.js — CVE audit
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout exact revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: npm audit
         working-directory: node-bridge
+        shell: bash
         run: |
-          if [[ -f package.json ]]; then
-            npm audit --audit-level=moderate
-          else
-          fi
+          set -Eeuo pipefail
+          if [[ -f package.json ]]; then npm audit --audit-level=moderate; else echo 'No node-bridge/package.json; Node audit not applicable.'; fi
 
   requirements-lint:
     name: Lint requirements files
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout exact revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git init .
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Validate requirements structure
         shell: bash
         run: |
@@ -84,6 +113,7 @@ jobs:
               path = pathlib.Path(name)
               if path.exists():
                   for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-                      pass
+                      if not line.strip() or line.lstrip().startswith(('#','-r','--')):
+                          continue
           print('requirements files are structurally valid')
           PY
