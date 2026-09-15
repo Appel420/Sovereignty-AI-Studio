@@ -1,7 +1,5 @@
-name: CodeQL Scan
-
+name: CodeQL.yml
 on:
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -9,7 +7,7 @@ permissions:
 jobs:
   analyze:
     name: Local Security Gate
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout repository without external actions
