@@ -1,6 +1,7 @@
 name: CodeQL.yml
-on:
 
+on:
+ release:
 permissions:
   contents: read
 
