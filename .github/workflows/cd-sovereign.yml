@@ -49,6 +49,8 @@ jobs:
           python scripts/verify_i008_contract.py
           python -m pytest -q backend/coordination/test_i008_transparency.py tests/test_i008_transparency.py
       - name: Full Python collection gate
-        run: python -m pytest --collect-only -q tests
+        run: 
+         python -m pytest --collect-only -q tests
       - name: Full test suite
-        run: python -m pytest -q tests
+        run: 
+         python -m pytest -q tests
