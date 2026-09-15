@@ -12,10 +12,7 @@ env:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy (manual)
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
+    runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - name: Checkout exact commit
@@ -29,7 +26,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS}" = "true"
-          test "${RUNNER_OS}" = "Linux"
+          test "${RUNNER_OS}" = "macos"
           test "${RUNNER_ARCH}" = "ARM64"
           test "$(uname -m)" = "aarch64"
           python --version
