@@ -17,7 +17,7 @@ concurrency:
 jobs:
   light:
     name: Local coordination and accessibility checks
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
