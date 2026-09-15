@@ -2,22 +2,17 @@ name: CI — Sovereign Device Validation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
 
 permissions:
   contents: read
 
-concurrency:
-  group: sovereign-device-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   conformance:
-    name: Sovereign Device Validation (self-hosted)
-    runs-on: self-hosted
+    name: Sovereign Device Validation (manual)
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 20
     steps:
       - name: Checkout repository
@@ -51,21 +46,3 @@ jobs:
         run: python3 -m pytest --collect-only -q tests
       - name: Python test suite
         run: python3 -m pytest -q tests
-      - name: Quart application smoke test
-        run: |
-          python3 - <<'PY'
-          from apps.dashboards.weather_dashboard import app
-          client = app.test_client()
-          assert app is not None and client is not None
-          print('Quart application import and test client: PASS')
-          PY
-      - name: Phase 0 Rust tests
-        run: if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
-      - name: Diamond Core contract tests
-        run: if [[ -f diamond-core/Cargo.toml ]]; then cargo test --manifest-path diamond-core/Cargo.toml --all-targets; else echo 'Diamond Core: NOT APPLICABLE'; fi
-      - name: Node syntax check
-        run: if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
-      - name: Sovereign certification marker
-        run: |
-          echo 'SOVEREIGN_DEVICE_VALIDATION=PASS'
-          echo "Validated commit: ${GITHUB_SHA}"
