@@ -1,12 +1,12 @@
 name: cd-sovereign.yml
 
-on:
-  workflow_dispatch:
+on: 
+ workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
+env: 
   SOVEREIGN_MLDSA_NATIVE_COMMIT: 783a7b51f3992d6b240cef93b78e5449dfccf200
 
 jobs:
