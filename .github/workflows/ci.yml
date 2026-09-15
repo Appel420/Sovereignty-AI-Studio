@@ -64,7 +64,8 @@ jobs:
         env:
           PYTHONPATH: prototypes:.
         shell: bash
-        run: python -m pytest -q || echo "No tests found or tests skipped"
+        run: |
+         python -m pytest -q
 
       - name: Coordination import check
         shell: bash
