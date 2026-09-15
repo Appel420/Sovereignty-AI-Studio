@@ -2,9 +2,9 @@ name: Dependency Health
 
 on:
   push:
-    branches: [ "Collaboration" ]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   pull_request:
-    branches: [ "Collaboration" ]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   workflow_dispatch:
 
 permissions:
