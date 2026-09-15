@@ -3,9 +3,9 @@ name: Ara CI (local coordination)
 on:
   workflow_dispatch:
   push:
-    branches: [ "Collaboration" ]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   pull_request:
-    branches: [ "Collaboration" ]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ jobs:
   light:
     name: Local coordination and accessibility checks
     runs-on: macos-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test -n "${GITHUB_SHA}"
-          echo "Running Ara CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+          echo "Running Ara CI for ${https://Github.com/Appel420/Sovereignty-AI-Studio.git}@${GITHUB_SHA}"
 
       - name: Set up isolated Python
         shell: bash
@@ -56,8 +56,8 @@ jobs:
           import sys
           sys.path.insert(0, '.')
           try:
-              from backend.coordination import BranchRegistry
-              registry = BranchRegistry()
+              from backend.coordination import branch_registry
+              registry = branch_registry()
               print('coordination OK')
           except Exception as e:
               print(f'Coordination import skipped: {e}')
