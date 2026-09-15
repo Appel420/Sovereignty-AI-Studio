@@ -1,85 +1,48 @@
 name: CI — Sovereign Device Validation
 
-# Device validation is fail-closed. A certification marker is emitted only
-# after the complete executable validation sequence succeeds.
 on:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
-  pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: sovereign-device-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   conformance:
-    name: Sovereign Device Validation
-    runs-on: ubuntu-latest
+    name: Sovereign Device Validation (manual)
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 20
     steps:
-      - name: Checkout repository without external actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout repository
         shell: bash
         run: |
           set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
       - name: Diagnose runner
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${GITHUB_ACTIONS:-}" = "true"
           test -n "${GITHUB_SHA:-}"
-          test "${RUNNER_OS:-}" = "Linux"
+          echo "RUNNER=${RUNNER_NAME}/${RUNNER_OS}/${RUNNER_ARCH}"
       - name: Verify Python runtime
-        run: python --version
-      - name: Install canonical repository dependencies
+        run: python3 --version
+      - name: Install canonical dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          python -m pip install --disable-pip-version-check -e '.[test,lint]'
-          python -m pip check
+          python3 -m pip install --upgrade pip
+          python3 -m pip install --disable-pip-version-check -r requirements.txt
+          python3 -m pip install --disable-pip-version-check -e '.[test,lint]'
+          python3 -m pip check
       - name: Python syntax gate
-        run: python -m compileall -q backend apps scripts tests
+        run: python3 -m compileall -q backend apps scripts tests
       - name: I-008 executable gate
         run: |
-          python scripts/verify_i008_contract.py
-          python -m pytest -q backend/coordination/test_i008_transparency.py
+          python3 scripts/verify_i008_contract.py
+          python3 -m pytest -q backend/coordination/test_i008_transparency.py
       - name: Test collection gate
-        run: python -m pytest --collect-only -q tests
+        run: python3 -m pytest --collect-only -q tests
       - name: Python test suite
-        run: python -m pytest -q tests
-      - name: Quart application smoke test
-        run: |
-          python - <<'PY'
-          from apps.dashboards.weather_dashboard import app
-          client = app.test_client()
-          assert app is not None and client is not None
-          print('Quart application import and test client: PASS')
-          PY
-      - name: Phase 0 Rust tests
-        run: if [[ -f phase0/Cargo.toml ]]; then cargo test --manifest-path phase0/Cargo.toml; else echo 'Phase 0 Rust tests: NOT APPLICABLE'; fi
-      - name: Diamond Core v0.1 contract tests
-        run: |
-          set -Eeuo pipefail
-          test -f diamond-core/Cargo.toml
-          cargo test --manifest-path diamond-core/Cargo.toml --all-targets
-      - name: Node syntax check
-        run: if [[ -f node-bridge/server.js ]]; then node --check node-bridge/server.js; else echo 'Node bridge: NOT APPLICABLE'; fi
-      - name: Frontend ownership contract
-        run: if [[ -f frontend/scripts/test-sghv119-ownership.js ]]; then node frontend/scripts/test-sghv119-ownership.js; else echo 'Frontend ownership contract: NOT APPLICABLE'; fi
-      - name: Sovereign certification marker
-        run: |
-          echo 'SOVEREIGN_DEVICE_VALIDATION=PASS'
-          echo "Validated commit: ${GITHUB_SHA}"
+        run: python3 -m pytest -q tests

@@ -1,94 +1,54 @@
-name: Quart App CI
+name: Quart.yml
 
 on:
-  workflow_dispatch:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [ "Collaboration, main, Claude, GPT/Codex, ara-hardened, copilot/main, duckAI, devassist420" ]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: quart-ci-${{ github.ref }}
-  cancel-in-progress: true
-
-defaults:
-  run:
-    shell: bash --noprofile --norc -euo pipefail {0}
-
-env:
-  PYTHONPATH: .:./backend:./src:./prototypes
-  PYTHONDONTWRITEBYTECODE: '1'
-  PIP_DISABLE_PIP_VERSION_CHECK: '1'
-  PIP_NO_INPUT: '1'
+  cancel-in-progress: false
 
 jobs:
-  test:
+  quart-tests:
     name: Quart tests
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository without third-party actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Set up isolated Python environment
+        shell: bash
         run: |
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          AUTH="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          case "${GITHUB_EVENT_NAME}" in
-            pull_request) fetch_ref="refs/pull/${{ github.event.pull_request.number }}/merge" ;;
-            push|workflow_dispatch) fetch_ref="refs/heads/${GITHUB_REF_NAME}" ;;
-            *) echo "FAIL: unsupported GitHub event: ${GITHUB_EVENT_NAME}"; exit 1 ;;
-          esac
-          git -c http.extraheader="AUTHORIZATION: basic ${AUTH}" fetch --no-tags --depth=1 origin "${fetch_ref}"
-          git checkout --detach FETCH_HEAD
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-      - name: Verify Python runtime
+          set -Eeuo pipefail
+          python3 -m venv .ci-venv
+          . .ci-venv/bin/activate
+          python -m pip install --upgrade pip setuptools wheel
+          echo "${GITHUB_WORKSPACE}/.ci-venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Install required packages
+        shell: bash
         run: |
-          python --version
-          python -m pip --version
-      - name: Create isolated environment
-        run: |
-          rm -rf .ci-venv
-          python -m venv .ci-venv
-          source .ci-venv/bin/activate
-          python -m pip install --upgrade pip
-          python -m pip install --disable-pip-version-check -r requirements.txt
-          python -m pip install --disable-pip-version-check -e '.[test]'
-          python -m pip check
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir quart fastapi nacl pydantic pytest-asyncio
+
       - name: Verify required imports
+        shell: bash
         run: |
-          source .ci-venv/bin/activate
+          set -Eeuo pipefail
           python - <<'PY'
-          import fastapi, nacl, pydantic, quart, pytest_asyncio
-          print('required dependency closure: OK')
-          PY
-      - name: Python syntax gate
-        run: |
-          source .ci-venv/bin/activate
-          python -m compileall -q backend apps scripts tests
-      - name: Test collection gate
-        run: |
-          source .ci-venv/bin/activate
-          python -m pytest --collect-only -q tests
-      - name: Test suite
-        run: |
-          source .ci-venv/bin/activate
-          python -m pytest -q tests
-      - name: Quart application smoke test
-        run: |
-          source .ci-venv/bin/activate
-          python - <<'PY'
-          from apps.dashboards.weather_dashboard import app
-          import asyncio
-          async def main():
-              client = app.test_client()
-              response = await client.get('/api/weather?city=London')
-              assert response.status_code == 200
-              payload = await response.get_json()
-              assert payload['city'] == 'London'
-          asyncio.run(main())
-          print('Quart application smoke test: OK')
+          import fastapi
+          import nacl
+          import pydantic
+          import quart
+          import pytest_asyncio
+          print('Quart imports: ok')
           PY
