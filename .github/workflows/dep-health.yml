@@ -26,6 +26,7 @@ jobs:
       - name: Install pip-audit
         run: python3 -m pip install --upgrade pip pip-audit
       - name: Run pip-audit
+        shell: bash
         run: |
           if [[ -f requirements.txt ]]; then
             python3 -m pip_audit -r requirements.txt || true
@@ -43,6 +44,7 @@ jobs:
           fetch-depth: 1
       - name: npm audit
         working-directory: node-bridge
+        shell: bash
         run: |
           if [[ -f package.json ]]; then
             npm audit --audit-level=moderate || true
@@ -68,6 +70,7 @@ jobs:
               path = pathlib.Path(name)
               if path.exists():
                   for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
-                      pass
+                      if not line.strip() or line.lstrip().startswith(('#','-r','--')):
+                          continue
           print('requirements files are structurally valid')
           PY

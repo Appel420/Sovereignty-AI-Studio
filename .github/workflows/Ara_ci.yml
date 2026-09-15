@@ -3,9 +3,9 @@ name: Ara CI (local coordination)
 on:
   workflow_dispatch:
   push:
-    branches: [Collaboration, ara-hardened]
+    branches: [ "Collaboration" ]
   pull_request:
-    branches: [Collaboration]
+    branches: [ "Collaboration" ]
 
 permissions:
   contents: read
