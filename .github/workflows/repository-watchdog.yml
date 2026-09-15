@@ -18,7 +18,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - name: Watchdog startup — visible
+      - name: Watchdog startup — (visible)
         shell: bash
         run: |
           set -Eeuo pipefail
