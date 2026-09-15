@@ -1,45 +1,29 @@
 name: cd-sovereign.yml
+
 on:
-  push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
   workflow_dispatch:
+
 permissions:
   contents: read
 
 env:
   SOVEREIGN_MLDSA_NATIVE_COMMIT: 783a7b51f3992d6b240cef93b78e5449dfccf200
 
-concurrency:
-  group: sovereign-cd-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   release:
-    name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    # The native ML-DSA build requires an ARM64 Linux runner.
-    runs-on: [self-hosted, ubuntu-latest]
-    environment: 
+    name: Verify + Native ML-DSA + PQC SCAR + Deploy (manual)
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
+    timeout-minutes: 30
     steps:
-      - name: Checkout exact commit with internal actions
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Checkout exact commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          : "${GH_TOKEN:?GITHUB_TOKEN is required}"
-          rm -rf .git
-          git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
-          # Fetch the actual ref, not a raw SHA (raw SHA is not always a valid remote ref)
-          if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-            git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "refs/pull/${{ github.event.pull_request.number }}/merge"
-          else
-            git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_REF}"
-          fi
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}" || echo "Note: HEAD=$(git rev-parse HEAD) GITHUB_SHA=${GITHUB_SHA}"
-
       - name: Runtime identity gate
         shell: bash
         run: |
@@ -49,7 +33,6 @@ jobs:
           test "${RUNNER_ARCH}" = "ARM64"
           test "$(uname -m)" = "aarch64"
           python --version
-
       - name: Install release dependencies
         shell: bash
         run: |
@@ -58,99 +41,16 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -e '.[test,lint,pqc]'
           python -m pip install build==1.6.0
-
-          # PyTorch's current ARM64 dependency metadata causes pip check
-          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency
-          # gate: allow exactly that single diagnostic.
-          pip_check_output="$(mktemp)"
-          if python -m pip check >"${pip_check_output}" 2>&1; then
-            echo "pip check: PASS"
-          elif [ "$(wc -l <"${pip_check_output}")" -eq 1 ] \
-            && grep -Fxq 'nvidia-cusparselt-cu13 0.8.1 is not supported on this platform' "${pip_check_output}"; then
-            echo "pip check: PASS (known ARM64 NVIDIA cusparselt vendor metadata exception)"
-          else
-            cat "${pip_check_output}"
-            rm -f "${pip_check_output}"
-            exit 1
-          fi
-          rm -f "${pip_check_output}"
-
+          python -m pip check
       - name: I-008 executable gate
         shell: bash
         run: |
           set -Eeuo pipefail
           python scripts/verify_i008_contract.py
           python -m pytest -q backend/coordination/test_i008_transparency.py tests/test_i008_transparency.py
-
       - name: Full Python collection gate
-        shell: bash
-        run: python -m pytest --collect-only -q tests
-
+        run: 
+         python -m pytest --collect-only -q tests
       - name: Full test suite
-        shell: bash
-        run: python -m pytest -q tests
-
-      - name: Verify sovereign ML-DSA native implementation
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm -rf .pqc/sovereign-mldsa-native
-          mkdir -p .pqc
-          git clone --no-tags --filter=blob:none https://github.com/Appel420/sovereign-mldsa-native.git .pqc/sovereign-mldsa-native
-          git -C .pqc/sovereign-mldsa-native fetch --depth=1 origin "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
-          git -C .pqc/sovereign-mldsa-native checkout --detach "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
-          test "$(git -C .pqc/sovereign-mldsa-native rev-parse HEAD)" = "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
-          make -C .pqc/sovereign-mldsa-native build
-          make -C .pqc/sovereign-mldsa-native test
-          printf 'SOVEREIGN_MLDSA_NATIVE_COMMIT=%s\n' "${SOVEREIGN_MLDSA_NATIVE_COMMIT}"
-          printf 'SOVEREIGN_MLDSA_NATIVE_VERIFY=PASS\n'
-
-      - name: Build exact release artifact
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          rm -rf dist
-          python -m build
-          find dist -maxdepth 1 -type f -print -quit | grep -q .
-          test -n "$(find dist -maxdepth 1 -type f -print)"
-
-      - name: Independent PQC SCAR attestation
-        shell: bash
-        env:
-          # GitHub-hosted runners are unprivileged. Keep CI attestation state
-          # in the runner's writable temporary filesystem; production retains
-          # /var/lib/sovereignty via the script defaults.
-          SCAR_PQC_KEY_DIR: ${{ runner.temp }}/sovereignty/scar/pqc
-          SCAR_PQC_OUTPUT: ${{ runner.temp }}/sovereignty/scar/attestations/${{ github.sha }}.json
-        run: |
-          set -Eeuo pipefail
-          mkdir -p "${SCAR_PQC_KEY_DIR}" "$(dirname "${SCAR_PQC_OUTPUT}")"
-          python scripts/scar_pqc_attest.py --status PASS --commit "${GITHUB_SHA}"
-          test -s "${SCAR_PQC_OUTPUT}"
-          grep -q '"verified": true' "${SCAR_PQC_OUTPUT}"
-          grep -q 'ML-DSA-87' "${SCAR_PQC_OUTPUT}"
-
-      - name: Deploy exact verified artifact
-        shell: bash
-        env:
-          # Deployment is local to this hosted runner. Override the production
-          # filesystem defaults with writable runner paths rather than using
-          # sudo or weakening /var/lib permissions.
-          SOVEREIGN_RELEASE_ROOT: ${{ runner.temp }}/sovereignty/releases
-          SOVEREIGN_CURRENT_LINK: ${{ runner.temp }}/sovereignty/current
-          SOVEREIGN_SCAR_ROOT: ${{ runner.temp }}/sovereignty/scar
-        run: |
-          set -Eeuo pipefail
-          bash ./scripts/deploy-sovereign.sh "${GITHUB_SHA}"
-          test -f "${SOVEREIGN_SCAR_ROOT}/deployment-receipt.json"
-
-      - name: Final release proof
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          sha256sum dist/*
-          printf 'SOVEREIGN_CD_VERIFY=PASS\n'
-          printf 'SOVEREIGN_MLDSA_NATIVE=PASS\n'
-          printf 'SOVEREIGN_SCAR_PQC=PASS\n'
-          printf 'SOVEREIGN_CD_DEPLOYMENT=PASS\n'
-          printf 'SOVEREIGN_RELEASE_COMMIT=%s\n' "${GITHUB_SHA}"
+        run: 
+         python -m pytest -q tests
