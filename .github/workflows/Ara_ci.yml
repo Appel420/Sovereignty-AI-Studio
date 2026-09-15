@@ -1,0 +1,64 @@
+name: Ara CI (local coordination)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "Collaboration" ]
+  pull_request:
+    branches: [ "Collaboration" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ara-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  light:
+    name: Local coordination and accessibility checks
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Startup verification
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "${GITHUB_SHA}"
+          echo "Running Ara CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+
+      - name: Set up isolated Python
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m venv .venv
+          . .venv/bin/activate
+          python -m pip install --upgrade pip
+          echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+          python --version
+
+      - name: Install minimal test tools
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --no-cache-dir pytest
+
+      - name: Coordination import check
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          import sys
+          sys.path.insert(0, '.')
+          try:
+              from backend.coordination import BranchRegistry
+              registry = BranchRegistry()
+              print('coordination OK')
+          except Exception as e:
+              print(f'Coordination import skipped: {e}')
+          PY

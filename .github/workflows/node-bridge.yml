@@ -12,7 +12,10 @@ permissions:
 jobs:
   test:
     name: Node Bridge tests (manual)
-    runs-on: [self-hosted, linux arm64]
+    runs-on:
+      - self-hosted
+      - Linux
+      - ARM64
     timeout-minutes: 15
     steps:
       - name: Checkout repository without external actions
@@ -22,8 +25,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           git init .
-          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
-          auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 -w0)"
+          git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
           git config --unset-all http.extraheader 2>/dev/null || true

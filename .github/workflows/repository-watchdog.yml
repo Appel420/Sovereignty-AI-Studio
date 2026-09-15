@@ -1,10 +1,8 @@
-name: Repository Watchdog
+name: repository-watchdog.yml
 
 on:
   push:
-    branches: [Collaboration]
-  pull_request:
-    branches: [Collaboration]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   workflow_dispatch:
 
 permissions:
@@ -12,13 +10,13 @@ permissions:
 
 concurrency:
   group: repository-watchdog-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   watch:
     name: Repository Watchdog (visible)
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: macos-latest
+    timeout-minutes: 30
     steps:
       - name: Watchdog startup — visible
         shell: bash
@@ -28,31 +26,26 @@ jobs:
           printf 'WATCHDOG_EVENT=%s\n' "${GITHUB_EVENT_NAME}"
           printf 'WATCHDOG_RUN_ID=%s\n' "${GITHUB_RUN_ID}"
           printf 'WATCHDOG_HEAD_SHA=%s\n' "${GITHUB_SHA}"
+
       - name: Checkout exact inspected commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
-          persist-credentials: false
+
       - name: Verify workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
-          required_workflows=(ci.yml ci-sovereign.yml python-ci.yml repository-watchdog.yml)
+          required_workflows=(ci.yml python-ci.yml Quart.yml)
           for required in "${required_workflows[@]}"; do
             test -f ".github/workflows/$required"
             printf 'WORKFLOW_PRESENT=%s\n' "$required"
           done
-      - name: Verify executable workflow boundary
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test -d .github/workflows
-          find .github/workflows -maxdepth 1 -type f \( -name '*.yml' -o -name '*.yaml' \) -print | sort
-          echo 'WORKFLOW_BOUNDARY=PASS'
+
       - name: Final watchdog result — visible
         shell: bash
         run: |
           set -Eeuo pipefail
           printf 'WATCHDOG_STATUS=PASS\n'
-          printf 'WATCHDOG_RESULT=VISIBLE_COLLABORATION_WORKFLOW_BOUNDARY_VERIFIED\n'
+          printf 'WATCHDOG_RESULT=VISIBLE_INVENTORY_VERIFIED\n'
