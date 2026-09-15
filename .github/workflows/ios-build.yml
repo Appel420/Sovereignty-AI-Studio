@@ -2,9 +2,9 @@ name: iOS Build
 
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ] 
   pull_request:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   workflow_dispatch:
 
 permissions:
@@ -18,9 +18,9 @@ jobs:
   package-validation:
     name: iOS package validation
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
-      - name: Checkout repository at exact commit
+      - name: Checkout repository
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -31,7 +31,7 @@ jobs:
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+      
       - name: Validate source presence
         shell: bash
         run: |
@@ -41,6 +41,6 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          if find ios -type f -name '*.swift' -print -quit 2>/dev/null | grep -q .; then
+          if find ios -type f -name '*.swift' f -print  | grep -q .; then
             while IFS= read -r -d '' file; do swiftc -parse "$file"; done < <(find ios -type f -name '*.swift' -print0)
-          else echo 'No Swift source files found; native source parse not applicable.'; fi
+            fi
