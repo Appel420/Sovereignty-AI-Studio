@@ -12,10 +12,7 @@ env:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy (manual)
-    runs-on:
-      - self-hosted
-      - Linux
-      - ARM64
+    runs-on: macos-latest
     timeout-minutes: 30
     steps:
       - name: Checkout exact commit
