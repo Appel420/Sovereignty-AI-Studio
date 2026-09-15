@@ -1,7 +1,7 @@
 name: cd-sovereign.yml
 on:
   push:
-    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+    branches: [ "main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420" ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,8 +16,7 @@ concurrency:
 jobs:
   release:
     name: Verify + Native ML-DSA + PQC SCAR + Deploy
-    # The native ML-DSA build requires an ARM64 Linux runner.
-    runs-on: [self-hosted, ubuntu-latest]
+    runs-on: macos-latest
     environment: 
     steps:
       - name: Checkout exact commit with internal actions
@@ -58,16 +57,12 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -e '.[test,lint,pqc]'
           python -m pip install build==1.6.0
-
-          # PyTorch's current ARM64 dependency metadata causes pip check
-          # to report one known vendor-wheel platform-tag mismatch. Do not weaken the dependency
-          # gate: allow exactly that single diagnostic.
           pip_check_output="$(mktemp)"
           if python -m pip check >"${pip_check_output}" 2>&1; then
             echo "pip check: PASS"
           elif [ "$(wc -l <"${pip_check_output}")" -eq 1 ] \
             && grep -Fxq 'nvidia-cusparselt-cu13 0.8.1 is not supported on this platform' "${pip_check_output}"; then
-            echo "pip check: PASS (known ARM64 NVIDIA cusparselt vendor metadata exception)"
+  
           else
             cat "${pip_check_output}"
             rm -f "${pip_check_output}"
@@ -111,15 +106,12 @@ jobs:
           set -Eeuo pipefail
           rm -rf dist
           python -m build
-          find dist -maxdepth 1 -type f -print -quit | grep -q .
+          find dist -maxdepth 1 -type f -print
           test -n "$(find dist -maxdepth 1 -type f -print)"
 
       - name: Independent PQC SCAR attestation
         shell: bash
         env:
-          # GitHub-hosted runners are unprivileged. Keep CI attestation state
-          # in the runner's writable temporary filesystem; production retains
-          # /var/lib/sovereignty via the script defaults.
           SCAR_PQC_KEY_DIR: ${{ runner.temp }}/sovereignty/scar/pqc
           SCAR_PQC_OUTPUT: ${{ runner.temp }}/sovereignty/scar/attestations/${{ github.sha }}.json
         run: |
@@ -133,9 +125,7 @@ jobs:
       - name: Deploy exact verified artifact
         shell: bash
         env:
-          # Deployment is local to this hosted runner. Override the production
-          # filesystem defaults with writable runner paths rather than using
-          # sudo or weakening /var/lib permissions.
+    
           SOVEREIGN_RELEASE_ROOT: ${{ runner.temp }}/sovereignty/releases
           SOVEREIGN_CURRENT_LINK: ${{ runner.temp }}/sovereignty/current
           SOVEREIGN_SCAR_ROOT: ${{ runner.temp }}/sovereignty/scar
