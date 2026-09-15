@@ -34,8 +34,7 @@ jobs:
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+          git checkout  --detach FETCH_HEAD
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           echo "CHECKOUT_OK=true"
           echo "COMMIT=${GITHUB_SHA}"
@@ -60,10 +59,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           targets=()
-          for directory in backend/coordination prototypes/accessibility; do
+          for directory in "backend/coordination" "prototypes/accessibility";do
             [[ -e "${directory}" ]] && targets+=("${directory}")
           done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; 
+          fi
 
       - name: Run tests
         env:
@@ -76,4 +76,4 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -c "from backend.coordination import branch_registry; print('Coordination import: ok')" || echo 'Coordination import skipped (module absent)'
+          python -c "from backend.coordination import branch_registry"
