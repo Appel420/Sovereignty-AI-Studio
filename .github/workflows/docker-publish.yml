@@ -2,7 +2,7 @@ name: Docker
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [ "Collaboration" ]
     paths:
       - 'Dockerfile'
       - 'docker-compose.yml'
@@ -26,8 +26,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  # GHCR requires the image repository name to be lowercase
+  REGISTRY: self-hosted runner
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
@@ -41,7 +40,7 @@ concurrency:
 jobs:
   build:
     name: Docker build and contract gate
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, macos, arm64']
     timeout-minutes: 20
     steps:
       - name: Checkout repository at exact commit
