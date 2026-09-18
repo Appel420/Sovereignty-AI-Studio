@@ -2,6 +2,10 @@ name: Pylint
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
+  pull_request:
+    branches: [main, Claude, GPT/Codex, ara-hardened, copilot/main, Collaboration, duckAI, devassist420]
 
 concurrency:
   group: pylint-${{ github.ref }}
@@ -12,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    name: Pylint (manual)
+    name: Pylint (always visible)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
