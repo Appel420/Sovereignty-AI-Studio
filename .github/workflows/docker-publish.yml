@@ -2,7 +2,7 @@ name: Docker
 
 on:
   push:
-    branches: [Collaboration]
+    branches: [ "Collaboration" ]
     paths:
       - 'Dockerfile'
       - 'docker-compose.yml'
@@ -26,8 +26,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  # GHCR requires the image repository name to be lowercase
+  REGISTRY: hybrid runner
   IMAGE_NAME: ${{ github.repository }}
 
 permissions:
@@ -41,7 +40,7 @@ concurrency:
 jobs:
   build:
     name: Docker build and contract gate
-    runs-on: ubuntu-latest
+    runs-on: ['self-hosted, macos, arm64']
     timeout-minutes: 20
     steps:
       - name: Checkout repository at exact commit
@@ -53,9 +52,9 @@ jobs:
           git init .
           git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 | tr -d '\n')"
-          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --depth=1 origin "${GITHUB_SHA}"
           git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+        
 
       - name: Normalize image name to lowercase
         shell: bash
@@ -118,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          docker compose --profile production --profile keycloak config --quiet
+          docker compose --profile production --profile keycloak config 
 
       - name: Build image
         shell: bash
