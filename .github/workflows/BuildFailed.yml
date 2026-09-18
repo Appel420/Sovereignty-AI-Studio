@@ -1,0 +1,19 @@
+name: Ghost Buster Probe
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/BuildFailed.yml'
+
+jobs:
+  probe:
+    name: Reclaim ghost path
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Echo reclaim
+        run: |
+          echo "Reclaiming BuildFailed path for registry reindex"
+          echo "If this job starts, the ghost registration is broken."
