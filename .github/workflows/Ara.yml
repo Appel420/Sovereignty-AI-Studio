@@ -21,8 +21,8 @@ jobs:
           git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
           auth="$(printf 'x-access-token:%s' "${GH_TOKEN}" | base64 | tr -d '\n')"
           git -c http.extraheader="AUTHORIZATION: basic ${auth}" fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
-          git checkout --detach FETCH_HEAD
-          git config --unset-all http.extraheader 2>/dev/null || true
+          git checkout FETCH_HEAD
+          
       - name: Verify runner
         run: test "${RUNNER_OS}" = "Linux"
       - name: Validate first-party Python syntax
