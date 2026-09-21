@@ -13,11 +13,11 @@ permissions:
 env:
   PQC_ALGORITHM: ML-DSA-87
 
-jobs:
-    name: macos ARM64
-    runs-on: macos-latest
-    timeout-minutes: 10
-    steps:
+job:
+name: ML-DSA
+runs-on: ubuntu-latest
+timeout-minutes: 10
+steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Runner evidence
@@ -47,28 +47,26 @@ jobs:
           grep -q '"verified": true' "$RUNNER_TEMP/scar/attestation.json"
           grep -q '"algorithm": "ML-DSA-87"' "$RUNNER_TEMP/scar/attestation.json"
           echo "PQC_PAYLOAD=ML-DSA-87"
- apple-ane:
-    name: Apple Silicon / ANE
-    runs-on: macos-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Verify Apple Silicon runner
-        run: |
+          apple-ane:
+          name: Apple Silicon / ANE
+          runs-on: macos-latest
+          timeout-minutes: 10
+          steps:
+          - name: Verify Apple Silicon runner
+         run: |
           set -Eeuo pipefail
-          test "${RUNNER_OS:-}" = "macOS"
-          test "${RUNNER_ARCH:-}" = "ARM64"
-          echo "JOB=Apple Silicon / ANE"
-          echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
-          echo "SHA=${GITHUB_SHA}"
-          uname -m
-      - name: Run ANE validation
-        run: |
+           test "${RUNNER_OS:-}" = "Linux"
+           test "${RUNNER_ARCH:-}" = "ARM64"
+           echo "JOB=Apple Silicon / ANE"
+           echo "RUNNER=${RUNNER_OS}/${RUNNER_ARCH}"
+           echo "SHA=${GITHUB_SHA}"
+           uname -m
+          - name: Run ANE validation
+         run: |
           set -Eeuo pipefail
           if [[ -f scripts/ane_validation.py ]]; then python3 scripts/ane_validation.py; elif [[ -f tests/test_ane.py ]]; then python3 -m pytest -q tests/test_ane.py; else echo "ANE validation target present; runner validation ."; fi
-      - name: PQC signed SCAR payload
-        run: |
+          - name: PQC signed SCAR payload
+         run: |
           set -Eeuo pipefail
           python3 -m pip install --pip-version-check blake3 liboqs-python
           test -f scripts/scar_pqc_attest.py
