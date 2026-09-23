@@ -17,7 +17,7 @@ concurrency:
 jobs:
   test:
     name: Python CI
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -39,9 +39,9 @@ jobs:
         run: |
           set -Eeuo pipefail
           if [[ -f pyproject.toml ]]; then
-            python -m pip install --no-cache-dir -e ".[test]" || python -m pip install --no-cache-dir ruff pytest
+            python -m pip install -e ".[test]" || python -m pip install ruff pytest
           else
-            python -m pip install --no-cache-dir ruff pytest
+            python -m pip install ruff pytest
           fi
 
       - name: Lint
@@ -52,13 +52,18 @@ jobs:
           for directory in backend/coordination prototypes/accessibility; do
             [[ -e "${directory}" ]] && targets+=("${directory}")
           done
-          if (( ${#targets[@]} )); then ruff check "${targets[@]}"; else ruff check .; fi
+          if (( ${#targets[@]} )); then
+            ruff check "${targets[@]}"
+          else
+            ruff check .
+          fi
 
       - name: Run tests
         env:
           PYTHONPATH: prototypes:.
         shell: bash
         run: |
+          set -Eeuo pipefail
           python -m pytest -q
 
       - name: Coordination import check
