@@ -17,48 +17,73 @@ concurrency:
 jobs:
   light:
     name: Local coordination and accessibility checks
-    runs-on: ubuntu-latest ubuntu-26
-    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 1
+      - name: Checkout repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+
+          git init "${GITHUB_WORKSPACE}"
+          cd "${GITHUB_WORKSPACE}"
+
+          git remote add origin \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git fetch --no-tags --depth=1 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+          git status --short --branch
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
 
       - name: Startup verification
         shell: bash
         run: |
           set -Eeuo pipefail
+
           test -n "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
           echo "Running Ara CI for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
 
       - name: Set up isolated Python
         shell: bash
         run: |
           set -Eeuo pipefail
+
           python3 -m venv .venv
-          . .venv/bin/activate
-          python -m pip install --upgrade pip
           echo "${GITHUB_WORKSPACE}/.venv/bin" >> "${GITHUB_PATH}"
+
+          . .venv/bin/activate
           python --version
+          python -m pip --version
 
       - name: Install minimal test tools
         shell: bash
         run: |
           set -Eeuo pipefail
-          python -m pip install --no-cache-dir pytest
+
+          python -m pip install --upgrade pip
+          python -m pip install pytest
 
       - name: Coordination import check
         shell: bash
         run: |
           set -Eeuo pipefail
+
           python - <<'PY'
           import sys
-          sys.path.insert(0, '.')
-          try:
-              from backend.coordination import Branch-Registry
-              registry = Branch-Registry()
-              print('coordination OK')
-          except Exception as e:
-              print(f'Coordination import: {e}')
+
+          sys.path.insert(0, ".")
+
+          from backend.coordination import BranchRegistry
+
+          registry = BranchRegistry()
+
+          print("coordination OK")
+          print(f"BranchRegistry: {registry!r}")
           PY
